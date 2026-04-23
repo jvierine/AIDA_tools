@@ -1,12 +1,9 @@
 # AIDA_tools
 
-Copyright (c) 1998-present, primarily Björn Gustavsson and contributors.
-
-`AIDA_tools` is a MATLAB toolbox for auroral and night-sky image analysis. It includes scientific-grade camera calibration, skymap/ephemeris support, image preprocessing, image mapping and projection tools, stereoscopic triangulation, tomography, spectral calibration, FITS and other image I/O helpers, ALIS and ASK analysis utilities, WGS-84/EARTH helpers, and related geometry/inversion tools.
-
-Painstakingly written over the course of 28+ years, starting in 1998 and mostly by Björn Gustavsson, 
+Copyright (c) 1998-present, painstakingly written over the course of 28+ years, starting in 1998 and mostly by Björn Gustavsson, 
 who has spent more time thinking about geometric calibration than he probably should have.
-It provides scientific-grade geometric camera calibration together with a broad set of supporting analysis tools. The package also includes access to the Pulkovo spectrophotometric catalogue through the skymap/spectral-calibration toolchain.
+
+`AIDA_tools` is a MATLAB toolbox for auroral and night-sky image analysis. It includes scientific-grade camera calibration, skymap/ephemeris support, image preprocessing, image mapping and projection tools, stereoscopic triangulation, tomography, spectral calibration,  Pulkovo spectrophotometric catalogue, FITS and other image I/O helpers, ALIS and ASK analysis utilities, WGS-84/EARTH helpers, and related geometry/inversion tools. 
 
 This repository is a git-based copy of the toolbox with the most common temporary editor files excluded.
 
