@@ -142,32 +142,6 @@ print(az.shape, ze.shape)
 print(az_deg[0, 0], el_deg[0, 0])
 ```
 
-If you want a flat table with one row per pixel and elevation instead of zenith:
-
-```matlab
-SkMp = starcal(fname, PO);
-
-[u, v] = meshgrid(1:size(SkMp.img, 2), 1:size(SkMp.img, 1));
-[az, ze] = inv_project_directions(u(:)', v(:)', ...
-                                  SkMp.img, ...
-                                  [0 0 0], ...
-                                  SkMp.optmod, SkMp.optpar, ...
-                                  [0 0 1], 1, eye(3));
-
-elevation = pi/2 - ze;
-
-pixel_table = table(u(:), v(:), ...
-                    az(:) * 180/pi, ...
-                    ze(:) * 180/pi, ...
-                    elevation(:) * 180/pi, ...
-                    'VariableNames', {'x_pixel','y_pixel','az_deg','ze_deg','el_deg'});
-
-writetable(pixel_table, 'pixel_azimuth_elevation.csv');
-```
-
-This produces a CSV table with one row per pixel, suitable for downstream
-analysis or for importing into other software.
-
 ## How To Adapt The Example
 
 - Replace the image directory in `dir(...)` with your own data location.
