@@ -1,5 +1,7 @@
 # AIDA_tools
 
+Copyright (c) 1998-present, primarily Bjorn Gustavsson and contributors.
+
 `AIDA_tools` is a MATLAB toolbox for auroral and night-sky image analysis. It includes camera and geometry utilities, star-based calibration tools, image preprocessing, skymap support, tomography utilities, spectral calibration, and related analysis helpers.
 
 Painstakingly written over the course of 28+ years, starting in 1998 and mostly by Bjorn Gustavsson, 
@@ -12,6 +14,7 @@ This repository is a git-based copy of the toolbox with the most common temporar
 
 - Camera calibration and image handling tools
 - `starcal` for geometric calibration using stars
+- Scientific-grade per-pixel line-of-sight geometry
 - Preprocessing through `inimg` and `typical_pre_proc_ops`
 - Skymap and star ephemeris support
 - Aurora, tomography, inversion, and spectral calibration modules
@@ -94,6 +97,48 @@ colorbar
 SkMp = starcal(fname, PO);
 ```
 
+## Export Pixel Azimuth And Elevation
+
+One of the main reasons to run `starcal` is to obtain the line-of-sight
+geometry for every camera pixel. The documentation in `Documentation/starcal.html`
+and the built-in helper `Starcal/save_azze.m` both point to the same workflow:
+first calibrate the camera, then convert every pixel to azimuth/zenith.
+
+If you just want the built-in MATLAB save file with per-pixel azimuth and zenith:
+
+```matlab
+SkMp = starcal(fname, PO);
+save_azze(SkMp)
+```
+
+That writes a `.mat` file containing `az`, `ze`, and `obs`.
+
+If you want a flat table with one row per pixel and elevation instead of zenith:
+
+```matlab
+SkMp = starcal(fname, PO);
+
+[u, v] = meshgrid(1:size(SkMp.img, 2), 1:size(SkMp.img, 1));
+[az, ze] = inv_project_directions(u(:)', v(:)', ...
+                                  SkMp.img, ...
+                                  [0 0 0], ...
+                                  SkMp.optmod, SkMp.optpar, ...
+                                  [0 0 1], 1, eye(3));
+
+elevation = pi/2 - ze;
+
+pixel_table = table(u(:), v(:), ...
+                    az(:) * 180/pi, ...
+                    ze(:) * 180/pi, ...
+                    elevation(:) * 180/pi, ...
+                    'VariableNames', {'x_pixel','y_pixel','az_deg','ze_deg','el_deg'});
+
+writetable(pixel_table, 'pixel_azimuth_elevation.csv');
+```
+
+This produces a CSV table with one row per pixel, suitable for downstream
+analysis or for importing into other software.
+
 ## How To Adapt The Example
 
 - Replace the image directory in `dir(...)` with your own data location.
@@ -110,7 +155,8 @@ SkMp = starcal(fname, PO);
 ## More Documentation
 
 - Older installation notes remain in `README`.
-- Additional HTML documentation is available under `Documentation/`, `Html-docs/`, and related folders in the repository.
+- The human-written HTML documentation lives in [`Documentation/`](Documentation/), with a main entry point at [`Documentation/index.html`](Documentation/index.html).
+- Generated source-code documentation is available under [`Html-docs/`](Html-docs/).
 
 ## Typical First Session
 
@@ -121,7 +167,3 @@ edit Examples/AIDA_starcal_example.m
 ```
 
 Run the example section by section, replace the example image path with your own data, and then launch `starcal` on a representative frame.
-
-## Copyright
-
-Copyright (c) 1998-present, primarily Bjorn Gustavsson and contributors.
