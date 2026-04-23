@@ -2,11 +2,11 @@
 
 Copyright (c) 1998-present, primarily Bjorn Gustavsson and contributors.
 
-`AIDA_tools` is a MATLAB toolbox for auroral and night-sky image analysis. It includes camera and geometry utilities, star-based calibration tools, image preprocessing, skymap support, tomography utilities, spectral calibration, and related analysis helpers.
+`AIDA_tools` is a MATLAB toolbox for auroral and night-sky image analysis. It includes scientific-grade camera calibration, skymap/ephemeris support, image preprocessing, image mapping and projection tools, stereoscopic triangulation, tomography, spectral calibration, FITS and other image I/O helpers, ALIS and ASK analysis utilities, WGS-84/EARTH helpers, and related geometry/inversion tools.
 
 Painstakingly written over the course of 28+ years, starting in 1998 and mostly by Bjorn Gustavsson, 
 who has spent more time thinking about geometric calibration than he probably should have.
-It provides scientific-grade geometric camera calibration together with a broad set of supporting analysis tools.
+It provides scientific-grade geometric camera calibration together with a broad set of supporting analysis tools. The package also includes access to the Pulkovo spectrophotometric catalogue through the skymap/spectral-calibration toolchain.
 
 This repository is a git-based copy of the toolbox with the most common temporary editor files excluded.
 
@@ -17,7 +17,12 @@ This repository is a git-based copy of the toolbox with the most common temporar
 - Scientific-grade per-pixel line-of-sight geometry
 - Preprocessing through `inimg` and `typical_pre_proc_ops`
 - Skymap and star ephemeris support
-- Aurora, tomography, inversion, and spectral calibration modules
+- Image mapping, reprojection, and camera model tools
+- Stereoscopic triangulation and multi-view tomography
+- Aurora analysis utilities, inversion helpers, and spectral calibration modules
+- Access to stellar spectra from the Pulkovo spectrophotometric catalogue
+- ALIS and ASK instrument-specific functions, browsers, and helpers
+- EARTH/WGS-84 geodesy and assorted geometry/toolbox utilities
 - Example scripts and bundled example data
 
 ## Getting Started
@@ -51,6 +56,8 @@ which inimg
 If these resolve to files inside your `AIDA_tools` checkout, the setup is ready.
 
 ## Basic Usage Example
+
+Although AIDA_tools includes tomography, triangulation, image mapping, skymap/ephemeris, auroral analysis, and spectrophotometric catalogue functionality, a typical user will most likely want to start with camera calibration. For that reason, this README shows only a `starcal` example.
 
 The easiest place to start is `Examples/AIDA_starcal_example.m`, which demonstrates a basic star-calibration workflow:
 
@@ -113,6 +120,28 @@ save_azze(SkMp)
 
 That writes a `.mat` file containing `az`, `ze`, and `obs`.
 
+To read that `.mat` az/ze file in Python:
+
+```python
+from pathlib import Path
+
+import numpy as np
+from scipy.io import loadmat
+
+mat = loadmat(Path("your-calibration-azze.mat"))
+
+az = mat["az"]              # radians, same shape as the image
+ze = mat["ze"]              # radians, same shape as the image
+elevation = np.pi / 2 - ze  # radians
+
+az_deg = np.degrees(az)
+ze_deg = np.degrees(ze)
+el_deg = np.degrees(elevation)
+
+print(az.shape, ze.shape)
+print(az_deg[0, 0], el_deg[0, 0])
+```
+
 If you want a flat table with one row per pixel and elevation instead of zenith:
 
 ```matlab
@@ -157,6 +186,8 @@ analysis or for importing into other software.
 - Older installation notes remain in `README`.
 - The human-written HTML documentation lives in [`Documentation/`](Documentation/), with a main entry point at [`Documentation/index.html`](Documentation/index.html).
 - Generated source-code documentation is available under [`Html-docs/`](Html-docs/).
+- The `Documentation/` directory also contains short introductions to camera models, Starcal, Skymap, EARTH utilities, and stereo/triangulation workflows.
+- For deeper guidance on how to use the broader AIDA_tools package, read the material in `Documentation/` and talk to Bjorn.
 
 ## Typical First Session
 
