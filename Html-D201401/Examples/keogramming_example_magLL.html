@@ -1,0 +1,84 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
+                "http://www.w3.org/TR/REC-html40/loose.dtd">
+<html>
+<head>
+  <title>Description of keogramming_example_magLL</title>
+  <meta name="keywords" content="keogramming_example_magLL">
+  <meta name="description" content="% Example script for projecting an All-sky image to lat-long grid">
+  <meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+  <meta name="generator" content="m2html &copy; 2003 Guillaume Flandin">
+  <meta name="robots" content="index, follow">
+  <link type="text/css" rel="stylesheet" href="../m2html.css">
+</head>
+<body>
+<a name="_top"></a>
+<!-- menu.html Examples -->
+<h1>keogramming_example_magLL
+</h1>
+
+<h2><a name="_name"></a>PURPOSE <a href="#_top"><img alt="^" border="0" src="../up.png"></a></h2>
+<div class="box"><strong>% Example script for projecting an All-sky image to lat-long grid</strong></div>
+
+<h2><a name="_synopsis"></a>SYNOPSIS <a href="#_top"><img alt="^" border="0" src="../up.png"></a></h2>
+<div class="box"><strong>This is a script file. </strong></div>
+
+<h2><a name="_description"></a>DESCRIPTION <a href="#_top"><img alt="^" border="0" src="../up.png"></a></h2>
+<div class="fragment"><pre class="comment">% Example script for projecting an All-sky image to lat-long grid</pre></div>
+
+<!-- crossreference -->
+<h2><a name="_cross"></a>CROSS-REFERENCE INFORMATION <a href="#_top"><img alt="^" border="0" src="../up.png"></a></h2>
+This function calls:
+<ul style="list-style-image:url(../matlabicon.gif)">
+<li><a href="../EARTH/geo2mag95.html" class="code" title="function [mLong,mLat] = geo2mag95(Long,Lat)">geo2mag95</a>	GEO2MAG95 - Convert from geographic to geomagnetic coordinates</li><li><a href="../EARTH/latlongh_2_xyz.html" class="code" title="function [r_out] = latlongh_2_xyz(lat0,long0,h0,lat,long,h)">latlongh_2_xyz</a>	LATLONGH_2_xyz transforms the point ( LONG, LAT, H ) to (X,Y,Z)</li><li><a href="../EARTH/mag2geo95.html" class="code" title="function [gLong,gLat] = mag2geo95(mLong,mLat)">mag2geo95</a>	MAG2GEO95 - Convert from geomagnetic to geographic coordinates</li><li><a href="../Imgtools/imgs_rgb_keograms_r3.html" class="code" title="function [Keo,exptimes,Tstrs,filters] = imgs_rgb_keograms_r3(files,rs,r,optpar,PO)">imgs_rgb_keograms_r3</a>	imgs_keogram_r3 - make keogram of R3's projection in the image.</li></ul>
+This function is called by:
+<ul style="list-style-image:url(../matlabicon.gif)">
+</ul>
+<!-- crossreference -->
+
+
+<h2><a name="_source"></a>SOURCE CODE <a href="#_top"><img alt="^" border="0" src="../up.png"></a></h2>
+<div class="fragment"><pre>0001 <span class="comment">%% Example script for projecting an All-sky image to lat-long grid</span>
+0002 
+0003 <span class="comment">%%</span>
+0004 <span class="comment">% It is assumed that a geometric calibration has been done with</span>
+0005 <span class="comment">% AIDA-tools starcal function giving optical parameters describing</span>
+0006 <span class="comment">% the geometric character and rotation of the camera (or any other</span>
+0007 <span class="comment">% function giving the consistent parameters). The optical</span>
+0008 <span class="comment">% parameters are expected to be in a variable: optpRamfjordNIPR here.</span>
+0009 <span class="comment">%</span>
+0010 
+0011 <span class="comment">%% Dependencies:</span>
+0012 <span class="comment">% * This script uses several functions from AIDA_tools</span>
+0013 <span class="comment">% * Further the script uses functions from the m_map toolbox</span>
+0014 <span class="comment">%   available from: http://www.eos.ubc.ca/~rich/map.html</span>
+0015 
+0016 <span class="comment">%% Geographi coordinates of Ramfjord:</span>
+0017 Ramfjord_long = 19 + 13/60 + 38/3600;
+0018 Ramfjord_lat = 69 + 35/60 + 11/3600;
+0019 optpRamfjordNIPR = [-0.71846, -0.7096, -1.1126, 0.6338, 0.91097, 0.0020362,0.016534, 0.47431, 2, 0];
+0020 
+0021 <span class="comment">%% Magnetic Long-lat of &quot;Ramfjord&quot;</span>
+0022 [R_mlong2,R_mlat2] = <a href="../EARTH/geo2mag95.html" class="code" title="function [mLong,mLat] = geo2mag95(Long,Lat)">geo2mag95</a>(Ramfjord_long,Ramfjord_lat);
+0023 <span class="comment">%% Geomagnetic meridian coordinates for 4-degree wide arc:</span>
+0024 [K_mlong,K_mlat] = meshgrid(R_mlong2,R_mlat2+linspace(-2,2,501));
+0025 <span class="comment">%% The geographic coordinates of that magnetic-meridian-arc:</span>
+0026 [K_glong,K_glat] = <a href="../EARTH/mag2geo95.html" class="code" title="function [gLong,gLat] = mag2geo95(mLong,mLat)">mag2geo95</a>(K_mlong,K_mlat);
+0027 <span class="comment">%% Coordinates of that arc in the Ramfjord-local horizontal</span>
+0028 <span class="comment">%  coordinate system (at 105 km altitude):</span>
+0029 [r_out] = <a href="../EARTH/latlongh_2_xyz.html" class="code" title="function [r_out] = latlongh_2_xyz(lat0,long0,h0,lat,long,h)">latlongh_2_xyz</a>(Ramfjord_lat,Ramfjord_long,0.15,K_glat(:),K_glong(:),105);
+0030 <span class="comment">%% Keogram for the points along that</span>
+0031 [Keo,exptimes,Tstrs,filters] = <a href="../Imgtools/imgs_rgb_keograms_r3.html" class="code" title="function [Keo,exptimes,Tstrs,filters] = imgs_rgb_keograms_r3(files,rs,r,optpar,PO)">imgs_rgb_keograms_r3</a>(fname,[0 0 0],r_out,optpRamfjordNIPR,po);
+0032 <span class="comment">%%</span>
+0033 <span class="comment">% This is a very short keogram since there is only 1 image...</span>
+0034 subplot(2,1,1)
+0035 <span class="comment">%%</span>
+0036 <span class="comment">% Plot the arc:</span>
+0037 plot3(r_out(1,:),r_out(2,:),r_out(3,:),<span class="string">'*-'</span>)
+0038 grid on
+0039 subplot(2,1,2)
+0040 <span class="comment">%%</span>
+0041 <span class="comment">% Simple display of image:</span>
+0042 imagesc(uint8(Keo))</pre></div>
+<hr><address>Generated on Mon 27-Jan-2014 17:32:33 by <strong>B.&nbsp;Gustavsson</strong> with <strong><a href="http://www.artefact.tk/software/matlab/m2html/" target="_parent">m2html</a></strong> &copy; 2003</address>
+</body>
+</html>

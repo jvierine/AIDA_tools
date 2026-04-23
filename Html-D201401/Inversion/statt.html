@@ -1,0 +1,114 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
+                "http://www.w3.org/TR/REC-html40/loose.dtd">
+<html>
+<head>
+  <title>Description of statt</title>
+  <meta name="keywords" content="statt">
+  <meta name="description" content="/* statt.c */">
+  <meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+  <meta name="generator" content="m2html &copy; 2003 Guillaume Flandin">
+  <meta name="robots" content="index, follow">
+  <link type="text/css" rel="stylesheet" href="../m2html.css">
+</head>
+<body>
+<a name="_top"></a>
+<!-- menu.html Inversion -->
+<h1>statt
+</h1>
+
+<h2><a name="_name"></a>PURPOSE <a href="#_top"><img alt="^" border="0" src="../up.png"></a></h2>
+<div class="box"><strong>/* statt.c */</strong></div>
+
+<h2><a name="_synopsis"></a>SYNOPSIS <a href="#_top"><img alt="^" border="0" src="../up.png"></a></h2>
+<div class="box"><strong>function [h_val,v_hist] =  statt(n, lambda) </strong></div>
+
+<h2><a name="_description"></a>DESCRIPTION <a href="#_top"><img alt="^" border="0" src="../up.png"></a></h2>
+<div class="fragment"><pre class="comment">/* statt.c */
+
+/* Nu tenker jag testa med att goera om den haer funktionen saa att
+ * lambda ska vara en bild avrekonstruktionen och n den 'riktiga' bilden. 
+ * Det betyder att byta ut N_max mot Nrvox^3 och att hyfsa till indiceringen i n[] &amp; 
+ * lambda[]. i funktionen histogram().
+ */
+
+/*
+ *  These functions makes a Pearson test (? BG 15/6-95) of wether
+ *  the projections of the reconstruction give feasible 
+ *  size and distribution of the errors compared to the measured images. 
+ *  According to Llaser and Veklerov
+ */
+
+/* 
+ * $Header: statt1.c,v 1.1 97/03/27 07:54:54 bjorn Exp $ 
+ */
+/* 
+ * $Log:    statt1.c,v $
+ * Revision 1.1  97/03/27  07:54:54  07:54:54  bjorn (Bjoern Gustavsson)
+ * Initial revision
+ * 
+ */</pre></div>
+
+<!-- crossreference -->
+<h2><a name="_cross"></a>CROSS-REFERENCE INFORMATION <a href="#_top"><img alt="^" border="0" src="../up.png"></a></h2>
+This function calls:
+<ul style="list-style-image:url(../matlabicon.gif)">
+<li><a href="../tools/lambda.html" class="code" title="function [lam]=lambda(hi,Energy,pad)">lambda</a>	</li></ul>
+This function is called by:
+<ul style="list-style-image:url(../matlabicon.gif)">
+<li><a href="pdlsq_svd.html" class="code" title="function [ra,hvals] = pdlsq_svd(U,S,V,d,I,imgshape)">pdlsq_svd</a>	PDLSQ_SVD filtered damped/truncated least square from SVD decomposition</li></ul>
+<!-- crossreference -->
+
+<h2><a name="_subfunctions"></a>SUBFUNCTIONS <a href="#_top"><img alt="^" border="0" src="../up.png"></a></h2>
+<ul style="list-style-image:url(../matlabicon.gif)">
+<li><a href="#_sub1" class="code">function [Chi] = chi(v_hist)</a></li></ul>
+<h2><a name="_source"></a>SOURCE CODE <a href="#_top"><img alt="^" border="0" src="../up.png"></a></h2>
+<div class="fragment"><pre>0001 <span class="comment">%/* statt.c */</span>
+0002 <span class="comment">%</span>
+0003 <span class="comment">%/* Nu tenker jag testa med att goera om den haer funktionen saa att</span>
+0004 <span class="comment">% * lambda ska vara en bild avrekonstruktionen och n den 'riktiga' bilden.</span>
+0005 <span class="comment">% * Det betyder att byta ut N_max mot Nrvox^3 och att hyfsa till indiceringen i n[] &amp;</span>
+0006 <span class="comment">% * lambda[]. i funktionen histogram().</span>
+0007 <span class="comment">% */</span>
+0008 <span class="comment">%</span>
+0009 <span class="comment">%/*</span>
+0010 <span class="comment">% *  These functions makes a Pearson test (? BG 15/6-95) of wether</span>
+0011 <span class="comment">% *  the projections of the reconstruction give feasible</span>
+0012 <span class="comment">% *  size and distribution of the errors compared to the measured images.</span>
+0013 <span class="comment">% *  According to Llaser and Veklerov</span>
+0014 <span class="comment">% */</span>
+0015 <span class="comment">%</span>
+0016 <span class="comment">%/*</span>
+0017 <span class="comment">% * $Header: statt1.c,v 1.1 97/03/27 07:54:54 bjorn Exp $</span>
+0018 <span class="comment">% */</span>
+0019 <span class="comment">%/*</span>
+0020 <span class="comment">% * $Log:    statt1.c,v $</span>
+0021 <span class="comment">% * Revision 1.1  97/03/27  07:54:54  07:54:54  bjorn (Bjoern Gustavsson)</span>
+0022 <span class="comment">% * Initial revision</span>
+0023 <span class="comment">% *</span>
+0024 <span class="comment">% */</span>
+0025 <span class="comment">%</span>
+0026 
+0027 <a name="_sub0" href="#_subfunctions" class="code">function [h_val,v_hist] =  statt(n, lambda)</a>
+0028 
+0029 y = ( ( n(:) - <a href="../tools/lambda.html" class="code" title="function [lam]=lambda(hi,Energy,pad)">lambda</a>(:) ) ./abs(<a href="../tools/lambda.html" class="code" title="function [lam]=lambda(hi,Energy,pad)">lambda</a>(:)).^.5 );
+0030 I = find(<a href="../tools/lambda.html" class="code" title="function [lam]=lambda(hi,Energy,pad)">lambda</a>(:) == 0);
+0031 y(I) = min(y(:));
+0032 
+0033 <span class="comment">%bin = normal(y);</span>
+0034 x2 = [-1.645, -1.282, -1.037, -0.841, -0.675,-0.525, -0.385, -0.253, <span class="keyword">...</span>
+0035       -0.125, -0.000,0.125,  0.253,  0.385,  0.525,  0.675,0.841, <span class="keyword">...</span>
+0036       1.037,  1.282,  1.645];
+0037 
+0038 <span class="comment">%v_hist = histc(y,x2);</span>
+0039 v_hist = hist(y,x2);
+0040 v_hist = v_hist(1:end-1);
+0041 h_val = <a href="#_sub1" class="code" title="subfunction [Chi] = chi(v_hist)">chi</a>(v_hist);
+0042 
+0043 <a name="_sub1" href="#_subfunctions" class="code">function [Chi] = chi(v_hist)</a>
+0044 
+0045 hsum = sum(v_hist);
+0046 
+0047 Chi = sum(v_hist-hsum/length(v_hist))*length(v_hist)/hsum;</pre></div>
+<hr><address>Generated on Mon 27-Jan-2014 17:32:33 by <strong>B.&nbsp;Gustavsson</strong> with <strong><a href="http://www.artefact.tk/software/matlab/m2html/" target="_parent">m2html</a></strong> &copy; 2003</address>
+</body>
+</html>

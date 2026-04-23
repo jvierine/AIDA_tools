@@ -1,0 +1,11 @@
+# Editor and temporary backup files
+*~
+~*
+#*
+#*#
+
+# Legacy SCM metadata
+.svn/
+
+# Too large for GitHub's normal file-size limit
+.data/Geography.zip

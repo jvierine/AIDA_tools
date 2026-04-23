@@ -1,0 +1,124 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
+                "http://www.w3.org/TR/REC-html40/loose.dtd">
+<html>
+<head>
+  <title>Description of alis_overviewplot</title>
+  <meta name="keywords" content="alis_overviewplot">
+  <meta name="description" content="ALIS_OVERVIEWPLOT - graphics of the visible volumes and collour">
+  <meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+  <meta name="generator" content="m2html &copy; 2003 Guillaume Flandin">
+  <meta name="robots" content="index, follow">
+  <link type="text/css" rel="stylesheet" href="../../m2html.css">
+</head>
+<body>
+<a name="_top"></a>
+<!-- ../menu.html ALIS --><!-- menu.html AVOK -->
+<h1>alis_overviewplot
+</h1>
+
+<h2><a name="_name"></a>PURPOSE <a href="#_top"><img alt="^" border="0" src="../../up.png"></a></h2>
+<div class="box"><strong>ALIS_OVERVIEWPLOT - graphics of the visible volumes and collour</strong></div>
+
+<h2><a name="_synopsis"></a>SYNOPSIS <a href="#_top"><img alt="^" border="0" src="../../up.png"></a></h2>
+<div class="box"><strong>function alis_overviewplot(stn,az,ze,clrs,time_str) </strong></div>
+
+<h2><a name="_description"></a>DESCRIPTION <a href="#_top"><img alt="^" border="0" src="../../up.png"></a></h2>
+<div class="fragment"><pre class="comment"> ALIS_OVERVIEWPLOT - graphics of the visible volumes and collour
+ for images taken at time TIME_STR
+
+ Calling:
+ alis_overviewplot(stn,az,ze,clrs,time_str)
+ 
+ Input:
+   STN - Integer array of ALIS station numbers [1xN].
+    AX - Azimuth angle array [1xN], in degrees, clockvise from north
+    ZE - Zenith angle array [1xN], in degrees
+  CLRS - char array with valid colour chars [1xn], in 'bcgkmry' or
+         [1x3] double array elements from 0-1
+ TIME_STR - string with observation time to label the overview</pre></div>
+
+<!-- crossreference -->
+<h2><a name="_cross"></a>CROSS-REFERENCE INFORMATION <a href="#_top"><img alt="^" border="0" src="../../up.png"></a></h2>
+This function calls:
+<ul style="list-style-image:url(../../matlabicon.gif)">
+</ul>
+This function is called by:
+<ul style="list-style-image:url(../../matlabicon.gif)">
+<li><a href="alis_overview.html" class="code" title="function [M,filters,Times,I_minmax] = alis_overview(files,POs,OPS)">alis_overview</a>	ALIS_OVERVIEW - Overviews of alis data, movie or image-mosaics</li></ul>
+<!-- crossreference -->
+
+
+<h2><a name="_source"></a>SOURCE CODE <a href="#_top"><img alt="^" border="0" src="../../up.png"></a></h2>
+<div class="fragment"><pre>0001 <a name="_sub0" href="#_subfunctions" class="code">function alis_overviewplot(stn,az,ze,clrs,time_str)</a>
+0002 <span class="comment">% ALIS_OVERVIEWPLOT - graphics of the visible volumes and collour</span>
+0003 <span class="comment">% for images taken at time TIME_STR</span>
+0004 <span class="comment">%</span>
+0005 <span class="comment">% Calling:</span>
+0006 <span class="comment">% alis_overviewplot(stn,az,ze,clrs,time_str)</span>
+0007 <span class="comment">%</span>
+0008 <span class="comment">% Input:</span>
+0009 <span class="comment">%   STN - Integer array of ALIS station numbers [1xN].</span>
+0010 <span class="comment">%    AX - Azimuth angle array [1xN], in degrees, clockvise from north</span>
+0011 <span class="comment">%    ZE - Zenith angle array [1xN], in degrees</span>
+0012 <span class="comment">%  CLRS - char array with valid colour chars [1xn], in 'bcgkmry' or</span>
+0013 <span class="comment">%         [1x3] double array elements from 0-1</span>
+0014 <span class="comment">% TIME_STR - string with observation time to label the overview</span>
+0015 
+0016 
+0017 <span class="comment">%   Copyright © 20050111 Bjorn Gustavsson, &lt;bjorn.gustavsson@irf.se&gt;</span>
+0018 <span class="comment">%   This is free software, licensed under GNU GPL version 2 or later</span>
+0019 
+0020 
+0021 warning off
+0022 
+0023 xmax = 100;
+0024 ymax = 100;
+0025 xmin = -100;
+0026 ymin = -100;
+0027 
+0028 ap = [0   0  0
+0029       64.14218725650279   -31.86799805059328  -0.4021440345184266
+0030       53.13179754255706   21.58681354721001  -0.2578326940640405
+0031       14.80937274138702   -56.36541170065802  -0.2662535704565858
+0032       -65.07707331579783   57.72751986387349  -0.5932546375529117
+0033       -58.9199195880307   2.001795856330272  -0.2724597759225365
+0034       .5   3  0
+0035       0 0 0
+0036       0 0 0
+0037       40 90 -.6
+0038       -2 168 -.5
+0039      ];
+0040 
+0041 <span class="keyword">for</span> i = 1:length(stn)
+0042   
+0043   <span class="keyword">if</span> iscell(clrs)
+0044     vvops.clrs = clrs{i};
+0045   <span class="keyword">elseif</span> min(size(clrs)) &gt; 1
+0046     vvops.clrs = clrs(i,:);
+0047   <span class="keyword">elseif</span> isnumeric(clrs)
+0048     vvops.clrs = clrs;
+0049   <span class="keyword">elseif</span> isstr(clrs)
+0050     vvops.clrs = clrs;
+0051   <span class="keyword">else</span>
+0052     vvops.clrs = <span class="string">'k'</span>;
+0053   <span class="keyword">end</span>
+0054   
+0055   qw = alis_visiblevol(stn(i),az(i),ze(i),30,80,0,vvops);
+0056   vax = axis;
+0057   drawnow
+0058   grid off
+0059   
+0060 <span class="keyword">end</span>
+0061 
+0062 plot(vax([1 2 2 1 1]),vax([3 3 4 4 3]),<span class="string">'k'</span>)
+0063 set(gca,<span class="string">'xtick'</span>,[])
+0064 set(gca,<span class="string">'ytick'</span>,[])
+0065 
+0066 <span class="keyword">if</span> isstr(time_str)
+0067   ylabel(time_str,<span class="string">'fontsize'</span>,10)
+0068 <span class="keyword">else</span>
+0069   ylabel(sprintf(<span class="string">'%02d:%02d:%02d'</span>,time_str(4),time_str(5),time_str(6)),<span class="string">'fontsize'</span>,10)
+0070 <span class="keyword">end</span></pre></div>
+<hr><address>Generated on Sat 09-Feb-2013 12:20:36 by <strong>B.&nbsp;Gustavsson</strong> with <strong><a href="http://www.artefact.tk/software/matlab/m2html/" target="_parent">m2html</a></strong> &copy; 2003</address>
+</body>
+</html>

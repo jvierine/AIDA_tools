@@ -1,0 +1,135 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
+                "http://www.w3.org/TR/REC-html40/loose.dtd">
+<html>
+<head>
+  <title>Description of nanmedian</title>
+  <meta name="keywords" content="nanmedian">
+  <meta name="description" content="FORMAT: Y = NANMEDIAN(X,DIM)">
+  <meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+  <meta name="generator" content="m2html &copy; 2003 Guillaume Flandin">
+  <meta name="robots" content="index, follow">
+  <link type="text/css" rel="stylesheet" href="../m2html.css">
+</head>
+<body>
+<a name="_top"></a>
+<!-- menu.html tools -->
+<h1>nanmedian
+</h1>
+
+<h2><a name="_name"></a>PURPOSE <a href="#_top"><img alt="^" border="0" src="../up.png"></a></h2>
+<div class="box"><strong>FORMAT: Y = NANMEDIAN(X,DIM)</strong></div>
+
+<h2><a name="_synopsis"></a>SYNOPSIS <a href="#_top"><img alt="^" border="0" src="../up.png"></a></h2>
+<div class="box"><strong>function y = nanmedian(x,dim) </strong></div>
+
+<h2><a name="_description"></a>DESCRIPTION <a href="#_top"><img alt="^" border="0" src="../up.png"></a></h2>
+<div class="fragment"><pre class="comment"> FORMAT: Y = NANMEDIAN(X,DIM)
+ 
+    Median ignoring NaNs
+
+    This function enhances the functionality of NANMEDIAN as distributed
+    in the MATLAB Statistics Toolbox and is meant as a replacement (hence
+    the identical name).  
+
+    NANMEDIAN(X,DIM) calculates the mean along any dimension of the N-D
+    array X ignoring NaNs.  If DIM is omitted NANMEDIAN averages along the
+    first non-singleton dimension of X.
+
+    Similar replacements exist for NANMEAN, NANSTD, NANMIN, NANMAX, and
+    NANSUM which are all part of the NaN-suite.
+
+    See also MEDIAN</pre></div>
+
+<!-- crossreference -->
+<h2><a name="_cross"></a>CROSS-REFERENCE INFORMATION <a href="#_top"><img alt="^" border="0" src="../up.png"></a></h2>
+This function calls:
+<ul style="list-style-image:url(../matlabicon.gif)">
+</ul>
+This function is called by:
+<ul style="list-style-image:url(../matlabicon.gif)">
+<li><a href="../Tomography/tomo_start_guessGACT.html" class="code" title="function [Vem,I2D,Ie2D] = tomo_start_guessGACT(stns,Energy,Ie2H,Xslice,Yslice,Zslice,M2Dto1D,U,V,I_cuts,iPeaks,X3D,Y3D,Z3D,ops)">tomo_start_guessGACT</a>	tomo_start_guessGACT - makes 3-D distribution of volume emission rates</li></ul>
+<!-- crossreference -->
+
+
+<h2><a name="_source"></a>SOURCE CODE <a href="#_top"><img alt="^" border="0" src="../up.png"></a></h2>
+<div class="fragment"><pre>0001 <a name="_sub0" href="#_subfunctions" class="code">function y = nanmedian(x,dim)</a>
+0002 <span class="comment">% FORMAT: Y = NANMEDIAN(X,DIM)</span>
+0003 <span class="comment">%</span>
+0004 <span class="comment">%    Median ignoring NaNs</span>
+0005 <span class="comment">%</span>
+0006 <span class="comment">%    This function enhances the functionality of NANMEDIAN as distributed</span>
+0007 <span class="comment">%    in the MATLAB Statistics Toolbox and is meant as a replacement (hence</span>
+0008 <span class="comment">%    the identical name).</span>
+0009 <span class="comment">%</span>
+0010 <span class="comment">%    NANMEDIAN(X,DIM) calculates the mean along any dimension of the N-D</span>
+0011 <span class="comment">%    array X ignoring NaNs.  If DIM is omitted NANMEDIAN averages along the</span>
+0012 <span class="comment">%    first non-singleton dimension of X.</span>
+0013 <span class="comment">%</span>
+0014 <span class="comment">%    Similar replacements exist for NANMEAN, NANSTD, NANMIN, NANMAX, and</span>
+0015 <span class="comment">%    NANSUM which are all part of the NaN-suite.</span>
+0016 <span class="comment">%</span>
+0017 <span class="comment">%    See also MEDIAN</span>
+0018 
+0019 <span class="comment">% -------------------------------------------------------------------------</span>
+0020 <span class="comment">%    author:      Jan Gl�cher</span>
+0021 <span class="comment">%    affiliation: Neuroimage Nord, University of Hamburg, Germany</span>
+0022 <span class="comment">%    email:       glaescher@uke.uni-hamburg.de</span>
+0023 <span class="comment">%</span>
+0024 <span class="comment">%    $Revision: 1.1 $ $Date: 2004/07/15 22:42:14 $</span>
+0025 
+0026 <span class="keyword">if</span> isempty(x)
+0027     y = [];
+0028     <span class="keyword">return</span>
+0029 <span class="keyword">end</span>
+0030 
+0031 <span class="keyword">if</span> nargin &lt; 2
+0032     dim = min(find(size(x)~=1));
+0033     <span class="keyword">if</span> isempty(dim)
+0034         dim = 1;
+0035     <span class="keyword">end</span>
+0036 <span class="keyword">end</span>
+0037 
+0038 siz  = size(x);
+0039 n    = size(x,dim);
+0040 
+0041 <span class="comment">% Permute and reshape so that DIM becomes the row dimension of a 2-D array</span>
+0042 perm = [dim:max(length(size(x)),dim) 1:dim-1];
+0043 x = reshape(permute(x,perm),n,prod(siz)/n);
+0044 
+0045 
+0046 <span class="comment">% force NaNs to bottom of each column</span>
+0047 x = sort(x,1);
+0048 
+0049 <span class="comment">% identify and replace NaNs</span>
+0050 nans = isnan(x);
+0051 x(isnan(x)) = 0;
+0052 
+0053 <span class="comment">% new dimension of x</span>
+0054 [n m] = size(x);
+0055 
+0056 <span class="comment">% number of non-NaN element in each column</span>
+0057 s = size(x,1) - sum(nans);
+0058 y = zeros(size(s));
+0059 
+0060 <span class="comment">% now calculate median for every element in y</span>
+0061 <span class="comment">% (does anybody know a more eefficient way than with a 'for'-loop?)</span>
+0062 <span class="keyword">for</span> i = 1:length(s)
+0063     <span class="keyword">if</span> rem(s(i),2) &amp; s(i) &gt; 0
+0064         y(i) = x((s(i)+1)/2,i);
+0065     <span class="keyword">elseif</span> rem(s(i),2)==0 &amp; s(i) &gt; 0
+0066         y(i) = (x(s(i)/2,i) + x((s(i)/2)+1,i))/2;
+0067     <span class="keyword">end</span>
+0068 <span class="keyword">end</span>
+0069 
+0070 <span class="comment">% Protect against a column of NaNs</span>
+0071 i = find(n==0);
+0072 y(i) = i + nan;
+0073 
+0074 <span class="comment">% permute and reshape back</span>
+0075 siz(dim) = 1;
+0076 y = ipermute(reshape(y,siz(perm)),perm);
+0077 
+0078 <span class="comment">% $Id: nanmedian.m,v 1.1 2004/07/15 22:42:14 glaescher Exp glaescher $</span></pre></div>
+<hr><address>Generated on Mon 27-Jan-2014 17:32:33 by <strong>B.&nbsp;Gustavsson</strong> with <strong><a href="http://www.artefact.tk/software/matlab/m2html/" target="_parent">m2html</a></strong> &copy; 2003</address>
+</body>
+</html>

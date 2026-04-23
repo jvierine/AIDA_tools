@@ -1,0 +1,65 @@
+function cax = imgs_smarter_caxis(alpha,varargin)
+% imgs_smart_caxis - alpha-percentile setting of color-axis,
+%   sets clims to [alpha,1-alpha] points of the cumulative
+%   intensity distribution. Either called with intensity image
+%   IMGS_SMART_CAXIS(ALPHA,I); or with an already calculated histogram
+%   IMGS_SMART_CAXIS(ALPHA,B,X)
+% 
+% This is a faster version of IMGS_SMART_CAXIS, that uses sort instead of
+% calculating the histograms. The exact result might differ slightly.
+%
+% Calling:
+% cax = imgs_smarter_caxis(alpha,I)
+% cax = imgs_smarter_caxis(alpha,B,X)
+%
+% INPUT: 
+%   ALPHA - percentile cut-off
+% either
+%   I - intensity image.
+% or
+%   B,X - histogram specification as output from HIST
+% 
+% OUTPUT
+%   CAX - adjusted intensity limits.
+%
+% Example:
+%   im = (12+peaks(256))*30;
+%   im = im + im*randn(size(im));
+%   imagesc(im),colorbar,caxis,
+%   imag_smart_caxis(0.01,im(:)),caxis
+% 
+% See also HIST
+
+
+%   Copyright � 20050209 Bjorn Gustavsson, <bjorn.gustavsson@irf.se>
+%   This is free software, licensed under GNU GPL version 2 or later
+
+if alpha >= .5 % otherwise...
+  
+  alpha = alpha/100;
+  
+end
+
+if nargin == 2
+  
+  I = varargin{1};
+  [b,x] = hist(I(:),unique(I(:)));
+  [sI,idxSI] = sort(I(:));
+  caxis(sI(round(numel(idxSI)*[alpha,1-alpha])))
+else
+  
+  b = varargin{1};
+  x = varargin{2};
+  ch = cumsum(b)/sum(b);
+  i_cut = find(alpha(1) < ch & ch < 1-alpha(end));
+  try
+    caxis(x(i_cut([1 end])));
+  catch
+    % whateber
+  end
+
+end
+
+if nargout == 1
+  cax = caxis;
+end

@@ -1,0 +1,74 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
+                "http://www.w3.org/TR/REC-html40/loose.dtd">
+<html>
+<head>
+  <title>Description of points_on_lines</title>
+  <meta name="keywords" content="points_on_lines">
+  <meta name="description" content="POINTS_ON_LINES calculates the vectors to a set of points R_OUT">
+  <meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+  <meta name="generator" content="m2html &copy; 2003 Guillaume Flandin">
+  <meta name="robots" content="index, follow">
+  <link type="text/css" rel="stylesheet" href="../m2html.css">
+</head>
+<body>
+<a name="_top"></a>
+<!-- menu.html Geometry -->
+<h1>points_on_lines
+</h1>
+
+<h2><a name="_name"></a>PURPOSE <a href="#_top"><img alt="^" border="0" src="../up.png"></a></h2>
+<div class="box"><strong>POINTS_ON_LINES calculates the vectors to a set of points R_OUT</strong></div>
+
+<h2><a name="_synopsis"></a>SYNOPSIS <a href="#_top"><img alt="^" border="0" src="../up.png"></a></h2>
+<div class="box"><strong>function  [r_out] = points_on_lines(r_0,e_l,l) </strong></div>
+
+<h2><a name="_description"></a>DESCRIPTION <a href="#_top"><img alt="^" border="0" src="../up.png"></a></h2>
+<div class="fragment"><pre class="comment"> POINTS_ON_LINES calculates the vectors to a set of points R_OUT
+ that are L away from R_0 in the directions E_L. One point pre
+ line version, that is E_L should be an array with unit vectors
+ sized [Npoints x 3] and L should be the respective lengths away
+ in those directions with size [ Npoints x 1]
+ 
+ Example:
+   r_0 = [0 0 1];
+   e_l = [.1 .8 .3]'/sum([.1 .8 .3].^2).^.5;
+   l = [3];
+   [r_out] = points_on_lines(r_0,e_l,l);</pre></div>
+
+<!-- crossreference -->
+<h2><a name="_cross"></a>CROSS-REFERENCE INFORMATION <a href="#_top"><img alt="^" border="0" src="../up.png"></a></h2>
+This function calls:
+<ul style="list-style-image:url(../matlabicon.gif)">
+</ul>
+This function is called by:
+<ul style="list-style-image:url(../matlabicon.gif)">
+<li><a href="../Camera/inv_proj_azze2latlong.html" class="code" title="function [Long,Lat,dh_final] = inv_proj_azze2latlong(img_in,az,ze,lat0,long0,alt0,alt,ze_max,options)">inv_proj_azze2latlong</a>	INV_PROJ_IMG_LATLONG - calculate pixel-by-pixel Long-Lat coordinate for IMG_IN</li><li><a href="../Camera/inv_proj_img_latlong.html" class="code" title="function [Long,Lat,dh_final] = inv_proj_img_latlong(img_in,optmod,optpar,lat0,long0,alt0,alt,ze_max,options)">inv_proj_img_latlong</a>	INV_PROJ_IMG_LATLONG - calculate pixel-by-pixel Long-Lat coordinate for IMG_IN</li></ul>
+<!-- crossreference -->
+
+
+<h2><a name="_source"></a>SOURCE CODE <a href="#_top"><img alt="^" border="0" src="../up.png"></a></h2>
+<div class="fragment"><pre>0001 <a name="_sub0" href="#_subfunctions" class="code">function  [r_out] = points_on_lines(r_0,e_l,l)</a>
+0002 <span class="comment">% POINTS_ON_LINES calculates the vectors to a set of points R_OUT</span>
+0003 <span class="comment">% that are L away from R_0 in the directions E_L. One point pre</span>
+0004 <span class="comment">% line version, that is E_L should be an array with unit vectors</span>
+0005 <span class="comment">% sized [Npoints x 3] and L should be the respective lengths away</span>
+0006 <span class="comment">% in those directions with size [ Npoints x 1]</span>
+0007 <span class="comment">%</span>
+0008 <span class="comment">% Example:</span>
+0009 <span class="comment">%   r_0 = [0 0 1];</span>
+0010 <span class="comment">%   e_l = [.1 .8 .3]'/sum([.1 .8 .3].^2).^.5;</span>
+0011 <span class="comment">%   l = [3];</span>
+0012 <span class="comment">%   [r_out] = points_on_lines(r_0,e_l,l);</span>
+0013 <span class="comment">%</span>
+0014 <span class="comment">%</span>
+0015 
+0016 <span class="comment">%   Copyright � 1997 Bjorn Gustavsson, &lt;bjorn.gustavsson@irf.se&gt;</span>
+0017 <span class="comment">%   This is free software, licensed under GNU GPL version 2 or later</span>
+0018 
+0019 
+0020 r_out(3,:) = r_0(3) + l.*e_l(:,3);
+0021 r_out(2,:) = r_0(2) + l.*e_l(:,2);
+0022 r_out(1,:) = r_0(1) + l.*e_l(:,1);</pre></div>
+<hr><address>Generated on Thu 21-Jun-2018 22:40:16 by <strong>B.&nbsp;Gustavsson</strong> with <strong><a href="http://www.artefact.tk/software/matlab/m2html/" target="_parent">m2html</a></strong> &copy; 2003</address>
+</body>
+</html>

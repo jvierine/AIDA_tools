@@ -1,0 +1,114 @@
+All:
+
+/tools/my_unix.m:function [status,result] = my_unix(cmd)
+./Tomography/tomo_EXMPL970216.m:%[q,w] = my_unix('ls -1 --color=never 970216/[56]*.RAF');
+./ALIS/AVOK/alis_mk_db_keo_imgs.m:[~,overview_files] = my_unix('ls -1 alis_overview[0-9]*.mat');
+./ALIS/AVOK/alis_mk_db_keo_imgs.m:              [~,w] = my_unix(findfits_str);
+./ALIS/AVOK/alis_img_overview_keos.m:  [~,w] = my_unix(['find ',AvOk.data_inputdir,' -name \*[0-9]\*.mat']);
+./ALIS/AVOK/alis_mk_db_keos.m:              [~,w] = my_unix(findfits_str);
+./ALIS/AVOK/alis_view_overview_keos.m:  [~,w] = my_unix(['find ',AvOk.data_inputdir,' -name \*[0-9]\*.mat']);
+./ALIS/AVOK/alis_update_overview_web.m:[~,overview_files] = my_unix('ls -1 alis_overview[12][0-9]*.mat');
+./ALIS/AVOK/alis_overview_demo.m:[q,w] = my_unix('ls -1 --color=never /home/DATA/ALIS/19980325/s01/*.raf');
+./ALIS/AVOK/alis_overview_demo.m:[q,w] = my_unix('ls -1 --color=never /home/DATA/ALIS/19980325/s02/*.raf');
+./ALIS/AVOK/alis_overview_demo.m:[q,w] = my_unix('ls -1 --color=never /home/DATA/ALIS/19990216/s03/*.raf');
+./ALIS/AVOK/alis_overview_demo.m:  [q,w] = my_unix('ls -1 --color=never s01/*.raf');
+./ALIS/AVOK/alis_overview_demo.m:  [q,w] = my_unix('ls -1 --color=never s03/*.raf');
+./ALIS/AVOK/alis_overview_demo.m:  [q,w] = my_unix('ls -1 --color=never s04/*.raf');
+./ALIS/AVOK/alis_overview_demo.m:  [q,w] = my_unix('ls -1 --color=never s05/*.raf');
+./ALIS/AVOK/alis_overview_demo.m:  [q,w] = my_unix('ls -1 --color=never s06/*.raf');
+./ALIS/ALIS_movie_reencoder.m:  [~,avi_files] = my_unix(['find ',data_path,' -name \*.avi']);
+./ALIS/ALIS_auto_overview.m:  [~,q] = my_unix(['find ./ -name ',stn_keys{iS}]);
+./ALIS/ALIS_auto_overview.m:    [~,q] = my_unix(findfits_str);
+./Examples/tomo_EXMPL970216.m:%[q,w] = my_unix('ls -1 --color=never 970216/[56]*.RAF');
+./Imgtools/mk_imgkeos_db.m:                    [~,w] = my_unix(findfits_str);
+
+
+Remains:
+/tools/my_unix.m:function [status,result] = my_unix(cmd)
+
+
+Dones? :
+./ALIS/AVOK/alis_mk_db_keo_imgs.m:            [~,w] = my_unix(findfits_str);
+./ALIS/AVOK/alis_img_overview_keos.m:[~,w] = my_unix(['find ',AvOk.data_inputdir,' -name \*[0-9]\*.mat']);
+./ALIS/AVOK/alis_mk_db_keos.m:            [q,w] = my_unix(findfits_str);
+./ALIS/AVOK/alis_view_overview_keos.m:  [~,w] = my_unix(['find ',AvOk.data_inputdir,' -name \*[0-9]\*.mat']);
+./ALIS/ALIS_movie_reencoder.m:[~,avi_files] = my_unix(['find ',data_path,' -name \*.avi']);
+./ALIS/ALIS_auto_overview.m:  [~,q] = my_unix(['find ./ -name ',stn_keys{iS}]);
+./Imgtools/mk_imgkeos_db.m:                    [~,w] = my_unix(findfits_str);
+./ALIS/AVOK/alis_overview_demo.m:[q,w] = my_unix('ls -1 --color=never /home/DATA/ALIS/19980325/s01/*.raf');
+./Examples/tomo_EXMPL970216.m:%[q,w] = my_unix('ls -1 --color=never 970216/[56]*.RAF');
+./Tomography/tomo_EXMPL970216.m:%[q,w] = my_unix('ls -1 --color=never 970216/[56]*.RAF');
+./ALIS/AVOK/alis_update_overview_web.m:[~,overview_files] = my_unix('ls -1 alis_overview[12][0-9]*.mat');
+
+
+%% Fname/filenames/savename/savefile
+
+./ALIS/AVOK/alis_img_overview.m:    if strncmp(filename,'9',1)
+./ALIS/AVOK/alis_img_overview.m:      filename = ['19',filename];
+
+% Attempted fix:
+-----------------------------------------------------
+./Starcal/loadparam.m:accsave = [parampath savefile];
+./ALIS/alis_find_data.m:function filenames = alis_find_data(STN,date,start_time,stop_time)
+./Tomography/GACT_snippetStartNIPR2013.m:MSISfilename = '/data/NIPR/Example/msis20120308.dat';
+./Tomography/tomo20130308setupNframework.m:MSISfilename = '/data/NIPR/Example/msis20120308.dat';
+
+% Still to check up on:
+./ALIS/AVOK/alis_img_overview.m:    filename = [strtok(fline,' '),'.raf'];
+./ALIS/to_gopta.m:    fname = [fname,'.g'];
+
+%% Save-nonsense
+./Aurora/runner4FlamingRaysTOWARDSx0y0WideningE.m:saveFilename = 'FlamingRay20120124TOWARDSx0y0Widening.mat';
+./Aurora/runner4FlamingRaysTOWARDSx0y0WideningE.m:  load(saveFilename)
+./Aurora/runner4FlamingRaysTOWARDSx0y0WideningE.m:save bored_in_FlamingRay20120124TOWARDSx0y0Widening.mat bored_to_tears
+./Aurora/runner4FlamingRaysAVGx0y0WideningE.m:saveFilename = 'FlamingRay20120124AVGx0y0Widening.mat';
+./Aurora/runner4FlamingRaysAVGx0y0WideningE.m:  load(saveFilename)
+./Aurora/runner4FlamingRaysAVGx0y0WideningE.m:save bored_in_FlamingRay20120124AVGx0y0Widening.mat bored_to_tears
+./Aurora/runnerWithPanic.m:saveFilename = 'FlamingRay20120124TOWARDSx0y0Widening.mat';
+./Aurora/runnerWithPanic.m:  load(saveFilename)
+./Aurora/runnerWithPanic.m:save bored_in_FlamingRay20120124TOWARDSx0y0Widening.mat bored_to_tears
+./Aurora/runner4FlamingRaySequence.m:saveFilename = 'FlamingRay20120124TOWARDSx0y0Widening.mat';
+./Aurora/runner4FlamingRaySequence.m:  load(saveFilename)
+./Aurora/runner4FlamingRaySequence.m:  save ppAll.mat ppAll
+./Aurora/runner4FlamingRaySequence.m:  save PPfinAll.mat PPfinAll
+./Aurora/runner4FlamingRaySequence.m:  save PPfinAll.mat PPfinAll
+./Aurora/runner4FlamingRaySequence.m:save bored_in_FlamingRay20120124TOWARDSx0y0Widening.mat bored_to_tears
+./Aurora/runner4FlamingRayParSequence.m:saveFilename = 'FlamingRay20120124TOWARDSx0y0Widening.mat';
+./Aurora/runner4FlamingRayParSequence.m:  load(saveFilename)
+./Aurora/runner4FlamingRayParSequence.m:  save ppAll.mat ppAll
+./Aurora/runner4FlamingRayParSequence.m:save PPfinAll.mat PPfinAll
+./Aurora/runner4FlamingRayParSequence.m:save PPfinAll.mat PPfinAll
+./Aurora/runner4FlamingRayParSequence.m:save bored_in_FlamingRay20120124TOWARDSx0y0Widening.mat bored_to_tears
+./Aurora/runner4FlamingRaysTOWARDSx0y0WideningE2.m:saveFilename = 'FlamingRay20120124TOWARDSx0y0Widening.mat';
+./Aurora/runner4FlamingRaysTOWARDSx0y0WideningE2.m:  load(saveFilename)
+./Aurora/runner4FlamingRaysTOWARDSx0y0WideningE2.m:save bored_in_FlamingRay20120124TOWARDSx0y0Widening.mat bored_to_tears
+./Aurora/runner4FlamingRaysTOWARDSx0y0NarrowerE.m:saveFilename = 'FlamingRay20120124TOWARDSx0y0Narrower.mat';
+./Aurora/runner4FlamingRaysTOWARDSx0y0NarrowerE.m:  load(saveFilename)
+./Aurora/runner4FlamingRaysTOWARDSx0y0NarrowerE.m:save bored_in_FlamingRay20120124TOWARDSx0y0Narrower.mat bored_to_tears
+./Aurora/runner4FlamingRaysAVGx0y0NarrowerE.m:saveFilename = 'FlamingRay20120124AVGx0y0Narrower.mat';
+./Aurora/runner4FlamingRaysAVGx0y0NarrowerE.m:  load(saveFilename)
+./Aurora/runner4FlamingRaysAVGx0y0NarrowerE.m:save bored_in_FlamingRay20120124AVGx0y0Narrower.mat bored_to_tears
+./Examples/tomo20080305NewBeginnings.m:cd(analys_dir); % save to analysis directory defined l. 287
+./Examples/mapping_example_Geo_n_mag.m:  m_gshhs_i('save','Lambert-0-35E-65-80N');
+./Starcal/skmp_close.m:clear OptF_struct SkMp optpar savename saveok starpar ...
+./Skymap/read_bjg.m:  save ybs.mat star_list
+
+
+
+
+%% Eval-nonsense!
+
+./ALIS/AVOK/alis_img_overview_keos.m:evalin('base','global AvOk')% UGGGLY
+./ALIS/AVOK/alis_avok_exportvars.m:    evalin('base',deblank(AvOk.ass_str{ii}))
+./Fits_tools/try_to_be_smart.m:        key_val = eval(key_Evalue_string);
+./Fits_tools/fits_header2infostruct.m:        key_val = eval(key_Evalue_string);
+./Fits_tools/File2obs/FMInSGO_ttbs.m:  obs.exptime = eval(iA{i1(1),2});
+./Fits_tools/File2obs/miracle_emccd_ttbs.m:obs.exptime = eval(exptim{1}{1});
+./Fits_tools/File2obs/miracle_emccd_obs.m:obs.exptime = eval(header.Exposures); %value! 
+./EARTH/gtopo2maps.m:      key_val = eval(key_Evalue_string);
+
+%% feval
+./Fits_tools/read_img.m:      [img_head,img_out] = feval(PREPRO_OPS.read_data_fcn,filename);
+./Fits_tools/read_img.m:    obs = feval(PREPRO_OPS.log2obs,img_head);
+./Fits_tools/read_img.m:    obs = feval(PREPRO_OPS.try_to_be_smart_fnc,filename);
+./Aurora/starter4PointsOverImg.m:feval(fcn{1})

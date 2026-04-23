@@ -1,0 +1,95 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
+                "http://www.w3.org/TR/REC-html40/loose.dtd">
+<html>
+<head>
+  <title>Description of sunpos</title>
+  <meta name="keywords" content="sunpos">
+  <meta name="description" content="Copyright 2016 The MathWorks, Inc.">
+  <meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+  <meta name="generator" content="m2html &copy; 2003 Guillaume Flandin">
+  <meta name="robots" content="index, follow">
+  <link type="text/css" rel="stylesheet" href="../m2html.css">
+</head>
+<body>
+<a name="_top"></a>
+<!-- menu.html Skymap -->
+<h1>sunpos
+</h1>
+
+<h2><a name="_name"></a>PURPOSE <a href="#_top"><img alt="^" border="0" src="../up.png"></a></h2>
+<div class="box"><strong>Copyright 2016 The MathWorks, Inc.</strong></div>
+
+<h2><a name="_synopsis"></a>SYNOPSIS <a href="#_top"><img alt="^" border="0" src="../up.png"></a></h2>
+<div class="box"><strong>function [azimuthAngle,zenithAngle] = sunpos(dayOfYear,timeHour,latitude) </strong></div>
+
+<h2><a name="_description"></a>DESCRIPTION <a href="#_top"><img alt="^" border="0" src="../up.png"></a></h2>
+<div class="fragment"><pre class="comment"> Copyright 2016 The MathWorks, Inc.</pre></div>
+
+<!-- crossreference -->
+<h2><a name="_cross"></a>CROSS-REFERENCE INFORMATION <a href="#_top"><img alt="^" border="0" src="../up.png"></a></h2>
+This function calls:
+<ul style="list-style-image:url(../matlabicon.gif)">
+</ul>
+This function is called by:
+<ul style="list-style-image:url(../matlabicon.gif)">
+</ul>
+<!-- crossreference -->
+
+
+<h2><a name="_source"></a>SOURCE CODE <a href="#_top"><img alt="^" border="0" src="../up.png"></a></h2>
+<div class="fragment"><pre>0001 <a name="_sub0" href="#_subfunctions" class="code">function [azimuthAngle,zenithAngle] = sunpos(dayOfYear,timeHour,latitude)</a>
+0002 <span class="comment">% Copyright 2016 The MathWorks, Inc.</span>
+0003 
+0004 <span class="comment">% Make sure time vector is oriented properly</span>
+0005 <span class="keyword">if</span> size(timeHour,1) == 1 &amp;&amp; size(timeHour,2) &gt; 1
+0006     timeHour = timeHour';
+0007 <span class="keyword">end</span>
+0008 
+0009 <span class="comment">% Make sure day vector is oriented properly</span>
+0010 <span class="keyword">if</span> size(dayOfYear,2) == 1 &amp;&amp; size(dayOfYear,1) &gt; 1
+0011     dayOfYear = dayOfYear';
+0012 <span class="keyword">end</span>
+0013 
+0014 <span class="comment">% Account for Multiple Days</span>
+0015 numTime = numel(timeHour);
+0016 numDays = numel(dayOfYear);
+0017 timeHour = repmat(timeHour,1,numDays);
+0018 
+0019 <span class="comment">% Shift solar noon for longitude</span>
+0020 longitudeShift = 0;
+0021 
+0022 <span class="comment">% Equation of Time - East/West timeshift associated with elliptical orbit</span>
+0023 equationTime = 9.87*sind(2*360/365*(dayOfYear-81)) - <span class="keyword">...</span>
+0024     7.53*cosd(360/365*(dayOfYear-81)) - <span class="keyword">...</span>
+0025     1.5*sind(360/365*(dayOfYear-81));
+0026 solarTimeCorrection = equationTime/60 + longitudeShift/15;
+0027 solarTime = timeHour + repmat(solarTimeCorrection,numTime,1);
+0028 
+0029 <span class="comment">% Angle of Sun - Related to Solar time (0 deg - vertical sun)</span>
+0030 hourAngle = 180*(12-solarTime)/12;
+0031 
+0032 <span class="comment">% Sun Declination - varies from +/- 23.45 during year</span>
+0033 sunDeclinationAngle = 23.45*sind(360/365*(dayOfYear-81));
+0034 
+0035 <span class="comment">% Solar Zenith Angle Calculations</span>
+0036 cosineZenith = bsxfun(@plus,sind(latitude)*sind(sunDeclinationAngle),<span class="keyword">...</span>
+0037     cosd(latitude)*bsxfun(@times,cosd(sunDeclinationAngle),cosd(hourAngle)));
+0038 zenithAngle = acos(cosineZenith);
+0039 
+0040 <span class="comment">% Solar Azimuth Angle Calculations</span>
+0041 eastVertical = bsxfun(@times,cosd(sunDeclinationAngle),sind(hourAngle));
+0042 southVertical = bsxfun(@plus,-sind(sunDeclinationAngle)*cosd(latitude), <span class="keyword">...</span>
+0043     bsxfun(@times,cosd(sunDeclinationAngle),sind(latitude)*cosd(hourAngle)));
+0044 posAngle = eastVertical &gt; 0;
+0045 
+0046 azimuthAngle = zeros(numTime,numDays);
+0047 azimuthAngle(posAngle) = acos(-southVertical(posAngle)./ <span class="keyword">...</span>
+0048     sqrt(eastVertical(posAngle).^2 + southVertical(posAngle).^2));
+0049 azimuthAngle(~posAngle) = pi + acos(southVertical(~posAngle)./ <span class="keyword">...</span>
+0050     sqrt(eastVertical(~posAngle).^2+southVertical(~posAngle).^2));
+0051 azimuthAngle = -azimuthAngle;
+0052 
+0053 <span class="keyword">end</span></pre></div>
+<hr><address>Generated on Thu 21-Jun-2018 22:40:16 by <strong>B.&nbsp;Gustavsson</strong> with <strong><a href="http://www.artefact.tk/software/matlab/m2html/" target="_parent">m2html</a></strong> &copy; 2003</address>
+</body>
+</html>

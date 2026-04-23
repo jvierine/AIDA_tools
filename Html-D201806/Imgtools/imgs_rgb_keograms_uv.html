@@ -1,0 +1,118 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
+                "http://www.w3.org/TR/REC-html40/loose.dtd">
+<html>
+<head>
+  <title>Description of imgs_rgb_keograms_uv</title>
+  <meta name="keywords" content="imgs_rgb_keograms_uv">
+  <meta name="description" content="imgs_rgb_keogram_uv - make "keogram" along image coordinates [u,v].">
+  <meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+  <meta name="generator" content="m2html &copy; 2003 Guillaume Flandin">
+  <meta name="robots" content="index, follow">
+  <link type="text/css" rel="stylesheet" href="../m2html.css">
+</head>
+<body>
+<a name="_top"></a>
+<!-- menu.html Imgtools -->
+<h1>imgs_rgb_keograms_uv
+</h1>
+
+<h2><a name="_name"></a>PURPOSE <a href="#_top"><img alt="^" border="0" src="../up.png"></a></h2>
+<div class="box"><strong>imgs_rgb_keogram_uv - make "keogram" along image coordinates [u,v].</strong></div>
+
+<h2><a name="_synopsis"></a>SYNOPSIS <a href="#_top"><img alt="^" border="0" src="../up.png"></a></h2>
+<div class="box"><strong>function [Keo,exptimes,Tstrs,filters] = imgs_rgb_keograms_uv(files,u,v,optpar,PO) </strong></div>
+
+<h2><a name="_description"></a>DESCRIPTION <a href="#_top"><img alt="^" border="0" src="../up.png"></a></h2>
+<div class="fragment"><pre class="comment"> imgs_rgb_keogram_uv - make &quot;keogram&quot; along image coordinates [u,v].
+   FILES should be a char-arry with filenames (readable) (full or
+   relative path), PO should be a struct with PRE_PROC_OPS, RS
+   should be the [1x3] vector of the observation position.
+ 
+ Calling:
+ [Keo,exptimes,Tstrs,filters] = imgs_rgb_keograms_uv(files,u,v,optpar,PO)
+ 
+   See also: INIMG, STARCAL, TYPICAL_PRE_PROC_OPS</pre></div>
+
+<!-- crossreference -->
+<h2><a name="_cross"></a>CROSS-REFERENCE INFORMATION <a href="#_top"><img alt="^" border="0" src="../up.png"></a></h2>
+This function calls:
+<ul style="list-style-image:url(../matlabicon.gif)">
+<li><a href="../Camera/ffs_correction2.html" class="code" title="function [ff] = ffs_correction2(imgsize,optpar,optmod)">ffs_correction2</a>	FFS_CORRECTION2 - flat-field variation for optical transfer</li><li><a href="../Fits_tools/inimg.html" class="code" title="function [img_out,img_head,obs] = inimg(filename,PREPRO_OPS)">inimg</a>	INIMG - reads and pre-process an image.</li><li><a href="../Fits_tools/time_from_header.html" class="code" title="function [time,timestr] = time_from_header(header)">time_from_header</a>	TIME_FROM_HEADER parses a ALIS header for time</li></ul>
+This function is called by:
+<ul style="list-style-image:url(../matlabicon.gif)">
+</ul>
+<!-- crossreference -->
+
+
+<h2><a name="_source"></a>SOURCE CODE <a href="#_top"><img alt="^" border="0" src="../up.png"></a></h2>
+<div class="fragment"><pre>0001 <a name="_sub0" href="#_subfunctions" class="code">function [Keo,exptimes,Tstrs,filters] = imgs_rgb_keograms_uv(files,u,v,optpar,PO)</a>
+0002 <span class="comment">% imgs_rgb_keogram_uv - make &quot;keogram&quot; along image coordinates [u,v].</span>
+0003 <span class="comment">%   FILES should be a char-arry with filenames (readable) (full or</span>
+0004 <span class="comment">%   relative path), PO should be a struct with PRE_PROC_OPS, RS</span>
+0005 <span class="comment">%   should be the [1x3] vector of the observation position.</span>
+0006 <span class="comment">%</span>
+0007 <span class="comment">% Calling:</span>
+0008 <span class="comment">% [Keo,exptimes,Tstrs,filters] = imgs_rgb_keograms_uv(files,u,v,optpar,PO)</span>
+0009 <span class="comment">%</span>
+0010 <span class="comment">%   See also: INIMG, STARCAL, TYPICAL_PRE_PROC_OPS</span>
+0011 
+0012 
+0013 <span class="comment">%   Copyright � 20050110 Bjorn Gustavsson, &lt;bjorn.gustavsson@irf.se&gt;</span>
+0014 <span class="comment">%   This is free software, licensed under GNU GPL version 2 or later</span>
+0015 
+0016 <span class="comment">%global bxy bx by</span>
+0017 
+0018 
+0019 ff_everystep = 0;
+0020 
+0021 <span class="keyword">if</span> nargin&gt;=4 &amp;&amp; length(optpar)&gt;8 &amp;&amp; 0
+0022   <span class="keyword">if</span> isstruct(optpar)
+0023     ff = <a href="../Camera/ffs_correction2.html" class="code" title="function [ff] = ffs_correction2(imgsize,optpar,optmod)">ffs_correction2</a>(PO.outimgsize.*[1 1],optpar,optpar.mod);
+0024   <span class="keyword">else</span>
+0025     ff = <a href="../Camera/ffs_correction2.html" class="code" title="function [ff] = ffs_correction2(imgsize,optpar,optmod)">ffs_correction2</a>(PO.outimgsize.*[1 1],optpar,optpar(9));
+0026   <span class="keyword">end</span>
+0027   <span class="keyword">if</span> isempty(ff)
+0028     ff_everystep = 1;
+0029   <span class="keyword">else</span>
+0030     imagesc(1./ff),title(files(1,:)),colorbar,drawnow
+0031   <span class="keyword">end</span>
+0032 <span class="keyword">else</span>
+0033   ff = 1;
+0034 <span class="keyword">end</span>
+0035 
+0036 [data1] = <a href="../Fits_tools/inimg.html" class="code" title="function [img_out,img_head,obs] = inimg(filename,PREPRO_OPS)">inimg</a>(files(1,:),PO);
+0037 bxy = size(data1);
+0038 
+0039 <span class="keyword">for</span> i1 = size(files,1):-1:1,
+0040   
+0041   [data1,head1,o] = <a href="../Fits_tools/inimg.html" class="code" title="function [img_out,img_head,obs] = inimg(filename,PREPRO_OPS)">inimg</a>(files(i1,:),PO);
+0042   exptimes(i1) =  o.exptime;
+0043   <span class="keyword">if</span> exptimes(i1)&lt;100
+0044     exptimes(i1) = 1000*exptimes(i1);
+0045   <span class="keyword">end</span>
+0046   <span class="keyword">if</span> isempty(o.time)
+0047     Tstrs(i1,:) = <a href="../Fits_tools/time_from_header.html" class="code" title="function [time,timestr] = time_from_header(header)">time_from_header</a>(head1);
+0048   <span class="keyword">else</span>
+0049     Tstrs(i1,:) = o.time;
+0050   <span class="keyword">end</span>
+0051   <span class="keyword">if</span> ~isempty(o.filter)
+0052     filters(i1) = o.filter;
+0053   <span class="keyword">else</span>
+0054     filters(i1) = 0;
+0055   <span class="keyword">end</span>
+0056   <span class="keyword">if</span> ff_everystep
+0057     <span class="keyword">if</span> isstruct(optpar)
+0058       ff = <a href="../Camera/ffs_correction2.html" class="code" title="function [ff] = ffs_correction2(imgsize,optpar,optmod)">ffs_correction2</a>(size(data1),optpar,optpar.mod);
+0059     <span class="keyword">else</span>
+0060       ff = <a href="../Camera/ffs_correction2.html" class="code" title="function [ff] = ffs_correction2(imgsize,optpar,optmod)">ffs_correction2</a>(size(data1),optpar,optpar(9));
+0061     <span class="keyword">end</span>
+0062   <span class="keyword">end</span>
+0063   <span class="comment">% data1 = 1000*data1./ff/exptimes(i1);</span>
+0064   Keo(i1,:,3) = interp2(data1(:,:,3),u,v);
+0065   Keo(i1,:,2) = interp2(data1(:,:,2),u,v);
+0066   Keo(i1,:,1) = interp2(data1(:,:,1),u,v);
+0067   
+0068 <span class="keyword">end</span></pre></div>
+<hr><address>Generated on Thu 21-Jun-2018 22:40:16 by <strong>B.&nbsp;Gustavsson</strong> with <strong><a href="http://www.artefact.tk/software/matlab/m2html/" target="_parent">m2html</a></strong> &copy; 2003</address>
+</body>
+</html>

@@ -1,0 +1,415 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
+                "http://www.w3.org/TR/REC-html40/loose.dtd">
+<html>
+<head>
+  <title>Description of imthumbImToolupdateRCcuts</title>
+  <meta name="keywords" content="imthumbImToolupdateRCcuts">
+  <meta name="description" content="IMTHUMBIMTOOlUPDATERCCUTS - update line and column intensities cuts">
+  <meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+  <meta name="generator" content="m2html &copy; 2003 Guillaume Flandin">
+  <meta name="robots" content="index, follow">
+  <link type="text/css" rel="stylesheet" href="../m2html.css">
+</head>
+<body>
+<a name="_top"></a>
+<!-- menu.html Imgtools -->
+<h1>imthumbImToolupdateRCcuts
+</h1>
+
+<h2><a name="_name"></a>PURPOSE <a href="#_top"><img alt="^" border="0" src="../up.png"></a></h2>
+<div class="box"><strong>IMTHUMBIMTOOlUPDATERCCUTS - update line and column intensities cuts</strong></div>
+
+<h2><a name="_synopsis"></a>SYNOPSIS <a href="#_top"><img alt="^" border="0" src="../up.png"></a></h2>
+<div class="box"><strong>function ph = imthumbImToolupdateRCcuts </strong></div>
+
+<h2><a name="_description"></a>DESCRIPTION <a href="#_top"><img alt="^" border="0" src="../up.png"></a></h2>
+<div class="fragment"><pre class="comment"> IMTHUMBIMTOOlUPDATERCCUTS - update line and column intensities cuts
+   Works for both RGB-images and grayscale images.
+   Callback-function for Imthumb.m
+ 
+ Calling:
+   ph = imthumbImToolupdateRCcuts
+ Input:
+   im - image, either [nR x nC x 3] rgb-image, or [nR x nC]
+        gray-scale image</pre></div>
+
+<!-- crossreference -->
+<h2><a name="_cross"></a>CROSS-REFERENCE INFORMATION <a href="#_top"><img alt="^" border="0" src="../up.png"></a></h2>
+This function calls:
+<ul style="list-style-image:url(../matlabicon.gif)">
+<li><a href="../tools/colorbar_labeled.html" class="code" title="function handle=colorbar_labeled(label,lg,varargin)">colorbar_labeled</a>	COLORBAR_LABELED - colorbar with label for range linear or log</li></ul>
+This function is called by:
+<ul style="list-style-image:url(../matlabicon.gif)">
+</ul>
+<!-- crossreference -->
+
+
+<h2><a name="_source"></a>SOURCE CODE <a href="#_top"><img alt="^" border="0" src="../up.png"></a></h2>
+<div class="fragment"><pre>0001 <a name="_sub0" href="#_subfunctions" class="code">function ph = imthumbImToolupdateRCcuts</a>
+0002 <span class="comment">% IMTHUMBIMTOOlUPDATERCCUTS - update line and column intensities cuts</span>
+0003 <span class="comment">%   Works for both RGB-images and grayscale images.</span>
+0004 <span class="comment">%   Callback-function for Imthumb.m</span>
+0005 <span class="comment">%</span>
+0006 <span class="comment">% Calling:</span>
+0007 <span class="comment">%   ph = imthumbImToolupdateRCcuts</span>
+0008 <span class="comment">% Input:</span>
+0009 <span class="comment">%   im - image, either [nR x nC x 3] rgb-image, or [nR x nC]</span>
+0010 <span class="comment">%        gray-scale image</span>
+0011 <span class="comment">%</span>
+0012 
+0013 <span class="comment">%   Copyright � 20140122 Bjorn Gustavsson, &lt;bjorn.gustavsson@irf.se&gt;</span>
+0014 <span class="comment">%   This is free software, licensed under GNU GPL version 2 or later</span>
+0015 
+0016 
+0017 <span class="comment">% Full crosshair seems like a good choice of marker for the pointer</span>
+0018 set(gcf,<span class="string">'pointer'</span>,<span class="string">'fullcrosshair'</span>)
+0019 
+0020 pause(0.2)
+0021 warningSpwewer = <span class="string">'MATLAB:hg:patch:RGBColorDataNotSupported'</span>;
+0022 warningSpwewerState = warning(<span class="string">'QUERY'</span>,warningSpwewer);
+0023 warning(<span class="string">'OFF'</span>,<span class="string">'MATLAB:hg:patch:RGBColorDataNotSupported'</span>);
+0024 
+0025 <span class="comment">% Retrieve the handles to images and subplots and such.</span>
+0026 Udata = get(gcf,<span class="string">'userdata'</span>);
+0027 axImg  = Udata.axImg;  <span class="comment">% handle to image</span>
+0028 phX    = Udata.phX;    <span class="comment">% handle to the horizontally overplotted line</span>
+0029 phY    = Udata.phY;    <span class="comment">% handle to the vertically overplotted line</span>
+0030 clbH   = Udata.clbH;   <span class="comment">% possibly handle to colorbar</span>
+0031 axC    = Udata.axC;    <span class="comment">% handle to the panel for row-line-plots</span>
+0032 axR    = Udata.axR;    <span class="comment">% handle to the panel for column-line-plots</span>
+0033 imsz   = Udata.imsz;   <span class="comment">% Size of the original image</span>
+0034 imHist = Udata.imHist; <span class="comment">% Image intensity histogram</span>
+0035 xHist  = Udata.xHist;  <span class="comment">% Intensities in histogram</span>
+0036 ops    = Udata.ops;  <span class="comment">% options struct</span>
+0037 axZoom = Udata.axZoom;
+0038 zoomaxsize = ops.ImTzoomaxsize;
+0039 zoom2nrpix = ops.ImTzoom2nrpix;
+0040 <span class="comment">% Remove the old overplotted lines (since we've selected a new</span>
+0041 <span class="comment">% pair to plot):</span>
+0042 axes(axImg)
+0043 <span class="keyword">if</span> ishandle(axZoom)
+0044   delete(axZoom)
+0045 <span class="keyword">end</span>
+0046 cxImg = caxis;
+0047 <span class="keyword">if</span> ishandle(phX)
+0048   delete(phX)
+0049   delete(phY)
+0050 <span class="keyword">end</span>
+0051 <span class="keyword">if</span> ishandle(clbH)
+0052   delete(clbH)
+0053 <span class="keyword">end</span>
+0054 <span class="comment">% Retrieve the image data:</span>
+0055 CDATA = get(findall(gca,<span class="string">'type'</span>,<span class="string">'image'</span>),<span class="string">'cdata'</span>);
+0056 axIm = axis;
+0057 
+0058 <span class="comment">% Get the coordinates of the pointer:</span>
+0059 point1 = get(gca,<span class="string">'CurrentPoint'</span>); <span class="comment">% button down detection</span>
+0060 seltype = get(gcf,<span class="string">'SelectionType'</span>);
+0061 
+0062 <span class="comment">% over-plot the new horizontal and vertical lines on the image:</span>
+0063 <span class="keyword">switch</span> seltype
+0064  <span class="keyword">case</span> <span class="string">'alt'</span> <span class="comment">% Zoom then plot a small + centred on the selected point</span>
+0065   phX = plot(point1(1,2)+zoom2nrpix*[-1 1]/2,point1(1,2)*[1,1],<span class="string">'k--'</span>,<span class="string">'linewidth'</span>,0.5);
+0066   phY = plot([1 1]*point1(1,1),point1(1,2)+zoom2nrpix*[-1 1]/2,<span class="string">'k--'</span>,<span class="string">'linewidth'</span>,0.5);
+0067  <span class="keyword">case</span> <span class="string">'extend'</span> <span class="comment">% Histogram - plot just a simple point to keep phXY handles</span>
+0068   phX = plot([1,1],[1,1],<span class="string">'k--'</span>,<span class="string">'linewidth'</span>,0.5);
+0069   phY = plot([1,1],[1 1],<span class="string">'k--'</span>,<span class="string">'linewidth'</span>,0.5);
+0070  <span class="keyword">otherwise</span> <span class="comment">% Normal/open plot the selected line and column</span>
+0071   phX = plot([1 imsz(2)],point1(1,2)*[1,1],<span class="string">'k--'</span>,<span class="string">'linewidth'</span>,0.5);
+0072   phY = plot([1 1]*point1(1,1),[1 imsz(1)],<span class="string">'k--'</span>,<span class="string">'linewidth'</span>,0.5);
+0073 <span class="keyword">end</span>
+0074 <span class="comment">% Determine the closest row and column in the image:</span>
+0075 iR = max(1,min(round(point1(1,2)),size(CDATA,1)));
+0076 iC = max(1,min(round(point1(1,1)),size(CDATA,2)));
+0077 
+0078 <span class="keyword">if</span> length(imsz) &gt; 2 <span class="comment">% RGB</span>
+0079   
+0080   <span class="keyword">switch</span> seltype
+0081    <span class="keyword">case</span> <span class="string">'alt'</span>
+0082 <span class="comment">% $$$     if ishandle(axZoom)</span>
+0083 <span class="comment">% $$$       delete(axZoom)</span>
+0084 <span class="comment">% $$$     else</span>
+0085       <span class="comment">%% Then we plot the R, G and B chanels along the selected</span>
+0086       <span class="comment">%  column on the right side of the image:</span>
+0087       axes(axC)
+0088       pC = plot(axC,squeeze(CDATA(:,iC,:)),1:size(CDATA,1),<span class="keyword">...</span>
+0089                 <span class="string">'linewidth'</span>,ops.LineWidths,<span class="keyword">...</span>
+0090                 <span class="string">'linestyle'</span>,ops.LineStyles);
+0091       ax_C = axis;
+0092       axis([ax_C(1:2),axIm(3:4)])
+0093       set(gca,<span class="string">'ydir'</span>,get(axImg,<span class="string">'ydir'</span>)) <span class="comment">% Give the column plot the same</span>
+0094                                         <span class="comment">% direction of the</span>
+0095                                         <span class="comment">% pixel/vertical coordinate</span>
+0096       set(gca,<span class="string">'yaxisLocation'</span>,<span class="string">'right'</span>,<span class="string">'yticklabel'</span>,<span class="string">''</span>)
+0097       
+0098       <span class="comment">% and below the bottom of the image:</span>
+0099       axes(axR)
+0100       pR = plot(1:size(CDATA,2),squeeze(CDATA(iR,:,:)),<span class="keyword">...</span>
+0101                 <span class="string">'linewidth'</span>,ops.LineWidths,<span class="keyword">...</span>
+0102                 <span class="string">'linestyle'</span>,ops.LineStyles);
+0103       ax_R = axis;
+0104       axis([axIm(1:2),ax_R(3:4)])
+0105       set(gca,<span class="string">'xdir'</span>,get(axImg,<span class="string">'xdir'</span>))
+0106       
+0107       <span class="comment">% Set the correct colors of the lines:</span>
+0108       set(pR(1),<span class="string">'color'</span>,<span class="string">'r'</span>)
+0109       set(pR(2),<span class="string">'color'</span>,<span class="string">'g'</span>)
+0110       set(pR(3),<span class="string">'color'</span>,<span class="string">'b'</span>)
+0111       set(pC(1),<span class="string">'color'</span>,<span class="string">'r'</span>)
+0112       set(pC(2),<span class="string">'color'</span>,<span class="string">'g'</span>)
+0113       set(pC(3),<span class="string">'color'</span>,<span class="string">'b'</span>)
+0114       axes(axImg)
+0115       imgcaC = get(findall(get(gca,<span class="string">'children'</span>),<span class="string">'type'</span>,<span class="string">'image'</span>),<span class="string">'CData'</span>);
+0116       axPos = get(gca,<span class="string">'position'</span>);
+0117       <span class="comment">% axZoom = axes('position',[axPos(1)+((point1(1,1)+20)/size(imgcaC,2))*axPos(3), axPos(2)+(size(imgcaC,1)-(point1(1,2)+15))/size(imgcaC,1)*axPos(4),0.15,0.15]);</span>
+0118       axZoom = axes(<span class="string">'position'</span>,[axPos(1)+((point1(1,1)+20)/size(imgcaC,2))*axPos(3),<span class="keyword">...</span><span class="comment">          % x-coordinate of lower left corner of the zoom-axis </span>
+0119                           axPos(2)+(size(imgcaC,1)-(point1(1,2)+15))/size(imgcaC,1)*axPos(4),<span class="keyword">...</span><span class="comment"> % y-coordinate of lower left corner of the zoom-axis </span>
+0120                           zoomaxsize*[1,1]]);                                                    <span class="comment">% width and height of the zoom axis</span>
+0121       imZH = imagesc(imgcaC,<span class="string">'parent'</span>,axZoom);
+0122       <span class="comment">%axis([point1(1,1) + [-10 10],point1(1,2) + [-10 10]])</span>
+0123       <span class="comment">%axis([point1(1,1) + [-10 10],point1(1,2) + [-10 10]])</span>
+0124       axis equal
+0125       axis([point1(1,1)+zoom2nrpix*[-1 1]/2, point1(1,2) + zoom2nrpix*[-1 1]/2])
+0126       set(imZH,<span class="string">'ButtonDownfcn'</span>,<span class="string">'imthumbchangezoom'</span>)
+0127 <span class="comment">% $$$     end</span>
+0128    <span class="keyword">case</span> <span class="string">'extend'</span>
+0129     <span class="comment">%% Plot the image histograms and cumulative histograms</span>
+0130     axes(axR)
+0131     sHx = stairs(xHist,imHist,<span class="string">'r'</span>);
+0132     set(sHx,<span class="string">'linewidth'</span>,ops.LineWidths,<span class="keyword">...</span>
+0133             <span class="string">'linestyle'</span>,ops.LineStyles)
+0134     set(sHx(1),<span class="string">'color'</span>,<span class="string">'r'</span>)
+0135     set(sHx(2),<span class="string">'color'</span>,<span class="string">'g'</span>)
+0136     set(sHx(3),<span class="string">'color'</span>,<span class="string">'b'</span>)
+0137     xlabel(<span class="string">'Intensity histogram (&quot;intensity&quot;)'</span>,<span class="string">'fontsize'</span>,ops.fontsizes)
+0138     ylabel(<span class="string">'# of pixels'</span>,<span class="string">'fontsize'</span>,ops.fontsizes)
+0139     axes(axC)
+0140     sHy = stairs(cumsum(imHist)/prod(imsz(1:2)),repmat(xHist,1,3));
+0141     set(sHy,<span class="string">'linewidth'</span>,ops.LineWidths,<span class="keyword">...</span>
+0142             <span class="string">'linestyle'</span>,ops.LineStyles)
+0143     set(sHy(1),<span class="string">'color'</span>,<span class="string">'r'</span>)
+0144     set(sHy(2),<span class="string">'color'</span>,<span class="string">'g'</span>)
+0145     set(sHy(3),<span class="string">'color'</span>,<span class="string">'b'</span>)
+0146     axis tight
+0147     set(gca,<span class="string">'yaxisLocation'</span>,<span class="string">'right'</span>)
+0148     ylabel(<span class="string">'Cumulative intensity histogram (&quot;intensity&quot;)'</span>,<span class="string">'fontsize'</span>,ops.fontsizes)
+0149     xlabel(<span class="string">'% of pixels'</span>,<span class="string">'fontsize'</span>,ops.fontsizes)
+0150     
+0151    <span class="keyword">case</span> <span class="string">'open'</span>
+0152     <span class="comment">%% Plot the Hue Saturation and Value of the RGB-cuts</span>
+0153     <span class="comment">% Row</span>
+0154     axes(axR)
+0155     axp = get(gca,<span class="string">'position'</span>);
+0156     <span class="keyword">try</span>
+0157       hsvR = rgb2hsv(squeeze(CDATA(iR,:,:)));
+0158     <span class="keyword">catch</span>
+0159       hsvR = squeeze(rgb2hsv(CDATA(iR,:,:)));
+0160     <span class="keyword">end</span>
+0161     clrR = hsv2rgb(hsvR);
+0162     hold off
+0163     phR3 = plot(1:size(CDATA,2),hsvR(:,3),<span class="string">'m.'</span>);
+0164     hold on 
+0165     phR2 = plot(1:size(CDATA,2),hsvR(:,2),<span class="string">'c.'</span>);
+0166     phRSC = scatter(1:length(clrR),hsvR(:,1),15,squeeze(clrR),<span class="string">'filled'</span>);
+0167     ax_R = axis;
+0168     hold off
+0169     axis([axIm(1:2),ax_R(3:4)])
+0170     legend([phRSC(1),phR2,phR3],<span class="string">'Hue'</span>,<span class="string">'Saturation'</span>,<span class="string">'Value'</span>,<span class="string">'location'</span>,<span class="string">'southeastoutside'</span>)
+0171     set(gca,<span class="string">'position'</span>,axp)
+0172     set(gca,<span class="string">'xdir'</span>,get(axImg,<span class="string">'xdir'</span>))
+0173     <span class="comment">% Column</span>
+0174     axes(axC)
+0175     <span class="keyword">try</span>
+0176       hsvC = rgb2hsv(squeeze(CDATA(:,iC,:)));
+0177     <span class="keyword">catch</span>
+0178       hsvC = squeeze(rgb2hsv(CDATA(:,iC,:)));
+0179     <span class="keyword">end</span>
+0180     clrC = hsv2rgb(hsvC);
+0181     hold off
+0182     phC3 = plot(hsvC(:,3),1:size(CDATA,1),<span class="string">'m.'</span>);
+0183     hold on 
+0184     phC2 = plot(hsvC(:,2),1:size(CDATA,1),<span class="string">'c.'</span>);
+0185     phCSC = scatter(hsvC(:,1),1:length(clrC),15,squeeze(clrC),<span class="string">'filled'</span>);
+0186     ax_C = axis;
+0187     axis([ax_C(1:2),axIm(3:4)])
+0188     hold off
+0189     set(gca,<span class="string">'ydir'</span>,get(axImg,<span class="string">'ydir'</span>)) <span class="comment">% Give the column plot the same</span>
+0190                                       <span class="comment">% direction of the</span>
+0191                                       <span class="comment">% pixel/vertical coordinate</span>
+0192     
+0193     set(gca,<span class="string">'yaxisLocation'</span>,<span class="string">'right'</span>,<span class="string">'yticklabel'</span>,<span class="string">''</span>)
+0194     pR = [phRSC(:);phR2(:);phR3(:)];
+0195     pC = [phCSC(:);phC2(:);phC3(:)];
+0196     
+0197    <span class="keyword">otherwise</span>
+0198     <span class="comment">%% Then we plot the R, G and B chanels along the selected</span>
+0199     <span class="comment">%  column on the right side of the image:</span>
+0200     axes(axC)
+0201     pC = plot(axC,squeeze(CDATA(:,iC,:)),1:size(CDATA,1),<span class="keyword">...</span>
+0202               <span class="string">'linewidth'</span>,ops.LineWidths,<span class="keyword">...</span>
+0203               <span class="string">'linestyle'</span>,ops.LineStyles);
+0204     ax_C = axis;
+0205     axis([ax_C(1:2),axIm(3:4)])
+0206     set(gca,<span class="string">'ydir'</span>,get(axImg,<span class="string">'ydir'</span>)) <span class="comment">% Give the column plot the same</span>
+0207                                       <span class="comment">% direction of the</span>
+0208                                       <span class="comment">% pixel/vertical coordinate</span>
+0209     set(gca,<span class="string">'yaxisLocation'</span>,<span class="string">'right'</span>,<span class="string">'yticklabel'</span>,<span class="string">''</span>)
+0210     
+0211     <span class="comment">% and below the bottom of the image:</span>
+0212     axes(axR)
+0213     pR = plot(1:size(CDATA,2),squeeze(CDATA(iR,:,:)),<span class="keyword">...</span>
+0214               <span class="string">'linewidth'</span>,ops.LineWidths,<span class="keyword">...</span>
+0215               <span class="string">'linestyle'</span>,ops.LineStyles);
+0216     ax_R = axis;
+0217     axis([axIm(1:2),ax_R(3:4)])
+0218     set(gca,<span class="string">'xdir'</span>,get(axImg,<span class="string">'xdir'</span>))
+0219     
+0220     <span class="comment">% Set the correct colors of the lines:</span>
+0221     set(pR(1),<span class="string">'color'</span>,<span class="string">'r'</span>)
+0222     set(pR(2),<span class="string">'color'</span>,<span class="string">'g'</span>)
+0223     set(pR(3),<span class="string">'color'</span>,<span class="string">'b'</span>)
+0224     set(pC(1),<span class="string">'color'</span>,<span class="string">'r'</span>)
+0225     set(pC(2),<span class="string">'color'</span>,<span class="string">'g'</span>)
+0226     set(pC(3),<span class="string">'color'</span>,<span class="string">'b'</span>)
+0227     
+0228   <span class="keyword">end</span>
+0229   
+0230 <span class="keyword">else</span> <span class="comment">% Grayscale</span>
+0231   <span class="comment">%  for gray-scale image do same as above, except only for the</span>
+0232   <span class="comment">%  image intensity curves:</span>
+0233   <span class="keyword">switch</span> seltype
+0234    <span class="keyword">case</span> <span class="string">'alt'</span>
+0235     <span class="keyword">if</span> ishandle(axZoom)
+0236       delete(axZoom)
+0237       <span class="comment">% disp('b')</span>
+0238     <span class="keyword">else</span>
+0239     axes(axC)
+0240     pC = plot(axC,CDATA(:,iC),1:size(CDATA,1),<span class="keyword">...</span>
+0241             <span class="string">'linewidth'</span>,ops.LineWidths,<span class="keyword">...</span>
+0242             <span class="string">'linestyle'</span>,ops.LineStyles,<span class="keyword">...</span>
+0243             <span class="string">'color'</span>,    ops.LineColor);
+0244     ax_C = axis;
+0245     axis([ax_C(1:2),axIm(3:4)])
+0246     set(gca,<span class="string">'ydir'</span>,get(axImg,<span class="string">'ydir'</span>))
+0247     set(gca,<span class="string">'yaxisLocation'</span>,<span class="string">'right'</span>)
+0248     
+0249     axes(axR)
+0250     pR = plot(axR,1:size(CDATA,2),CDATA(iR,:),<span class="keyword">...</span>
+0251             <span class="string">'linewidth'</span>,ops.LineWidths,<span class="keyword">...</span>
+0252             <span class="string">'linestyle'</span>,ops.LineStyles,<span class="keyword">...</span>
+0253             <span class="string">'color'</span>,    ops.LineColor);
+0254     ax_R = axis;
+0255     axis([axIm(1:2),ax_R(3:4)])
+0256     set(gca,<span class="string">'xdir'</span>,get(axImg,<span class="string">'xdir'</span>))
+0257     <span class="comment">% disp('F')</span>
+0258     
+0259     <span class="comment">% set(pR(1),'color','r')</span>
+0260     <span class="comment">% set(pC(1),'color','r')</span>
+0261     <span class="keyword">if</span> strcmpi(ops.colorbar,<span class="string">'always'</span>)
+0262       axes(axImg)
+0263       clbH = <a href="../tools/colorbar_labeled.html" class="code" title="function handle=colorbar_labeled(label,lg,varargin)">colorbar_labeled</a>(<span class="string">''</span>);
+0264     <span class="keyword">end</span>
+0265       <span class="comment">% disp('c')</span>
+0266       axes(axImg)
+0267       imgcaC = get(findall(get(gca,<span class="string">'children'</span>),<span class="string">'type'</span>,<span class="string">'image'</span>),<span class="string">'CData'</span>);
+0268       axPos = get(gca,<span class="string">'position'</span>);
+0269       <span class="comment">% axZoom = axes('position',[axPos(1)+(point1(1,1)/size(imgcaC,2))*axPos(3)  axPos(2)+(size(imgcaC,1)-point1(1,2))/size(imgcaC,1)*axPos(4),0.15,0.15]);</span>
+0270       axZoom = axes(<span class="string">'position'</span>,[axPos(1)+((point1(1,1)+20)/size(imgcaC,2))*axPos(3),<span class="keyword">...</span><span class="comment">          % x-coordinate of lower left corner of the zoom-axis </span>
+0271                           axPos(2)+(size(imgcaC,1)-(point1(1,2)+15))/size(imgcaC,1)*axPos(4),<span class="keyword">...</span><span class="comment"> % y-coordinate of lower left corner of the zoom-axis </span>
+0272                           zoomaxsize*[1,1]]);                                                    <span class="comment">% width and height of the zoom axis</span>
+0273       imZH = imagesc(imgcaC,<span class="string">'parent'</span>,axZoom);<span class="comment">% axis([point1(1,1)+[-10 10],point1(1,2)+[-10 10]])</span>
+0274       axis equal
+0275       axis([point1(1,1)+zoom2nrpix*[-1 1]/2, point1(1,2) + zoom2nrpix*[-1 1]/2])
+0276       set(imZH,<span class="string">'ButtonDownfcn'</span>,<span class="string">'imthumbchangezoom'</span>)
+0277       <span class="comment">% keyboard</span>
+0278     <span class="keyword">end</span>
+0279    <span class="keyword">case</span> <span class="string">'extend'</span>
+0280     <span class="comment">% disp('D')</span>
+0281     <span class="comment">%% Plot the image histograms and cumulative histograms</span>
+0282     axes(axR)
+0283     sHx = stairs(xHist,imHist,<span class="string">'r'</span>);
+0284     set(sHx,<span class="string">'color'</span>,ops.LineColor,<span class="string">'linewidth'</span>,ops.LineWidths,<span class="string">'linestyle'</span>,ops.LineStyles)
+0285     xlabel(<span class="string">'Intensity histogram (&quot;intensity&quot;)'</span>,<span class="string">'fontsize'</span>,ops.fontsizes)
+0286     ylabel(<span class="string">'# of pixels'</span>,<span class="string">'fontsize'</span>,ops.fontsizes)
+0287     axRlims = axis;
+0288     hold on
+0289     plot(cxImg(1)*[1,1],axRlims(3:4),<span class="string">'k--'</span>)
+0290     plot(cxImg(2)*[1,1],axRlims(3:4),<span class="string">'k--'</span>)
+0291     hold off
+0292     
+0293     axes(axC)
+0294     sHy = stairs(cumsum(imHist)/prod(imsz),xHist,<span class="string">'r'</span>);
+0295     set(sHy,<span class="string">'color'</span>,ops.LineColor,<span class="string">'linewidth'</span>,ops.LineWidths,<span class="string">'linestyle'</span>,ops.LineStyles)
+0296     axis tight
+0297     axClims = axis;
+0298     hold on
+0299     plot(axClims(1:2),cxImg(1)*[1,1],<span class="string">'k--'</span>)
+0300     plot(axClims(1:2),cxImg(2)*[1,1],<span class="string">'k--'</span>)
+0301     hold off
+0302     
+0303     set(gca,<span class="string">'yaxisLocation'</span>,<span class="string">'right'</span>)
+0304     ylabel(<span class="string">'Cumulative intensity histogram (&quot;intensity&quot;)'</span>,<span class="string">'fontsize'</span>,ops.fontsizes)
+0305     xlabel(<span class="string">'% of pixels'</span>,<span class="string">'fontsize'</span>,ops.fontsizes)
+0306     <span class="keyword">if</span> strcmpi(ops.colorbar,<span class="string">'hist'</span>) || strcmpi(ops.colorbar,<span class="string">'always'</span>)
+0307       axes(axImg)
+0308       clbH = <a href="../tools/colorbar_labeled.html" class="code" title="function handle=colorbar_labeled(label,lg,varargin)">colorbar_labeled</a>(<span class="string">''</span>);
+0309       set(clbH,<span class="string">'yticklabel'</span>,<span class="string">''</span>)
+0310     <span class="keyword">end</span>
+0311     
+0312    <span class="keyword">otherwise</span>
+0313     axes(axC)
+0314     pC = plot(axC,CDATA(:,iC),1:size(CDATA,1),<span class="keyword">...</span>
+0315             <span class="string">'linewidth'</span>,ops.LineWidths,<span class="keyword">...</span>
+0316             <span class="string">'linestyle'</span>,ops.LineStyles,<span class="keyword">...</span>
+0317             <span class="string">'color'</span>,    ops.LineColor);
+0318     ax_C = axis;
+0319     axis([ax_C(1:2),axIm(3:4)])
+0320     set(gca,<span class="string">'ydir'</span>,get(axImg,<span class="string">'ydir'</span>))
+0321     set(gca,<span class="string">'yaxisLocation'</span>,<span class="string">'right'</span>)
+0322     
+0323     axes(axR)
+0324     pR = plot(axR,1:size(CDATA,2),CDATA(iR,:),<span class="keyword">...</span>
+0325             <span class="string">'linewidth'</span>,ops.LineWidths,<span class="keyword">...</span>
+0326             <span class="string">'linestyle'</span>,ops.LineStyles,<span class="keyword">...</span>
+0327             <span class="string">'color'</span>,    ops.LineColor);
+0328     ax_R = axis;
+0329     axis([axIm(1:2),ax_R(3:4)])
+0330     set(gca,<span class="string">'xdir'</span>,get(axImg,<span class="string">'xdir'</span>))
+0331     
+0332     <span class="comment">% set(pR(1),'color','r')</span>
+0333     <span class="comment">% set(pC(1),'color','r')</span>
+0334     <span class="keyword">if</span> strcmpi(ops.colorbar,<span class="string">'always'</span>)
+0335       axes(axImg)
+0336       clbH = <a href="../tools/colorbar_labeled.html" class="code" title="function handle=colorbar_labeled(label,lg,varargin)">colorbar_labeled</a>(<span class="string">''</span>);
+0337       set(clbH,<span class="string">'yticklabel'</span>,<span class="string">''</span>)
+0338     <span class="keyword">end</span>
+0339     
+0340   <span class="keyword">end</span> <span class="comment">% Switch seltype</span>
+0341   
+0342 <span class="keyword">end</span>
+0343 
+0344 
+0345 <span class="comment">% Stuff away necessay handles and sizes for use by the</span>
+0346 <span class="comment">% buttondownfunctioncallback:</span>
+0347 Udata.axImg  = axImg;
+0348 Udata.phX    = phX;
+0349 Udata.phY    = phY;
+0350 Udata.clbH   = clbH;
+0351 Udata.axC    = axC;
+0352 Udata.axR    = axR;
+0353 Udata.imsz   = imsz;
+0354 Udata.imHist = imHist;
+0355 Udata.xHist  = xHist;
+0356 Udata.axZoom = axZoom;
+0357 
+0358 set(gcf,<span class="string">'userdata'</span>,Udata)
+0359 <span class="keyword">if</span> nargout
+0360   ph = [pR(:);pC(:)];
+0361 <span class="keyword">end</span>
+0362 
+0363 <span class="keyword">if</span> strcmpi(warningSpwewerState.state,<span class="string">'off'</span>)
+0364   warning(<span class="string">'ON'</span>,<span class="string">'MATLAB:hg:patch:RGBColorDataNotSupported'</span>);
+0365 <span class="keyword">end</span></pre></div>
+<hr><address>Generated on Thu 21-Jun-2018 22:40:16 by <strong>B.&nbsp;Gustavsson</strong> with <strong><a href="http://www.artefact.tk/software/matlab/m2html/" target="_parent">m2html</a></strong> &copy; 2003</address>
+</body>
+</html>

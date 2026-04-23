@@ -1,0 +1,163 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
+                "http://www.w3.org/TR/REC-html40/loose.dtd">
+<html>
+<head>
+  <title>Description of alis_overview_keos4web</title>
+  <meta name="keywords" content="alis_overview_keos4web">
+  <meta name="description" content="ALIS_OVERVIEW_KEOS4WEB - image ALIS overview keograms">
+  <meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+  <meta name="generator" content="m2html &copy; 2003 Guillaume Flandin">
+  <meta name="robots" content="index, follow">
+  <link type="text/css" rel="stylesheet" href="../../m2html.css">
+</head>
+<body>
+<a name="_top"></a>
+<!-- ../menu.html ALIS --><!-- menu.html AVOK -->
+<h1>alis_overview_keos4web
+</h1>
+
+<h2><a name="_name"></a>PURPOSE <a href="#_top"><img alt="^" border="0" src="../../up.png"></a></h2>
+<div class="box"><strong>ALIS_OVERVIEW_KEOS4WEB - image ALIS overview keograms</strong></div>
+
+<h2><a name="_synopsis"></a>SYNOPSIS <a href="#_top"><img alt="^" border="0" src="../../up.png"></a></h2>
+<div class="box"><strong>function avok = alis_overview_keos4web(date,t_lims,Keo,T_obs,Wl_emi,Stns) </strong></div>
+
+<h2><a name="_description"></a>DESCRIPTION <a href="#_top"><img alt="^" border="0" src="../../up.png"></a></h2>
+<div class="fragment"><pre class="comment"> ALIS_OVERVIEW_KEOS4WEB - image ALIS overview keograms
+ Produces png files for use as web-interface.
+
+ Calling:
+  AvOk = alis_overview_keos4web(date,Keo,T_obs,Wl_emi,Stns)</pre></div>
+
+<!-- crossreference -->
+<h2><a name="_cross"></a>CROSS-REFERENCE INFORMATION <a href="#_top"><img alt="^" border="0" src="../../up.png"></a></h2>
+This function calls:
+<ul style="list-style-image:url(../../matlabicon.gif)">
+<li><a href="../../Imgtools/imgs_smart_caxis.html" class="code" title="function cax = imgs_smart_caxis(alpha,varargin)">imgs_smart_caxis</a>	imgs_smart_caxis - alpha-percentile setting of color-axis,</li></ul>
+This function is called by:
+<ul style="list-style-image:url(../../matlabicon.gif)">
+<li><a href="alis_update_overview_web.html" class="code" title="">alis_update_overview_web</a>	Move to where the overview-keogram files are stored. On snake</li></ul>
+<!-- crossreference -->
+
+
+<h2><a name="_source"></a>SOURCE CODE <a href="#_top"><img alt="^" border="0" src="../../up.png"></a></h2>
+<div class="fragment"><pre>0001 <a name="_sub0" href="#_subfunctions" class="code">function avok = alis_overview_keos4web(date,t_lims,Keo,T_obs,Wl_emi,Stns)</a>
+0002 <span class="comment">% ALIS_OVERVIEW_KEOS4WEB - image ALIS overview keograms</span>
+0003 <span class="comment">% Produces png files for use as web-interface.</span>
+0004 <span class="comment">%</span>
+0005 <span class="comment">% Calling:</span>
+0006 <span class="comment">%  AvOk = alis_overview_keos4web(date,Keo,T_obs,Wl_emi,Stns)</span>
+0007 <span class="comment">%</span>
+0008 
+0009 <span class="comment">% Copyright B. Gustavsson 20050805</span>
+0010 
+0011 
+0012 STNN2NAME = {<span class="string">'Kiruna'</span>,<span class="string">'Merasjarvi'</span>,<span class="string">'Silkimuotka'</span>,<span class="string">'Tjautjas'</span>, <span class="keyword">...</span>
+0013              <span class="string">'Abisko'</span>,<span class="string">'Nikkaluokta'</span>,<span class="string">'Knutstorp'</span>,<span class="string">'8'</span>,<span class="string">'Optiklab'</span>,<span class="string">'Bus'</span>};
+0014 
+0015 pause_time = 1;
+0016 clf
+0017 
+0018 <span class="comment">% number of unique stations making observations</span>
+0019 nrstns = unique(Stns);
+0020 <span class="comment">% in UFNR wavelengths</span>
+0021 ufnr = unique([Wl_emi{:}]);
+0022 
+0023 <span class="comment">% To store number of exposures from each station at each wavelength</span>
+0024 to_day_overview = zeros(length(ufnr),length(nrstns));
+0025 <span class="comment">% Redundant?</span>
+0026 empty_axis = zeros(length(nrstns),length(ufnr));
+0027 
+0028 <span class="comment">% For each station</span>
+0029 <span class="keyword">for</span> j = 1:length(nrstns),
+0030   
+0031   <span class="comment">% Take &quot;its&quot; total keogram...</span>
+0032   keo = Keo{Stns(j)};
+0033   <span class="comment">% ...and remove nan&amp;inf...</span>
+0034   keo(~isfinite(keo(:))) = 0;
+0035   <span class="comment">% and take the corresponding filter array</span>
+0036   wl_emi = Wl_emi{Stns(j)};
+0037   <span class="comment">% and observation times.</span>
+0038   t_obs = T_obs{Stns(j)};
+0039   <span class="comment">% Loop over all unique filters.</span>
+0040   <span class="keyword">for</span> i = 1:length(ufnr),
+0041     <span class="comment">% create axis</span>
+0042     subplot(length(ufnr),length(nrstns),j+length(nrstns)*(i-1))
+0043     <span class="comment">% If the current station have made any observations in the</span>
+0044     <span class="comment">% current filter</span>
+0045     <span class="keyword">if</span> any(wl_emi==ufnr(i))
+0046       <span class="comment">% ...then count the number of exposures...</span>
+0047       to_day_overview(i,j) = sum(wl_emi==ufnr(i));
+0048       <span class="comment">% ...and most importandlty display it.</span>
+0049       <span class="keyword">if</span> sum(wl_emi==ufnr(i))&gt;1
+0050         pcolor(t_obs(wl_emi==ufnr(i)),1:size(keo,1),keo(:,wl_emi==ufnr(i)))
+0051       <span class="keyword">else</span>
+0052         imagesc(t_obs(wl_emi==ufnr(i)),1:size(keo,1),keo(:,wl_emi==ufnr(i)))
+0053       <span class="keyword">end</span>
+0054       shading flat,
+0055       <span class="comment">% try to cut off the \pm peaks from the intensity scale</span>
+0056       <span class="keyword">try</span>
+0057         <a href="../../Imgtools/imgs_smart_caxis.html" class="code" title="function cax = imgs_smart_caxis(alpha,varargin)">imgs_smart_caxis</a>(0.01,keo(:,wl_emi==ufnr(i)));
+0058       <span class="keyword">end</span>
+0059     <span class="keyword">end</span>
+0060     <span class="comment">% Set the axis to the time limits and 1-128 that are the</span>
+0061     <span class="comment">% uniform size of the keogram</span>
+0062     axis([t_lims 1 128])
+0063     <span class="comment">% Since we dont keep track of what the keogram-column</span>
+0064     <span class="comment">% coordinate represents just put the ticklabels away</span>
+0065     set(gca,<span class="string">'yticklabel'</span>,<span class="string">''</span>)
+0066     <span class="keyword">if</span> j == 1
+0067       <span class="comment">% Set the y-label in the first column to the emission</span>
+0068       ylh(i) = ylabel(num2str(ufnr(i)),<span class="string">'fontsize'</span>,16);
+0069     <span class="keyword">end</span>
+0070     <span class="keyword">if</span> i == 1
+0071       <span class="comment">% Set the title in the first row to the station name</span>
+0072       tlh(j) = title(STNN2NAME{Stns(j)},<span class="string">'fontsize'</span>,16);
+0073     <span class="keyword">end</span>
+0074     <span class="keyword">if</span> i == length(ufnr)
+0075       <span class="comment">% Set the xlabel in the last row to:</span>
+0076       xlh(j) = xlabel(<span class="string">'time (UT)'</span>);
+0077     <span class="keyword">end</span>
+0078     <span class="keyword">if</span> to_day_overview(i,j) == 0
+0079       <span class="comment">% If the axis is empty hide it</span>
+0080       axis off
+0081     <span class="keyword">end</span>
+0082     
+0083   <span class="keyword">end</span>
+0084   
+0085 <span class="keyword">end</span>
+0086 <span class="comment">% Make sure the labels are visible even if the axis are hidden</span>
+0087 set(xlh,<span class="string">'visible'</span>,<span class="string">'on'</span>)
+0088 set(ylh,<span class="string">'visible'</span>,<span class="string">'on'</span>)
+0089 set(tlh,<span class="string">'visible'</span>,<span class="string">'on'</span>)
+0090 <span class="comment">% $$$ to_day_overview</span>
+0091 
+0092 <span class="comment">% Here we remove all xticklabels except the bottommost one that</span>
+0093 <span class="comment">% belongs to an axis with data.</span>
+0094 <span class="keyword">for</span> j = 1:length(nrstns),
+0095   
+0096   wl_emi = Wl_emi{(j)};
+0097   i = length(ufnr);
+0098   keep_this_xtl = 1;
+0099   <span class="keyword">while</span> i &gt; 0 &amp;&amp; to_day_overview(i,j) == 0
+0100     subplot(length(ufnr),length(nrstns),j+length(nrstns)*(i-1))
+0101     set(gca,<span class="string">'xticklabel'</span>,<span class="string">''</span>)
+0102     i = i-1;
+0103   <span class="keyword">end</span>
+0104   i = i-1;
+0105   <span class="keyword">while</span> i &gt; 0
+0106     subplot(length(ufnr),length(nrstns),j+length(nrstns)*(i-1))
+0107     set(gca,<span class="string">'xticklabel'</span>,<span class="string">''</span>)
+0108     i = i-1;
+0109   <span class="keyword">end</span>
+0110   
+0111 <span class="keyword">end</span>
+0112 
+0113 <span class="comment">% only if there is _some_ data print an image with name in this</span>
+0114 <span class="comment">% pattern: yyyymmddThh_0-hh_1.png</span>
+0115 <span class="keyword">if</span> sum(to_day_overview(:)) &gt; 0
+0116   print(<span class="string">'-dpng'</span>,[num2str(date,<span class="string">'%02d'</span>),<span class="string">'T'</span>,num2str(t_lims,<span class="string">'%02d-%02d'</span>),<span class="string">'.png'</span>])
+0117 <span class="keyword">end</span></pre></div>
+<hr><address>Generated on Thu 21-Jun-2018 22:40:16 by <strong>B.&nbsp;Gustavsson</strong> with <strong><a href="http://www.artefact.tk/software/matlab/m2html/" target="_parent">m2html</a></strong> &copy; 2003</address>
+</body>
+</html>

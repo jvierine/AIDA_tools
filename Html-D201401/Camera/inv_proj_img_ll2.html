@@ -1,0 +1,161 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
+                "http://www.w3.org/TR/REC-html40/loose.dtd">
+<html>
+<head>
+  <title>Description of inv_proj_img_ll2</title>
+  <meta name="keywords" content="inv_proj_img_ll2">
+  <meta name="description" content="INV_PROJ_IMG_LL - map IMG_IN to a latitude-longitude grid LAT, LONG">
+  <meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+  <meta name="generator" content="m2html &copy; 2003 Guillaume Flandin">
+  <meta name="robots" content="index, follow">
+  <link type="text/css" rel="stylesheet" href="../m2html.css">
+</head>
+<body>
+<a name="_top"></a>
+<!-- menu.html Camera -->
+<h1>inv_proj_img_ll2
+</h1>
+
+<h2><a name="_name"></a>PURPOSE <a href="#_top"><img alt="^" border="0" src="../up.png"></a></h2>
+<div class="box"><strong>INV_PROJ_IMG_LL - map IMG_IN to a latitude-longitude grid LAT, LONG</strong></div>
+
+<h2><a name="_synopsis"></a>SYNOPSIS <a href="#_top"><img alt="^" border="0" src="../up.png"></a></h2>
+<div class="box"><strong>function [LongI,LatI] = inv_proj_img_ll2(img_in,optmod,optpar,lat0,long0,alt0,lat,long,alt,ze_max) </strong></div>
+
+<h2><a name="_description"></a>DESCRIPTION <a href="#_top"><img alt="^" border="0" src="../up.png"></a></h2>
+<div class="fragment"><pre class="comment"> INV_PROJ_IMG_LL - map IMG_IN to a latitude-longitude grid LAT, LONG
+   at an altitude ALT. The image IMG_IN taken from LAT0, LONG0 at
+   an altitude ALT0 with a camera model OPTMOD and rotation and
+   optical transfer function caracterised by OPTPAR.
+ 
+ Callling:
+  [LongI,LatI] = inv_proj_img_ll2(img_in,optmod,optpar,lat0,long0,alt0,lat,long,alt[,ze_max])
+ Input:
+  
+  img_in - Input image (double) grayscale or rgb
+  OPTMOD - is the optical model/transfer function to use:
+           1 - f*tan(theta),
+           2 - f*sin(alfa*theta),
+           3 - f(alfa*theta + (1-alfa)*tan(theta))
+           4 - f*theta 5 - f*tan(alfa*theta)
+           5 - f*tan(alfa*theta)
+          -1 - non-parametric, unrotated from zenith, with look-up
+               tables,
+          -2 - non-parametric, rotated from zenith, with look-up
+               tables,
+  OPTPAR - is a vector caracterising the optical
+           transfer function, or an OPTPAR struct, with fields:
+           sinzecosaz, sinzesinaz, u, v that define the horizontal
+           components of a pixel l-o-s, and the pixel coordinates
+           for the corresponding horizontal l-o-s components,
+           respectively, and optionally a field rot (when used a
+           vector with 3 Tait-Bryant rotaion angles)
+  lat0   - Latitude of camera (degrees)
+  long0  - Longitude of camera (degrees)
+  alt0   - altitude of camera (km)
+  lat    - latitude (degrees) coordinates of grid points to project image to
+  long   - longitude (degrees) coordinates of grid points to project image to
+  alt    - altitude (km) coordinates of grid points to project image to
+  ze_max - maximum zenith angle to use, optional - defaults to 85 deg
+ 
+ Example: 
+   [LongG,LatG] = meshgrid(linspace(6.2,35.5,600),linspace(63.8,74.2,600));                                   
+   optpar = [0.97899 -0.97941 -0.55363 -1.1863 -7.8519 -0.019269 -0.033697 0.32993 2 0]
+   [LongN,LatN] = inv_proj_img_ll2(ones([512,512]),optpar(9),optpar,69.02,20.87,0.123,LatG,LongG,110,82);       
+   pcolor(LongN,LatN,img_in),shading flat
+   
+   See also <a href="inv_project_img.html" class="code" title="function [xx,yy,zz] = inv_project_img(img_in,r,optmod,optpar,e_n,l_0,cmtr)">INV_PROJECT_IMG</a>, <a href="inv_project_img_surf.html" class="code" title="function [Im_proj] = inv_project_img_surf(img_in,r,optmod,optpar,Xs,Ys,Zs,cmtr)">INV_PROJECT_IMG_SURF</a>, <a href="camera_model.html" class="code" title="function [u,w] = camera_model(az,ze,e1,e2,e3,optpar,optmod,imsiz)">CAMERA_MODEL</a>, CAMERA_INV_MODEL</pre></div>
+
+<!-- crossreference -->
+<h2><a name="_cross"></a>CROSS-REFERENCE INFORMATION <a href="#_top"><img alt="^" border="0" src="../up.png"></a></h2>
+This function calls:
+<ul style="list-style-image:url(../matlabicon.gif)">
+<li><a href="inv_project_directions.html" class="code" title="function [az,ze] = inv_project_directions(px,py,inimg,r,optmod,optpar,e_n,l_0,cmtr)">inv_project_directions</a>	INV_PROJECT_DIRECTIONS - pixels line-of-sight to azimuth and zenith angles</li><li><a href="project_point.html" class="code" title="function [u,v,l] = project_point(rs,optpar,r,cmtr,imsiz)">project_point</a>	PROJECT_POINT - project a point in space R down onto an image</li><li><a href="../EARTH/latlongh_2_xyz.html" class="code" title="function [r_out] = latlongh_2_xyz(lat0,long0,h0,lat,long,h)">latlongh_2_xyz</a>	LATLONGH_2_xyz transforms the point ( LONG, LAT, H ) to (X,Y,Z)</li></ul>
+This function is called by:
+<ul style="list-style-image:url(../matlabicon.gif)">
+</ul>
+<!-- crossreference -->
+
+
+<h2><a name="_source"></a>SOURCE CODE <a href="#_top"><img alt="^" border="0" src="../up.png"></a></h2>
+<div class="fragment"><pre>0001 <a name="_sub0" href="#_subfunctions" class="code">function [LongI,LatI] = inv_proj_img_ll2(img_in,optmod,optpar,lat0,long0,alt0,lat,long,alt,ze_max)</a>
+0002 <span class="comment">% INV_PROJ_IMG_LL - map IMG_IN to a latitude-longitude grid LAT, LONG</span>
+0003 <span class="comment">%   at an altitude ALT. The image IMG_IN taken from LAT0, LONG0 at</span>
+0004 <span class="comment">%   an altitude ALT0 with a camera model OPTMOD and rotation and</span>
+0005 <span class="comment">%   optical transfer function caracterised by OPTPAR.</span>
+0006 <span class="comment">%</span>
+0007 <span class="comment">% Callling:</span>
+0008 <span class="comment">%  [LongI,LatI] = inv_proj_img_ll2(img_in,optmod,optpar,lat0,long0,alt0,lat,long,alt[,ze_max])</span>
+0009 <span class="comment">% Input:</span>
+0010 <span class="comment">%</span>
+0011 <span class="comment">%  img_in - Input image (double) grayscale or rgb</span>
+0012 <span class="comment">%  OPTMOD - is the optical model/transfer function to use:</span>
+0013 <span class="comment">%           1 - f*tan(theta),</span>
+0014 <span class="comment">%           2 - f*sin(alfa*theta),</span>
+0015 <span class="comment">%           3 - f(alfa*theta + (1-alfa)*tan(theta))</span>
+0016 <span class="comment">%           4 - f*theta 5 - f*tan(alfa*theta)</span>
+0017 <span class="comment">%           5 - f*tan(alfa*theta)</span>
+0018 <span class="comment">%          -1 - non-parametric, unrotated from zenith, with look-up</span>
+0019 <span class="comment">%               tables,</span>
+0020 <span class="comment">%          -2 - non-parametric, rotated from zenith, with look-up</span>
+0021 <span class="comment">%               tables,</span>
+0022 <span class="comment">%  OPTPAR - is a vector caracterising the optical</span>
+0023 <span class="comment">%           transfer function, or an OPTPAR struct, with fields:</span>
+0024 <span class="comment">%           sinzecosaz, sinzesinaz, u, v that define the horizontal</span>
+0025 <span class="comment">%           components of a pixel l-o-s, and the pixel coordinates</span>
+0026 <span class="comment">%           for the corresponding horizontal l-o-s components,</span>
+0027 <span class="comment">%           respectively, and optionally a field rot (when used a</span>
+0028 <span class="comment">%           vector with 3 Tait-Bryant rotaion angles)</span>
+0029 <span class="comment">%  lat0   - Latitude of camera (degrees)</span>
+0030 <span class="comment">%  long0  - Longitude of camera (degrees)</span>
+0031 <span class="comment">%  alt0   - altitude of camera (km)</span>
+0032 <span class="comment">%  lat    - latitude (degrees) coordinates of grid points to project image to</span>
+0033 <span class="comment">%  long   - longitude (degrees) coordinates of grid points to project image to</span>
+0034 <span class="comment">%  alt    - altitude (km) coordinates of grid points to project image to</span>
+0035 <span class="comment">%  ze_max - maximum zenith angle to use, optional - defaults to 85 deg</span>
+0036 <span class="comment">%</span>
+0037 <span class="comment">% Example:</span>
+0038 <span class="comment">%   [LongG,LatG] = meshgrid(linspace(6.2,35.5,600),linspace(63.8,74.2,600));</span>
+0039 <span class="comment">%   optpar = [0.97899 -0.97941 -0.55363 -1.1863 -7.8519 -0.019269 -0.033697 0.32993 2 0]</span>
+0040 <span class="comment">%   [LongN,LatN] = inv_proj_img_ll2(ones([512,512]),optpar(9),optpar,69.02,20.87,0.123,LatG,LongG,110,82);</span>
+0041 <span class="comment">%   pcolor(LongN,LatN,img_in),shading flat</span>
+0042 <span class="comment">%</span>
+0043 <span class="comment">%   See also INV_PROJECT_IMG, INV_PROJECT_IMG_SURF, CAMERA_MODEL, CAMERA_INV_MODEL</span>
+0044 
+0045 <span class="comment">%   Copyright � 2005 Bjorn Gustavsson, &lt;bjorn.gustavsson@irf.se&gt;</span>
+0046 <span class="comment">%   This is free software, licensed under GNU GPL version 2 or later</span>
+0047 
+0048 
+0049 <span class="keyword">if</span> nargin &lt; 10 | isempty(ze_max)
+0050   ze_max = 85;
+0051 <span class="keyword">end</span>
+0052 Xs = lat;
+0053 Ys = lat;
+0054 Zs = lat;
+0055 
+0056 [r_out] = <a href="../EARTH/latlongh_2_xyz.html" class="code" title="function [r_out] = latlongh_2_xyz(lat0,long0,h0,lat,long,h)">latlongh_2_xyz</a>(lat0,long0,0.15,lat(:),long(:),alt);
+0057 <span class="comment">%[Xs(:),Ys(:),Zs(:)] = makenlcpos(lat0,long0,alt0,lat(:),long(:),alt);</span>
+0058 Xs(:) = r_out(1,:);
+0059 Ys(:) = r_out(2,:);
+0060 Zs(:) = r_out(3,:);
+0061 
+0062 r = [0 0 0];
+0063 
+0064 <span class="comment">% Calculate image coordinates for points on the surface [X,Y,Z]</span>
+0065 [uL,vL] = <a href="project_point.html" class="code" title="function [u,v,l] = project_point(rs,optpar,r,cmtr,imsiz)">project_point</a>(r,optpar,[Xs(:),Ys(:),Zs(:)]',eye(3),size(img_in));
+0066 
+0067 ui = 1:size(img_in,2);
+0068 vi = 1:size(img_in,1);
+0069 [ui,vi] = meshgrid(ui,vi);
+0070 
+0071 LongI = griddata(uL(:),vL(:),long(:),ui,vi,<span class="string">'cubic'</span>);
+0072 LatI  = griddata(uL(:),vL(:),lat(:), ui,vi,<span class="string">'cubic'</span>);
+0073 
+0074 <span class="comment">%ze_all = atan((Xs.^2+Ys.^2).^.5./Zs)*180/pi;</span>
+0075 [az_all,ze_all] = <a href="inv_project_directions.html" class="code" title="function [az,ze] = inv_project_directions(px,py,inimg,r,optmod,optpar,e_n,l_0,cmtr)">inv_project_directions</a>(ui(:)',vi(:)',img_in,[0,0,0],optmod,optpar,[0 0 1],10,eye(3));
+0076 
+0077 LongI(ze_all(:)&gt;ze_max|ze_all(:)&lt;0) = nan;
+0078 LatI(ze_all(:)&gt;ze_max|ze_all(:)&lt;0) = nan;</pre></div>
+<hr><address>Generated on Mon 27-Jan-2014 17:32:33 by <strong>B.&nbsp;Gustavsson</strong> with <strong><a href="http://www.artefact.tk/software/matlab/m2html/" target="_parent">m2html</a></strong> &copy; 2003</address>
+</body>
+</html>

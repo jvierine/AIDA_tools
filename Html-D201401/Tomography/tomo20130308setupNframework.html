@@ -1,0 +1,561 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
+                "http://www.w3.org/TR/REC-html40/loose.dtd">
+<html>
+<head>
+  <title>Description of tomo20130308setupNframework</title>
+  <meta name="keywords" content="tomo20130308setupNframework">
+  <meta name="description" content="TOMO20080305NewBeginnings - script for tomographing ALIS 20080305 event, 18:40 UT">
+  <meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+  <meta name="generator" content="m2html &copy; 2003 Guillaume Flandin">
+  <meta name="robots" content="index, follow">
+  <link type="text/css" rel="stylesheet" href="../m2html.css">
+</head>
+<body>
+<a name="_top"></a>
+<!-- menu.html Tomography -->
+<h1>tomo20130308setupNframework
+</h1>
+
+<h2><a name="_name"></a>PURPOSE <a href="#_top"><img alt="^" border="0" src="../up.png"></a></h2>
+<div class="box"><strong>TOMO20080305NewBeginnings - script for tomographing ALIS 20080305 event, 18:40 UT</strong></div>
+
+<h2><a name="_synopsis"></a>SYNOPSIS <a href="#_top"><img alt="^" border="0" src="../up.png"></a></h2>
+<div class="box"><strong>This is a script file. </strong></div>
+
+<h2><a name="_description"></a>DESCRIPTION <a href="#_top"><img alt="^" border="0" src="../up.png"></a></h2>
+<div class="fragment"><pre class="comment"> TOMO20080305NewBeginnings - script for tomographing ALIS 20080305 event, 18:40 UT
+if 1
+ Here we do all the same things as in the other example scripts
+ but now we apply it all to a series of images.
+
+ CSW and BG, Dec. 2010
+             Aug. 2011 Modification of the width and mean energy of the
+                       aeronomic start guess for better inversion. The
+                       VER inversion into flux will perform better with a
+                       wider VER peak, typically 800 eV.
+
+ How to use this programme (ENTER is the ENTER keypad):
+
+ &gt;&gt; tomo20080305FinalIR   % 1. launch the programme
+ &gt;&gt; 1         ENTER       % 2. Choose 1 for MART, 2 for M-SIRT
+ &gt;&gt; [3 2 2 1] ENTER       % 3. For MART, take the ugliest image first (#4), 
+                          %    then the two middle ones together (#2 and #3)
+                          %    and finally the best one (usually Skibotn, #1)
+                          %    for MSIRT, nothing is asked
+ &gt;&gt;           ENTER       % 4. Quiet borders: select a relevant portion of
+                          %    the image, excluding the extreme borders
+ &gt;&gt; [1 2 3 4] ENTER       % 5. Intensity Normalization: select a part of
+                          %    all four images (usually the brightest)
+ &gt;&gt; 3         ENTER       % 6. Choose filter 3 proxfilt which works well
+ &gt;&gt; ones(3)/9 ENTER       % 7. The famous 'ones', matrix filter kernel
+ &gt;&gt;                       % 8. Now wait for the awesome results to appear!
+ 
+ BEWARE ll.384-386: change directory for saving the corresponding file!</pre></div>
+
+<!-- crossreference -->
+<h2><a name="_cross"></a>CROSS-REFERENCE INFORMATION <a href="#_top"><img alt="^" border="0" src="../up.png"></a></h2>
+This function calls:
+<ul style="list-style-image:url(../matlabicon.gif)">
+<li><a href="../Camera/ffs_correction2.html" class="code" title="function [ff] = ffs_correction2(imgsize,optpar,optmod)">ffs_correction2</a>	FFS_CORRECTION2 - flat-field variation for optical transfer</li><li><a href="../Fits_tools/File2obs/NIPR_ABK2013.html" class="code" title="function obs = NIPR_ABK2013(filename,varargin)">NIPR_ABK2013</a>	NIPR_ABK2013 - Meta-data Obs-struct from filename</li><li><a href="../Fits_tools/File2obs/NIPR_KIL2013.html" class="code" title="function obs = NIPR_KIL2013(filename,varargin)">NIPR_KIL2013</a>	NIPR_ABK2013 - Meta-data Obs-struct from filename</li><li><a href="../Fits_tools/File2obs/NIPR_TRO2013.html" class="code" title="function obs = NIPR_TRO2013(filename,varargin)">NIPR_TRO2013</a>	NIPR_ABK2013 - Meta-data Obs-struct from filename</li><li><a href="../Fits_tools/typical_pre_proc_ops.html" class="code" title="function PO = typical_pre_proc_ops(pp_type,varargin)">typical_pre_proc_ops</a>	TYPICAL_PRE_PROC_OPS - Typical ALIS-fits preprocessing options</li><li><a href="camera_set_up_sc.html" class="code" title="function [uv,d,l_cl,bfk,ds,sz3d] = camera_set_up_sc(r,xi,yi,zi,optpar,robs,imgsize,nr_layers,cmtr,ds)">camera_set_up_sc</a>	CAMERA_SET_UP_SC - Calculates the projection matrix from 3-D simple cubic grid</li><li><a href="fastprojection.html" class="code" title="function img_out = fastprojection(Vem,uv,d,l_cl,bfk,imgsize,sens_mtr,sz3d)">fastprojection</a>	FASTPROJECTION - project the volume emission VEM down to image IMG_OUT.</li><li><a href="make_tomo_ops.html" class="code" title="function tomo_ops = make_tomo_ops(stns)">make_tomo_ops</a>	MAKE_TOMO_OPS - User interface to set some parameters for the</li><li><a href="sc_positioning.html" class="code" title="function [r,xi,yi,zi] = sc_positioning(r0,dr1,dr2,dr3,Vem)">sc_positioning</a>	SC_POSITIONING - position voxels/base-functions in SC grid.</li><li><a href="tomo_arcpeakfinderinslice.html" class="code" title="function [I_cuts,iPeaks] = tomo_arcpeakfinderinslice(stns,U,V,OPS)">tomo_arcpeakfinderinslice</a>	tomo_arcpeakfinderinslice - Finds peaks of emission along [U,V]</li><li><a href="tomo_inp_images.html" class="code" title="function stns = tomo_inp_images(file_list,stns,img_ops)">tomo_inp_images</a>	TOMO_INP_IMAGES - Preprocessing of images for tomography plus</li><li><a href="tomo_setup4reduced2D.html" class="code" title="function [trmtrs,U,V,X,Y,Z] = tomo_setup4reduced2D(stns,OPS)">tomo_setup4reduced2D</a>	tomo_setup4reduced2D - Set up coordinates and projection matrices</li><li><a href="tomo_slice_i.html" class="code" title="function h = tomo_slice_i(X,Y,Z,V,ix,iy,iz)">tomo_slice_i</a>	TOMO_SLICE_I - slice with arbitrary X, Y, and Z,</li><li><a href="tomo_start_guessGACT.html" class="code" title="function [Vem,I2D,Ie2D] = tomo_start_guessGACT(stns,Energy,Ie2H,Xslice,Yslice,Zslice,M2Dto1D,U,V,I_cuts,iPeaks,X3D,Y3D,Z3D,ops)">tomo_start_guessGACT</a>	tomo_start_guessGACT - makes 3-D distribution of volume emission rates</li><li><a href="tomo_steps.html" class="code" title="function [Vem,stns] = tomo_steps(Vem,stns,tomo_ops,nr_laps)">tomo_steps</a>	TOMO_STEPS - tomographic itterative step(s).</li><li><a href="../tools/ionization_profile_matrix.html" class="code" title="function [A] = ionization_profile_matrix(h,E,nO,nN2,nO2,density,OPTS)">ionization_profile_matrix</a>	IONIZATION_PROFILE_MATRIX - calculate ionization profiles</li></ul>
+This function is called by:
+<ul style="list-style-image:url(../matlabicon.gif)">
+</ul>
+<!-- crossreference -->
+
+
+<h2><a name="_source"></a>SOURCE CODE <a href="#_top"><img alt="^" border="0" src="../up.png"></a></h2>
+<div class="fragment"><pre>0001 <span class="comment">% TOMO20080305NewBeginnings - script for tomographing ALIS 20080305 event, 18:40 UT</span>
+0002 <span class="comment">%if 1</span>
+0003 <span class="comment">% Here we do all the same things as in the other example scripts</span>
+0004 <span class="comment">% but now we apply it all to a series of images.</span>
+0005 <span class="comment">%</span>
+0006 <span class="comment">% CSW and BG, Dec. 2010</span>
+0007 <span class="comment">%             Aug. 2011 Modification of the width and mean energy of the</span>
+0008 <span class="comment">%                       aeronomic start guess for better inversion. The</span>
+0009 <span class="comment">%                       VER inversion into flux will perform better with a</span>
+0010 <span class="comment">%                       wider VER peak, typically 800 eV.</span>
+0011 <span class="comment">%</span>
+0012 <span class="comment">% How to use this programme (ENTER is the ENTER keypad):</span>
+0013 <span class="comment">%</span>
+0014 <span class="comment">% &gt;&gt; tomo20080305FinalIR   % 1. launch the programme</span>
+0015 <span class="comment">% &gt;&gt; 1         ENTER       % 2. Choose 1 for MART, 2 for M-SIRT</span>
+0016 <span class="comment">% &gt;&gt; [3 2 2 1] ENTER       % 3. For MART, take the ugliest image first (#4),</span>
+0017 <span class="comment">%                          %    then the two middle ones together (#2 and #3)</span>
+0018 <span class="comment">%                          %    and finally the best one (usually Skibotn, #1)</span>
+0019 <span class="comment">%                          %    for MSIRT, nothing is asked</span>
+0020 <span class="comment">% &gt;&gt;           ENTER       % 4. Quiet borders: select a relevant portion of</span>
+0021 <span class="comment">%                          %    the image, excluding the extreme borders</span>
+0022 <span class="comment">% &gt;&gt; [1 2 3 4] ENTER       % 5. Intensity Normalization: select a part of</span>
+0023 <span class="comment">%                          %    all four images (usually the brightest)</span>
+0024 <span class="comment">% &gt;&gt; 3         ENTER       % 6. Choose filter 3 proxfilt which works well</span>
+0025 <span class="comment">% &gt;&gt; ones(3)/9 ENTER       % 7. The famous 'ones', matrix filter kernel</span>
+0026 <span class="comment">% &gt;&gt;                       % 8. Now wait for the awesome results to appear!</span>
+0027 <span class="comment">%</span>
+0028 <span class="comment">% BEWARE ll.384-386: change directory for saving the corresponding file!</span>
+0029 
+0030 <span class="comment">%% -1 Date-n-time</span>
+0031 <span class="comment">%%## Added this here, so that the calls to MSIS is in the top</span>
+0032 <span class="comment">%    set-up script - that way we'll see it and know to change it</span>
+0033 <span class="comment">%    for other events...</span>
+0034 <span class="comment">% Just to get an MSIS with the right F10.7 and ap parameters at time:</span>
+0035 dateNtime4MSIS = [2013 3 8 23 41 10]; <span class="comment">% Changed change to take</span>
+0036                                       <span class="comment">% stns(1).obs.time and</span>
+0037                                       <span class="comment">% longlat as input to msis!</span>
+0038    
+0039 MSISpars_f107af107pap = [70,87,3];
+0040 <span class="comment">%% 0 Definition of Home Directory</span>
+0041 Uname = getenv(<span class="string">'USER'</span>); <span class="comment">%%## Changed stuff here to make this</span>
+0042                             <span class="comment">%&quot;run&quot; both here and for you...</span>
+0043 <span class="keyword">if</span> strcmp(Uname,<span class="string">'bgu001'</span>)
+0044   homedir = <span class="string">'/home/bgu001/'</span>;
+0045 <span class="keyword">else</span>
+0046 <span class="keyword">end</span>
+0047 <span class="comment">%% 1 Locating the data</span>
+0048 <span class="comment">% Just set this to where the data is located on your local media.</span>
+0049 
+0050 data_dir = strcat(<span class="string">'/data/NIPR'</span>);
+0051 AbiskoDir = <span class="string">'Abisko/2013/03/09'</span>;
+0052 TromsoDir = <span class="string">'Tromso/2013/03/09'</span>;
+0053 KilpisDir = <span class="string">'Kilpisjarvi/2013/03/09'</span>;
+0054 meta_data_dir = strcat(<span class="string">'/data/NIPR/Example'</span>);
+0055 cd(meta_data_dir);
+0056 
+0057 <span class="comment">%% 0.1 Background atmosphere</span>
+0058 <span class="comment">% Just to get an MSIS at the right altitudes:</span>
+0059 <span class="comment">% [nHe,nO,nN2,nO2,nAr,Mass,nH,nN,Tex,Tn] = msis(dateNtime4MSIS,z2D,69.2,21,70,87,3);</span>
+0060 <span class="comment">% f107a = MSISpars_f107af107pap(1);</span>
+0061 <span class="comment">% f107p = MSISpars_f107af107pap(2);</span>
+0062 <span class="comment">% ap = MSISpars_f107af107pap(3);</span>
+0063 <span class="comment">% Currently broken f-mexing of msis.mex [nHe,nO,nN2,nO2,nAr,Mass,nH,nN,Tex,Tn] = msis(stns(1).obs.time,z2D,stns(1).obs.longlat(2),stns(1).obs.longlat(1),f107a,f107p,ap);</span>
+0064 <span class="comment">% Instead I use the NASA model-web MSIS implementation,</span>
+0065 <span class="comment">% unfortunately not yet available for 201303, so for now I have to</span>
+0066 <span class="comment">% stick to 2012:</span>
+0067 MSISfilename = <span class="string">'/data/NIPR/Example/msis20120308.dat'</span>;
+0068 opsMSISfR = msisfileloader;
+0069 opsMSISfR.indH = 9;
+0070 opsMSISfR.indHe = 7;
+0071 opsMSISfR.indN = 10;
+0072 opsMSISfR.indAr = 8;
+0073 [h_msis,O,N2,O2,Mass,T,H,N,He,Ar,Tex] = msisfileloader(MSISfilename,opsMSISfR);
+0074 
+0075 <span class="comment">%% 1.1 Read the list of ALIS-ASK events</span>
+0076   <span class="comment">% This will give us information about the interesting time</span>
+0077   <span class="comment">% periods and which ALIS stations have data available.</span>
+0078 <span class="keyword">if</span> strcmp(Uname,<span class="string">'bgu001'</span>) <span class="comment">% and I &quot;don't like it very much&quot;...</span>
+0079   <span class="comment">% For my version of this I just run everything for the images you</span>
+0080   <span class="comment">% sent me - so nooo looping,,,</span>
+0081 <span class="keyword">else</span>
+0082 <span class="keyword">end</span>
+0083 <span class="comment">%% 1.2 Set up for data pre-processing</span>
+0084 <span class="comment">% The preprocessing options will be needed anyway, so we migh</span>
+0085 <span class="comment">% just as well set them early on.</span>
+0086 poA = <a href="../Fits_tools/typical_pre_proc_ops.html" class="code" title="function PO = typical_pre_proc_ops(pp_type,varargin)">typical_pre_proc_ops</a>(<span class="string">'none'</span>);
+0087 poA.central_station = 10;
+0088 poA.try_to_be_smart_fnc = @(filename)<a href="../Fits_tools/File2obs/NIPR_ABK2013.html" class="code" title="function obs = NIPR_ABK2013(filename,varargin)">NIPR_ABK2013</a>(filename);
+0089 poA.outimgsize = [1,1]*256;
+0090 
+0091 poK = <a href="../Fits_tools/typical_pre_proc_ops.html" class="code" title="function PO = typical_pre_proc_ops(pp_type,varargin)">typical_pre_proc_ops</a>(<span class="string">'none'</span>);
+0092 poK.central_station = 10;
+0093 poK.try_to_be_smart_fnc = @(filename)<a href="../Fits_tools/File2obs/NIPR_KIL2013.html" class="code" title="function obs = NIPR_KIL2013(filename,varargin)">NIPR_KIL2013</a>(filename); 
+0094 poK.outimgsize = [1,1]*256;
+0095 
+0096 poT = <a href="../Fits_tools/typical_pre_proc_ops.html" class="code" title="function PO = typical_pre_proc_ops(pp_type,varargin)">typical_pre_proc_ops</a>(<span class="string">'none'</span>);
+0097 poT.imreg = [127 648 49 569];
+0098 poT.central_station = 10;
+0099 poT.try_to_be_smart_fnc = @(filename)<a href="../Fits_tools/File2obs/NIPR_TRO2013.html" class="code" title="function obs = NIPR_TRO2013(filename,varargin)">NIPR_TRO2013</a>(filename);
+0100 poT.outimgsize = [1,1]*256;
+0101 
+0102 
+0103 i1 = 1;
+0104 <span class="comment">%% 1.3 Get lists with files from stations of interest</span>
+0105 <span class="comment">% For my version of this I just run everything for the images you</span>
+0106 <span class="comment">% sent me with the optical parameters</span>
+0107 ABK = load(<span class="string">'ABK130304_01003052_____0400_adjust.acc'</span>);
+0108 TRO = load(<span class="string">'emccd_tro_2013-03-05_21-35-59.acc'</span>);     
+0109 KIL = load(<span class="string">'KIL130211_18223017_____0400_adjust.acc'</span>);
+0110 
+0111 optpA = ABK([6:13 5 end]);
+0112 optpT = TRO([6:13 5 end]);
+0113 optpK = KIL([6:13 5 end]);
+0114 
+0115 <span class="comment">%% Kilpisj�rvi images</span>
+0116 dFiles{1} = str2mat(<span class="string">'ABK130309_00155970_428_1000.png'</span>,<span class="keyword">...</span>
+0117                     <span class="string">'ABK130309_00160029_428_1000.png'</span>,<span class="keyword">...</span>
+0118                     <span class="string">'ABK130309_00160087_428_1000.png'</span>,<span class="keyword">...</span>
+0119                     <span class="string">'ABK130309_00160146_428_1000.png'</span>,<span class="keyword">...</span>
+0120                     <span class="string">'ABK130309_00160205_428_1000.png'</span>);
+0121 
+0122 dFiles{2} = str2mat(<span class="string">'KIL130309_00155976_428_1000.png'</span>,<span class="keyword">...</span>
+0123                     <span class="string">'KIL130309_00160032_428_1000.png'</span>,<span class="keyword">...</span>
+0124                     <span class="string">'KIL130309_00160089_428_1000.png'</span>);
+0125 
+0126 dFiles{3} = <span class="string">'tro20130309_001600_658.jpg'</span>;
+0127 <span class="comment">%% - TO CHANGE WHEN STATIONS CHANGE</span>
+0128 <span class="comment">% Assign the optical parameters to the corresponding PO-structs</span>
+0129 poA.optpar = optpA; <span class="comment">% *T*romso</span>
+0130 poK.optpar = optpK; <span class="comment">% *A*bisko</span>
+0131 poT.optpar = optpT; <span class="comment">% *K*ilpisjarvi</span>
+0132 
+0133 POs = [poA,poK,poT];
+0134 
+0135 <span class="comment">% to be included later: POs(4).optpar = optpB; % Ski*B*otn</span>
+0136 
+0137 <span class="comment">%% 2 Tomography set-up</span>
+0138 <span class="comment">%</span>
+0139 <span class="comment">%% Setting up the &quot;station-struct&quot;   - TO CHANGE WHEN STATIONS CHANGE</span>
+0140 <span class="comment">% Here we start with setting up the &quot;station-struct&quot;</span>
+0141 <span class="comment">% First put together a list of one file from each station</span>
+0142 <span class="comment">%file_list = str2mat(dFiles{1}(145,:),dFiles{2}(145,:),dFiles{3}(145,:),dFiles{6}(145,:));</span>
+0143 <span class="keyword">if</span> strcmp(Uname, <span class="string">'bgu001'</span>)
+0144   file_list = str2mat(fullfile(data_dir,AbiskoDir,dFiles{1}(1,:)),<span class="keyword">...</span>
+0145                       fullfile(data_dir,KilpisDir,dFiles{2}(1,:)),<span class="keyword">...</span>
+0146                       fullfile(data_dir,TromsoDir,dFiles{3}(1,:)));
+0147   stns = <a href="tomo_inp_images.html" class="code" title="function stns = tomo_inp_images(file_list,stns,img_ops)">tomo_inp_images</a>(file_list,[],POs([1 2 3]));
+0148 <span class="keyword">else</span>
+0149 <span class="keyword">end</span>
+0150 
+0151 <span class="comment">%% 3 Set up block-of-blobs</span>
+0152 <span class="comment">%</span>
+0153 <span class="comment">% Observations were made above Skibotn</span>
+0154 <span class="comment">%r_B = stns(1).obs.xyz;</span>
+0155 
+0156 <span class="comment">%load stationpos.inm  % OLD OLD VERSION</span>
+0157 <span class="comment">%r_B = stationpos(10,:);</span>
+0158 
+0159 <span class="comment">%r_B = stns(1).obs.pos; % OLD VERSION</span>
+0160 r_B = stns(1).obs.xyz;
+0161 
+0162 
+0163 <span class="comment">%% 3.1 Allocate space for blobs</span>
+0164 <span class="comment">%% TBD</span>
+0165 Vem = zeros([100 100 74]);<span class="comment">% dRes = 2;Vem = zeros([100 100 74]*dRes);</span>
+0166 <span class="comment">% set the lower south-west corner:</span>
+0167 ds = 2.5; <span class="comment">% resolution of 2.5 km   ds = 2.5/dRes;</span>
+0168 <span class="comment">%% TBD</span>
+0169 r0 = [-128 -64 80];
+0170 r0 = r_B + [-64*ds -128*ds 80]+[10 0 0];
+0171 r0 = [-170 -120 80];
+0172 <span class="comment">% Define the lattice unit vectors</span>
+0173 dr1 = [ds 0 0];
+0174 dr2 = [0 ds 0];
+0175 <span class="comment">% With e3 || vertical:</span>
+0176 dr3 = [0 0 ds];
+0177 <span class="comment">% or || magnetic zenith:</span>
+0178 dr3 = [0 -ds*tan(pi*12/180) ds];
+0179 
+0180 <span class="comment">%% 3.2 Calculate duplicate arrays for the position of the base functions:</span>
+0181 [r,X,Y,Z] = <a href="sc_positioning.html" class="code" title="function [r,xi,yi,zi] = sc_positioning(r0,dr1,dr2,dr3,Vem)">sc_positioning</a>(r0,dr1,dr2,dr3,Vem);
+0182 XfI = r0(1)+dr1(1)*(X-1)+dr2(1)*(Y-1)+dr3(1)*(Z-1); <span class="comment">% XfI(:,43,:) at EISCAT     , 2.5 km resol</span>
+0183 YfI = r0(2)+dr1(2)*(X-1)+dr2(2)*(Y-1)+dr3(2)*(Z-1); <span class="comment">% YfI(70,:,10) at 100 km alt, 2.5 km resol</span>
+0184 ZfI = r0(3)+dr1(3)*(X-1)+dr2(3)*(Y-1)+dr3(3)*(Z-1); <span class="comment">% ZfI(1,1,10) 100 km height , 2.5 km resol</span>
+0185 
+0186 
+0187 <span class="comment">%% 4 Do the projection characteristics of the cameras</span>
+0188 <span class="comment">%</span>
+0189 <span class="comment">%% 4.1 Set the number of size layers</span>
+0190 <span class="comment">% the projection algorithm divides the base into classes based on</span>
+0191 <span class="comment">% the size of their footprint in the image. Here it is needed to</span>
+0192 <span class="comment">% select the number of layers to use in the image projection, more</span>
+0193 <span class="comment">% is better and slower: 8 minimum, 10 better, 16 getting on the</span>
+0194 <span class="comment">% slow side... % 10 by default</span>
+0195 nr_layers = 17;
+0196 <span class="comment">%%## Added this here, so that the calls to MSIS is in the top</span>
+0197 <span class="comment">%    set-up script - that way we'll see it and know to change it</span>
+0198 <span class="comment">%    for other events...</span>
+0199 
+0200 <span class="comment">%% 4.2 Creating the station structure</span>
+0201 <span class="comment">% Here we make the structure array holding the projection matrix,</span>
+0202 <span class="comment">% the filter kernels and size grouping of the base functions needed</span>
+0203 <span class="comment">% for the fast projection.</span>
+0204 <span class="comment">% Set up the stuff on the camera and 3D structure needed for the</span>
+0205 <span class="comment">% fast projection.</span>
+0206 <span class="keyword">for</span> i1 = 1:length(stns),
+0207   
+0208   rstn = stns(i1).obs.xyz;  
+0209   <span class="comment">%  rstn = stns(i1).obs.pos;   % OLD VERSION % Position of station i1</span>
+0210   <span class="comment">% optpar = stns(i1).optpar;  % Optical parameters of station i1</span>
+0211   optpar = POs(i1).optpar;  <span class="comment">% Optical parameters of station i1</span>
+0212   imgsize{i1} = size(stns(i1).img);  <span class="comment">% Image size of station i1</span>
+0213   cmtr = stns(i1).obs.trmtr;
+0214   <span class="comment">%  cmtr = stns(i1).obs.cmtr; % OLD VERSION % Correction matrix of station i1</span>
+0215   [stns(i1).uv,stns(i1).d,stns(i1).l_cl,stns(i1).bfk,stns(i1).ds,stns(i1).sz3d] = <a href="camera_set_up_sc.html" class="code" title="function [uv,d,l_cl,bfk,ds,sz3d] = camera_set_up_sc(r,xi,yi,zi,optpar,robs,imgsize,nr_layers,cmtr,ds)">camera_set_up_sc</a>(r,<span class="keyword">...</span>
+0216                                                     X,<span class="keyword">...</span>
+0217                                                     Y,<span class="keyword">...</span>
+0218                                                     Z,<span class="keyword">...</span>
+0219                                                     optpar,<span class="keyword">...</span>
+0220                                                     rstn,<span class="keyword">...</span>
+0221                                                     imgsize{i1},<span class="keyword">...</span>
+0222                                                     nr_layers,<span class="keyword">...</span>
+0223                                                     cmtr);
+0224   
+0225 <span class="keyword">end</span>
+0226 
+0227 <span class="keyword">for</span> i1 = 1:length(stns),
+0228   <span class="comment">%stns(i1).r = stns(i1).obs.pos;</span>
+0229   stns(i1).r = stns(i1).obs.xyz; <span class="comment">% MY NEW VERSION</span>
+0230 <span class="keyword">end</span>
+0231 
+0232 
+0233 <span class="comment">%% Quirky fix:</span>
+0234 stns(3).img = flipud(stns(3).img);
+0235 
+0236 <span class="comment">%% 4.3 Test of fast projection</span>
+0237 <span class="comment">% To make sure we have gotten it all right this far we calculate the</span>
+0238 <span class="comment">% image of a flat 3-D distribution for all cameras</span>
+0239 <span class="keyword">for</span> i1 = 1:length(stns),
+0240   stns(i1).proj = <a href="fastprojection.html" class="code" title="function img_out = fastprojection(Vem,uv,d,l_cl,bfk,imgsize,sens_mtr,sz3d)">fastprojection</a>(ones(size(X)),<span class="keyword">...</span>
+0241                                  stns(i1).uv,<span class="keyword">...</span>
+0242                                  stns(i1).d,<span class="keyword">...</span>
+0243                                  stns(i1).l_cl,<span class="keyword">...</span>
+0244                                  stns(i1).bfk,<span class="keyword">...</span>
+0245                                  [256 256],1,stns(i1).sz3d);
+0246   subplot(2,2,i1)
+0247   imagesc(stns(i1).img)
+0248   cX{i1} = caxis;
+0249   hold on
+0250   contour(stns(i1).proj,8,<span class="string">'k'</span>)
+0251   caxis(cX{i1})
+0252 <span class="keyword">end</span>
+0253 
+0254 
+0255 <span class="comment">%% 5 Start with the actual reconstructions</span>
+0256 
+0257 <span class="comment">%% 5.1 Begin with making start guesses.</span>
+0258 tomo_ops = <a href="make_tomo_ops.html" class="code" title="function tomo_ops = make_tomo_ops(stns)">make_tomo_ops</a>(stns);
+0259 tomo_opssirt = tomo_ops;
+0260 <span class="comment">%tomo_opssirt.tomo_type = 2; % BUG</span>
+0261 <span class="comment">%for i=1:length(tomo_opssirt)</span>
+0262 i=1;
+0263 tomo_opssirt(i).tomotype = 2;
+0264 <span class="comment">%end</span>
+0265 tomo_artops = tomo_ops(1);
+0266 <span class="keyword">try</span>
+0267   tomo_ops34 = tomo_ops(3:4);
+0268 <span class="keyword">catch</span>
+0269   tomo_ops34 = tomo_ops(2:3);
+0270 <span class="keyword">end</span>
+0271 <span class="comment">% Use Chapman altitude profiles, peak altitude 110 km and 15 km wide</span>
+0272 <span class="comment">% Not used any more. Next three lines put in comment (Aug. 2011)</span>
+0273 <span class="comment">%alt_max5577 = 110;</span>
+0274 <span class="comment">%width = 15;</span>
+0275 <span class="comment">%Vem0 = tomo_start_guess1(stns(1),alt_max5577,width,XfI,YfI,ZfI);</span>
+0276 
+0277 <span class="comment">%% New routine startguess with aeronomic calculations. Dec 2010 - Aug. 2011</span>
+0278 <span class="keyword">if</span> strcmp(Uname, <span class="string">'bgu001'</span>) <span class="comment">%%## adjusted here too</span>
+0279   analys_dir = pwd;
+0280 <span class="keyword">else</span>
+0281 <span class="keyword">end</span>
+0282 cd(analys_dir);
+0283 
+0284 <span class="comment">%%## Changed energy grid to be linear in velocity, and extended</span>
+0285 <span class="comment">%%## highest energy to 20 keV.</span>
+0286 Energy =linspace(50.^.5,20000.^.5,100).^2;
+0287 
+0288 <span class="comment">% altalis=ZfI(1,1,:);</span>
+0289 <span class="comment">% iso=2;</span>
+0290 <span class="comment">% zalis=squeeze(altalis);</span>
+0291 <span class="comment">%</span>
+0292 <span class="comment">% % Initialisation of aeronomic start guess</span>
+0293 <span class="comment">% Am = matdegrad3_alis_tomo(Energy,iso,zalis);</span>
+0294 <span class="comment">% mu_E  = 2000; % 1000 eV of characteristic mean energy of the gaussian (default = 100 eV)</span>
+0295 <span class="comment">% sig_E = 500;  % variance of the gaussian (default = 50 eV)</span>
+0296 <span class="comment">% Par= [mu_E, sig_E];</span>
+0297 <span class="comment">%</span>
+0298 <span class="comment">% factor = 0.256; % taken from Janhunen, 2001, himself taken from Rees and Luckey 1974</span>
+0299 <span class="comment">% Am = Am * 1e-3 * factor; % Am in cm-1. Factor 0.256 only for 1 keV electrons, Janhunen</span>
+0300 <span class="comment">% Vem0 = aeronomic_alt4tomo(Par,stns(1),Am,Energy,XfI,YfI,ZfI,tomo_ops);</span>
+0301 <span class="comment">% %cd /home/cyrils/projects/ALIS/stdnames/2008/03/05/18;</span>
+0302 <span class="comment">% cd(data_dir2); % cd back to the data directory chosen before</span>
+0303 <span class="comment">%</span>
+0304 <span class="comment">%</span>
+0305 <span class="comment">%</span>
+0306 <span class="comment">% %%</span>
+0307 <span class="comment">% % Take quick look of this...</span>
+0308 <span class="comment">% close;</span>
+0309 <span class="comment">% slice(Vem0,47,50,20),shading interp,</span>
+0310 <span class="comment">% pause(3)</span>
+0311 <span class="comment">% slice(Vem0,47,50,20),shading interp,view(0,90)</span>
+0312 <span class="comment">% pause(3)</span>
+0313 <span class="comment">% slice(Vem0,47,50,20),shading interp,view(90,0)</span>
+0314 
+0315 <span class="comment">%% 5.2 Intensity scaling</span>
+0316 <span class="comment">% This start guess should then be scaled.</span>
+0317 <span class="comment">% Function to scale 3D intensities to give projections that are in</span>
+0318 <span class="comment">% the same intensity range as the images. Not needed here since the</span>
+0319 <span class="comment">% function is already called from within TOMO_START_GUESS, but</span>
+0320 <span class="comment">% might be useful in the working process.</span>
+0321 <span class="comment">% [stns,Vem] = adjust_level(stns,Vem,1);</span>
+0322 
+0323 <span class="comment">%% 5.3 Tomographic update (flat field):</span>
+0324 <span class="comment">% Here are the iterative tomographic steps and filtering made.</span>
+0325 [POs(1).ffc] = <a href="../Camera/ffs_correction2.html" class="code" title="function [ff] = ffs_correction2(imgsize,optpar,optmod)">ffs_correction2</a>(imgsize{1},POs(1).optpar,3);
+0326 [POs(2).ffc] = <a href="../Camera/ffs_correction2.html" class="code" title="function [ff] = ffs_correction2(imgsize,optpar,optmod)">ffs_correction2</a>(imgsize{2},POs(2).optpar,3);
+0327 [POs(3).ffc] = <a href="../Camera/ffs_correction2.html" class="code" title="function [ff] = ffs_correction2(imgsize,optpar,optmod)">ffs_correction2</a>(imgsize{3},POs(3).optpar,3);
+0328 
+0329 <span class="comment">%[POs(4).ffc] = ffs_correction2(imgsize{4},POs(4).optpar,3);</span>
+0330 
+0331 <span class="comment">%% 5.4 Selected cuts and colour filters</span>
+0332 <span class="comment">% Here we select 2 horisontal cuts and three vertical cuts through</span>
+0333 <span class="comment">% the block-of-blobs</span>
+0334 <span class="comment">% zoom in this to select the indices for slices in y-directions...</span>
+0335 <span class="comment">%% TBD</span>
+0336 i_z = [10 12 14 16 18 20 22 24 26]; <span class="comment">% 100 105 110 115 120 125 130 135 140 km</span>
+0337 i_x = [39:2:45,61];<span class="comment">%38 43 61];    % &quot;good&quot;, 43 &lt;-&gt; EISCAT, 61 &lt;-&gt; Skibotn</span>
+0338 i_y = [70];       <span class="comment">% EISCAT</span>
+0339 
+0340 <span class="comment">% XfI(:,i_x(...),:) - horizontal distance east of Kiruna in km, 2.5 km</span>
+0341 <span class="comment">%                     resolution. XfI(i_y,i_x,I_z)</span>
+0342 <span class="comment">%                     ex. XfI(:,43,:) = plane X situated -47 km from</span>
+0343 <span class="comment">%                     Kiruna, containing EISCAT Tromso</span>
+0344 <span class="comment">% YfI(i_y(...),:,:) - distance north of Kiruna in km (since we are working</span>
+0345 <span class="comment">%                     with a 3D-block skewed to be parallel to the magnetic</span>
+0346 <span class="comment">%                     zenith, each layer is translated to dl * tan(mag_Ze)</span>
+0347 <span class="comment">%                     to the south, 2.5 km resolution. YfI(i_y,i_x,I_z)</span>
+0348 <span class="comment">%                     ex. YfI(70,:,1) = plane Y situated 140-180 km away</span>
+0349 <span class="comment">%                     from Kiruna, containing EISCAT Tromso</span>
+0350 <span class="comment">% ZfI(:,:,i_z(3))   - altitude of projection in km, 2.5 km resolution</span>
+0351 
+0352 <span class="comment">%%## This might just as well go?</span>
+0353 [alts,widths] = meshgrid([100,105,110,115,120,125,130,135],[10,15]);
+0354 
+0355 <span class="comment">%%## This was commented out, just mnemonix for indexicing?</span>
+0356 <span class="comment">%for i2 = length(i_tb):-1:1,</span>
+0357 <span class="comment">%for i2 = 57:-1:1,</span>
+0358 <span class="comment">%for i2 = 65:-1:36,</span>
+0359 <span class="comment">%i_T = i_tb; % Choose only Blue emissions N2+ 4278 A</span>
+0360 <span class="comment">%i_T = i_tg; % Green line OI 5577A</span>
+0361 <span class="comment">%i_T = i_tr; % Red line OI 6300A</span>
+0362 <span class="comment">%i_T = i_to; % OI 8446A</span>
+0363 
+0364 cd(analys_dir); <span class="comment">% save to analysis directory defined l. 287</span>
+0365 
+0366 
+0367 <span class="comment">%% 5.4.2 GACT to Start Guess</span>
+0368 <span class="comment">%        GAC SNIPPET!!!!!</span>
+0369 <span class="comment">%% 5.4.2.1 Set-up for GACT-in-slices</span>
+0370 <span class="comment">%%## Added this here - should be only set-up for the slice thingy</span>
+0371 <span class="comment">%%## in this script...</span>
+0372 
+0373 <span class="comment">%% Automatic triangulation function to determine the peak altitude of</span>
+0374 <span class="comment">% the emissions and hence the first guess for the tomography reconstruction</span>
+0375 <span class="comment">% of ALIS.</span>
+0376 <span class="comment">% to be called in tomography script</span>
+0377 <span class="comment">% Bjorn Gustavsson (c) 2012</span>
+0378 <span class="comment">% mod. C. Simon Wedlund Jan. 2012</span>
+0379 
+0380 
+0381 <span class="comment">%%## Clunky-fix of lookup-things for tomo_setup4reduced2D:</span>
+0382 stns(1).obs.optpar = POs(1).optpar;
+0383 stns(2).obs.optpar = POs(2).optpar;
+0384 stns(3).obs.optpar = POs(3).optpar;
+0385 <span class="comment">%%## That function looks for the optpars in stns.obs.optpar - I</span>
+0386 <span class="comment">%%## dont dare to fidget around too much at the moment to change</span>
+0387 <span class="comment">%%## this...</span>
+0388 
+0389 OPS4red2D = <a href="tomo_setup4reduced2D.html" class="code" title="function [trmtrs,U,V,X,Y,Z] = tomo_setup4reduced2D(stns,OPS)">tomo_setup4reduced2D</a>;
+0390 OPS4red2D.PlotStuff = 1;  <span class="comment">% plots activated or not</span>
+0391 OPS4red2D.ds = 1;
+0392 OPS4red2D.zmax = 115;
+0393 <span class="comment">%% Determines the directions of the plane intersecting the two first</span>
+0394 <span class="comment">% stations and parallel to the B-field, as a reference plane for future</span>
+0395 <span class="comment">% projections. First station is Skibotn and is the reference station.</span>
+0396 <span class="comment">% 1D slices/cuts of the intensity distribution in this plane will be used</span>
+0397 <span class="comment">% to determine the altitude/energy/intensity for the first guess of the</span>
+0398 <span class="comment">% tomography reconstruction</span>
+0399 [M2Dto1D_12,U12,V12,X12,Y12,Z12] = <a href="tomo_setup4reduced2D.html" class="code" title="function [trmtrs,U,V,X,Y,Z] = tomo_setup4reduced2D(stns,OPS)">tomo_setup4reduced2D</a>(stns(1:2),OPS4red2D);
+0400 [M2Dto1D_13,U13,V13,X13,Y13,Z13] = <a href="tomo_setup4reduced2D.html" class="code" title="function [trmtrs,U,V,X,Y,Z] = tomo_setup4reduced2D(stns,OPS)">tomo_setup4reduced2D</a>(stns([1,3]),OPS4red2D);
+0401 
+0402 <span class="comment">%NEEEEEEEEEEEEEeeeeeeeeeeeewwwwwwwwwwwwwwsssssssssss! 20120220</span>
+0403 <span class="comment">% Am we need for calculations in the 2-D slice, that has its own</span>
+0404 <span class="comment">% altitude grid - I know, this will force us to more</span>
+0405 <span class="comment">% reinterpolations and mess...</span>
+0406 z2D = squeeze(Z12(1,1,:)); <span class="comment">% This is the altitude grid we need to</span>
+0407                            <span class="comment">% calculate the auroral production</span>
+0408                            <span class="comment">% matrices for.</span>
+0409 
+0410 <span class="comment">%% Reinterpolate the atmosphere to the z2D grid:</span>
+0411 nO =   interp1(h_msis,O,z2D,<span class="string">'linear'</span>,<span class="string">'extrap'</span>);
+0412 nN2 =  interp1(h_msis,N2,z2D,<span class="string">'linear'</span>,<span class="string">'extrap'</span>);
+0413 nO2 =  interp1(h_msis,O2,z2D,<span class="string">'linear'</span>,<span class="string">'extrap'</span>);
+0414 Mass = interp1(h_msis,Mass,z2D,<span class="string">'linear'</span>,<span class="string">'extrap'</span>);
+0415 Tn  =  interp1(h_msis,T,z2D,<span class="string">'linear'</span>,<span class="string">'extrap'</span>);
+0416 nH =   interp1(h_msis,H,z2D,<span class="string">'linear'</span>,<span class="string">'extrap'</span>);
+0417 nAr =  interp1(h_msis,Ar,z2D,<span class="string">'linear'</span>,<span class="string">'extrap'</span>);
+0418 nN =   interp1(h_msis,N,z2D,<span class="string">'linear'</span>,<span class="string">'extrap'</span>);
+0419 nHe =  interp1(h_msis,He,z2D,<span class="string">'linear'</span>,<span class="string">'extrap'</span>);
+0420 Tex =  interp1(h_msis,Tex,z2D,<span class="string">'linear'</span>,<span class="string">'extrap'</span>);
+0421 
+0422 semilogx([nN2,nO2,nO,Mass],z2D)
+0423 
+0424 <span class="comment">%%## Removed, due to no clue about opts4ISR2IeofE: Am = ionization_profile_matrix(z2D,Energy,nO,nN2,nO2,Mass,opts4ISR2IeofE);</span>
+0425 Am = <a href="../tools/ionization_profile_matrix.html" class="code" title="function [A] = ionization_profile_matrix(h,E,nO,nN2,nO2,density,OPTS)">ionization_profile_matrix</a>(z2D,Energy,nO,nN2,nO2,Mass);
+0426 <span class="comment">%%## Change here to more real altitude</span>
+0427 <span class="comment">%production-profile-matrices... (If even needed, it is needed for</span>
+0428 <span class="comment">%getting a physical intepretation of the starttguesses' electron</span>
+0429 <span class="comment">%spectra, not necessarily otherwise...)</span>
+0430 Ie2H5577 = Am;
+0431 Ie2H4278 = Am;
+0432 Ie2H = {Ie2H5577,Ie2H5577}; <span class="comment">% This one will be used by the</span>
+0433                             <span class="comment">% err_GACT-function...</span>
+0434 
+0435 
+0436 
+0437 
+0438 <span class="comment">%%## I guess the looping should begin here with reading in images</span>
+0439 <span class="comment">%%## then the indices to tomo_arcpeakfinderinslice has to be</span>
+0440 <span class="comment">%%## checked/changed, and the code in NewGACT_snippetEND too...</span>
+0441 <span class="comment">%% 5.4.2.2 &quot;Arc&quot;-finding in slice</span>
+0442 <span class="comment">%%## Here is what I run for the set of images you sent me (once</span>
+0443 <span class="comment">%%## uppon a time...)</span>
+0444 OPS4tarc = <a href="tomo_arcpeakfinderinslice.html" class="code" title="function [I_cuts,iPeaks] = tomo_arcpeakfinderinslice(stns,U,V,OPS)">tomo_arcpeakfinderinslice</a>
+0445 OPS4tarc.ipng = 1;
+0446 OPS4tarc.zmax = 118;
+0447 clf
+0448 [I_cuts,iPeaks] = <a href="tomo_arcpeakfinderinslice.html" class="code" title="function [I_cuts,iPeaks] = tomo_arcpeakfinderinslice(stns,U,V,OPS)">tomo_arcpeakfinderinslice</a>(stns([1,2]),U12,V12,OPS4tarc);
+0449 <span class="comment">%%## tomo_arcpeakfinderinslice is simply the part of the scrip you</span>
+0450 <span class="comment">%%## did when I visited, with all the peak-finding and such,</span>
+0451 <span class="comment">%%## wrapped into a function. It is not necessarily the neatest of</span>
+0452 <span class="comment">%%## functions but at least it is wrapped a bit...</span>
+0453 
+0454 <span class="comment">%% 5.4.2.3 GACT-StartGuess</span>
+0455 <span class="comment">%%## Here we fit the intensity-energy-precipitation in the plane between</span>
+0456 <span class="comment">%   stations 1 &amp; 2 by minimizing tomo_err4GACT then extrapolating those</span>
+0457 <span class="comment">%   intensities to the entire 3-D bob...</span>
+0458 <span class="comment">% NewGACT_snippetEND</span>
+0459 <span class="comment">% [Vem,I2D] = tomo_start_guessGACT(stns,Energy,Ie2H,Xslice,Yslice,Zslice,M2Dto1D,U,V,I_cuts,iPeaks,X3D,Y3D,Z3D,ops);</span>
+0460 [Vem,I2D] = <a href="tomo_start_guessGACT.html" class="code" title="function [Vem,I2D,Ie2D] = tomo_start_guessGACT(stns,Energy,Ie2H,Xslice,Yslice,Zslice,M2Dto1D,U,V,I_cuts,iPeaks,X3D,Y3D,Z3D,ops)">tomo_start_guessGACT</a>(stns(1:2),Energy,Ie2H,X12,Y12,Z12,M2Dto1D_12,U12,V12,I_cuts,iPeaks,XfI,YfI,ZfI,OPS4tarc);
+0461 <span class="comment">%%## This should produce something nice here!:</span>
+0462 clf
+0463 <a href="tomo_slice_i.html" class="code" title="function h = tomo_slice_i(X,Y,Z,V,ix,iy,iz)">tomo_slice_i</a>(XfI,YfI,ZfI,Vem,32,65,12),shading flat
+0464 StartGuess.Vem = Vem; <span class="comment">% Keep the start guess aside -%%## add indices to this one...</span>
+0465 <span class="comment">%% 5.5 Reconstructions</span>
+0466 <span class="comment">%</span>
+0467         
+0468 <span class="comment">% 5.5.3 Set the number of iterative loops</span>
+0469 nr_laps = 1;    <span class="comment">% Number of iterations (over all stations)</span>
+0470 fS = [7 5 3 3]; <span class="comment">% Filter-kernel size</span>
+0471 
+0472 <span class="comment">% 5.5.4 Calculate filter kernel</span>
+0473 i_f = 1;
+0474 [xf,yf] = meshgrid(1:fS(i_f),1:fS(i_f));
+0475 fK = exp(-(xf-mean(xf(:))).^2/mean(xf(:)).^2-(yf-mean(yf(:))).^2/mean(yf(:))^2);
+0476 tomo_ops(1).filterkernel = fK;
+0477 tomo_opssirt(1).disp = <span class="string">'disp'</span>;
+0478 <span class="comment">% 5.5.5 Start with reconstruction %%## play around with the reconstruction</span>
+0479 <span class="comment">%%## versions and such again perhaps.</span>
+0480 <span class="keyword">for</span> i_f = 2:length(fS),
+0481   [xf,yf] = meshgrid(1:fS(i_f),1:fS(i_f));
+0482   fK = exp(-(xf-mean(xf(:))).^2/mean(xf(:)).^2-(yf-mean(yf(:))).^2/mean(yf(:))^2);
+0483   tomo_opssirt(1).filterkernel = fK;
+0484   [Vem,stns] = <a href="tomo_steps.html" class="code" title="function [Vem,stns] = tomo_steps(Vem,stns,tomo_ops,nr_laps)">tomo_steps</a>(Vem,<span class="keyword">...</span>
+0485                           stns,<span class="keyword">...</span>
+0486                           tomo_opssirt,2);
+0487    
+0488 <span class="keyword">end</span>
+0489 <span class="comment">%%## From here also add back all the slicing-n-cutting through Vem...</span>
+0490 
+0491 <span class="comment">%   Copyright � 20120130 Bjorn Gustavsson, &lt;bjorn.gustavsson@irf.se&gt;</span>
+0492 <span class="comment">%   This is free software, licensed under GNU GPL version 2 or later</span></pre></div>
+<hr><address>Generated on Mon 27-Jan-2014 17:32:33 by <strong>B.&nbsp;Gustavsson</strong> with <strong><a href="http://www.artefact.tk/software/matlab/m2html/" target="_parent">m2html</a></strong> &copy; 2003</address>
+</body>
+</html>

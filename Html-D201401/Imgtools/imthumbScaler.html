@@ -1,0 +1,143 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
+                "http://www.w3.org/TR/REC-html40/loose.dtd">
+<html>
+<head>
+  <title>Description of imthumbScaler</title>
+  <meta name="keywords" content="imthumbScaler">
+  <meta name="description" content="IMTHUMBSCALER - colormap scaling and clipping callback-function">
+  <meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+  <meta name="generator" content="m2html &copy; 2003 Guillaume Flandin">
+  <meta name="robots" content="index, follow">
+  <link type="text/css" rel="stylesheet" href="../m2html.css">
+</head>
+<body>
+<a name="_top"></a>
+<!-- menu.html Imgtools -->
+<h1>imthumbScaler
+</h1>
+
+<h2><a name="_name"></a>PURPOSE <a href="#_top"><img alt="^" border="0" src="../up.png"></a></h2>
+<div class="box"><strong>IMTHUMBSCALER - colormap scaling and clipping callback-function</strong></div>
+
+<h2><a name="_synopsis"></a>SYNOPSIS <a href="#_top"><img alt="^" border="0" src="../up.png"></a></h2>
+<div class="box"><strong>function imthumbScaler(N) </strong></div>
+
+<h2><a name="_description"></a>DESCRIPTION <a href="#_top"><img alt="^" border="0" src="../up.png"></a></h2>
+<div class="fragment"><pre class="comment"> IMTHUMBSCALER - colormap scaling and clipping callback-function 
+  IMTHUMBSCALER handles the callback handling intensity mapping
+  and clipping for imthumb.</pre></div>
+
+<!-- crossreference -->
+<h2><a name="_cross"></a>CROSS-REFERENCE INFORMATION <a href="#_top"><img alt="^" border="0" src="../up.png"></a></h2>
+This function calls:
+<ul style="list-style-image:url(../matlabicon.gif)">
+</ul>
+This function is called by:
+<ul style="list-style-image:url(../matlabicon.gif)">
+</ul>
+<!-- crossreference -->
+
+<h2><a name="_subfunctions"></a>SUBFUNCTIONS <a href="#_top"><img alt="^" border="0" src="../up.png"></a></h2>
+<ul style="list-style-image:url(../matlabicon.gif)">
+<li><a href="#_sub1" class="code">function mM = minmax(X)</a></li><li><a href="#_sub2" class="code">function minMaxLims = minmaxIalpha(X,I,Alpha)</a></li></ul>
+<h2><a name="_source"></a>SOURCE CODE <a href="#_top"><img alt="^" border="0" src="../up.png"></a></h2>
+<div class="fragment"><pre>0001 <a name="_sub0" href="#_subfunctions" class="code">function imthumbScaler(N)</a>
+0002 <span class="comment">% IMTHUMBSCALER - colormap scaling and clipping callback-function</span>
+0003 <span class="comment">%  IMTHUMBSCALER handles the callback handling intensity mapping</span>
+0004 <span class="comment">%  and clipping for imthumb.</span>
+0005 <span class="comment">%</span>
+0006 
+0007 <span class="comment">%   Copyright � 20140123 Bjorn Gustavsson, &lt;bjorn.gustavsson@irf.se&gt;</span>
+0008 <span class="comment">%   This is free software, licensed under GNU GPL version 2 or later</span>
+0009 
+0010 UD = get(gcf,<span class="string">'userdata'</span>);
+0011 
+0012 <span class="keyword">switch</span> N
+0013  <span class="keyword">case</span> 1
+0014   <span class="comment">% Set CLIMS to [min(Im(:)), max(Im(:))]</span>
+0015   caxis(<a href="#_sub1" class="code" title="subfunction mM = minmax(X)">minmax</a>(UD.xHist))
+0016  <span class="keyword">case</span> 2
+0017   <span class="comment">% These are histogram clipping at various levels</span>
+0018   caxis(<a href="#_sub2" class="code" title="subfunction minMaxLims = minmaxIalpha(X,I,Alpha)">minmaxIalpha</a>(UD.xHist,UD.imHist,0.999))
+0019  <span class="keyword">case</span> 3
+0020   caxis(<a href="#_sub2" class="code" title="subfunction minMaxLims = minmaxIalpha(X,I,Alpha)">minmaxIalpha</a>(UD.xHist,UD.imHist,0.99))
+0021  <span class="keyword">case</span> 4
+0022   caxis(<a href="#_sub2" class="code" title="subfunction minMaxLims = minmaxIalpha(X,I,Alpha)">minmaxIalpha</a>(UD.xHist,UD.imHist,0.97))
+0023  <span class="keyword">case</span> 5
+0024   caxis(<a href="#_sub2" class="code" title="subfunction minMaxLims = minmaxIalpha(X,I,Alpha)">minmaxIalpha</a>(UD.xHist,UD.imHist,0.95))
+0025  <span class="keyword">case</span> 6
+0026   caxis(<a href="#_sub2" class="code" title="subfunction minMaxLims = minmaxIalpha(X,I,Alpha)">minmaxIalpha</a>(UD.xHist,UD.imHist,0.90))
+0027  <span class="keyword">case</span> 7
+0028   <span class="comment">% LINEAR-scaling</span>
+0029   <span class="comment">% (RE-)set the colormap of current figure to a default colourmap,</span>
+0030   <span class="comment">% that for example should be set to gray(/bone) in</span>
+0031   <span class="comment">% im(/aida)thumbImTool.m</span>
+0032   colormap(UD.cmap)
+0033  <span class="keyword">case</span> 8
+0034   <span class="comment">% SQRT-scaling</span>
+0035   <span class="comment">% Square root re-mapping of current colormap (should be very</span>
+0036   <span class="comment">% equal to brighten 0.5)</span>
+0037   cmp = colormap;
+0038   <span class="comment">% colormap(interp1(1:length(cmp),cmp,([1:length(cmp)]/length(cmp)).^0.5*length(cmp)));</span>
+0039   colormap(interp1(linspace(0,1,length(cmp)),cmp,linspace(0,1,length(cmp)).^0.5))
+0040  <span class="keyword">case</span> 9
+0041   <span class="comment">% LOG-scaling</span>
+0042   <span class="comment">% Logarithmic rescaling of current colormap.</span>
+0043   cmp = colormap;
+0044   <span class="comment">% colormap(interp1(1:length(cmp),cmp,1+(log([1:length(cmp)])/log(length(cmp)))*(length(cmp)-1)));</span>
+0045   colormap(interp1(linspace(0,1,length(cmp)),cmp,log(1:length(cmp))/log(length(cmp))));
+0046  <span class="keyword">case</span> 10
+0047   <span class="comment">% Histogram-equalization scaling</span>
+0048   <span class="comment">% Histogram equalization by modifying the colormap.</span>
+0049   <span class="keyword">if</span> length(UD.imsz) &lt; 3 <span class="comment">% Pointless if the image is an RGB-image</span>
+0050     cmp = colormap;
+0051     <span class="comment">% iH = [0;UD.imHist(:)];</span>
+0052     <span class="comment">% Normalised Cumulative intensity Histogram:</span>
+0053     NCiH = cumsum([0;UD.imHist(:)])/sum(UD.imHist(:));
+0054     <span class="comment">% But with an added leading zero...</span>
+0055     xH = UD.xHist; <span class="comment">% Centre of the histogram bins, will now be one</span>
+0056                    <span class="comment">% shorter than NCiH</span>
+0057     <span class="comment">% Attempt to shift from bin-centres to bin edges</span>
+0058     <span class="comment">% by shifting everything by half the gradient:</span>
+0059     DxH = diff(xH); 
+0060     xH = [xH(1)-DxH(1)/2;xH(1:end-1)+DxH/2;xH(end)+DxH(end)/2];
+0061     <span class="comment">% This should map the colourmap to achieve histogram equalization.</span>
+0062     <span class="comment">% The inner interpolation is just to resample the cumulative</span>
+0063     <span class="comment">% histogram to the same length as the colormap in CMP</span>
+0064     colormap(interp1(linspace(0,1,length(cmp)),<span class="keyword">...</span>
+0065                      cmp,<span class="keyword">...</span>
+0066                      interp1((xH-xH(1))/(xH(end)-xH(1)),<span class="keyword">...</span>
+0067                              NCiH,<span class="keyword">...</span>
+0068                              linspace(0,1,length(cmp)))));
+0069   <span class="keyword">end</span>
+0070  <span class="keyword">case</span> 11
+0071   <span class="comment">% Brighten the colour map</span>
+0072   brighten(0.1)
+0073  <span class="keyword">case</span> 12
+0074   <span class="comment">% unBrighten - darken the colour map</span>
+0075   brighten(-0.1)
+0076  <span class="keyword">otherwise</span>
+0077 <span class="keyword">end</span>
+0078 
+0079 
+0080 <a name="_sub1" href="#_subfunctions" class="code">function mM = minmax(X)</a>
+0081 <span class="comment">% MINMAX - min and max value of matrix</span>
+0082 <span class="comment">%</span>
+0083 mM = [min(X(:)) max(X(:))];
+0084 
+0085 
+0086 <a name="_sub2" href="#_subfunctions" class="code">function minMaxLims = minmaxIalpha(X,I,Alpha)</a>
+0087 <span class="comment">% MINMAXIALPHA - alpha-histogram-clipping</span>
+0088 <span class="comment">%</span>
+0089 
+0090 alpha = (1-Alpha)/2;
+0091 
+0092 ch = cumsum(I)/sum(I);
+0093 
+0094 i_cut = find(alpha(1) &lt;= ch &amp; ch &lt;= 1-alpha(end));
+0095 
+0096 minMaxLims = X(i_cut([1 end]));
+0097</pre></div>
+<hr><address>Generated on Mon 27-Jan-2014 17:32:33 by <strong>B.&nbsp;Gustavsson</strong> with <strong><a href="http://www.artefact.tk/software/matlab/m2html/" target="_parent">m2html</a></strong> &copy; 2003</address>
+</body>
+</html>

@@ -1,0 +1,95 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
+                "http://www.w3.org/TR/REC-html40/loose.dtd">
+<html>
+<head>
+  <title>Description of aidathumb_load_n_show</title>
+  <meta name="keywords" content="aidathumb_load_n_show">
+  <meta name="description" content="LOAD_N_SHOW - Callback wrapper function for loading and">
+  <meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+  <meta name="generator" content="m2html &copy; 2003 Guillaume Flandin">
+  <meta name="robots" content="index, follow">
+  <link type="text/css" rel="stylesheet" href="../m2html.css">
+</head>
+<body>
+<a name="_top"></a>
+<!-- menu.html Imgtools -->
+<h1>aidathumb_load_n_show
+</h1>
+
+<h2><a name="_name"></a>PURPOSE <a href="#_top"><img alt="^" border="0" src="../up.png"></a></h2>
+<div class="box"><strong>LOAD_N_SHOW - Callback wrapper function for loading and</strong></div>
+
+<h2><a name="_synopsis"></a>SYNOPSIS <a href="#_top"><img alt="^" border="0" src="../up.png"></a></h2>
+<div class="box"><strong>function ph = aidathumb_load_n_show(filename,PO,figHandle) </strong></div>
+
+<h2><a name="_description"></a>DESCRIPTION <a href="#_top"><img alt="^" border="0" src="../up.png"></a></h2>
+<div class="fragment"><pre class="comment"> LOAD_N_SHOW - Callback wrapper function for loading and
+ displaying selected image. Called by Imthumb.
+ 
+ Calling:
+   ph = aidathumb_load_n_show(filename,PO,figHandle)
+ Input:
+   filename  - imreadable filename to image to display
+   figHandle - handle figure to display image in</pre></div>
+
+<!-- crossreference -->
+<h2><a name="_cross"></a>CROSS-REFERENCE INFORMATION <a href="#_top"><img alt="^" border="0" src="../up.png"></a></h2>
+This function calls:
+<ul style="list-style-image:url(../matlabicon.gif)">
+<li><a href="../Fits_tools/inimg.html" class="code" title="function [img_out,img_head,obs] = inimg(filename,PREPRO_OPS)">inimg</a>	INIMG - reads and pre-process an image.</li><li><a href="aidathumbImTool.html" class="code" title="function imH = aidathumbImTool(im,ops)">aidathumbImTool</a>	AIDATHUMBIMTOOL - display image and intensities in centre line and column</li></ul>
+This function is called by:
+<ul style="list-style-image:url(../matlabicon.gif)">
+</ul>
+<!-- crossreference -->
+
+
+<h2><a name="_source"></a>SOURCE CODE <a href="#_top"><img alt="^" border="0" src="../up.png"></a></h2>
+<div class="fragment"><pre>0001 <a name="_sub0" href="#_subfunctions" class="code">function ph = aidathumb_load_n_show(filename,PO,figHandle)</a>
+0002 <span class="comment">% LOAD_N_SHOW - Callback wrapper function for loading and</span>
+0003 <span class="comment">% displaying selected image. Called by Imthumb.</span>
+0004 <span class="comment">%</span>
+0005 <span class="comment">% Calling:</span>
+0006 <span class="comment">%   ph = aidathumb_load_n_show(filename,PO,figHandle)</span>
+0007 <span class="comment">% Input:</span>
+0008 <span class="comment">%   filename  - imreadable filename to image to display</span>
+0009 <span class="comment">%   figHandle - handle figure to display image in</span>
+0010 
+0011 
+0012 <span class="comment">%   Copyright � 20140122 Bjorn Gustavsson, &lt;bjorn.gustavsson@irf.se&gt;</span>
+0013 <span class="comment">%   This is free software, licensed under GNU GPL version 2 or later</span>
+0014 Dops = get(gcf,<span class="string">'userdata'</span>);
+0015 
+0016 [im,h,obs] = <a href="../Fits_tools/inimg.html" class="code" title="function [img_out,img_head,obs] = inimg(filename,PREPRO_OPS)">inimg</a>(filename,PO);
+0017 
+0018 
+0019 <span class="comment">%try</span>
+0020   <span class="comment">% Regardless of if these fail</span>
+0021   <span class="keyword">switch</span> lower(Dops.ImToolFcn)
+0022    <span class="keyword">case</span> <span class="string">'imthumbimtool'</span>
+0023     figure(figHandle);
+0024     Ph = <a href="aidathumbImTool.html" class="code" title="function imH = aidathumbImTool(im,ops)">aidathumbImTool</a>(im,Dops);<span class="comment">% replace with: imtool(im) if that's prefered.</span>
+0025     th = title(filename,<span class="string">'fontsize'</span>,Dops.fontsizes);
+0026     set(th,<span class="string">'interpreter'</span>,<span class="string">'none'</span>)
+0027    <span class="keyword">case</span> <span class="string">'imtool'</span>
+0028     imtool(im)
+0029     title(filename,<span class="string">'fontsize'</span>,Dops.fontsizes)
+0030    <span class="keyword">otherwise</span>
+0031     figure(figHandle);
+0032     Ph = imagesc(im);
+0033     title(filename,<span class="string">'fontsize'</span>,Dops.fontsizes)
+0034     
+0035   <span class="keyword">end</span>
+0036   
+0037 <span class="comment">%catch</span>
+0038 <span class="comment">%  % The full image will be displayed</span>
+0039 <span class="comment">%  disp(['The prefered ImToolFcn (',Dops.ImToolFcn,') failed to launch'])</span>
+0040 <span class="comment">%  figure(figHandle);</span>
+0041 <span class="comment">%  Ph = imagesc(im);</span>
+0042 <span class="comment">%  title(filename,'fontsize',Dops.fontsizes)</span>
+0043 <span class="comment">%end</span>
+0044 <span class="keyword">if</span> nargout
+0045   ph = Ph;
+0046 <span class="keyword">end</span></pre></div>
+<hr><address>Generated on Thu 21-Jun-2018 22:40:16 by <strong>B.&nbsp;Gustavsson</strong> with <strong><a href="http://www.artefact.tk/software/matlab/m2html/" target="_parent">m2html</a></strong> &copy; 2003</address>
+</body>
+</html>

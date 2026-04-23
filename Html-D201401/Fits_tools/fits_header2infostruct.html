@@ -1,0 +1,265 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
+                "http://www.w3.org/TR/REC-html40/loose.dtd">
+<html>
+<head>
+  <title>Description of fits_header2infostruct</title>
+  <meta name="keywords" content="fits_header2infostruct">
+  <meta name="description" content="FITS_HEADER2INFOSTRUCT - parse fits header, make struct of meta-data">
+  <meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+  <meta name="generator" content="m2html &copy; 2003 Guillaume Flandin">
+  <meta name="robots" content="index, follow">
+  <link type="text/css" rel="stylesheet" href="../m2html.css">
+</head>
+<body>
+<a name="_top"></a>
+<!-- menu.html Fits_tools -->
+<h1>fits_header2infostruct
+</h1>
+
+<h2><a name="_name"></a>PURPOSE <a href="#_top"><img alt="^" border="0" src="../up.png"></a></h2>
+<div class="box"><strong>FITS_HEADER2INFOSTRUCT - parse fits header, make struct of meta-data</strong></div>
+
+<h2><a name="_synopsis"></a>SYNOPSIS <a href="#_top"><img alt="^" border="0" src="../up.png"></a></h2>
+<div class="box"><strong>function info = fits_header2infostruct(img_head,filename2parseheader,PO) </strong></div>
+
+<h2><a name="_description"></a>DESCRIPTION <a href="#_top"><img alt="^" border="0" src="../up.png"></a></h2>
+<div class="fragment"><pre class="comment"> FITS_HEADER2INFOSTRUCT - parse fits header, make struct of meta-data 
+ needed fields
+
+ Calling:
+  INFO = fits_header2infostruct(HEADER,filename2parseheader)
+ Input:
+  HEADER - Fits header - string array [(n*32) x 80] as returned
+           from fits_header
+  FILENAME2PARSEHEADER - filename of file containing information
+           about how to parse header for necessary information,
+           see header_v5_2_obs.txt for example
+ Output:
+  INFO - struct with fields: naxis - number of axis in data block,
+         nx - [1 x naxis] array with data block sizes, bitpix -
+         fits bitpix key describing number of bits per pixel, and
+         data format.</pre></div>
+
+<!-- crossreference -->
+<h2><a name="_cross"></a>CROSS-REFERENCE INFORMATION <a href="#_top"><img alt="^" border="0" src="../up.png"></a></h2>
+This function calls:
+<ul style="list-style-image:url(../matlabicon.gif)">
+<li><a href="fitsfindkey.html" class="code" title="function [i] = fitsfindkey(V,S)">fitsfindkey</a>	fitsfindkey - Searches a FITS header V for keyword S</li><li><a href="fitsfindkey_strmhead.html" class="code" title="function [j_out] = fitsfindkey_strmhead(H,S)">fitsfindkey_strmhead</a>	fitsfindkey_strmhead - Searches a FITS header H for keyword S</li><li><a href="../Skymap/date2juldate.html" class="code" title="function [jd] = date2juldate(date)">date2juldate</a>	DATE2JULIANDATE calculates the julian date at 0h UT</li><li><a href="../tools/ischar.html" class="code" title="function TrueOrFalse = ischar(str)">ischar</a>	ISCHAR - return true if STR is a char-array</li></ul>
+This function is called by:
+<ul style="list-style-image:url(../matlabicon.gif)">
+<li><a href="read_img.html" class="code" title="function [img_out,img_head,obs] = read_img(filename,PREPRO_OPS)">read_img</a>	READ_IMG - reads image data and process header info.</li></ul>
+<!-- crossreference -->
+
+<h2><a name="_subfunctions"></a>SUBFUNCTIONS <a href="#_top"><img alt="^" border="0" src="../up.png"></a></h2>
+<ul style="list-style-image:url(../matlabicon.gif)">
+<li><a href="#_sub1" class="code">function [stnnr] = fix_stationpos(obs)</a></li><li><a href="#_sub2" class="code">function outstr = ddeblank(in_str)</a></li><li><a href="#_sub3" class="code">function stn_nr = header2stnnr_v5(header_line)</a></li><li><a href="#_sub4" class="code">function site = header2site_v5(header_line)</a></li></ul>
+<h2><a name="_source"></a>SOURCE CODE <a href="#_top"><img alt="^" border="0" src="../up.png"></a></h2>
+<div class="fragment"><pre>0001 <a name="_sub0" href="#_subfunctions" class="code">function info = fits_header2infostruct(img_head,filename2parseheader,PO)</a>
+0002 <span class="comment">% FITS_HEADER2INFOSTRUCT - parse fits header, make struct of meta-data</span>
+0003 <span class="comment">% needed fields</span>
+0004 <span class="comment">%</span>
+0005 <span class="comment">% Calling:</span>
+0006 <span class="comment">%  INFO = fits_header2infostruct(HEADER,filename2parseheader)</span>
+0007 <span class="comment">% Input:</span>
+0008 <span class="comment">%  HEADER - Fits header - string array [(n*32) x 80] as returned</span>
+0009 <span class="comment">%           from fits_header</span>
+0010 <span class="comment">%  FILENAME2PARSEHEADER - filename of file containing information</span>
+0011 <span class="comment">%           about how to parse header for necessary information,</span>
+0012 <span class="comment">%           see header_v5_2_obs.txt for example</span>
+0013 <span class="comment">% Output:</span>
+0014 <span class="comment">%  INFO - struct with fields: naxis - number of axis in data block,</span>
+0015 <span class="comment">%         nx - [1 x naxis] array with data block sizes, bitpix -</span>
+0016 <span class="comment">%         fits bitpix key describing number of bits per pixel, and</span>
+0017 <span class="comment">%         data format.</span>
+0018 
+0019 
+0020 <span class="comment">%   Copyright � 20100615 Bjorn Gustavsson, &lt;bjorn.gustavsson@irf.se&gt;</span>
+0021 <span class="comment">%   This is free software, licensed under GNU GPL version 2 or later</span>
+0022 
+0023 FITS_HOME = which(<span class="string">'inimg'</span>);
+0024 FITS_HOME = fileparts(FITS_HOME);
+0025 
+0026 <span class="keyword">for</span> i1 = size(img_head,1):-1:1,
+0027   key{i1} = sscanf(img_head(i1,:),<span class="string">'%8s='</span>,1);
+0028   keyval{i1} = deblank(img_head(i1,10:end));
+0029 <span class="keyword">end</span>
+0030 
+0031 Naxis=sscanf(keyval{<a href="fitsfindkey.html" class="code" title="function [i] = fitsfindkey(V,S)">fitsfindkey</a>(key,<span class="string">'NAXIS'</span>)},<span class="string">'%d'</span>);
+0032 info.naxis = Naxis;
+0033 <span class="keyword">for</span> i1 = 1:Naxis,
+0034   info.nx(i1) = sscanf(keyval{<a href="fitsfindkey.html" class="code" title="function [i] = fitsfindkey(V,S)">fitsfindkey</a>(key,[<span class="string">'NAXIS'</span>,num2str(i1)])},<span class="string">'%d'</span>);
+0035 <span class="keyword">end</span>
+0036 
+0037 info.bitpix=sscanf(keyval{<a href="fitsfindkey.html" class="code" title="function [i] = fitsfindkey(V,S)">fitsfindkey</a>(key,<span class="string">'BITPIX'</span>)},<span class="string">'%d'</span>);
+0038 
+0039 <span class="keyword">if</span> nargin == 1
+0040   <span class="keyword">return</span>;
+0041 <span class="keyword">end</span>
+0042 
+0043 
+0044 fid = fopen(fullfile(FITS_HOME,filename2parseheader),<span class="string">'r'</span>);
+0045 <span class="keyword">if</span> fid == -1
+0046   disp([<span class="string">'Could not open the Meta-data parsing-rules file: '</span>,filename2parseheader])
+0047 <span class="keyword">else</span>
+0048   
+0049   <span class="keyword">while</span> ~feof(fid)
+0050     curr_line = fgetl(fid);
+0051     <span class="keyword">if</span> <a href="../tools/ischar.html" class="code" title="function TrueOrFalse = ischar(str)">ischar</a>(curr_line)
+0052       [fieldname,curr_line] = strtok(curr_line,<span class="string">':'</span>);
+0053       [field_fits_key,curr_line] = strtok(curr_line(2:end),<span class="string">'='</span>);
+0054       [key_Evalue_string,curr_line] = strtok(curr_line(2:end),<span class="string">' '</span>);
+0055       <span class="keyword">if</span> strcmp(<a href="#_sub2" class="code" title="subfunction outstr = ddeblank(in_str)">ddeblank</a>(field_fits_key),<span class="string">'EMPTY'</span>)
+0056         hindx = 1;
+0057       <span class="keyword">else</span>
+0058         hindx = <a href="fitsfindkey_strmhead.html" class="code" title="function [j_out] = fitsfindkey_strmhead(H,S)">fitsfindkey_strmhead</a>(img_head,<a href="#_sub2" class="code" title="subfunction outstr = ddeblank(in_str)">ddeblank</a>(field_fits_key));
+0059       <span class="keyword">end</span>
+0060       
+0061       <span class="keyword">if</span> ~isempty(hindx)
+0062         key_val = eval(key_Evalue_string);
+0063         info = setfield(info,fieldname,key_val);
+0064       <span class="keyword">else</span>
+0065         info = setfield(info,fieldname,0);<span class="comment">%%% Fixa fixen senare...</span>
+0066         warning(<span class="string">'MATLAB:fits_header2infostruct'</span>,[<span class="string">'missing header info for?: '</span>,fieldname]);
+0067       <span class="keyword">end</span>
+0068     <span class="keyword">end</span>
+0069   <span class="keyword">end</span>
+0070   <span class="keyword">if</span> isfield(info,<span class="string">'site'</span>) &amp; ( ~isfield(info,<span class="string">'station'</span>) | <span class="keyword">...</span>
+0071                              isempty(info.station) )
+0072     <span class="keyword">switch</span> info.site(1)
+0073      <span class="keyword">case</span> <span class="string">'K'</span>
+0074       info.station = 7;
+0075      <span class="keyword">case</span> <span class="string">'O'</span>
+0076       info.station = 1;
+0077      <span class="keyword">case</span> <span class="string">'M'</span>
+0078       info.station = 2;
+0079      <span class="keyword">case</span> <span class="string">'S'</span>
+0080       info.station = 3;
+0081      <span class="keyword">case</span> <span class="string">'T'</span>
+0082       info.station = 4;
+0083      <span class="keyword">case</span> <span class="string">'A'</span>
+0084       info.station = 5;
+0085      <span class="keyword">case</span> <span class="string">'N'</span>
+0086       info.station = 6;
+0087      <span class="keyword">case</span> <span class="string">'B'</span>
+0088       info.station = 10;
+0089      <span class="keyword">case</span> <span class="string">'R'</span>
+0090       info.station = 11;
+0091      <span class="keyword">case</span> <span class="string">'L'</span>
+0092       info.station = 12;
+0093      <span class="keyword">otherwise</span>
+0094       <span class="comment">% do nothing</span>
+0095     <span class="keyword">end</span>
+0096   <span class="keyword">end</span>
+0097   fclose(fid);
+0098   [stnnr] = <a href="#_sub1" class="code" title="subfunction [stnnr] = fix_stationpos(obs)">fix_stationpos</a>(info);
+0099   
+0100 <span class="keyword">end</span>
+0101 
+0102 
+0103 
+0104 
+0105 
+0106 
+0107 
+0108 
+0109 
+0110 
+0111 
+0112 
+0113 
+0114 
+0115 
+0116 <span class="comment">%function [stnnr,pos,cmtr] = fix_stationpos(obs)</span>
+0117 <a name="_sub1" href="#_subfunctions" class="code">function [stnnr] = fix_stationpos(obs)</a>
+0118 <span class="comment">% FIX_STATIONPOS -</span>
+0119 <span class="comment">%</span>
+0120 
+0121 To_Knutstorp_time = [2000 8 1 0 0 0];
+0122 
+0123 <span class="keyword">if</span> ( obs.station == 1 ) &amp;&amp; <span class="keyword">...</span>
+0124       ( <a href="../Skymap/date2juldate.html" class="code" title="function [jd] = date2juldate(date)">date2juldate</a>(obs.time) &gt;  <a href="../Skymap/date2juldate.html" class="code" title="function [jd] = date2juldate(date)">date2juldate</a>(To_Knutstorp_time) )
+0125   stnnr = 7;
+0126 <span class="keyword">else</span>
+0127   stnnr = obs.station;
+0128 <span class="keyword">end</span>
+0129 
+0130 <span class="keyword">if</span> ~isempty(obs.site)
+0131   <span class="keyword">switch</span> obs.site(1)
+0132    <span class="keyword">case</span> <span class="string">'K'</span> <span class="comment">% nutstorp</span>
+0133     stnnr = 7;
+0134    <span class="keyword">case</span> <span class="string">'O'</span> <span class="comment">% Optics lab IRF Kiruna</span>
+0135     stnnr = 1;
+0136    <span class="keyword">case</span> <span class="string">'M'</span> <span class="comment">% erasjarvi</span>
+0137     stnnr = 2;
+0138    <span class="keyword">case</span> <span class="string">'S'</span> <span class="comment">% ilkimuotka</span>
+0139     stnnr = 3;
+0140    <span class="keyword">case</span> <span class="string">'T'</span> <span class="comment">% jautjas</span>
+0141     stnnr = 4;
+0142    <span class="keyword">case</span> <span class="string">'A'</span> <span class="comment">% bisko</span>
+0143     stnnr = 5;
+0144    <span class="keyword">case</span> <span class="string">'N'</span> <span class="comment">% ikkaloukta</span>
+0145     stnnr = 6;
+0146    <span class="keyword">case</span> <span class="string">'B'</span> <span class="comment">% Bus guess that it is in Skibotn</span>
+0147     stnnr = 10;
+0148    <span class="keyword">case</span> <span class="string">'R'</span> <span class="comment">% Ramfjord</span>
+0149     stnnr = 11;
+0150    <span class="keyword">otherwise</span>
+0151     stnnr = 0;
+0152   <span class="keyword">end</span>
+0153 
+0154 <span class="keyword">end</span>
+0155 
+0156 <span class="keyword">if</span> obs.station == 0
+0157   pos = [];
+0158   cmtr = [];
+0159   stnnr = [];
+0160 <span class="keyword">else</span>
+0161   station = obs.station;
+0162   station = stnnr;
+0163 <span class="keyword">end</span>
+0164 
+0165 
+0166 
+0167 
+0168 
+0169 
+0170 
+0171 
+0172 
+0173 
+0174 
+0175 
+0176 
+0177 
+0178 <a name="_sub2" href="#_subfunctions" class="code">function outstr = ddeblank(in_str)</a>
+0179 <span class="comment">% DDEBLANK -</span>
+0180 <span class="comment">%</span>
+0181 
+0182 outstr = strtrim(in_str);
+0183 
+0184 <a name="_sub3" href="#_subfunctions" class="code">function stn_nr = header2stnnr_v5(header_line)</a>
+0185 <span class="comment">% HEADER2STNNR -</span>
+0186 <span class="comment">%</span>
+0187 
+0188 
+0189 <span class="comment">%' /etc/aniara/mima6 ' / name of instrument</span>
+0190 header_line;
+0191 nums = <span class="string">'1234567890'</span>;
+0192 <span class="keyword">for</span> i1 = 1:10,
+0193   isnum = findstr(nums(i1),header_line);
+0194   <span class="keyword">if</span> ~isempty(isnum)
+0195     <span class="keyword">break</span>
+0196   <span class="keyword">end</span>
+0197 <span class="keyword">end</span>
+0198 stn_nr = i1;
+0199 
+0200 <a name="_sub4" href="#_subfunctions" class="code">function site = header2site_v5(header_line)</a>
+0201 <span class="comment">% HEADER2SITE_V5 -</span>
+0202 <span class="comment">%</span>
+0203 
+0204 
+0205 [site] = <a href="#_sub2" class="code" title="subfunction outstr = ddeblank(in_str)">ddeblank</a>(strtok(header_line,<span class="string">''''</span>));
+0206</pre></div>
+<hr><address>Generated on Mon 27-Jan-2014 17:32:33 by <strong>B.&nbsp;Gustavsson</strong> with <strong><a href="http://www.artefact.tk/software/matlab/m2html/" target="_parent">m2html</a></strong> &copy; 2003</address>
+</body>
+</html>

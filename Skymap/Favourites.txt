@@ -1,0 +1,11 @@
+Moon
+Mercury
+Mars
+Venus
+Jupiter
+Saturn
+Uranus
+Neptune
+Capella
+Polaris
+Vega

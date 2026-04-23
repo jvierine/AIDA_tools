@@ -1,0 +1,230 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
+                "http://www.w3.org/TR/REC-html40/loose.dtd">
+<html>
+<head>
+  <title>Description of catstruct</title>
+  <meta name="keywords" content="catstruct">
+  <meta name="description" content="CATSTRUCT   Concatenate or merge structures with different fieldnames">
+  <meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+  <meta name="generator" content="m2html &copy; 2003 Guillaume Flandin">
+  <meta name="robots" content="index, follow">
+  <link type="text/css" rel="stylesheet" href="../m2html.css">
+</head>
+<body>
+<a name="_top"></a>
+<!-- menu.html tools -->
+<h1>catstruct
+</h1>
+
+<h2><a name="_name"></a>PURPOSE <a href="#_top"><img alt="^" border="0" src="../up.png"></a></h2>
+<div class="box"><strong>CATSTRUCT   Concatenate or merge structures with different fieldnames</strong></div>
+
+<h2><a name="_synopsis"></a>SYNOPSIS <a href="#_top"><img alt="^" border="0" src="../up.png"></a></h2>
+<div class="box"><strong>function A = catstruct(varargin) </strong></div>
+
+<h2><a name="_description"></a>DESCRIPTION <a href="#_top"><img alt="^" border="0" src="../up.png"></a></h2>
+<div class="fragment"><pre class="comment"> CATSTRUCT   Concatenate or merge structures with different fieldnames
+   X = CATSTRUCT(S1,S2,S3,...) merges the structures S1, S2, S3 ...
+   into one new structure X. X contains all fields present in the various
+   structures. An example:
+
+     A.name = 'Me' ;
+     B.income = 99999 ;
+     X = catstruct(A,B) 
+     % -&gt; X.name = 'Me' ;
+     %    X.income = 99999 ;
+
+   If a fieldname is not unique among structures (i.e., a fieldname is
+   present in more than one structure), only the value from the last
+   structure with this field is used. In this case, the fields are 
+   alphabetically sorted. A warning is issued as well. An axample:
+
+     S1.name = 'Me' ;
+     S2.age  = 20 ; S3.age  = 30 ; S4.age  = 40 ;
+     S5.honest = false ;
+     Y = catstruct(S1,S2,S3,S4,S5) % use value from S4
+
+   The inputs can be array of structures. All structures should have the
+   same size. An example:
+
+     C(1).bb = 1 ; C(2).bb = 2 ;
+     D(1).aa = 3 ; D(2).aa = 4 ;
+     CD = catstruct(C,D) % CD is a 1x2 structure array with fields bb and aa
+
+   The last input can be the string 'sorted'. In this case,
+   CATSTRUCT(S1,S2, ..., 'sorted') will sort the fieldnames alphabetically. 
+   To sort the fieldnames of a structure A, you could use
+   CATSTRUCT(A,'sorted') but I recommend ORDERFIELDS for doing that.
+
+   When there is nothing to concatenate, the result will be an empty
+   struct (0x0 struct array with no fields).
+
+   NOTE: To concatenate similar arrays of structs, you can use simple
+   concatenation: 
+     A = dir('*.mat') ; B = dir('*.m') ; C = [A ; B] ;</pre></div>
+
+<!-- crossreference -->
+<h2><a name="_cross"></a>CROSS-REFERENCE INFORMATION <a href="#_top"><img alt="^" border="0" src="../up.png"></a></h2>
+This function calls:
+<ul style="list-style-image:url(../matlabicon.gif)">
+</ul>
+This function is called by:
+<ul style="list-style-image:url(../matlabicon.gif)">
+<li><a href="../ALIS/AVOK/alis_overviewmovie.html" class="code" title="function OK = alis_overviewmovie(moviename,Filenames,POs,mOpts)">alis_overviewmovie</a>	ALIS_OVERVIEWMOVIE - Makes movies of images in files</li><li><a href="../ASK/IC/askChem2em_AVplot.html" class="code" title="function [ph,emissions] = askChem2em_AVplot(emissions,OPS,varargin)">askChem2em_AVplot</a>	ASKCHEM2EM_AVPLOT - plot altitude variation of emission rates</li><li><a href="../ASK/IC/askChem2em_CERplot.html" class="code" title="function [ph,CER,emissions] = askChem2em_CERplot(emissions,OPS,varargin)">askChem2em_CERplot</a>	ASKCHEM2EM_CERPLOT - plot column emission rates from SOTON Chemistry model emission-file/struct</li><li><a href="../ASK/IC/askChem2em_TAVplot.html" class="code" title="function [ph,Ems,emissions] = askChem2em_TAVplot(emissions,OPS,varargin)">askChem2em_TAVplot</a>	ASKCHEM2EM_AVPLOT - plot time-altitude variation of emission rates</li><li><a href="../ASK/IC/sotonChem2em_AVplot.html" class="code" title="function [ph,emissions] = sotonChem2em_AVplot(emissions,OPS,varargin)">sotonChem2em_AVplot</a>	sotonChem2em_AVplot - plot altitude variation of emission rates</li><li><a href="../ASK/IC/sotonChem2em_CERplot.html" class="code" title="function [ph,CER,emissions] = sotonChem2em_CERplot(emissions,OPS,varargin)">sotonChem2em_CERplot</a>	sotonChem2em_CERplot - plot column emission rates from SOTON Chemistry model emission-file/struct</li><li><a href="../Camera/aida_triangulate.html" class="code" title="function [xtr,ytr,ztr,tu1,tv1,tu2,tv2,minl] = aida_triangulate(img1,r1,img2,r2,cm1,cm2,PO,Opts)">aida_triangulate</a>	TRIANGULATE - stereoscopic triangulation from a pair of images</li><li><a href="../Camera/triangulate.html" class="code" title="function [xtr,ytr,ztr,tu1,tv1,tu2,tv2,minl] = triangulate(img1,r1,img2,r2,cm1,cm2,PO,Opts)">triangulate</a>	TRIANGULATE - stereoscopic triangulation from a pair of images</li><li><a href="../Camera/triangulate_model.html" class="code" title="function [xtr,ytr,ztr,tu1,tv1,tu2,tv2,minl] = triangulate(img1,r1,img2,r2,cm1,cm2,PO,Opts)">triangulate_model</a>	TRIANGULATE - stereoscopic triangulation from a pair of images</li><li><a href="../Imgtools/errFcnAuroralFlow.html" class="code" title="function varargout = errFcnAuroralFlow(varpars,ind4v_p,par0,I1,I2,nPoints,OPS)">errFcnAuroralFlow</a>	errFcnAuroralFlow - error function for auroral motion estimate</li><li><a href="../Imgtools/symnin_filter.html" class="code" title="function img_out = symnin_filter(img_in,n,OPS)">symnin_filter</a>	SYMNIN_FILTER - symmetric nearest intensity neighbour filter</li><li><a href="../Tomography/tomo_setup4reduced2D.html" class="code" title="function [trmtrs,U,V,X,Y,Z] = tomo_setup4reduced2D(stns,OPS)">tomo_setup4reduced2D</a>	tomo_setup4reduced2D - Set up coordinates and projection matrices</li><li><a href="../Tomography/tomo_setup4reduced2D0.html" class="code" title="function [trmtrs,U,V,X,Y,Z] = tomo_setup4reduced2D0(stns,OPS)">tomo_setup4reduced2D0</a>	tomo_setup4reduced2D - Set up coordinates and projection matrices</li><li><a href="../Tomography/trmtr3Dto1D.html" class="code" title="function [trmtr,fi_out,debug_m] = trmtr3Dto1D(X,Y,Z,r0,e_pix,dL,OPS)">trmtr3Dto1D</a>	trmtr3Dto1D - make projection matrix from 3-D to 1-D image cuts</li><li><a href="ionization_profile_matrix.html" class="code" title="function [A] = ionization_profile_matrix(h,E,nO,nN2,nO2,density,OPTS)">ionization_profile_matrix</a>	IONIZATION_PROFILE_MATRIX - calculate ionization profiles</li></ul>
+<!-- crossreference -->
+
+
+<h2><a name="_source"></a>SOURCE CODE <a href="#_top"><img alt="^" border="0" src="../up.png"></a></h2>
+<div class="fragment"><pre>0001 <a name="_sub0" href="#_subfunctions" class="code">function A = catstruct(varargin)</a>
+0002 <span class="comment">% CATSTRUCT   Concatenate or merge structures with different fieldnames</span>
+0003 <span class="comment">%   X = CATSTRUCT(S1,S2,S3,...) merges the structures S1, S2, S3 ...</span>
+0004 <span class="comment">%   into one new structure X. X contains all fields present in the various</span>
+0005 <span class="comment">%   structures. An example:</span>
+0006 <span class="comment">%</span>
+0007 <span class="comment">%     A.name = 'Me' ;</span>
+0008 <span class="comment">%     B.income = 99999 ;</span>
+0009 <span class="comment">%     X = catstruct(A,B)</span>
+0010 <span class="comment">%     % -&gt; X.name = 'Me' ;</span>
+0011 <span class="comment">%     %    X.income = 99999 ;</span>
+0012 <span class="comment">%</span>
+0013 <span class="comment">%   If a fieldname is not unique among structures (i.e., a fieldname is</span>
+0014 <span class="comment">%   present in more than one structure), only the value from the last</span>
+0015 <span class="comment">%   structure with this field is used. In this case, the fields are</span>
+0016 <span class="comment">%   alphabetically sorted. A warning is issued as well. An axample:</span>
+0017 <span class="comment">%</span>
+0018 <span class="comment">%     S1.name = 'Me' ;</span>
+0019 <span class="comment">%     S2.age  = 20 ; S3.age  = 30 ; S4.age  = 40 ;</span>
+0020 <span class="comment">%     S5.honest = false ;</span>
+0021 <span class="comment">%     Y = catstruct(S1,S2,S3,S4,S5) % use value from S4</span>
+0022 <span class="comment">%</span>
+0023 <span class="comment">%   The inputs can be array of structures. All structures should have the</span>
+0024 <span class="comment">%   same size. An example:</span>
+0025 <span class="comment">%</span>
+0026 <span class="comment">%     C(1).bb = 1 ; C(2).bb = 2 ;</span>
+0027 <span class="comment">%     D(1).aa = 3 ; D(2).aa = 4 ;</span>
+0028 <span class="comment">%     CD = catstruct(C,D) % CD is a 1x2 structure array with fields bb and aa</span>
+0029 <span class="comment">%</span>
+0030 <span class="comment">%   The last input can be the string 'sorted'. In this case,</span>
+0031 <span class="comment">%   CATSTRUCT(S1,S2, ..., 'sorted') will sort the fieldnames alphabetically.</span>
+0032 <span class="comment">%   To sort the fieldnames of a structure A, you could use</span>
+0033 <span class="comment">%   CATSTRUCT(A,'sorted') but I recommend ORDERFIELDS for doing that.</span>
+0034 <span class="comment">%</span>
+0035 <span class="comment">%   When there is nothing to concatenate, the result will be an empty</span>
+0036 <span class="comment">%   struct (0x0 struct array with no fields).</span>
+0037 <span class="comment">%</span>
+0038 <span class="comment">%   NOTE: To concatenate similar arrays of structs, you can use simple</span>
+0039 <span class="comment">%   concatenation:</span>
+0040 <span class="comment">%     A = dir('*.mat') ; B = dir('*.m') ; C = [A ; B] ;</span>
+0041 
+0042 <span class="comment">%   NOTE: This function relies on unique. Matlab changed the behavior of</span>
+0043 <span class="comment">%   its set functions since 2013a, so this might cause some backward</span>
+0044 <span class="comment">%   compatibility issues when dulpicated fieldnames are found.</span>
+0045 <span class="comment">%</span>
+0046 <span class="comment">%   See also CAT, STRUCT, FIELDNAMES, STRUCT2CELL, ORDERFIELDS</span>
+0047 
+0048 <span class="comment">% for Matlab R13 and up, tested in R2011a and up</span>
+0049 <span class="comment">% version 4.0 (dec 2013)</span>
+0050 <span class="comment">% (c) Jos van der Geest</span>
+0051 <span class="comment">% email: jos@jasen.nl</span>
+0052 
+0053 <span class="comment">% History</span>
+0054 <span class="comment">% Created in 2005</span>
+0055 <span class="comment">% Revisions</span>
+0056 <span class="comment">%   2.0 (sep 2007) removed bug when dealing with fields containing cell</span>
+0057 <span class="comment">%                  arrays (Thanks to Rene Willemink)</span>
+0058 <span class="comment">%   2.1 (sep 2008) added warning and error identifiers</span>
+0059 <span class="comment">%   2.2 (oct 2008) fixed error when dealing with empty structs (thanks to</span>
+0060 <span class="comment">%                  Lars Barring)</span>
+0061 <span class="comment">%   3.0 (mar 2013) fixed problem when the inputs were array of structures</span>
+0062 <span class="comment">%                  (thanks to Tor Inge Birkenes).</span>
+0063 <span class="comment">%                  Rephrased the help section as well.</span>
+0064 <span class="comment">%   4.0 (dec 2013) fixed problem with unique due to version differences in</span>
+0065 <span class="comment">%                  ML. Unique(...,'last') is no longer the deafult.</span>
+0066 <span class="comment">%                  (thanks to Isabel P)</span>
+0067 
+0068 error(nargchk(1,Inf,nargin)) ;
+0069 N = nargin ;
+0070 
+0071 <span class="keyword">if</span> ~isstruct(varargin{end}),
+0072     <span class="keyword">if</span> isequal(varargin{end},<span class="string">'sorted'</span>),
+0073         sorted = 1 ;
+0074         N = N-1 ;
+0075         error(nargchk(1,Inf,N)) ;
+0076     <span class="keyword">else</span>
+0077         error(<span class="string">'catstruct:InvalidArgument'</span>,<span class="string">'Last argument should be a structure, or the string &quot;sorted&quot;.'</span>) ;
+0078     <span class="keyword">end</span>
+0079 <span class="keyword">else</span>
+0080     sorted = 0 ;
+0081 <span class="keyword">end</span>
+0082 
+0083 sz0 = [] ; <span class="comment">% used to check that all inputs have the same size</span>
+0084 
+0085 <span class="comment">% used to check for a few trivial cases</span>
+0086 NonEmptyInputs = false(N,1) ; 
+0087 NonEmptyInputsN = 0 ;
+0088 
+0089 <span class="comment">% used to collect the fieldnames and the inputs</span>
+0090 FN = cell(N,1) ;
+0091 VAL = cell(N,1) ;
+0092 
+0093 <span class="comment">% parse the inputs</span>
+0094 <span class="keyword">for</span> ii=1:N,
+0095     X = varargin{ii} ;
+0096     <span class="keyword">if</span> ~isstruct(X),
+0097         error(<span class="string">'catstruct:InvalidArgument'</span>,[<span class="string">'Argument #'</span> num2str(ii) <span class="string">' is not a structure.'</span>]) ;
+0098     <span class="keyword">end</span>
+0099     
+0100     <span class="keyword">if</span> ~isempty(X),
+0101         <span class="comment">% empty structs are ignored</span>
+0102         <span class="keyword">if</span> ii &gt; 1 &amp;&amp; ~isempty(sz0)
+0103             <span class="keyword">if</span> ~isequal(size(X), sz0)
+0104                 error(<span class="string">'catstruct:UnequalSizes'</span>,<span class="string">'All structures should have the same size.'</span>) ;
+0105             <span class="keyword">end</span>
+0106         <span class="keyword">else</span>
+0107             sz0 = size(X) ;
+0108         <span class="keyword">end</span>
+0109         NonEmptyInputsN = NonEmptyInputsN + 1 ;
+0110         NonEmptyInputs(ii) = true ;
+0111         FN{ii} = fieldnames(X) ;
+0112         VAL{ii} = struct2cell(X) ;
+0113     <span class="keyword">end</span>
+0114 <span class="keyword">end</span>
+0115 
+0116 <span class="keyword">if</span> NonEmptyInputsN == 0
+0117     <span class="comment">% all structures were empty</span>
+0118     A = struct([]) ;
+0119 <span class="keyword">elseif</span> NonEmptyInputsN == 1,
+0120     <span class="comment">% there was only one non-empty structure</span>
+0121     A = varargin{NonEmptyInputs} ;
+0122     <span class="keyword">if</span> sorted,
+0123         A = orderfields(A) ;
+0124     <span class="keyword">end</span>
+0125 <span class="keyword">else</span>
+0126     <span class="comment">% there is actually something to concatenate</span>
+0127     FN = cat(1,FN{:}) ;    
+0128     VAL = cat(1,VAL{:}) ;    
+0129     FN = squeeze(FN) ;
+0130     VAL = squeeze(VAL) ;
+0131     
+0132     
+0133     [UFN,ind] = unique(FN, <span class="string">'last'</span>) ;
+0134     <span class="comment">% If this line errors, due to your matlab version not having UNIQUE</span>
+0135     <span class="comment">% accept the 'last' input, use the following line instead</span>
+0136     <span class="comment">% [UFN,ind] = unique(FN) ; % earlier ML versions, like 6.5</span>
+0137     
+0138     <span class="keyword">if</span> numel(UFN) ~= numel(FN),
+0139         warning(<span class="string">'catstruct:DuplicatesFound'</span>,<span class="string">'Fieldnames are not unique between structures.'</span>) ;
+0140         sorted = 1 ;
+0141     <span class="keyword">end</span>
+0142     
+0143     <span class="keyword">if</span> sorted,
+0144         VAL = VAL(ind,:) ;
+0145         FN = FN(ind,:) ;
+0146     <span class="keyword">end</span>
+0147     
+0148     A = cell2struct(VAL, FN);
+0149     A = reshape(A, sz0) ; <span class="comment">% reshape into original format</span>
+0150 <span class="keyword">end</span></pre></div>
+<hr><address>Generated on Thu 21-Jun-2018 22:40:16 by <strong>B.&nbsp;Gustavsson</strong> with <strong><a href="http://www.artefact.tk/software/matlab/m2html/" target="_parent">m2html</a></strong> &copy; 2003</address>
+</body>
+</html>

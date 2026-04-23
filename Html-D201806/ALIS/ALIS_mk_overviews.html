@@ -1,0 +1,151 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
+                "http://www.w3.org/TR/REC-html40/loose.dtd">
+<html>
+<head>
+  <title>Description of ALIS_mk_overviews</title>
+  <meta name="keywords" content="ALIS_mk_overviews">
+  <meta name="description" content="ALIS_MK_DB_KEOS - Update ALIS Keogram-database">
+  <meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+  <meta name="generator" content="m2html &copy; 2003 Guillaume Flandin">
+  <meta name="robots" content="index, follow">
+  <link type="text/css" rel="stylesheet" href="../m2html.css">
+</head>
+<body>
+<a name="_top"></a>
+<!-- menu.html ALIS -->
+<h1>ALIS_mk_overviews
+</h1>
+
+<h2><a name="_name"></a>PURPOSE <a href="#_top"><img alt="^" border="0" src="../up.png"></a></h2>
+<div class="box"><strong>ALIS_MK_DB_KEOS - Update ALIS Keogram-database</strong></div>
+
+<h2><a name="_synopsis"></a>SYNOPSIS <a href="#_top"><img alt="^" border="0" src="../up.png"></a></h2>
+<div class="box"><strong>function ok = ALIS_mk_overviews(ALIS_root_dir,years2do) </strong></div>
+
+<h2><a name="_description"></a>DESCRIPTION <a href="#_top"><img alt="^" border="0" src="../up.png"></a></h2>
+<div class="fragment"><pre class="comment"> ALIS_MK_DB_KEOS - Update ALIS Keogram-database
+   
+ Calling:
+ ok = alis_mk_overviews(alis_root_dir);
+ Currently working under the assumption that the images are in
+ alis_root_dir (defaults to /alis/stdnames) in a directory tree
+ with the following structure:
+ /alis/stdnames/YEAR/MONTH/DAY/
+ From below the DAY directory files for all images taken that day
+ is searched for with unix FIND.</pre></div>
+
+<!-- crossreference -->
+<h2><a name="_cross"></a>CROSS-REFERENCE INFORMATION <a href="#_top"><img alt="^" border="0" src="../up.png"></a></h2>
+This function calls:
+<ul style="list-style-image:url(../matlabicon.gif)">
+<li><a href="ALIS_auto_overview.html" class="code" title="function dOPS = ALIS_auto_overview(ops4AAO)">ALIS_auto_overview</a>	ALIS_AUTO_OVERVIEW - automated fits data to png image conversion</li><li><a href="ALIS_movie_reencoder.html" class="code" title="function [OK1n2,msg1n2] = ALIS_movie_reencoder(data_path,OVC_options,overwrite)">ALIS_movie_reencoder</a>	ALIS_MOVIE_REENCODER - Movie re-encoding to reduce output file size</li></ul>
+This function is called by:
+<ul style="list-style-image:url(../matlabicon.gif)">
+</ul>
+<!-- crossreference -->
+
+
+<h2><a name="_source"></a>SOURCE CODE <a href="#_top"><img alt="^" border="0" src="../up.png"></a></h2>
+<div class="fragment"><pre>0001 <a name="_sub0" href="#_subfunctions" class="code">function ok = ALIS_mk_overviews(ALIS_root_dir,years2do)</a>
+0002 <span class="comment">% ALIS_MK_DB_KEOS - Update ALIS Keogram-database</span>
+0003 <span class="comment">%</span>
+0004 <span class="comment">% Calling:</span>
+0005 <span class="comment">% ok = alis_mk_overviews(alis_root_dir);</span>
+0006 <span class="comment">% Currently working under the assumption that the images are in</span>
+0007 <span class="comment">% alis_root_dir (defaults to /alis/stdnames) in a directory tree</span>
+0008 <span class="comment">% with the following structure:</span>
+0009 <span class="comment">% /alis/stdnames/YEAR/MONTH/DAY/</span>
+0010 <span class="comment">% From below the DAY directory files for all images taken that day</span>
+0011 <span class="comment">% is searched for with unix FIND.</span>
+0012 <span class="comment">%</span>
+0013 
+0014 
+0015 <span class="comment">%   Copyright � 2012 Bjorn Gustavsson, &lt;bjorn.gustavsson@irf.se&gt;</span>
+0016 <span class="comment">%   This is free software, licensed under GNU GPL version 2 or later</span>
+0017 
+0018 ALIS_OVERVIEW_ok = cell(2016-1990,12,31); <span class="comment">% Storage for processing record...</span>
+0019 
+0020 
+0021 <span class="keyword">if</span> nargin &lt; 1 || isempty(ALIS_root_dir)
+0022   ALIS_root_dir = <span class="string">'/alis/stdnames'</span>
+0023 <span class="keyword">else</span>
+0024   disp(ALIS_root_dir)
+0025 <span class="keyword">end</span>
+0026 
+0027 cd(ALIS_root_dir)
+0028 
+0029 Overview_dir = fullfile(ALIS_root_dir,<span class="string">'..'</span>,<span class="string">'Overviews'</span>)
+0030 
+0031 <span class="keyword">try</span> 
+0032   load(fullfile(Overview_dir,<span class="string">'overview_log.mat'</span>))
+0033 <span class="keyword">catch</span>
+0034   disp(<span class="string">'This is the first time for you, isn''t it?'</span>)
+0035 <span class="keyword">end</span>
+0036 
+0037 
+0038 data_years = dir(<span class="string">'2*'</span>);
+0039 data_years = data_years([data_years(:).isdir]);
+0040 data_years = data_years(2);
+0041 <span class="comment">%data_years = data_years(3:end); % first 2 will always(?) be ./ &amp; ../</span>
+0042 
+0043 
+0044 OPS = <a href="ALIS_auto_overview.html" class="code" title="function dOPS = ALIS_auto_overview(ops4AAO)">ALIS_auto_overview</a>(-1);
+0045 OPS.interference_level = 3;
+0046 
+0047 <span class="keyword">for</span> iYear = 1:length(data_years),
+0048   
+0049   <span class="comment">% Go to the year directory</span>
+0050   cd(data_years(iYear).name)
+0051   <span class="comment">% get the months that are archived there</span>
+0052   data_month = dir;
+0053   data_month = data_month([data_month(:).isdir]);
+0054   data_month = data_month(3:end);
+0055   
+0056   <span class="keyword">for</span> iMonth = 1:length(data_month),
+0057     
+0058     <span class="comment">% Go to the month directory</span>
+0059     cd(data_month(iMonth).name)
+0060     <span class="comment">% get the days that are archived there</span>
+0061     data_days = dir;
+0062     data_days = data_days([data_days(:).isdir]);
+0063     data_days = data_days(3:end);
+0064     
+0065     <span class="keyword">for</span> iDay = 1:length(data_days),
+0066       
+0067       <span class="comment">% Go to the day directory</span>
+0068       
+0069       <span class="keyword">if</span> strcmp(ALIS_OVERVIEW_ok{str2num(data_years(iYear).name)-1990,<span class="keyword">...</span>
+0070                             str2num(data_month(iMonth).name),<span class="keyword">...</span>
+0071                             str2num(data_days(iDay).name)},<span class="keyword">...</span>
+0072                 <span class="string">'that went just fine'</span>)
+0073         <span class="comment">% Then that directory was apparently processed.</span>
+0074         disp([<span class="string">'Everything seems ready for: '</span>,data_years(iYear).name,<span class="string">'-'</span>,data_month(iMonth).name,<span class="string">'-'</span>,data_days(iDay).name])
+0075       <span class="keyword">else</span> <span class="comment">% otherwise get cracking!</span>
+0076         cd(data_days(iDay).name)
+0077         <span class="keyword">try</span>
+0078           OPS.BaseSaveDir =  fullfile(Overview_dir,data_years(iYear).name,data_month(iMonth).name,data_days(iDay).name);
+0079           mkdir(OPS.BaseSaveDir)
+0080           <a href="ALIS_auto_overview.html" class="code" title="function dOPS = ALIS_auto_overview(ops4AAO)">ALIS_auto_overview</a>(OPS);
+0081           [OK1n2,msg1n2] = <a href="ALIS_movie_reencoder.html" class="code" title="function [OK1n2,msg1n2] = ALIS_movie_reencoder(data_path,OVC_options,overwrite)">ALIS_movie_reencoder</a>(OPS.BaseSaveDir,[],1.414213562);
+0082           ALIS_movie_log{str2num(data_years(iYear).name)-1990,<span class="keyword">...</span>
+0083                          str2num(data_month(iMonth).name),<span class="keyword">...</span>
+0084                          str2num(data_days(iDay).name)} = OK1n2;
+0085           ALIS_OVERVIEW_ok{str2num(data_years(iYear).name)-1990,<span class="keyword">...</span>
+0086                            str2num(data_month(iMonth).name),<span class="keyword">...</span>
+0087                            str2num(data_days(iDay).name)} = <span class="string">'that went just fine'</span>;
+0088           save(fullfile(Overview_dir,<span class="string">'overview_log.mat'</span>),<span class="string">'ALIS_OVERVIEW_ok'</span>,<span class="string">'ALIS_movie_log'</span>)
+0089         <span class="keyword">catch</span>
+0090           disp([<span class="string">'PROBLEMS ENCOUNTERED for day: '</span>,data_years(iYear).name,<span class="string">'-'</span>,data_month(iMonth).name,<span class="string">'-'</span>,data_days(iDay).name])
+0091         <span class="keyword">end</span>
+0092         <span class="comment">% and back up to the month directory</span>
+0093         cd(<span class="string">'../'</span>) <span class="comment">% from day back up to month</span>
+0094       <span class="keyword">end</span>
+0095     <span class="keyword">end</span>
+0096     cd(<span class="string">'../'</span>) <span class="comment">% from month back up to year</span>
+0097   <span class="keyword">end</span>
+0098   cd(<span class="string">'../'</span>)  <span class="comment">% from year back up to root</span>
+0099 <span class="keyword">end</span>
+0100 ok = 1;</pre></div>
+<hr><address>Generated on Thu 21-Jun-2018 22:40:16 by <strong>B.&nbsp;Gustavsson</strong> with <strong><a href="http://www.artefact.tk/software/matlab/m2html/" target="_parent">m2html</a></strong> &copy; 2003</address>
+</body>
+</html>

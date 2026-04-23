@@ -1,0 +1,33 @@
+% Vitmo ModelWeb Browser Results
+% igrf model profile parameters
+% 
+% Input parameters:
+% Year= 2016
+% latitude= 78.05, longitude= 16.05, height= 100
+% 
+% Profile name: Longitude
+% Profile parameters: start= 0.00, stop= 600.00, step= 50.00
+% 
+%    Selected parameters are:
+% 1 Height, km
+% 2 B_north, nT
+% 3 B_east, nT
+% 4 B_down, nT
+% 5 DIP_Inclination, deg
+% 6 DIP_Declination, deg.
+% 
+%         1        2        3        4      5      6
+       0.   7365.4   1112.8  54294.1   82.2    8.6
+      50.   7203.6   1037.4  53195.4   82.2    8.2
+     100.   7046.2    966.2  52122.1   82.2    7.8
+     150.   6893.1    898.7  51073.7   82.2    7.4
+     200.   6744.1    834.9  50049.9   82.3    7.1
+     250.   6599.2    774.4  49050.0   82.3    6.7
+     300.   6458.2    717.1  48073.5   82.3    6.3
+     350.   6321.0    662.9  47120.0   82.3    6.0
+     400.   6187.4    611.5  46188.9   82.3    5.6
+     450.   6057.5    562.7  45279.7   82.3    5.3
+     500.   5930.9    516.6  44391.9   82.4    5.0
+     550.   5807.8    472.8  43525.0   82.4    4.7
+     600.   5687.8    431.3  42678.6   82.4    4.3
+

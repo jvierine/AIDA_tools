@@ -1,0 +1,97 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
+                "http://www.w3.org/TR/REC-html40/loose.dtd">
+<html>
+<head>
+  <title>Description of find_in_ranges</title>
+  <meta name="keywords" content="find_in_ranges">
+  <meta name="description" content="FIND_IN_RANGES - Find which range out of T_RANGES elements of T is in.">
+  <meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+  <meta name="generator" content="m2html &copy; 2003 Guillaume Flandin">
+  <meta name="robots" content="index, follow">
+  <link type="text/css" rel="stylesheet" href="../m2html.css">
+</head>
+<body>
+<a name="_top"></a>
+<!-- menu.html tools -->
+<h1>find_in_ranges
+</h1>
+
+<h2><a name="_name"></a>PURPOSE <a href="#_top"><img alt="^" border="0" src="../up.png"></a></h2>
+<div class="box"><strong>FIND_IN_RANGES - Find which range out of T_RANGES elements of T is in.</strong></div>
+
+<h2><a name="_synopsis"></a>SYNOPSIS <a href="#_top"><img alt="^" border="0" src="../up.png"></a></h2>
+<div class="box"><strong>function is_in_range = find_in_ranges(t,t_ranges) </strong></div>
+
+<h2><a name="_description"></a>DESCRIPTION <a href="#_top"><img alt="^" border="0" src="../up.png"></a></h2>
+<div class="fragment"><pre class="comment"> FIND_IN_RANGES - Find which range out of T_RANGES elements of T is in.
+   
+ Calling:
+  is_in_range = find_in_ranges(t,t_ranges)
+ Input:
+  t - array of numbers to search in [n_t x 1] or [1 x n_t]
+  t_ranges - boundaries of ranges to check membership of elements
+             in t, array [n_ranges x 2]
+ Output:
+  is_in_range - array with same size as t, with indices of the ranges in
+                t_ranges the elements in t falls into.
+
+ NOTE - ONLY WORKS FOR NON-OVERLAPPING RANGES</pre></div>
+
+<!-- crossreference -->
+<h2><a name="_cross"></a>CROSS-REFERENCE INFORMATION <a href="#_top"><img alt="^" border="0" src="../up.png"></a></h2>
+This function calls:
+<ul style="list-style-image:url(../matlabicon.gif)">
+</ul>
+This function is called by:
+<ul style="list-style-image:url(../matlabicon.gif)">
+</ul>
+<!-- crossreference -->
+
+
+<h2><a name="_source"></a>SOURCE CODE <a href="#_top"><img alt="^" border="0" src="../up.png"></a></h2>
+<div class="fragment"><pre>0001 <a name="_sub0" href="#_subfunctions" class="code">function is_in_range = find_in_ranges(t,t_ranges)</a>
+0002 <span class="comment">% FIND_IN_RANGES - Find which range out of T_RANGES elements of T is in.</span>
+0003 <span class="comment">%</span>
+0004 <span class="comment">% Calling:</span>
+0005 <span class="comment">%  is_in_range = find_in_ranges(t,t_ranges)</span>
+0006 <span class="comment">% Input:</span>
+0007 <span class="comment">%  t - array of numbers to search in [n_t x 1] or [1 x n_t]</span>
+0008 <span class="comment">%  t_ranges - boundaries of ranges to check membership of elements</span>
+0009 <span class="comment">%             in t, array [n_ranges x 2]</span>
+0010 <span class="comment">% Output:</span>
+0011 <span class="comment">%  is_in_range - array with same size as t, with indices of the ranges in</span>
+0012 <span class="comment">%                t_ranges the elements in t falls into.</span>
+0013 <span class="comment">%</span>
+0014 <span class="comment">% NOTE - ONLY WORKS FOR NON-OVERLAPPING RANGES</span>
+0015 
+0016 <span class="comment">%   Copyright � 2003 Bjorn Gustavsson &lt;bjorn.gustavsson@irf.se&gt;,</span>
+0017 <span class="comment">%   This is free software, licensed under GNU GPL version 2 or later</span>
+0018 
+0019 
+0020 
+0021 <span class="keyword">if</span> nargin ~= 2
+0022   error(<span class="string">'Wrong number of arguments'</span>)
+0023 <span class="keyword">end</span>
+0024 
+0025 <span class="keyword">if</span> min(size(t_ranges)) == 1
+0026   
+0027   Tranges = reshape(t_ranges,2,[])';
+0028   <span class="comment">%This below should just be a simple reshape, just as the one above</span>
+0029   <span class="comment">% for i = 1:length(t_ranges)/2,</span>
+0030   <span class="comment">%   Tranges(i,1) = t_ranges(1+2*(i-1));%,[2 length(t_ranges)/2]);</span>
+0031   <span class="comment">%   Tranges(i,2) = t_ranges(2*i);</span>
+0032   <span class="comment">% end</span>
+0033   
+0034 <span class="keyword">else</span>
+0035   
+0036   Tranges = t_ranges;
+0037   
+0038 <span class="keyword">end</span>
+0039 <span class="comment">%Tranges</span>
+0040 is_in_range = 0*t;
+0041 <span class="keyword">for</span> i1 = 1:length(Tranges(:,1)),
+0042   is_in_range = is_in_range + i1*( Tranges(i1,1)&lt;=t &amp; t&lt;Tranges(i1,2) );
+0043 <span class="keyword">end</span></pre></div>
+<hr><address>Generated on Thu 21-Jun-2018 22:40:16 by <strong>B.&nbsp;Gustavsson</strong> with <strong><a href="http://www.artefact.tk/software/matlab/m2html/" target="_parent">m2html</a></strong> &copy; 2003</address>
+</body>
+</html>

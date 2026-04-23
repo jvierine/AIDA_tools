@@ -1,0 +1,321 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
+                "http://www.w3.org/TR/REC-html40/loose.dtd">
+<html>
+<head>
+  <title>Description of ALIS_image_sequence</title>
+  <meta name="keywords" content="ALIS_image_sequence">
+  <meta name="description" content="ALIS_IMAGE_SEQUENCE - to display an ALIS image sequence as movie">
+  <meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+  <meta name="generator" content="m2html &copy; 2003 Guillaume Flandin">
+  <meta name="robots" content="index, follow">
+  <link type="text/css" rel="stylesheet" href="../m2html.css">
+</head>
+<body>
+<a name="_top"></a>
+<!-- menu.html ALIS -->
+<h1>ALIS_image_sequence
+</h1>
+
+<h2><a name="_name"></a>PURPOSE <a href="#_top"><img alt="^" border="0" src="../up.png"></a></h2>
+<div class="box"><strong>ALIS_IMAGE_SEQUENCE - to display an ALIS image sequence as movie</strong></div>
+
+<h2><a name="_synopsis"></a>SYNOPSIS <a href="#_top"><img alt="^" border="0" src="../up.png"></a></h2>
+<div class="box"><strong>function varargout = ALIS_image_sequence(files,PO,OPS) </strong></div>
+
+<h2><a name="_description"></a>DESCRIPTION <a href="#_top"><img alt="^" border="0" src="../up.png"></a></h2>
+<div class="fragment"><pre class="comment"> ALIS_IMAGE_SEQUENCE - to display an ALIS image sequence as movie
+
+ CALLNG:
+   OPS       = ALIS_image_sequence
+   M         = ALIS_image_sequence(files,PO,OPS)
+   imgstacks = ALIS_image_sequence(files,PO,OPS)
+   rgbstack  = ALIS_image_sequence(files,PO,OPS)
+   [I99,ImM,Ihists] = ALIS_image_sequence(files,PO,OPS)
+
+ INPUTS:
+   files    - struct with ALIS image files as returned from dir,
+              or a char array with filenames [n_files x max_length_of_files]
+              Note that dir only gives the filenames without the
+              path. filenames with different lengths will result
+              in shorter names being padded with white-spaces,
+              this is handled with STRTRIM in this function.
+   PO       - struct with pre-processing options as returned from
+              typical_pre_proc_ops. 
+   OPS      - options struct, with the default options returned
+              when ALIS_image_sequence is called without
+              arguments. Fields: 
+              OPS.loud = 0; Suppresses some willy-nilly output.
+              OPS.caxis = {'','',''}; If empty the intensity
+                   scale is automatic for each individual frame, if set
+                   to arrays with [ nImgs x 2 ] then that will be
+                   used for each corresponding image.
+              OPS.imsize = {[],[],[]}; Set to something if output
+                   images is to be resized
+              OPS.imdisplay = 1;   set to zero top suppress
+                   displaying - useful to increase speed when only
+                   intaxes is requested
+              OPS.shift = [0,0,0]; For shifting the image
+                   sequences relative to each other in index number
+              OPS.histmaxint - maximum intensity for intensity
+                   histogram, scalar, default is 8000.
+              OPS.filterkernel = {[],[],[]}; Set either field to
+                   a filter kernel for filtering the images before
+                   diplaying them.
+              OPS.outargtype = [ {'M'} | 'imgstack' | 'rgbimgstack' | 'intaxes']
+                   For M - Movie; imgstack - stack of the images from
+                   the cameras Cams, rgbimgstack for stack of
+                   RGB-composites, or intaxes for returning intensity
+                   ranges - the 99 percentile and the min-max intensity
+                   ranges.
+              OPS.savedir - path (full or relative) to directory
+                   displayed images should be saved in. (Upon
+                   which I cannot put!) Make sure write
+                   permissions exist. If directory does not exist
+                   it will be created. Defaults to empty &lt;-&gt; no
+                   saving, set to something if saving is desired,
+                   './' for present working directory.
+              OPS.savetype - file type to save file to
+                   [{'png'}|'jpg',any other imgwrite-able-filetype]
+                   - SEE imwrite for full list.
+ Output:
+  OPS       - Default options struct, is returned if
+              ALIS_image_sequence is called without inpu
+  M         - Matlab movie structure, SEE MOVIE, getframe for
+              details.
+  imgstacks - Cell array with image stacks from the ALIS cameras
+              selected with Cams
+  rgbstack  - stack of RGB composite images made up of images from
+              selected cameras.
+  [I99,ImM] - Cell array with Intenisty arrays I99 is intensity
+              ranges image-by-image with 3% (Yup!) histogram
+              clipping ImM is intensity range min-Max</pre></div>
+
+<!-- crossreference -->
+<h2><a name="_cross"></a>CROSS-REFERENCE INFORMATION <a href="#_top"><img alt="^" border="0" src="../up.png"></a></h2>
+This function calls:
+<ul style="list-style-image:url(../matlabicon.gif)">
+<li><a href="../ASK/HSOFT/ASK_auto_range.html" class="code" title="function auto_range = ASK_auto_range(z,alpha,log_it,low,high)">ASK_auto_range</a>	ASK_AUTO_RANGE - returns an array of automatic range</li><li><a href="../ASK/HSOFT/ASK_bytscl.html" class="code" title="function M_out = ASK_bytscl(M_in,min_in,max_in,max_out)">ASK_bytscl</a>	ASK_BYTSCL - clip-n-scale matrix into [0-MAXOUT] from min(max_IN,max(min_IN,M_in))</li><li><a href="../Fits_tools/inimg.html" class="code" title="function [img_out,img_head,obs] = inimg(filename,PREPRO_OPS)">inimg</a>	INIMG - reads and pre-process an image.</li><li><a href="../tools/merge_structs.html" class="code" title="function S_out = merge_structs(S1,S2)">merge_structs</a>	MERGE_STRUCTS - Merge all fields of S2 into S1.</li></ul>
+This function is called by:
+<ul style="list-style-image:url(../matlabicon.gif)">
+<li><a href="ALIS_auto_overview.html" class="code" title="function dOPS = ALIS_auto_overview(ops4AAO)">ALIS_auto_overview</a>	ALIS_AUTO_OVERVIEW - automated fits data to png image conversion</li></ul>
+<!-- crossreference -->
+
+
+<h2><a name="_source"></a>SOURCE CODE <a href="#_top"><img alt="^" border="0" src="../up.png"></a></h2>
+<div class="fragment"><pre>0001 <a name="_sub0" href="#_subfunctions" class="code">function varargout = ALIS_image_sequence(files,PO,OPS)</a>
+0002 <span class="comment">% ALIS_IMAGE_SEQUENCE - to display an ALIS image sequence as movie</span>
+0003 <span class="comment">%</span>
+0004 <span class="comment">% CALLNG:</span>
+0005 <span class="comment">%   OPS       = ALIS_image_sequence</span>
+0006 <span class="comment">%   M         = ALIS_image_sequence(files,PO,OPS)</span>
+0007 <span class="comment">%   imgstacks = ALIS_image_sequence(files,PO,OPS)</span>
+0008 <span class="comment">%   rgbstack  = ALIS_image_sequence(files,PO,OPS)</span>
+0009 <span class="comment">%   [I99,ImM,Ihists] = ALIS_image_sequence(files,PO,OPS)</span>
+0010 <span class="comment">%</span>
+0011 <span class="comment">% INPUTS:</span>
+0012 <span class="comment">%   files    - struct with ALIS image files as returned from dir,</span>
+0013 <span class="comment">%              or a char array with filenames [n_files x max_length_of_files]</span>
+0014 <span class="comment">%              Note that dir only gives the filenames without the</span>
+0015 <span class="comment">%              path. filenames with different lengths will result</span>
+0016 <span class="comment">%              in shorter names being padded with white-spaces,</span>
+0017 <span class="comment">%              this is handled with STRTRIM in this function.</span>
+0018 <span class="comment">%   PO       - struct with pre-processing options as returned from</span>
+0019 <span class="comment">%              typical_pre_proc_ops.</span>
+0020 <span class="comment">%   OPS      - options struct, with the default options returned</span>
+0021 <span class="comment">%              when ALIS_image_sequence is called without</span>
+0022 <span class="comment">%              arguments. Fields:</span>
+0023 <span class="comment">%              OPS.loud = 0; Suppresses some willy-nilly output.</span>
+0024 <span class="comment">%              OPS.caxis = {'','',''}; If empty the intensity</span>
+0025 <span class="comment">%                   scale is automatic for each individual frame, if set</span>
+0026 <span class="comment">%                   to arrays with [ nImgs x 2 ] then that will be</span>
+0027 <span class="comment">%                   used for each corresponding image.</span>
+0028 <span class="comment">%              OPS.imsize = {[],[],[]}; Set to something if output</span>
+0029 <span class="comment">%                   images is to be resized</span>
+0030 <span class="comment">%              OPS.imdisplay = 1;   set to zero top suppress</span>
+0031 <span class="comment">%                   displaying - useful to increase speed when only</span>
+0032 <span class="comment">%                   intaxes is requested</span>
+0033 <span class="comment">%              OPS.shift = [0,0,0]; For shifting the image</span>
+0034 <span class="comment">%                   sequences relative to each other in index number</span>
+0035 <span class="comment">%              OPS.histmaxint - maximum intensity for intensity</span>
+0036 <span class="comment">%                   histogram, scalar, default is 8000.</span>
+0037 <span class="comment">%              OPS.filterkernel = {[],[],[]}; Set either field to</span>
+0038 <span class="comment">%                   a filter kernel for filtering the images before</span>
+0039 <span class="comment">%                   diplaying them.</span>
+0040 <span class="comment">%              OPS.outargtype = [ {'M'} | 'imgstack' | 'rgbimgstack' | 'intaxes']</span>
+0041 <span class="comment">%                   For M - Movie; imgstack - stack of the images from</span>
+0042 <span class="comment">%                   the cameras Cams, rgbimgstack for stack of</span>
+0043 <span class="comment">%                   RGB-composites, or intaxes for returning intensity</span>
+0044 <span class="comment">%                   ranges - the 99 percentile and the min-max intensity</span>
+0045 <span class="comment">%                   ranges.</span>
+0046 <span class="comment">%              OPS.savedir - path (full or relative) to directory</span>
+0047 <span class="comment">%                   displayed images should be saved in. (Upon</span>
+0048 <span class="comment">%                   which I cannot put!) Make sure write</span>
+0049 <span class="comment">%                   permissions exist. If directory does not exist</span>
+0050 <span class="comment">%                   it will be created. Defaults to empty &lt;-&gt; no</span>
+0051 <span class="comment">%                   saving, set to something if saving is desired,</span>
+0052 <span class="comment">%                   './' for present working directory.</span>
+0053 <span class="comment">%              OPS.savetype - file type to save file to</span>
+0054 <span class="comment">%                   [{'png'}|'jpg',any other imgwrite-able-filetype]</span>
+0055 <span class="comment">%                   - SEE imwrite for full list.</span>
+0056 <span class="comment">% Output:</span>
+0057 <span class="comment">%  OPS       - Default options struct, is returned if</span>
+0058 <span class="comment">%              ALIS_image_sequence is called without inpu</span>
+0059 <span class="comment">%  M         - Matlab movie structure, SEE MOVIE, getframe for</span>
+0060 <span class="comment">%              details.</span>
+0061 <span class="comment">%  imgstacks - Cell array with image stacks from the ALIS cameras</span>
+0062 <span class="comment">%              selected with Cams</span>
+0063 <span class="comment">%  rgbstack  - stack of RGB composite images made up of images from</span>
+0064 <span class="comment">%              selected cameras.</span>
+0065 <span class="comment">%  [I99,ImM] - Cell array with Intenisty arrays I99 is intensity</span>
+0066 <span class="comment">%              ranges image-by-image with 3% (Yup!) histogram</span>
+0067 <span class="comment">%              clipping ImM is intensity range min-Max</span>
+0068 <span class="comment">%</span>
+0069 
+0070 <span class="comment">% Copyright B Gustavsson 20101119 &lt;bjorn@irf.se&gt;</span>
+0071 <span class="comment">% This is free software, licensed under GNU GPL version 2 or later</span>
+0072 
+0073 <span class="comment">% Default options:</span>
+0074 dOPS.loud = 0;           <span class="comment">% Just to make things less out-putty</span>
+0075 dOPS.caxis = <span class="string">''</span>;         <span class="comment">% Intensity axeses, if left empty defaults to 'auto'</span>
+0076 dOPS.imsize = {[]};      <span class="comment">% Output image sizes, if empty no post-binning</span>
+0077 dOPS.imdisplay = 1;      <span class="comment">% 1 to plot images, zero to not.</span>
+0078 dOPS.filterkernel = [];  <span class="comment">% Kernel for linear image filtering</span>
+0079 dOPS.outargtype = <span class="string">'M'</span>;   <span class="comment">% or 'imgstack' or 'rgbimgstack' or 'intaxes'</span>
+0080 dOPS.savedir = <span class="string">''</span>;       <span class="comment">% Path to where to save image output</span>
+0081 dOPS.histmaxint =  5000; <span class="comment">% maximum histogram image intensity bin</span>
+0082 dOPS.histminint =     0; <span class="comment">% minimum histogram image intensity bin</span>
+0083 dOPS.histClip =    0.01; <span class="comment">% minimum histogram image intensity bin</span>
+0084 dOPS.savetype = <span class="string">'png'</span>;   <span class="comment">% image format to save into</span>
+0085 dOPS.videodir = <span class="string">''</span>;      <span class="comment">%</span>
+0086 <span class="comment">% If no input arguments return the default option struct</span>
+0087 <span class="keyword">if</span> nargin == 0
+0088   varargout = {dOPS};
+0089   <span class="keyword">return</span>
+0090 <span class="keyword">end</span>
+0091 <span class="comment">% If there is an options struct in the input merge the user options</span>
+0092 <span class="comment">% ontop of the defaults.</span>
+0093 <span class="keyword">if</span> nargin &gt; 2
+0094   dOPS = <a href="../tools/merge_structs.html" class="code" title="function S_out = merge_structs(S1,S2)">merge_structs</a>(dOPS,OPS);
+0095 <span class="keyword">end</span>
+0096 <span class="comment">% If there is a savedir in the options by now make sure that it</span>
+0097 <span class="comment">% will exist:</span>
+0098 <span class="keyword">if</span> ~isempty(dOPS.savedir)
+0099   <span class="keyword">if</span> exist(dOPS.savedir,<span class="string">'dir'</span>) ~= 7
+0100     <span class="keyword">try</span>
+0101       mkdir(dOPS.savedir)
+0102     <span class="keyword">catch</span>
+0103       warning([<span class="string">'Could not create directory: '</span>,dOPS.savedir])
+0104       <span class="keyword">return</span>
+0105     <span class="keyword">end</span>
+0106   <span class="keyword">end</span>
+0107 <span class="keyword">end</span>
+0108 
+0109 <span class="comment">%%% Crashes on matlab R2013a: M = [];</span>
+0110 
+0111 <span class="comment">%Using calibration values from Tromso data 2006, for 6730�, 7319� and 7774�</span>
+0112 <span class="comment">% calib = [0.5, 0.36, 0.85]</span>
+0113 <span class="comment">% Read the calibration factors for the event</span>
+0114 <span class="comment">%% calib = ALIS_get_alis_cal(vs.vmjs(vs.vsel),[1,2,3]);</span>
+0115 
+0116 iI = 1;
+0117 Int_ranges = zeros(size(files,1),2);
+0118 Int_perc = zeros(size(files,1),2);
+0119 Ihists = zeros(2048,size(files,1));
+0120 filtID = zeros(size(files,1),1);
+0121 
+0122 <span class="keyword">for</span> num = 1:size(files,1),
+0123   <span class="keyword">if</span> dOPS.loud
+0124     disp(num)
+0125   <span class="keyword">end</span>
+0126   
+0127   <span class="comment">% Read the ALIS image and scale to Rayleighs</span>
+0128   <span class="keyword">if</span> isstruct(files)
+0129     [im,h,o] = <a href="../Fits_tools/inimg.html" class="code" title="function [img_out,img_head,obs] = inimg(filename,PREPRO_OPS)">inimg</a>(files(num).name,PO);
+0130   <span class="keyword">else</span>
+0131     [im,h,o] = <a href="../Fits_tools/inimg.html" class="code" title="function [img_out,img_head,obs] = inimg(filename,PREPRO_OPS)">inimg</a>(strtrim(files(num,:)),PO);
+0132   <span class="keyword">end</span>
+0133   filtID(iI) = o.filter;
+0134   <span class="keyword">if</span> ~isempty(dOPS.filterkernel)
+0135     im = imfilter(im,dOPS.filterkernel,<span class="string">'replicate'</span>);
+0136   <span class="keyword">end</span>
+0137   
+0138   <span class="comment">% If required do post-binning to 256 x 256</span>
+0139   <span class="keyword">if</span> isempty(dOPS.caxis)
+0140     Int_ranges(iI,:) = [min(im(:)) max(im(:))];
+0141     Int_perc(iI,:) = <a href="../ASK/HSOFT/ASK_auto_range.html" class="code" title="function auto_range = ASK_auto_range(z,alpha,log_it,low,high)">ASK_auto_range</a>(im, dOPS.histClip);
+0142     <span class="keyword">if</span> strcmp(dOPS.outargtype,<span class="string">'intaxes'</span>) &amp; nargout &gt; 2
+0143       Ihists(:,iI) = hist(im(:),linspace(-200,24000,2048));
+0144     <span class="keyword">end</span>
+0145   <span class="keyword">else</span>
+0146     Int_perc(iI,:) = dOPS.caxis(min(size(dOPS.caxis,1),iI),:);
+0147     <span class="keyword">if</span> strcmp(dOPS.outargtype,<span class="string">'intaxes'</span>) &amp; nargout == 3
+0148       Ihists(:,iI) = hist(im(:),linspace(-200,16000,2048));
+0149     <span class="keyword">end</span>
+0150   <span class="keyword">end</span>
+0151   
+0152   <span class="comment">% [Hn,Hx] = histc(im(:),linspace(dOPS.histminint,dOPS.histmaxint,size(im,1)));</span>
+0153   <span class="keyword">if</span> isempty(dOPS.histmaxint)
+0154     cImg = <a href="../ASK/HSOFT/ASK_bytscl.html" class="code" title="function M_out = ASK_bytscl(M_in,min_in,max_in,max_out)">ASK_bytscl</a>(im,Int_perc(iI,1),Int_perc(iI,2),1);
+0155   <span class="keyword">else</span>
+0156     [Hn] = histc(im(:),linspace(dOPS.histminint,dOPS.histmaxint,size(im,1)));
+0157     <span class="comment">%Hn = flipud(cumsum(flipud(Hn)));</span>
+0158     cImg = [<a href="../ASK/HSOFT/ASK_bytscl.html" class="code" title="function M_out = ASK_bytscl(M_in,min_in,max_in,max_out)">ASK_bytscl</a>(im,Int_perc(iI,1),Int_perc(iI,2),1),repmat(Hn/max(Hn),1,10)];
+0159   <span class="keyword">end</span>
+0160   <span class="keyword">if</span> dOPS.imdisplay
+0161     imagesc(cImg),axis xy
+0162     <span class="comment">% Decorations:</span>
+0163     title([<span class="string">'ALIS '</span>,o.site,<span class="string">'('</span>,sprintf(<span class="string">'%d'</span>,o.filter),<span class="string">'): '</span>,datestr(o.time,<span class="string">'yyyy-mm-dd HH:MM:SS.FFF'</span>)],<span class="string">'fontsize'</span>,16);
+0164     <span class="comment">%ASK_print_dat(ASK_time_v(num,1),'HH:MM:SS.FFF');</span>
+0165     drawnow;
+0166   <span class="keyword">end</span>
+0167   <span class="keyword">if</span> ~isempty(dOPS.outargtype)
+0168     <span class="keyword">switch</span> dOPS.outargtype
+0169      <span class="keyword">case</span> <span class="string">'M'</span>
+0170       set(gca,<span class="string">'xtick'</span>,[],<span class="string">'ytick'</span>,[])
+0171       M(iI) = getframe(gcf);
+0172      <span class="keyword">case</span> <span class="string">'imgstack'</span>
+0173       <span class="comment">%disp('Here we should get images...')</span>
+0174       Im(:,:,iI) = im;
+0175      <span class="keyword">otherwise</span>
+0176       <span class="comment">% Don't know what to do so do nothing.</span>
+0177     <span class="keyword">end</span>
+0178   <span class="keyword">end</span>
+0179   <span class="keyword">if</span> ~isempty(dOPS.savedir)
+0180     <span class="comment">%disp(['writing current image to file: ',fullfile(dOPS.savedir,sprintf('%05d.%s',num,dOPS.savetype))])</span>
+0181     <span class="comment">%imwrite(get(get(gca,'children'),'CData'),fullfile(dOPS.savedir,sprintf('%05d.dOPS.savetype',num)))</span>
+0182     imwrite(flipdim(cImg,1),fullfile(dOPS.savedir,sprintf(<span class="string">'%05d.%s'</span>,num,dOPS.savetype)))
+0183   <span class="keyword">end</span>
+0184   iI = iI+1;
+0185   
+0186 <span class="keyword">end</span>
+0187 
+0188 <span class="keyword">switch</span> dOPS.outargtype
+0189  <span class="keyword">case</span> <span class="string">'M'</span>
+0190   varargout{1} = M;
+0191  <span class="keyword">case</span> <span class="string">'imgstack'</span>
+0192   <span class="comment">%disp('Here we should return images...')</span>
+0193   varargout{1} = Im;
+0194  <span class="keyword">case</span> <span class="string">'rgbimgstack'</span>
+0195   varargout{1} = allRGB;
+0196  <span class="keyword">otherwise</span>
+0197   <span class="keyword">if</span> nargout &gt; 0
+0198     varargout{1} = Int_perc;
+0199   <span class="keyword">end</span>
+0200   <span class="keyword">if</span> nargout &gt; 1
+0201     varargout{2} = Int_ranges;
+0202   <span class="keyword">end</span>
+0203   <span class="keyword">if</span> nargout &gt; 2
+0204     varargout{3} = Ihists;
+0205   <span class="keyword">end</span>
+0206   <span class="keyword">if</span> nargout &gt; 3
+0207     varargout{4} = filtID;
+0208   <span class="keyword">end</span>
+0209 <span class="keyword">end</span>
+0210 
+0211 
+0212 <span class="keyword">if</span> isfield(dOPS,<span class="string">'stopinit'</span>) &amp; dOPS.stopinit
+0213   keyboard
+0214 <span class="keyword">end</span></pre></div>
+<hr><address>Generated on Thu 21-Jun-2018 22:40:16 by <strong>B.&nbsp;Gustavsson</strong> with <strong><a href="http://www.artefact.tk/software/matlab/m2html/" target="_parent">m2html</a></strong> &copy; 2003</address>
+</body>
+</html>

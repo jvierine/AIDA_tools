@@ -1,0 +1,1305 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
+                "http://www.w3.org/TR/REC-html40/loose.dtd">
+<html>
+<head>
+  <title>Description of runner4FlamingRays0</title>
+  <meta name="keywords" content="runner4FlamingRays0">
+  <meta name="description" content="% Example script: how to estimate electron energies in flaming rays">
+  <meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+  <meta name="generator" content="m2html &copy; 2003 Guillaume Flandin">
+  <meta name="robots" content="index, follow">
+  <link type="text/css" rel="stylesheet" href="../m2html.css">
+</head>
+<body>
+<a name="_top"></a>
+<!-- menu.html Aurora -->
+<h1>runner4FlamingRays0
+</h1>
+
+<h2><a name="_name"></a>PURPOSE <a href="#_top"><img alt="^" border="0" src="../up.png"></a></h2>
+<div class="box"><strong>% Example script: how to estimate electron energies in flaming rays</strong></div>
+
+<h2><a name="_synopsis"></a>SYNOPSIS <a href="#_top"><img alt="^" border="0" src="../up.png"></a></h2>
+<div class="box"><strong>This is a script file. </strong></div>
+
+<h2><a name="_description"></a>DESCRIPTION <a href="#_top"><img alt="^" border="0" src="../up.png"></a></h2>
+<div class="fragment"><pre class="comment">% Example script: how to estimate electron energies in flaming rays</pre></div>
+
+<!-- crossreference -->
+<h2><a name="_cross"></a>CROSS-REFERENCE INFORMATION <a href="#_top"><img alt="^" border="0" src="../up.png"></a></h2>
+This function calls:
+<ul style="list-style-image:url(../matlabicon.gif)">
+<li><a href="err4FlamingRays.html" class="code" title="function res = err4FlamingRays(Par,var_pars,par0,stns,ImRois,Z3D,x2D,y2D,Ie2H,E,out_arg_type,z_max,errOps)">err4FlamingRays</a>	1        2    3    4      5   6   7   8    9 0           11    12</li><li><a href="projection_setup0H.html" class="code" title="">projection_setup0H</a>	% 1 Optical parameters</li><li><a href="setUpOfIe2H.html" class="code" title="">setUpOfIe2H</a>	% Set up script for producing the excitation profile matrices</li><li><a href="../Camera/inv_project_img.html" class="code" title="function [xx,yy,zz] = inv_project_img(img_in,r,optmod,optpar,e_n,l_0,cmtr)">inv_project_img</a>	INV_PROJECT_IMG - maps an image IMG_IN to a plane.</li><li><a href="../Imgtools/imgs_smart_caxis.html" class="code" title="function cax = imgs_smart_caxis(alpha,varargin)">imgs_smart_caxis</a>	imgs_smart_caxis - alpha-percentile setting of color-axis,</li><li><a href="../tools/colorbar_labeled.html" class="code" title="function handle=colorbar_labeled(label,lg,varargin)">colorbar_labeled</a>	COLORBAR_LABELED - colorbar with label for range linear or log</li><li><a href="../tools/fminsearchbnd.html" class="code" title="function [x,fval,exitflag,output] = fminsearchbnd(fun,x0,LB,UB,options,varargin)">fminsearchbnd</a>	FMINSEARCHBND: FMINSEARCH, but with bound constraints by transformation</li><li><a href="../tools/inpaint_nans.html" class="code" title="function B=inpaint_nans(A,method)">inpaint_nans</a>	INPAINT_NANS: in-paints over nans in an array</li><li><a href="../tools/max2D.html" class="code" title="function [Imax,i1,i2] = max2D(Iin)">max2D</a>	max2D - maximum element and its indices in a 2-D array</li><li><a href="../tools/medfilt2.html" class="code" title="function outM = medfilt2(inM,fc,varargin)">medfilt2</a>	MEDFILT2 - 2 dimensional sliding median filter</li></ul>
+This function is called by:
+<ul style="list-style-image:url(../matlabicon.gif)">
+</ul>
+<!-- crossreference -->
+
+
+<h2><a name="_source"></a>SOURCE CODE <a href="#_top"><img alt="^" border="0" src="../up.png"></a></h2>
+<div class="fragment"><pre>0001 <span class="comment">%% Example script: how to estimate electron energies in flaming rays</span>
+0002 
+0003 <span class="comment">%% 0 Load parameters and images:</span>
+0004 <span class="comment">%</span>
+0005 <span class="comment">% This file contains &quot;out-of-date&quot; excitation profiles for the</span>
+0006 <span class="comment">% given energy and altitude grid:</span>
+0007 whos -file Excitation-profiles-20120124.mat 
+0008 load Excitation-profiles-20120124.mat
+0009 subplot(1,2,1)
+0010 pcolor(E,z_trans(2:end),log10(a_N26730)),shading flat
+0011 caxis([-10 0]+max(caxis))
+0012 subplot(1,2,2)
+0013 pcolor(E,z_trans(2:end),log10(a_O7774)),shading flat
+0014 caxis([-10 0]+max(caxis))
+0015 <span class="comment">%%</span>
+0016 <span class="comment">%</span>
+0017 <span class="comment">%% Load the short image sequence, together with the polygons</span>
+0018 <span class="comment">% bounding an isolated flaming ray. The polygons I made with GINPUT,</span>
+0019 <span class="comment">% simply clicking away points along something I judged to be</span>
+0020 <span class="comment">% outside the ray and uncontaminated by other rays.</span>
+0021 whos -file ImS2.mat
+0022 load ImS2.mat
+0023 
+0024 <span class="comment">%% 1 Create one background mask that is the sum of the regions</span>
+0025 <span class="comment">%  covered by any polygon:</span>
+0026 bgMask = inP{1};
+0027 <span class="keyword">for</span> i1 = 2:length(ImStack)
+0028   bgMask = bgMask + inP{i1};
+0029 <span class="keyword">end</span>
+0030 <span class="comment">%%</span>
+0031 <span class="comment">% Simply make the background mask extend out to the image edge:</span>
+0032 bgMask(188:226,256) = 1;
+0033 bgMask = min(1,bgMask);
+0034 hold off
+0035 imagesc(bgMask)
+0036 
+0037 <span class="comment">%% 2 Calculate as good a back-ground as possible for each image in</span>
+0038 <span class="comment">%  6730 and 7774. The inpaint_nans function provides several fancy</span>
+0039 <span class="comment">%  inpainting (interpolating into areas from values on the</span>
+0040 <span class="comment">%  boundary, possibly taking into account gradients too):</span>
+0041 <span class="keyword">for</span> i1 = 1:size(ImStack{1},3),
+0042   img4bg = wiener2(<a href="../tools/medfilt2.html" class="code" title="function outM = medfilt2(inM,fc,varargin)">medfilt2</a>(ImStack{1}(:,:,i1),[3,3]),[3,3]);
+0043   img4bg(bgMask==1) = nan;                   
+0044   imbg{1}(:,:,i1) = <a href="../tools/inpaint_nans.html" class="code" title="function B=inpaint_nans(A,method)">inpaint_nans</a>(img4bg,4);
+0045   img4bg = wiener2(<a href="../tools/medfilt2.html" class="code" title="function outM = medfilt2(inM,fc,varargin)">medfilt2</a>(ImStack{3}(:,:,i1),[3,3]),[3,3]);
+0046   img4bg(bgMask==1) = nan;                   
+0047   imbg{3}(:,:,i1) = <a href="../tools/inpaint_nans.html" class="code" title="function B=inpaint_nans(A,method)">inpaint_nans</a>(img4bg,4);  
+0048 <span class="keyword">end</span>
+0049 <span class="comment">%%</span>
+0050 <span class="comment">%  Display the estimated background images</span>
+0051 <span class="keyword">for</span> i1 = 1:size(ImStack{1},3),
+0052   subplot(2,2,1)
+0053   imagesc(imbg{1}(:,:,i1)),cX = <a href="../Imgtools/imgs_smart_caxis.html" class="code" title="function cax = imgs_smart_caxis(alpha,varargin)">imgs_smart_caxis</a>(0.003,imbg{1}(:,:,i1));colorbar
+0054   subplot(2,2,2)
+0055   imagesc(imbg{3}(:,:,i1)),cX = <a href="../Imgtools/imgs_smart_caxis.html" class="code" title="function cax = imgs_smart_caxis(alpha,varargin)">imgs_smart_caxis</a>(0.003,imbg{3}(:,:,i1));colorbar
+0056   subplot(2,2,3)
+0057   imagesc(ImStack{1}(:,:,i1))
+0058   subplot(2,2,4)
+0059   imagesc(ImStack{3}(:,:,i1))
+0060   title(sprintf(<span class="string">'%d out of %d'</span>,i1,size(ImStack{1},3)))
+0061   pause(1)
+0062   clf
+0063 <span class="keyword">end</span>
+0064 <span class="comment">%% Set up the projection from 3-D to ASK images:</span>
+0065 <a href="projection_setup0H.html" class="code" title="">projection_setup0H</a>
+0066 <span class="comment">%% Set-up of conversion from electron flux to emissions:</span>
+0067 <a href="setUpOfIe2H.html" class="code" title="">setUpOfIe2H</a>
+0068 clf
+0069 subplot(1,2,1)
+0070 pcolor(E,squeeze(ZfI(1,1,:)),log10(A1Z)),
+0071 shading flat
+0072 caxis([-10 0]+max(caxis))
+0073 <a href="../tools/colorbar_labeled.html" class="code" title="function handle=colorbar_labeled(label,lg,varargin)">colorbar_labeled</a>(<span class="string">'Ie''log'</span>)
+0074 xlabel(<span class="string">'Energy (keV)'</span>)
+0075 ylabel(<span class="string">'Altitude (km)'</span>)
+0076 subplot(1,2,2)
+0077 pcolor(E,squeeze(ZfI(1,1,:)),log10(A2Z)),
+0078 shading flat,
+0079 caxis([-10 0]+max(caxis)),
+0080 <a href="../tools/colorbar_labeled.html" class="code" title="function handle=colorbar_labeled(label,lg,varargin)">colorbar_labeled</a>(<span class="string">'Ie''log'</span>)
+0081 xlabel(<span class="string">'Energy (keV)'</span>)
+0082 ylabel(<span class="string">'Altitude (km)'</span>)
+0083 
+0084 <span class="comment">%% First run to scale input parameters:</span>
+0085 <span class="comment">%  First an array of initial parameters. Here the position is gotten from</span>
+0086 <span class="comment">%  manually projecting the images to ~115 km of altitude with</span>
+0087 <span class="comment">%  inv_project_img, then selecting a point close to the peak intensity of</span>
+0088 <span class="comment">%  the ray.</span>
+0089 [Xmax,Ymax] = <a href="../Camera/inv_project_img.html" class="code" title="function [xx,yy,zz] = inv_project_img(img_in,r,optmod,optpar,e_n,l_0,cmtr)">inv_project_img</a>(ImStack{1}(:,:,12),[0 0 0],optpASK1(9),optpASK1,[0 0 1],113.2,eye(3));
+0090 pcolor(Xmax,Ymax,ImStack{1}(:,:,12)),shading flat          
+0091 <span class="comment">%%</span>
+0092 <span class="comment">% That has a peak close to [ -6, -12.8], for the other parameters we just</span>
+0093 <span class="comment">% guess:</span>
+0094 <span class="comment">%           I0        x0            dx           y0          dy            g_x           E0           dE          g_E         g_E2     I1      E0      dE        g_E     g_E2</span>
+0095 I0 = [      1      -6.0993          0.3      -12.828          0.3            2            3            3            2            1
+0096             2            0          Inf            0          Inf            2           10            1            1            1];
+0097 
+0098 I0b = I0';
+0099 I0b = I0b(:);
+0100 I0C = (I0(:,[1,2,4,3,6:end])/2 + I0(:,[1,2,4,5,6:end])/2)';
+0101 
+0102 errOps.bias2cylindrical = 1e8;
+0103 fmsOPS = optimset(<span class="string">'fminsearch'</span>);
+0104 fmsOPS.Display = <span class="string">'final'</span>;
+0105 <span class="comment">%            I0        x0     dx           y0      dy       g_x     E0      dE      g_E     g_E2     I1      E0      dE        g_E     g_E2</span>
+0106 parTest = [ 4.7336,   -5.918, 0.31721, -13.253, 0.19745, 2.2325, .52487, 2.9215, 2.9828, 0.47734,  0.927, 16.56,  0.044845, 1.8183, 1];
+0107 <span class="comment">%%</span>
+0108 <span class="comment">% These are the upper and lower bounds on the parameters we search for:</span>
+0109 parMin = [  eps(1),-12.0518, ds*1/3,    -18.553, ds*1/3,  0.6325, 0.1248, 0.9215, 0.5828, 0.25,      eps(1),  0.56,  0.044845, 0.5183, 0.25];
+0110 parMax = [473.36,     -0.0518, 2.1721,     -6.553, 3.9745,  4.2325,32.487, 29.215,  4.9828, 2.47734, 21.927, 16.56, 12.044845, 3.8183, 3.7833];
+0111 <span class="comment">%%</span>
+0112 <span class="comment">% This is the indices into the full parameter array for the searched for</span>
+0113 <span class="comment">% parameters:</span>
+0114 v_p =    [  1          2       3            4      5        6       7       8       9      10        11      17     18        19      20];
+0115 <span class="comment">%%</span>
+0116 <span class="comment">% First search is to get the scale of the fluxes into the right order of</span>
+0117 <span class="comment">% magniture, so search only for them:</span>
+0118 vpI = [1 11];
+0119 parI = parTest([1 11]);
+0120 <span class="comment">%%</span>
+0121 <span class="comment">% and start in the middle of it all, with time-slice 12:</span>
+0122 i1 = 12;
+0123 Iq = ( wiener2(ImStack{1}(:,:,i1),[3,3]) - wiener2(imbg{1}(:,:,i1),[3,3]) ) * 1/C_filter6370;
+0124 stns(1).img = Iq;
+0125 Iq = ( wiener2(ImStack{3}(:,:,i1),[3,3]) - wiener2(imbg{3}(:,:,i1),[3,3]) ) * 1/C_filter7774;
+0126 stns(2).img = Iq;
+0127 parI = <a href="../tools/fminsearchbnd.html" class="code" title="function [x,fval,exitflag,output] = fminsearchbnd(fun,x0,LB,UB,options,varargin)">fminsearchbnd</a>(@(I) <a href="err4FlamingRays.html" class="code" title="function res = err4FlamingRays(Par,var_pars,par0,stns,ImRois,Z3D,x2D,y2D,Ie2H,E,out_arg_type,z_max,errOps)">err4FlamingRays</a>(I,vpI,I0b,stns,{bgMask,bgMask},ZfI,XfI(:,:,115),YfI(:,:,115),{A1Z,A2Z},E,1,113,errOps),parI,[eps(1) eps(1)],[1e6 1e6],fmsOPS);
+0128 <span class="comment">%%</span>
+0129 <span class="comment">% put those flux-scaling-factors into the start-guess:</span>
+0130 parTest([1 11]) = parI;
+0131 errMask = bgMask;
+0132 errMask(:,250:end) = 0;
+0133 <span class="comment">%% Search for all of them (for this time-step):</span>
+0134 <span class="keyword">for</span> i1 = 12<span class="comment">%:size(ImStack{1},3),</span>
+0135   Iq = ( wiener2(ImStack{1}(:,:,i1),[3,3]) - wiener2(imbg{1}(:,:,i1),[3,3]) ) * 1/C_filter6370;
+0136   stns(1).img = Iq;
+0137   Iq = ( wiener2(ImStack{3}(:,:,i1),[3,3]) - wiener2(imbg{3}(:,:,i1),[3,3]) ) * 1/C_filter7774;
+0138   stns(2).img = Iq;
+0139   <span class="comment">%parTest = fminsearch(@(I) err4FlamingRays(I,v_p,I0b,stns,{bgMask,bgMask},ZfI,XfI(:,:,115),YfI(:,:,115),{A2Z,A1Z},E,1,110),parTest);</span>
+0140   parTest = <a href="../tools/fminsearchbnd.html" class="code" title="function [x,fval,exitflag,output] = fminsearchbnd(fun,x0,LB,UB,options,varargin)">fminsearchbnd</a>(@(I) <a href="err4FlamingRays.html" class="code" title="function res = err4FlamingRays(Par,var_pars,par0,stns,ImRois,Z3D,x2D,y2D,Ie2H,E,out_arg_type,z_max,errOps)">err4FlamingRays</a>(I,v_p,I0b,stns,{errMask,errMask},ZfI,XfI(:,:,115),YfI(:,:,115),{A1Z,A2Z},E,1,110,errOps),parTest,parMin,parMax,fmsOPS);
+0141   It(i1,:) = parTest;
+0142 <span class="keyword">end</span>
+0143 <span class="comment">%% Then loop forward in time:</span>
+0144 errOps.bias2cylindrical = 0e6;
+0145 parTest = It(12,:);
+0146 <span class="keyword">for</span> i1 = 13:size(ImStack{1},3),
+0147   Iq = ( wiener2(ImStack{1}(:,:,i1),[3,3]) - wiener2(imbg{1}(:,:,i1),[3,3]) ) * 1/C_filter6370;
+0148   stns(1).img = Iq;
+0149   Iq = ( wiener2(ImStack{3}(:,:,i1),[3,3]) - wiener2(imbg{3}(:,:,i1),[3,3]) ) * 1/C_filter7774;
+0150   stns(2).img = Iq;
+0151   <span class="comment">%parTest = fminsearch(@(I) err4FlamingRays(I,v_p,I0b,stns,{bgMask,bgMask},ZfI,XfI(:,:,115),YfI(:,:,115),{A2Z,A1Z},E,1,110),parTest);</span>
+0152   parTest = <a href="../tools/fminsearchbnd.html" class="code" title="function [x,fval,exitflag,output] = fminsearchbnd(fun,x0,LB,UB,options,varargin)">fminsearchbnd</a>(@(I) <a href="err4FlamingRays.html" class="code" title="function res = err4FlamingRays(Par,var_pars,par0,stns,ImRois,Z3D,x2D,y2D,Ie2H,E,out_arg_type,z_max,errOps)">err4FlamingRays</a>(I,v_p,I0b,stns,{errMask,errMask},ZfI,XfI(:,:,115),YfI(:,:,115),{A1Z,A2Z},E,1,110,errOps),parTest,parMin,parMax,fmsOPS);
+0153   It(i1,:) = parTest;
+0154   disp(i1)
+0155 <span class="keyword">end</span>
+0156 <span class="comment">%% ...and back to the beginning:</span>
+0157 errOps.bias2cylindrical = 0e6;
+0158 parTest = It(12,:);
+0159 <span class="keyword">for</span> i1 = 11:-1:1,
+0160   Iq = ( wiener2(ImStack{1}(:,:,i1),[3,3]) - wiener2(imbg{1}(:,:,i1),[3,3]) ) * 1/C_filter6370;
+0161   stns(1).img = Iq;
+0162   Iq = ( wiener2(ImStack{3}(:,:,i1),[3,3]) - wiener2(imbg{3}(:,:,i1),[3,3]) ) * 1/C_filter7774;
+0163   stns(2).img = Iq;
+0164   <span class="comment">%parTest = fminsearch(@(I) err4FlamingRays(I,v_p,I0b,stns,{bgMask,bgMask},ZfI,XfI(:,:,115),YfI(:,:,115),{A2Z,A1Z},E,1,110),parTest);</span>
+0165   parTest = <a href="../tools/fminsearchbnd.html" class="code" title="function [x,fval,exitflag,output] = fminsearchbnd(fun,x0,LB,UB,options,varargin)">fminsearchbnd</a>(@(I) <a href="err4FlamingRays.html" class="code" title="function res = err4FlamingRays(Par,var_pars,par0,stns,ImRois,Z3D,x2D,y2D,Ie2H,E,out_arg_type,z_max,errOps)">err4FlamingRays</a>(I,v_p,I0b,stns,{errMask,errMask},ZfI,XfI(:,:,115),YfI(:,:,115),{A1Z,A2Z},E,1,110,errOps),parTest,parMin,parMax,fmsOPS);
+0166   It(i1,:) = parTest;
+0167   disp(i1)
+0168 <span class="keyword">end</span>
+0169 <span class="comment">%% Model the results:</span>
+0170 <span class="keyword">for</span> i1 = 1:size(ImStack{1},3),
+0171   Iq = ( wiener2(ImStack{1}(:,:,i1),[3,3]) - wiener2(imbg{1}(:,:,i1),[3,3]) ) * 1/C_filter6370;
+0172   stns(1).img = Iq;
+0173   Iq = ( wiener2(ImStack{3}(:,:,i1),[3,3]) - wiener2(imbg{3}(:,:,i1),[3,3]) ) * 1/C_filter7774;
+0174   stns(2).img = Iq;
+0175   res = <a href="err4FlamingRays.html" class="code" title="function res = err4FlamingRays(Par,var_pars,par0,stns,ImRois,Z3D,x2D,y2D,Ie2H,E,out_arg_type,z_max,errOps)">err4FlamingRays</a>(It(i1,:),v_p,I0b,stns,{errMask,errMask},ZfI,XfI(:,:,115),YfI(:,:,115),{A2Z,A1Z},E,2,110);
+0176   IeRay(i1,:) = res.IeOutput{1};
+0177 <span class="keyword">end</span>
+0178 
+0179 subplot(4,1,1)
+0180 pcolor([1:20]*1/32,E*1e3,log10(IeRay')),shading flat,caxis([-5 0]+max(caxis))
+0181 set(gca,<span class="string">'yscale'</span>,<span class="string">'log'</span>)
+0182 hold on
+0183 xlabel(<span class="string">'time (s)'</span>)
+0184 ylabel(<span class="string">'Energy (eV)'</span>)
+0185 set(gca,<span class="string">'ytick'</span>,[100 1000 10000])
+0186 <a href="../tools/colorbar_labeled.html" class="code" title="function handle=colorbar_labeled(label,lg,varargin)">colorbar_labeled</a>(<span class="string">'/eV/m^2/s'</span>,<span class="string">'log'</span>)
+0187 <span class="keyword">for</span> i1 = 1:size(ImStack{1},3),
+0188   Iq = ( wiener2(ImStack{1}(:,:,i1),[3,3]) - wiener2(imbg{1}(:,:,i1),[3,3]) ) * 1/C_filter6370;
+0189   stns(1).img = Iq;
+0190   Iq = ( wiener2(ImStack{3}(:,:,i1),[3,3]) - wiener2(imbg{3}(:,:,i1),[3,3]) ) * 1/C_filter7774;
+0191   stns(2).img = Iq;
+0192   res = <a href="err4FlamingRays.html" class="code" title="function res = err4FlamingRays(Par,var_pars,par0,stns,ImRois,Z3D,x2D,y2D,Ie2H,E,out_arg_type,z_max,errOps)">err4FlamingRays</a>(It(i1,:),v_p,I0b,stns,{errMask,errMask},ZfI,XfI(:,:,115),YfI(:,:,115),{A1Z,A2Z},E,2,110);
+0193   subplot(4,1,1)
+0194   <span class="comment">%semilogy(E,res.IeOutput{1})</span>
+0195   ph = plot((i1+0.5)/32*[1 1],E([1,end])*1e3,<span class="string">'k'</span>);
+0196   subplot(4,2,5)
+0197   imagesc(res.currImg{1}),<a href="../Imgtools/imgs_smart_caxis.html" class="code" title="function cax = imgs_smart_caxis(alpha,varargin)">imgs_smart_caxis</a>(0.0003,res.currImg{1}),axis([150 256 150 256]) 
+0198   ylabel(<span class="string">'Obs'</span>)
+0199   <a href="../tools/colorbar_labeled.html" class="code" title="function handle=colorbar_labeled(label,lg,varargin)">colorbar_labeled</a>(<span class="string">'R'</span>)
+0200   title(<span class="string">'ASK #1'</span>)
+0201   set(gca,<span class="string">'xticklabel'</span>,<span class="string">''</span>)
+0202   subplot(4,2,6)
+0203   imagesc(res.currImg{2}),<a href="../Imgtools/imgs_smart_caxis.html" class="code" title="function cax = imgs_smart_caxis(alpha,varargin)">imgs_smart_caxis</a>(0.0003,res.currImg{2}),axis([150 256 150 256]) 
+0204   <a href="../tools/colorbar_labeled.html" class="code" title="function handle=colorbar_labeled(label,lg,varargin)">colorbar_labeled</a>(<span class="string">'R'</span>)
+0205   title(<span class="string">'ASK #3'</span>)
+0206   set(gca,<span class="string">'xticklabel'</span>,<span class="string">''</span>)
+0207   set(gca,<span class="string">'yticklabel'</span>,<span class="string">''</span>)
+0208   subplot(4,2,7)
+0209   imagesc(res.currProj{1}),<a href="../Imgtools/imgs_smart_caxis.html" class="code" title="function cax = imgs_smart_caxis(alpha,varargin)">imgs_smart_caxis</a>(0.0003,res.currImg{1}),axis([150 256 150 256])
+0210   ylabel(<span class="string">'Mod'</span>)
+0211   <a href="../tools/colorbar_labeled.html" class="code" title="function handle=colorbar_labeled(label,lg,varargin)">colorbar_labeled</a>(<span class="string">'R'</span>)
+0212   subplot(4,2,8)
+0213   imagesc(res.currProj{2}),<a href="../Imgtools/imgs_smart_caxis.html" class="code" title="function cax = imgs_smart_caxis(alpha,varargin)">imgs_smart_caxis</a>(0.0003,res.currImg{2}),axis([150 256 150 256])
+0214   set(gca,<span class="string">'yticklabel'</span>,<span class="string">''</span>)
+0215   <a href="../tools/colorbar_labeled.html" class="code" title="function handle=colorbar_labeled(label,lg,varargin)">colorbar_labeled</a>(<span class="string">'R'</span>)
+0216   subplot(4,2,3)
+0217   pcolor(XfI(:,:,400),YfI(:,:,400),res.Vem{1}(:,:,400)),shading flat
+0218   hold on
+0219   <span class="comment">%axis equal</span>
+0220   [~,i1_i2(1),i1_i2(2)] = <a href="../tools/max2D.html" class="code" title="function [Imax,i1,i2] = max2D(Iin)">max2D</a>(res.Vem{1}(:,:,400));
+0221   subplot(4,2,4)
+0222   plot(squeeze(res.Vem{1}(i1_i2(1),i1_i2(2),:)),squeeze(ZfI(i1_i2(1),i1_i2(2),:)),<span class="string">'r'</span>,<span class="string">'linewidth'</span>,2)
+0223   hold on
+0224   plot(squeeze(res.Vem{2}(i1_i2(1),i1_i2(2),:)),squeeze(ZfI(i1_i2(1),i1_i2(2),:)),<span class="string">'k'</span>,<span class="string">'linewidth'</span>,2)
+0225   axis([0 8e7 50 400])
+0226   hold off
+0227   mRay(i1) = getframe(gcf);
+0228   delete(ph)
+0229 <span class="keyword">end</span>
+0230 <span class="comment">%%</span>
+0231 <span class="comment">% For a cylindicication filter the spatial parameters x0, y0, dx</span>
+0232 <span class="comment">% and dy a bit</span>
+0233 It4G = It;
+0234 It4G(:,2) = filtfilt([.5 1 .5]/2,1,It4G(:,2));
+0235 It4G(:,[3,5]) = filtfilt([.5 1 .5]/2,1,It4G(:,[3 5])*2/3 + It4G(:,[5 3])/3);    
+0236 It4G(:,4) = filtfilt([.5 1 .5]/2,1,It4G(:,4));                              
+0237 
+0238 parTest = It(1,:);
+0239 fmsOPS.MaxFunEvals = 200;
+0240 <span class="keyword">for</span> iC = 6:8
+0241   errOps.bias2cylindrical = 1e2*10^(6+(iC-6)/2);
+0242   <span class="keyword">if</span> iC == 1
+0243     parTest = It4G(1,:);
+0244   <span class="keyword">else</span>
+0245     parTest =  ITC{iC-1}(1,:);
+0246   <span class="keyword">end</span>
+0247   <span class="keyword">for</span> i1 = 1:size(ImStack{1},3),
+0248     Iq = ( wiener2(ImStack{1}(:,:,i1),[3,3]) - wiener2(imbg{1}(:,:,i1),[3,3]) ) * 1/C_filter6370;
+0249     stns(1).img = Iq;
+0250     Iq = ( wiener2(ImStack{3}(:,:,i1),[3,3]) - wiener2(imbg{3}(:,:,i1),[3,3]) ) * 1/C_filter7774;
+0251     stns(2).img = Iq;
+0252     <span class="comment">%parTest = fminsearch(@(I) err4FlamingRays(I,v_p,I0b,stns,{bgMask,bgMask},ZfI,XfI(:,:,115),YfI(:,:,115),{A2Z,A1Z},E,1,110),parTest);</span>
+0253     [parTest,errR{iC}(i1)] = <a href="../tools/fminsearchbnd.html" class="code" title="function [x,fval,exitflag,output] = fminsearchbnd(fun,x0,LB,UB,options,varargin)">fminsearchbnd</a>(@(I) <a href="err4FlamingRays.html" class="code" title="function res = err4FlamingRays(Par,var_pars,par0,stns,ImRois,Z3D,x2D,y2D,Ie2H,E,out_arg_type,z_max,errOps)">err4FlamingRays</a>(I,v_p,I0b,stns,{errMask,errMask},ZfI,XfI(:,:,115),YfI(:,:,115),{A1Z,A2Z},E,1,110,errOps),parTest,parMin,parMax,fmsOPS);
+0254     ITC{iC}(i1,:) =  parTest;
+0255     <span class="keyword">if</span> iC == 1
+0256       parTest =  It4G(i1,:);
+0257     <span class="keyword">else</span>
+0258       parTest =  ITC{iC-1}(i1,:);
+0259     <span class="keyword">end</span>
+0260     disp(i1)
+0261   <span class="keyword">end</span>
+0262   parTest = ITC{iC}(1,:);
+0263 <span class="keyword">end</span>
+0264 <span class="comment">%%</span>
+0265 <span class="comment">% First loop of error values:</span>
+0266 <span class="comment">% Exiting: Maximum number of function evaluations has been exceeded</span>
+0267 errR{1} = [2657759409.894171
+0268            2640100179.163435
+0269            2746321565.242272
+0270           11541785761.636139
+0271            3144558017.879790
+0272            4576837634.336136
+0273            3407398114.896461
+0274            3937427418.666677
+0275           17770824807.537476
+0276            3942172339.769755
+0277            2968120850.661064
+0278            3740747829.834550
+0279            2839683606.829518
+0280            2473258451.280153
+0281            2698818228.372833
+0282            2714860098.906149
+0283            2704329990.587093
+0284            2364466407.552040
+0285           ];
+0286 
+0287 <span class="comment">% Second cylindicication:</span>
+0288 errR{2} = [2657758763.165476
+0289            2571699316.740769
+0290            2905314511.581722
+0291            2537885758.278136
+0292            2987889402.615881
+0293            3228651070.441468
+0294            4095364731.518811
+0295            3509993083.150541
+0296           14799949578.554905
+0297            2909136355.447273
+0298            2762700844.629736
+0299            2936960406.904617
+0300            2493987502.223127
+0301            2704486290.090350
+0302            2667887022.392365
+0303            2680677810.242246
+0304            2370988527.559719
+0305            2477273541.940722
+0306            2632296893.586037
+0307           ];
+0308 errR{3} = [2658009297.464191  1
+0309            2571012837.895965  2
+0310            2885615644.810588  3
+0311            2623868133.077672  4
+0312            2895827894.710540  5
+0313            3057494306.411866  6
+0314            3061055085.454221  7
+0315            3770572822.834843  8
+0316            3604029193.870496  9
+0317            3585631336.206692 10
+0318           13171466060.803993 11
+0319            2755484696.615376 12
+0320            2811664699.461828 13
+0321            2524968613.689631 14
+0322            2706352373.455245 15
+0323            2638945652.516075 16
+0324            2697134926.370265 17
+0325            2337292865.508470 18
+0326            2473022799.019317 19
+0327            2051045778.145308 20
+0328           ];
+0329 <span class="comment">%%</span>
+0330 <span class="comment">%</span>
+0331 <span class="comment">%</span>
+0332 <span class="comment">% After first free loop:</span>
+0333 <span class="comment">%            0</span>
+0334 <span class="comment">%            0</span>
+0335 <span class="comment">%            0</span>
+0336 <span class="comment">%            0</span>
+0337 <span class="comment">%            0</span>
+0338 <span class="comment">%            0</span>
+0339 <span class="comment">%   3687859058.159735</span>
+0340 <span class="comment">%   4131000522.711436</span>
+0341 <span class="comment">%   4557743603.051517</span>
+0342 <span class="comment">%   4083609161.793177</span>
+0343 <span class="comment">%   3404450438.573254</span>
+0344 <span class="comment">%   3395712135.431263</span>
+0345 <span class="comment">%   3528021850.639008</span>
+0346 <span class="comment">%   2913537426.133672</span>
+0347 <span class="comment">%   2955117734.180073</span>
+0348 <span class="comment">%   3105703984.010612</span>
+0349 <span class="comment">%   3007203890.195779</span>
+0350 <span class="comment">%   2871751554.566454</span>
+0351 <span class="comment">%   2660952417.781180</span>
+0352 <span class="comment">%   2360527354.445188</span>
+0353 
+0354 
+0355 ftsz = 12;
+0356 
+0357 <span class="comment">%% Model the results:</span>
+0358 <span class="keyword">for</span> i1 = 1:size(ImStack{1},3),
+0359   Iq = ( wiener2(ImStack{1}(:,:,i1),[3,3]) - wiener2(imbg{1}(:,:,i1),[3,3]) ) * 1/C_filter6370;
+0360   stns(1).img = Iq;
+0361   Iq = ( wiener2(ImStack{3}(:,:,i1),[3,3]) - wiener2(imbg{3}(:,:,i1),[3,3]) ) * 1/C_filter7774;
+0362   stns(2).img = Iq;
+0363   res = <a href="err4FlamingRays.html" class="code" title="function res = err4FlamingRays(Par,var_pars,par0,stns,ImRois,Z3D,x2D,y2D,Ie2H,E,out_arg_type,z_max,errOps)">err4FlamingRays</a>(ITC{end}(i1,:),v_p,I0b,stns,{errMask,errMask},ZfI,XfI(:,:,115),YfI(:,:,115),{A2Z,A1Z},E,2,110,errOps);
+0364   ErrR{1}(i1) = res.err;
+0365   IeRay(i1,:) = res.IeOutput{1};
+0366 <span class="keyword">end</span>
+0367 
+0368 xG = [150:25:250,256];
+0369 [xG,yG] = meshgrid(xG,xG);
+0370 
+0371 <span class="comment">%%</span>
+0372 subplot(4,1,1)
+0373 pcolor([1:20]*1/32,E*1e3,log10(IeRay')),shading flat,caxis([-5 0]+max(caxis))
+0374 axIe = axis;
+0375 axis([axIe(1:3),5e3])
+0376 set(gca,<span class="string">'yscale'</span>,<span class="string">'log'</span>)
+0377 hold on
+0378 xlabel(<span class="string">'time (s)'</span>,<span class="string">'fontsize'</span>,ftsz)
+0379 ylabel(<span class="string">'Energy (eV)'</span>,<span class="string">'fontsize'</span>,ftsz)
+0380 title(<span class="string">'Electron spectra'</span>,<span class="string">'fontsize'</span>,ftsz)
+0381 set(gca,<span class="string">'ytick'</span>,[100 1000 10000])
+0382 cbl_h = <a href="../tools/colorbar_labeled.html" class="code" title="function handle=colorbar_labeled(label,lg,varargin)">colorbar_labeled</a>(<span class="string">'/eV/m^2/s'</span>,<span class="string">'log'</span>,<span class="string">'fontsize'</span>,ftsz-2);
+0383 set(cbl_h,<span class="string">'position'</span>,get(cbl_h,<span class="string">'position'</span>)+[-0.01,0,0,0])
+0384 <span class="comment">%%</span>
+0385 <span class="keyword">for</span> i1 = 11,<span class="comment">%:size(ImStack{1},3),</span>
+0386   Iq = ( wiener2(ImStack{1}(:,:,i1),[3,3]) - wiener2(imbg{1}(:,:,i1),[3,3]) ) * 1/C_filter6370;
+0387   stns(1).img = Iq;
+0388   Iq = ( wiener2(ImStack{3}(:,:,i1),[3,3]) - wiener2(imbg{3}(:,:,i1),[3,3]) ) * 1/C_filter7774;
+0389   stns(2).img = Iq;
+0390   res = <a href="err4FlamingRays.html" class="code" title="function res = err4FlamingRays(Par,var_pars,par0,stns,ImRois,Z3D,x2D,y2D,Ie2H,E,out_arg_type,z_max,errOps)">err4FlamingRays</a>(ITC{1}(i1,:),v_p,I0b,stns,{errMask,errMask},ZfI,XfI(:,:,115),YfI(:,:,115),{A1Z,A2Z},E,2,110);
+0391   ErrR{1}(i1) = res.err;
+0392   subplot(4,1,1)
+0393   <span class="comment">%semilogy(E,res.IeOutput{1})</span>
+0394   ph = plot((i1+0.5)/32*[1 1],E([1,end])*1e3,<span class="string">'k'</span>);
+0395   subplot(4,2,5)
+0396   imagesc(res.currImg{1}),<a href="../Imgtools/imgs_smart_caxis.html" class="code" title="function cax = imgs_smart_caxis(alpha,varargin)">imgs_smart_caxis</a>(0.0003,res.currImg{1}),axis([150 256 150 256]) 
+0397   hold on
+0398   [~,hC1] = contour(res.currProj{1},7,<span class="string">'w'</span>);set(hC1,<span class="string">'linecolor'</span>,[1,1,1]*0.99)
+0399   plot(xG,yG,<span class="string">'w:'</span>,<span class="string">'linewidth'</span>,2,<span class="string">'color'</span>,[1 1 1]*0.99)
+0400   plot(xG',yG',<span class="string">'w:'</span>,<span class="string">'linewidth'</span>,2,<span class="string">'color'</span>,[1 1 1]*0.99)
+0401   hold off
+0402   ylabel(<span class="string">'Observations'</span>,<span class="string">'fontsize'</span>,ftsz)
+0403   <a href="../tools/colorbar_labeled.html" class="code" title="function handle=colorbar_labeled(label,lg,varargin)">colorbar_labeled</a>(<span class="string">'R'</span>,<span class="string">'linear'</span>,<span class="string">'fontsize'</span>,ftsz-2)
+0404   title(<span class="string">'ASK #1 (6730 A)'</span>,<span class="string">'fontsize'</span>,ftsz)
+0405   set(gca,<span class="string">'xticklabel'</span>,<span class="string">''</span>)
+0406   set(gca,<span class="string">'xtick'</span>,[150:25:250])
+0407   set(gca,<span class="string">'ytick'</span>,[150:25:250])
+0408   <span class="comment">%grid on</span>
+0409   subplot(4,2,6)
+0410   imagesc(res.currImg{2}),<a href="../Imgtools/imgs_smart_caxis.html" class="code" title="function cax = imgs_smart_caxis(alpha,varargin)">imgs_smart_caxis</a>(0.0003,res.currImg{2}),axis([150 256 150 256]) 
+0411   hold on
+0412   [~,hC2] = contour(res.currProj{2},7,<span class="string">'w'</span>);set(hC2,<span class="string">'linecolor'</span>,[1,1,1]*0.99)
+0413   plot(xG,yG,<span class="string">'w:'</span>,<span class="string">'linewidth'</span>,2,<span class="string">'color'</span>,[1 1 1]*0.99)
+0414   plot(xG',yG',<span class="string">'w:'</span>,<span class="string">'linewidth'</span>,2,<span class="string">'color'</span>,[1 1 1]*0.99)
+0415   hold off
+0416   set(gca,<span class="string">'xtick'</span>,[150:25:250])
+0417   set(gca,<span class="string">'ytick'</span>,[150:25:250])
+0418   <span class="comment">%grid on</span>
+0419   <a href="../tools/colorbar_labeled.html" class="code" title="function handle=colorbar_labeled(label,lg,varargin)">colorbar_labeled</a>(<span class="string">'R'</span>,<span class="string">'linear'</span>,<span class="string">'fontsize'</span>,ftsz-2)
+0420   title(<span class="string">'ASK #3 (7774)'</span>,<span class="string">'fontsize'</span>,ftsz)
+0421   set(gca,<span class="string">'xticklabel'</span>,<span class="string">''</span>)
+0422   set(gca,<span class="string">'yticklabel'</span>,<span class="string">''</span>)
+0423   hold off
+0424   set(gca,<span class="string">'xtick'</span>,[150:25:250])
+0425   set(gca,<span class="string">'ytick'</span>,[150:25:250])
+0426   <span class="comment">%grid on</span>
+0427   subplot(4,2,7)
+0428   imagesc(res.currProj{1}),<a href="../Imgtools/imgs_smart_caxis.html" class="code" title="function cax = imgs_smart_caxis(alpha,varargin)">imgs_smart_caxis</a>(0.0003,res.currImg{1}),axis([150 256 150 256])
+0429   ylabel(<span class="string">'Modeled'</span>,<span class="string">'fontsize'</span>,ftsz)
+0430   <a href="../tools/colorbar_labeled.html" class="code" title="function handle=colorbar_labeled(label,lg,varargin)">colorbar_labeled</a>(<span class="string">'R'</span>,<span class="string">'linear'</span>,<span class="string">'fontsize'</span>,ftsz-2)
+0431   set(gca,<span class="string">'xtick'</span>,[150:25:250])
+0432   set(gca,<span class="string">'ytick'</span>,[150:25:250])
+0433   hold on
+0434   plot(xG,yG,<span class="string">'w:'</span>,<span class="string">'linewidth'</span>,2,<span class="string">'color'</span>,[1 1 1]*0.99)
+0435   plot(xG',yG',<span class="string">'w:'</span>,<span class="string">'linewidth'</span>,2,<span class="string">'color'</span>,[1 1 1]*0.99)
+0436   <span class="comment">%grid on</span>
+0437   plot3(1:256,256-max(res.currProj{1})/6000*25,ones(256,1),<span class="string">'color'</span>,[1,1,1]*0.99)
+0438   plot3(1:256,256-max(res.currImg{1}(150:210,:))/6000*25,ones(256,1),<span class="string">'k'</span>)
+0439   hold off
+0440   subplot(4,2,8)
+0441   imagesc(res.currProj{2}),<a href="../Imgtools/imgs_smart_caxis.html" class="code" title="function cax = imgs_smart_caxis(alpha,varargin)">imgs_smart_caxis</a>(0.0003,res.currImg{2}),axis([150 256 150 256])
+0442   hold on
+0443   plot3(1:256,256-max(res.currProj{2})/6000*25,ones(256,1),<span class="string">'color'</span>,[1,1,1]*0.99)
+0444   plot3(1:256,260-max(res.currImg{2}(150:210,:))/6000*25,ones(256,1),<span class="string">'k'</span>)
+0445   plot(xG,yG,<span class="string">'w:'</span>,<span class="string">'linewidth'</span>,2,<span class="string">'color'</span>,[1 1 1]*0.99)
+0446   plot(xG',yG',<span class="string">'w:'</span>,<span class="string">'linewidth'</span>,2,<span class="string">'color'</span>,[1 1 1]*0.99)
+0447   <span class="comment">%grid on</span>
+0448   hold off
+0449   set(gca,<span class="string">'yticklabel'</span>,<span class="string">''</span>)
+0450   set(gca,<span class="string">'xtick'</span>,[150:25:250])
+0451   set(gca,<span class="string">'ytick'</span>,[150:25:250])
+0452   <a href="../tools/colorbar_labeled.html" class="code" title="function handle=colorbar_labeled(label,lg,varargin)">colorbar_labeled</a>(<span class="string">'R'</span>,<span class="string">'linear'</span>,<span class="string">'fontsize'</span>,ftsz-2)
+0453   subplot(4,2,3)
+0454   pcolor(XfI(:,:,400),YfI(:,:,400),res.Vem{1}(:,:,400)),shading flat
+0455   xlabel(<span class="string">'East of ESR (km)'</span>,<span class="string">'fontsize'</span>,ftsz)
+0456   ylabel(<span class="string">'North of ESR (km)'</span>,<span class="string">'fontsize'</span>,ftsz)
+0457   title(<span class="string">'Horizontal cut at 180 km (6730)'</span>,<span class="string">'fontsize'</span>,ftsz)
+0458   <span class="comment">%axis equal</span>
+0459   [~,i1_i2(1),i1_i2(2)] = <a href="../tools/max2D.html" class="code" title="function [Imax,i1,i2] = max2D(Iin)">max2D</a>(res.Vem{1}(:,:,400));
+0460   subplot(4,2,4)
+0461   plot(squeeze(res.Vem{1}(i1_i2(1),i1_i2(2),:)),squeeze(ZfI(i1_i2(1),i1_i2(2),:)),<span class="string">'r'</span>,<span class="string">'linewidth'</span>,2)
+0462   hold on
+0463   plot(squeeze(res.Vem{2}(i1_i2(1),i1_i2(2),:)),squeeze(ZfI(i1_i2(1),i1_i2(2),:)),<span class="string">'k'</span>,<span class="string">'linewidth'</span>,2)
+0464   axis([0 4e9 50 400])
+0465   ylabel(<span class="string">'Altitude (km)'</span>,<span class="string">'fontsize'</span>,ftsz)
+0466   xlabel(<span class="string">'(#/m^3/s)'</span>,<span class="string">'fontsize'</span>,ftsz)
+0467   title(<span class="string">'Volume emission rate'</span>,<span class="string">'fontsize'</span>,ftsz)
+0468   hold off
+0469   mRay(i1) = getframe(gcf);
+0470   delete(ph)
+0471 <span class="keyword">end</span>
+0472 
+0473 <span class="comment">%%</span>
+0474 ITE = ITC{end};
+0475 <span class="keyword">for</span> i1 = 1:size(ImStack{1},3),
+0476   errOps.bias2cylindrical = 1e2*10^6;
+0477   Iq = ( wiener2(ImStack{1}(:,:,i1),[3,3]) - wiener2(imbg{1}(:,:,i1),[3,3]) ) * 1/C_filter6370;
+0478   stns(1).img = Iq;
+0479   Iq = ( wiener2(ImStack{3}(:,:,i1),[3,3]) - wiener2(imbg{3}(:,:,i1),[3,3]) ) * 1/C_filter7774;
+0480   stns(2).img = Iq;
+0481   res = <a href="err4FlamingRays.html" class="code" title="function res = err4FlamingRays(Par,var_pars,par0,stns,ImRois,Z3D,x2D,y2D,Ie2H,E,out_arg_type,z_max,errOps)">err4FlamingRays</a>(ITE(i1,:),v_p,I0b,stns,{errMask,errMask},ZfI,XfI(:,:,115),YfI(:,:,115),{A2Z,A1Z},E,2,110,errOps);
+0482   ErrE{1}(i1) = res.err;
+0483   IeRay(i1,:) = res.IeOutput{1};
+0484 <span class="keyword">end</span>
+0485 
+0486 parTest = It(1,:);
+0487 fmsOPS.MaxFunEvals = 200;
+0488 <span class="keyword">for</span> iE = 1:200,
+0489   
+0490   [sErrR,iErr] = sort(ErrE{1},<span class="string">'descend'</span>);
+0491   errOps.bias2cylindrical = 1e2*10^6;
+0492   parTest =  ITE(iErr(1),:);
+0493   <span class="keyword">for</span> i1 = 1,
+0494     Iq = ( wiener2(ImStack{1}(:,:,iErr(i1)),[3,3]) - wiener2(imbg{1}(:,:,iErr(i1)),[3,3]) ) * 1/C_filter6370;
+0495     stns(1).img = Iq;
+0496     Iq = ( wiener2(ImStack{3}(:,:,iErr(i1)),[3,3]) - wiener2(imbg{3}(:,:,iErr(i1)),[3,3]) ) * 1/C_filter7774;
+0497     stns(2).img = Iq;
+0498     [parTest,ErrE{1}(iErr(i1))] = <a href="../tools/fminsearchbnd.html" class="code" title="function [x,fval,exitflag,output] = fminsearchbnd(fun,x0,LB,UB,options,varargin)">fminsearchbnd</a>(@(I) <a href="err4FlamingRays.html" class="code" title="function res = err4FlamingRays(Par,var_pars,par0,stns,ImRois,Z3D,x2D,y2D,Ie2H,E,out_arg_type,z_max,errOps)">err4FlamingRays</a>(I,v_p,I0b,stns,{errMask,errMask},ZfI,XfI(:,:,115),YfI(:,:,115),{A1Z,A2Z},E,1,110,errOps),<span class="keyword">...</span>
+0499                                                   parTest,parMin,parMax,fmsOPS);
+0500     ITE(iErr(i1),:) =  parTest;
+0501     disp([iE i1 iErr(i1)])
+0502   <span class="keyword">end</span>
+0503   
+0504 <span class="keyword">end</span>
+0505 
+0506 
+0507 <span class="comment">%% Model the results again:</span>
+0508 <span class="keyword">for</span> i1 = 1:size(ImStack{1},3),
+0509   Iq = ( wiener2(ImStack{1}(:,:,i1),[3,3]) - wiener2(imbg{1}(:,:,i1),[3,3]) ) * 1/C_filter6370;
+0510   stns(1).img = Iq;
+0511   Iq = ( wiener2(ImStack{3}(:,:,i1),[3,3]) - wiener2(imbg{3}(:,:,i1),[3,3]) ) * 1/C_filter7774;
+0512   stns(2).img = Iq;
+0513   res = <a href="err4FlamingRays.html" class="code" title="function res = err4FlamingRays(Par,var_pars,par0,stns,ImRois,Z3D,x2D,y2D,Ie2H,E,out_arg_type,z_max,errOps)">err4FlamingRays</a>(ITE(i1,:),v_p,I0b,stns,{errMask,errMask},ZfI,XfI(:,:,115),YfI(:,:,115),{A2Z,A1Z},E,2,110,errOps);
+0514   ErrR2{1}(i1) = res.err;
+0515   IeRay(i1,:) = res.IeOutput{1};
+0516 <span class="keyword">end</span>
+0517 
+0518 
+0519 subplot(4,1,1)
+0520 pcolor([1:20]*1/32,E*1e3,log10(IeRay')),shading flat,caxis([-5 0]+max(caxis))
+0521 set(gca,<span class="string">'yscale'</span>,<span class="string">'log'</span>)
+0522 hold on
+0523 xlabel(<span class="string">'time (s)'</span>)
+0524 ylabel(<span class="string">'Energy (eV)'</span>)
+0525 set(gca,<span class="string">'ytick'</span>,[100 1000 10000])
+0526 <a href="../tools/colorbar_labeled.html" class="code" title="function handle=colorbar_labeled(label,lg,varargin)">colorbar_labeled</a>(<span class="string">'/eV/m^2/s'</span>,<span class="string">'log'</span>)
+0527 <span class="keyword">for</span> i1 = 1:size(ImStack{1},3),
+0528   Iq = ( wiener2(ImStack{1}(:,:,i1),[3,3]) - wiener2(imbg{1}(:,:,i1),[3,3]) ) * 1/C_filter6370;
+0529   stns(1).img = Iq;
+0530   Iq = ( wiener2(ImStack{3}(:,:,i1),[3,3]) - wiener2(imbg{3}(:,:,i1),[3,3]) ) * 1/C_filter7774;
+0531   stns(2).img = Iq;
+0532   res = <a href="err4FlamingRays.html" class="code" title="function res = err4FlamingRays(Par,var_pars,par0,stns,ImRois,Z3D,x2D,y2D,Ie2H,E,out_arg_type,z_max,errOps)">err4FlamingRays</a>(ITE(i1,:),v_p,I0b,stns,{errMask,errMask},ZfI,XfI(:,:,115),YfI(:,:,115),{A1Z,A2Z},E,2,110);
+0533   ErrR{1}(i1) = res.err;
+0534   subplot(4,1,1)
+0535   <span class="comment">%semilogy(E,res.IeOutput{1})</span>
+0536   ph = plot((i1+0.5)/32*[1 1],E([1,end])*1e3,<span class="string">'k'</span>);
+0537   subplot(4,2,5)
+0538   imagesc(res.currImg{1}),<a href="../Imgtools/imgs_smart_caxis.html" class="code" title="function cax = imgs_smart_caxis(alpha,varargin)">imgs_smart_caxis</a>(0.0003,res.currImg{1}),axis([150 256 150 256]) 
+0539   ylabel(<span class="string">'Obs'</span>)
+0540   <a href="../tools/colorbar_labeled.html" class="code" title="function handle=colorbar_labeled(label,lg,varargin)">colorbar_labeled</a>(<span class="string">'R'</span>)
+0541   title(<span class="string">'ASK #1'</span>)
+0542   set(gca,<span class="string">'xticklabel'</span>,<span class="string">''</span>)
+0543   subplot(4,2,6)
+0544   imagesc(res.currImg{2}),<a href="../Imgtools/imgs_smart_caxis.html" class="code" title="function cax = imgs_smart_caxis(alpha,varargin)">imgs_smart_caxis</a>(0.0003,res.currImg{2}),axis([150 256 150 256]) 
+0545   <a href="../tools/colorbar_labeled.html" class="code" title="function handle=colorbar_labeled(label,lg,varargin)">colorbar_labeled</a>(<span class="string">'R'</span>)
+0546   title(<span class="string">'ASK #3'</span>)
+0547   set(gca,<span class="string">'xticklabel'</span>,<span class="string">''</span>)
+0548   set(gca,<span class="string">'yticklabel'</span>,<span class="string">''</span>)
+0549   subplot(4,2,7)
+0550   imagesc(res.currProj{1}),<a href="../Imgtools/imgs_smart_caxis.html" class="code" title="function cax = imgs_smart_caxis(alpha,varargin)">imgs_smart_caxis</a>(0.0003,res.currImg{1}),axis([150 256 150 256])
+0551   ylabel(<span class="string">'Mod'</span>)
+0552   <a href="../tools/colorbar_labeled.html" class="code" title="function handle=colorbar_labeled(label,lg,varargin)">colorbar_labeled</a>(<span class="string">'R'</span>)
+0553   subplot(4,2,8)
+0554   imagesc(res.currProj{2}),<a href="../Imgtools/imgs_smart_caxis.html" class="code" title="function cax = imgs_smart_caxis(alpha,varargin)">imgs_smart_caxis</a>(0.0003,res.currImg{2}),axis([150 256 150 256])
+0555   set(gca,<span class="string">'yticklabel'</span>,<span class="string">''</span>)
+0556   <a href="../tools/colorbar_labeled.html" class="code" title="function handle=colorbar_labeled(label,lg,varargin)">colorbar_labeled</a>(<span class="string">'R'</span>)
+0557   subplot(4,2,3)
+0558   pcolor(XfI(:,:,400),YfI(:,:,400),res.Vem{1}(:,:,400)),shading flat
+0559   hold on
+0560   <span class="comment">%axis equal</span>
+0561   [~,i1_i2(1),i1_i2(2)] = <a href="../tools/max2D.html" class="code" title="function [Imax,i1,i2] = max2D(Iin)">max2D</a>(res.Vem{1}(:,:,400));
+0562   subplot(4,2,4)
+0563   plot(squeeze(res.Vem{1}(i1_i2(1),i1_i2(2),:)),squeeze(ZfI(i1_i2(1),i1_i2(2),:)),<span class="string">'r'</span>,<span class="string">'linewidth'</span>,2)
+0564   hold on
+0565   plot(squeeze(res.Vem{2}(i1_i2(1),i1_i2(2),:)),squeeze(ZfI(i1_i2(1),i1_i2(2),:)),<span class="string">'k'</span>,<span class="string">'linewidth'</span>,2)
+0566   axis([0 8e7 50 400])
+0567   hold off
+0568   mRay(i1) = getframe(gcf);
+0569   delete(ph)
+0570 <span class="keyword">end</span>
+0571 
+0572 fmsOPS.MaxFunEvals = 800;
+0573 parTest = It2(1,:);
+0574 <span class="keyword">for</span> i1 = 1:20,
+0575   Iq = ( wiener2(ImStack{1}(:,:,i1),[3,3]) - wiener2(imbg{1}(:,:,i1),[3,3]) ) * 1/C_filter6370;
+0576   stns(1).img = Iq;
+0577   Iq = ( wiener2(ImStack{3}(:,:,i1),[3,3]) - wiener2(imbg{3}(:,:,i1),[3,3]) ) * 1/C_filter7774;
+0578   stns(2).img = Iq;
+0579   parTest = It2(1,:);
+0580   parTest = <a href="../tools/fminsearchbnd.html" class="code" title="function [x,fval,exitflag,output] = fminsearchbnd(fun,x0,LB,UB,options,varargin)">fminsearchbnd</a>(@(I) <a href="err4FlamingRays.html" class="code" title="function res = err4FlamingRays(Par,var_pars,par0,stns,ImRois,Z3D,x2D,y2D,Ie2H,E,out_arg_type,z_max,errOps)">err4FlamingRays</a>(I,v_p,I0b,stns,{errMask,errMask},ZfI,XfI(:,:,115),YfI(:,:,115),{A1Z,A2Z},E,1,110,errOps),parTest,parMin,parMax,fmsOPS);
+0581   It2(i1,:) = parTest;
+0582   disp(i1)
+0583 <span class="keyword">end</span>
+0584 
+0585 <span class="comment">%% Model the results again:</span>
+0586 <span class="keyword">for</span> i1 = 1:size(ImStack{1},3),
+0587   Iq = ( wiener2(ImStack{1}(:,:,i1),[3,3]) - wiener2(imbg{1}(:,:,i1),[3,3]) ) * 1/C_filter6370;
+0588   stns(1).img = Iq;
+0589   Iq = ( wiener2(ImStack{3}(:,:,i1),[3,3]) - wiener2(imbg{3}(:,:,i1),[3,3]) ) * 1/C_filter7774;
+0590   stns(2).img = Iq;
+0591   res = <a href="err4FlamingRays.html" class="code" title="function res = err4FlamingRays(Par,var_pars,par0,stns,ImRois,Z3D,x2D,y2D,Ie2H,E,out_arg_type,z_max,errOps)">err4FlamingRays</a>(It2(i1,:),v_p,I0b,stns,{errMask,errMask},ZfI,XfI(:,:,115),YfI(:,:,115),{A2Z,A1Z},E,2,110,errOps);
+0592   ErrR2{1}(i1) = res.err;
+0593   IeRay(i1,:) = res.IeOutput{1};
+0594 <span class="keyword">end</span>
+0595 
+0596 
+0597 subplot(4,1,1)
+0598 pcolor([1:20]*1/32,E*1e3,log10(IeRay')),shading flat,caxis([-5 0]+max(caxis))
+0599 set(gca,<span class="string">'yscale'</span>,<span class="string">'log'</span>)
+0600 hold on
+0601 xlabel(<span class="string">'time (s)'</span>)
+0602 ylabel(<span class="string">'Energy (eV)'</span>)
+0603 set(gca,<span class="string">'ytick'</span>,[100 1000 10000])
+0604 <a href="../tools/colorbar_labeled.html" class="code" title="function handle=colorbar_labeled(label,lg,varargin)">colorbar_labeled</a>(<span class="string">'/eV/m^2/s'</span>,<span class="string">'log'</span>)
+0605 <span class="keyword">for</span> i1 = 1:size(ImStack{1},3),
+0606   Iq = ( wiener2(ImStack{1}(:,:,i1),[3,3]) - wiener2(imbg{1}(:,:,i1),[3,3]) ) * 1/C_filter6370;
+0607   stns(1).img = Iq;
+0608   Iq = ( wiener2(ImStack{3}(:,:,i1),[3,3]) - wiener2(imbg{3}(:,:,i1),[3,3]) ) * 1/C_filter7774;
+0609   stns(2).img = Iq;
+0610   res = <a href="err4FlamingRays.html" class="code" title="function res = err4FlamingRays(Par,var_pars,par0,stns,ImRois,Z3D,x2D,y2D,Ie2H,E,out_arg_type,z_max,errOps)">err4FlamingRays</a>(It2(i1,:),v_p,I0b,stns,{errMask,errMask},ZfI,XfI(:,:,115),YfI(:,:,115),{A1Z,A2Z},E,2,110);
+0611   ErrR{1}(i1) = res.err;
+0612   subplot(4,1,1)
+0613   <span class="comment">%semilogy(E,res.IeOutput{1})</span>
+0614   ph = plot((i1+0.5)/32*[1 1],E([1,end])*1e3,<span class="string">'k'</span>);
+0615   subplot(4,2,5)
+0616   imagesc(res.currImg{1}),<a href="../Imgtools/imgs_smart_caxis.html" class="code" title="function cax = imgs_smart_caxis(alpha,varargin)">imgs_smart_caxis</a>(0.0003,res.currImg{1}),axis([150 256 150 256]) 
+0617   hold on
+0618   contour(res.currProj{1},7,<span class="string">'w'</span>)
+0619   hold off
+0620   ylabel(<span class="string">'Obs'</span>)
+0621   <a href="../tools/colorbar_labeled.html" class="code" title="function handle=colorbar_labeled(label,lg,varargin)">colorbar_labeled</a>(<span class="string">'R'</span>)
+0622   title(<span class="string">'ASK #1'</span>)
+0623   set(gca,<span class="string">'xticklabel'</span>,<span class="string">''</span>)
+0624   subplot(4,2,6)
+0625   imagesc(res.currImg{2}),<a href="../Imgtools/imgs_smart_caxis.html" class="code" title="function cax = imgs_smart_caxis(alpha,varargin)">imgs_smart_caxis</a>(0.0003,res.currImg{2}),axis([150 256 150 256]) 
+0626   hold on
+0627   contour(res.currProj{2},7,<span class="string">'w'</span>)
+0628   hold off
+0629   <a href="../tools/colorbar_labeled.html" class="code" title="function handle=colorbar_labeled(label,lg,varargin)">colorbar_labeled</a>(<span class="string">'R'</span>)
+0630   title(<span class="string">'ASK #3'</span>)
+0631   set(gca,<span class="string">'xticklabel'</span>,<span class="string">''</span>)
+0632   set(gca,<span class="string">'yticklabel'</span>,<span class="string">''</span>)
+0633   subplot(4,2,7)
+0634   imagesc(res.currProj{1}),<a href="../Imgtools/imgs_smart_caxis.html" class="code" title="function cax = imgs_smart_caxis(alpha,varargin)">imgs_smart_caxis</a>(0.0003,res.currImg{1}),axis([150 256 150 256])
+0635   ylabel(<span class="string">'Mod'</span>)
+0636   <a href="../tools/colorbar_labeled.html" class="code" title="function handle=colorbar_labeled(label,lg,varargin)">colorbar_labeled</a>(<span class="string">'R'</span>)
+0637   subplot(4,2,8)
+0638   imagesc(res.currProj{2}),<a href="../Imgtools/imgs_smart_caxis.html" class="code" title="function cax = imgs_smart_caxis(alpha,varargin)">imgs_smart_caxis</a>(0.0003,res.currImg{2}),axis([150 256 150 256])
+0639   set(gca,<span class="string">'yticklabel'</span>,<span class="string">''</span>)
+0640   <a href="../tools/colorbar_labeled.html" class="code" title="function handle=colorbar_labeled(label,lg,varargin)">colorbar_labeled</a>(<span class="string">'R'</span>)
+0641   subplot(4,2,3)
+0642   pcolor(XfI(:,:,400),YfI(:,:,400),res.Vem{1}(:,:,400)),shading flat
+0643   hold on
+0644   <span class="comment">%axis equal</span>
+0645   [~,i1_i2(1),i1_i2(2)] = <a href="../tools/max2D.html" class="code" title="function [Imax,i1,i2] = max2D(Iin)">max2D</a>(res.Vem{1}(:,:,400));
+0646   subplot(4,2,4)
+0647   plot(squeeze(res.Vem{1}(i1_i2(1),i1_i2(2),:)),squeeze(ZfI(i1_i2(1),i1_i2(2),:)),<span class="string">'r'</span>,<span class="string">'linewidth'</span>,2)
+0648   hold on
+0649   plot(squeeze(res.Vem{2}(i1_i2(1),i1_i2(2),:)),squeeze(ZfI(i1_i2(1),i1_i2(2),:)),<span class="string">'k'</span>,<span class="string">'linewidth'</span>,2)
+0650   axis([0 8e7 50 400])
+0651   hold off
+0652   mRay(i1) = getframe(gcf);
+0653   delete(ph)
+0654 <span class="keyword">end</span>
+0655 
+0656 
+0657 fmsOPS.MaxFunEvals = 800;
+0658 parTest = It2(1,:);
+0659 <span class="keyword">for</span> i1 = 1:20,
+0660   Iq = ( wiener2(ImStack{1}(:,:,i1),[3,3]) - wiener2(imbg{1}(:,:,i1),[3,3]) ) * 1/C_filter6370;
+0661   stns(1).img = Iq;
+0662   Iq = ( wiener2(ImStack{3}(:,:,i1),[3,3]) - wiener2(imbg{3}(:,:,i1),[3,3]) ) * 1/C_filter7774;
+0663   stns(2).img = Iq;
+0664   parTest = It3(i1,:);
+0665   parTest = <a href="../tools/fminsearchbnd.html" class="code" title="function [x,fval,exitflag,output] = fminsearchbnd(fun,x0,LB,UB,options,varargin)">fminsearchbnd</a>(@(I) <a href="err4FlamingRays.html" class="code" title="function res = err4FlamingRays(Par,var_pars,par0,stns,ImRois,Z3D,x2D,y2D,Ie2H,E,out_arg_type,z_max,errOps)">err4FlamingRays</a>(I,v_p,I0b,stns,{errMask,errMask},ZfI,XfI(:,:,115),YfI(:,:,115),{A1Z,A2Z},E,1,110,errOps),parTest,parMin,parMax,fmsOPS);
+0666   It3(i1,:) = parTest;
+0667   disp(i1)
+0668 <span class="keyword">end</span>
+0669 
+0670 
+0671 fmsOPS.MaxFunEvals = 800;
+0672 <span class="keyword">for</span> i1 = 1:20,
+0673   Iq = ( wiener2(ImStack{1}(:,:,i1),[3,3]) - wiener2(imbg{1}(:,:,i1),[3,3]) ) * 1/C_filter6370;
+0674   stns(1).img = Iq;
+0675   Iq = ( wiener2(ImStack{3}(:,:,i1),[3,3]) - wiener2(imbg{3}(:,:,i1),[3,3]) ) * 1/C_filter7774;
+0676   stns(2).img = Iq;
+0677   parTest = It4(i1,:);
+0678   I0b(v_p) = It2(i1,:);
+0679   parTest = <a href="../tools/fminsearchbnd.html" class="code" title="function [x,fval,exitflag,output] = fminsearchbnd(fun,x0,LB,UB,options,varargin)">fminsearchbnd</a>(@(I) <a href="err4FlamingRays.html" class="code" title="function res = err4FlamingRays(Par,var_pars,par0,stns,ImRois,Z3D,x2D,y2D,Ie2H,E,out_arg_type,z_max,errOps)">err4FlamingRays</a>(I,v_p4,I0b,stns,{errMask,errMask},ZfI,XfI(:,:,115),YfI(:,:,115),{A1Z,A2Z},E,1,110,errOps),<span class="keyword">...</span>
+0680                           parTest,parMin([1,3,5:end]),parMax([1,3,5:end]),fmsOPS);
+0681   It4(i1,:) = parTest;
+0682   disp(i1)
+0683 <span class="keyword">end</span>
+0684 
+0685 
+0686 <span class="comment">%% Model the results again:</span>
+0687 <span class="keyword">for</span> i1 = 1:size(ImStack{1},3),
+0688   Iq = ( wiener2(ImStack{1}(:,:,i1),[3,3]) - wiener2(imbg{1}(:,:,i1),[3,3]) ) * 1/C_filter6370;
+0689   stns(1).img = Iq;
+0690   Iq = ( wiener2(ImStack{3}(:,:,i1),[3,3]) - wiener2(imbg{3}(:,:,i1),[3,3]) ) * 1/C_filter7774;
+0691   stns(2).img = Iq;
+0692   I0b(v_p) = It2(i1,:);
+0693   res = <a href="err4FlamingRays.html" class="code" title="function res = err4FlamingRays(Par,var_pars,par0,stns,ImRois,Z3D,x2D,y2D,Ie2H,E,out_arg_type,z_max,errOps)">err4FlamingRays</a>(It4(i1,:),v_p4,I0b,stns,{errMask,errMask},ZfI,XfI(:,:,115),YfI(:,:,115),{A2Z,A1Z},E,2,110,errOps);
+0694   ErrR2{1}(i1) = res.err;
+0695   IeRay(i1,:) = res.IeOutput{1};
+0696 <span class="keyword">end</span>
+0697 
+0698 
+0699 subplot(4,1,1)
+0700 pcolor([1:20]*1/32,E*1e3,log10(IeRay')),shading flat,caxis([-5 0]+max(caxis))
+0701 set(gca,<span class="string">'yscale'</span>,<span class="string">'log'</span>)
+0702 hold on
+0703 xlabel(<span class="string">'time (s)'</span>)
+0704 ylabel(<span class="string">'Energy (eV)'</span>)
+0705 set(gca,<span class="string">'ytick'</span>,[100 1000 10000])
+0706 <a href="../tools/colorbar_labeled.html" class="code" title="function handle=colorbar_labeled(label,lg,varargin)">colorbar_labeled</a>(<span class="string">'/eV/m^2/s'</span>,<span class="string">'log'</span>)
+0707 <span class="keyword">for</span> i1 = 1:size(ImStack{1},3),
+0708   Iq = ( wiener2(ImStack{1}(:,:,i1),[3,3]) - wiener2(imbg{1}(:,:,i1),[3,3]) ) * 1/C_filter6370;
+0709   stns(1).img = Iq;
+0710   Iq = ( wiener2(ImStack{3}(:,:,i1),[3,3]) - wiener2(imbg{3}(:,:,i1),[3,3]) ) * 1/C_filter7774;
+0711   stns(2).img = Iq;
+0712   I0b(v_p) = It2(i1,:);
+0713   res = <a href="err4FlamingRays.html" class="code" title="function res = err4FlamingRays(Par,var_pars,par0,stns,ImRois,Z3D,x2D,y2D,Ie2H,E,out_arg_type,z_max,errOps)">err4FlamingRays</a>(It4(i1,:),v_p4,I0b,stns,{errMask,errMask},ZfI,XfI(:,:,115),YfI(:,:,115),{A1Z,A2Z},E,2,110,errOps);
+0714   ErrR{1}(i1) = res.err;
+0715   subplot(4,1,1)
+0716   <span class="comment">%semilogy(E,res.IeOutput{1})</span>
+0717   ph = plot((i1+0.5)/32*[1 1],E([1,end])*1e3,<span class="string">'k'</span>);
+0718   subplot(4,2,5)
+0719   imagesc(res.currImg{1}),<a href="../Imgtools/imgs_smart_caxis.html" class="code" title="function cax = imgs_smart_caxis(alpha,varargin)">imgs_smart_caxis</a>(0.0003,res.currImg{1}),axis([150 256 150 256]) 
+0720   hold on
+0721   contour(res.currProj{1},7,<span class="string">'w'</span>)
+0722   hold off
+0723   ylabel(<span class="string">'Obs'</span>)
+0724   <a href="../tools/colorbar_labeled.html" class="code" title="function handle=colorbar_labeled(label,lg,varargin)">colorbar_labeled</a>(<span class="string">'R'</span>)
+0725   title(<span class="string">'ASK #1'</span>)
+0726   set(gca,<span class="string">'xticklabel'</span>,<span class="string">''</span>)
+0727   subplot(4,2,6)
+0728   imagesc(res.currImg{2}),<a href="../Imgtools/imgs_smart_caxis.html" class="code" title="function cax = imgs_smart_caxis(alpha,varargin)">imgs_smart_caxis</a>(0.0003,res.currImg{2}),axis([150 256 150 256]) 
+0729   hold on
+0730   contour(res.currProj{2},7,<span class="string">'w'</span>)
+0731   hold off
+0732   <a href="../tools/colorbar_labeled.html" class="code" title="function handle=colorbar_labeled(label,lg,varargin)">colorbar_labeled</a>(<span class="string">'R'</span>)
+0733   title(<span class="string">'ASK #3'</span>)
+0734   set(gca,<span class="string">'xticklabel'</span>,<span class="string">''</span>)
+0735   set(gca,<span class="string">'yticklabel'</span>,<span class="string">''</span>)
+0736   subplot(4,2,7)
+0737   imagesc(res.currProj{1}),<a href="../Imgtools/imgs_smart_caxis.html" class="code" title="function cax = imgs_smart_caxis(alpha,varargin)">imgs_smart_caxis</a>(0.0003,res.currImg{1}),axis([150 256 150 256])
+0738   ylabel(<span class="string">'Mod'</span>)
+0739   <a href="../tools/colorbar_labeled.html" class="code" title="function handle=colorbar_labeled(label,lg,varargin)">colorbar_labeled</a>(<span class="string">'R'</span>)
+0740   subplot(4,2,8)
+0741   imagesc(res.currProj{2}),<a href="../Imgtools/imgs_smart_caxis.html" class="code" title="function cax = imgs_smart_caxis(alpha,varargin)">imgs_smart_caxis</a>(0.0003,res.currImg{2}),axis([150 256 150 256])
+0742   set(gca,<span class="string">'yticklabel'</span>,<span class="string">''</span>)
+0743   <a href="../tools/colorbar_labeled.html" class="code" title="function handle=colorbar_labeled(label,lg,varargin)">colorbar_labeled</a>(<span class="string">'R'</span>)
+0744   subplot(4,2,3)
+0745   pcolor(XfI(:,:,400),YfI(:,:,400),res.Vem{1}(:,:,400)),shading flat
+0746   hold on
+0747   <span class="comment">%axis equal</span>
+0748   [~,i1_i2(1),i1_i2(2)] = <a href="../tools/max2D.html" class="code" title="function [Imax,i1,i2] = max2D(Iin)">max2D</a>(res.Vem{1}(:,:,400));
+0749   subplot(4,2,4)
+0750   plot(squeeze(res.Vem{1}(i1_i2(1),i1_i2(2),:)),squeeze(ZfI(i1_i2(1),i1_i2(2),:)),<span class="string">'r'</span>,<span class="string">'linewidth'</span>,2)
+0751   hold on
+0752   plot(squeeze(res.Vem{2}(i1_i2(1),i1_i2(2),:)),squeeze(ZfI(i1_i2(1),i1_i2(2),:)),<span class="string">'k'</span>,<span class="string">'linewidth'</span>,2)
+0753   axis([0 8e7 50 400])
+0754   hold off
+0755   mRay(i1) = getframe(gcf);
+0756   delete(ph)
+0757 <span class="keyword">end</span>
+0758 
+0759 
+0760 subplot(4,1,1)
+0761 pcolor([1:20]*1/32,E*1e3,log10(IeRay')),shading flat,caxis([-5 0]+max(caxis))
+0762 set(gca,<span class="string">'yscale'</span>,<span class="string">'log'</span>)
+0763 hold on
+0764 xlabel(<span class="string">'time (s)'</span>)
+0765 ylabel(<span class="string">'Energy (eV)'</span>)
+0766 set(gca,<span class="string">'ytick'</span>,[100 1000 10000])
+0767 <a href="../tools/colorbar_labeled.html" class="code" title="function handle=colorbar_labeled(label,lg,varargin)">colorbar_labeled</a>(<span class="string">'/eV/m^2/s'</span>,<span class="string">'log'</span>)
+0768 <span class="keyword">for</span> i1 = 1:size(ImStack{1},3),
+0769   Iq = ( wiener2(ImStack{1}(:,:,i1),[3,3]) - wiener2(imbg{1}(:,:,i1),[3,3]) ) * 1/C_filter6370;
+0770   stns(1).img = Iq;
+0771   Iq = ( wiener2(ImStack{3}(:,:,i1),[3,3]) - wiener2(imbg{3}(:,:,i1),[3,3]) ) * 1/C_filter7774;
+0772   stns(2).img = Iq;
+0773   I0b(v_p) = It2(i1,:);
+0774   res = <a href="err4FlamingRays.html" class="code" title="function res = err4FlamingRays(Par,var_pars,par0,stns,ImRois,Z3D,x2D,y2D,Ie2H,E,out_arg_type,z_max,errOps)">err4FlamingRays</a>(It4(i1,:),v_p4,I0b,stns,{errMask,errMask},ZfI,XfI(:,:,115),YfI(:,:,115),{A1Z,A2Z},E,2,110,errOps);
+0775   ErrR{1}(i1) = res.err;
+0776   subplot(4,1,1)
+0777   <span class="comment">%semilogy(E,res.IeOutput{1})</span>
+0778   ph = plot((i1+0.5)/32*[1 1],E([1,end])*1e3,<span class="string">'k'</span>);
+0779   subplot(4,2,5)
+0780   imagesc(res.currImg{1}-res.currProj{1}),axis([150 256 150 256]) 
+0781   cx = <a href="../Imgtools/imgs_smart_caxis.html" class="code" title="function cax = imgs_smart_caxis(alpha,varargin)">imgs_smart_caxis</a>(0.01,res.currImg{1}-res.currProj{1});
+0782   hold on
+0783   contour(res.currProj{1},4,<span class="string">'w'</span>)
+0784   hold off
+0785   ylabel(<span class="string">'Obs'</span>)
+0786   <a href="../tools/colorbar_labeled.html" class="code" title="function handle=colorbar_labeled(label,lg,varargin)">colorbar_labeled</a>(<span class="string">'R'</span>)
+0787   title(<span class="string">'ASK #1'</span>)
+0788   set(gca,<span class="string">'xticklabel'</span>,<span class="string">''</span>)
+0789   subplot(4,2,6)
+0790   imagesc(res.currImg{2}-res.currProj{2}),axis([150 256 150 256]) 
+0791   cx = <a href="../Imgtools/imgs_smart_caxis.html" class="code" title="function cax = imgs_smart_caxis(alpha,varargin)">imgs_smart_caxis</a>(0.01,res.currImg{2}-res.currProj{1});
+0792   hold on
+0793   contour(res.currProj{2},4,<span class="string">'w'</span>)
+0794   hold off
+0795   <a href="../tools/colorbar_labeled.html" class="code" title="function handle=colorbar_labeled(label,lg,varargin)">colorbar_labeled</a>(<span class="string">'R'</span>)
+0796   title(<span class="string">'ASK #3'</span>)
+0797   set(gca,<span class="string">'xticklabel'</span>,<span class="string">''</span>)
+0798   set(gca,<span class="string">'yticklabel'</span>,<span class="string">''</span>)
+0799   subplot(4,2,7)
+0800   imagesc(res.currProj{1}),
+0801   cx = <a href="../Imgtools/imgs_smart_caxis.html" class="code" title="function cax = imgs_smart_caxis(alpha,varargin)">imgs_smart_caxis</a>(0.0003,res.currImg{1});axis([150 256 150 256]);
+0802   hold on
+0803   contour(res.currProj{1},5,<span class="string">'w'</span>)
+0804   cI = linspace(0,max(cx),6);
+0805   contour(res.currImg{1},cI(2:end),<span class="string">'k'</span>)
+0806   hold off
+0807   ylabel(<span class="string">'Mod'</span>)
+0808   <a href="../tools/colorbar_labeled.html" class="code" title="function handle=colorbar_labeled(label,lg,varargin)">colorbar_labeled</a>(<span class="string">'R'</span>)
+0809   subplot(4,2,8)
+0810   imagesc(res.currProj{2}),
+0811   cx = <a href="../Imgtools/imgs_smart_caxis.html" class="code" title="function cax = imgs_smart_caxis(alpha,varargin)">imgs_smart_caxis</a>(0.0003,res.currImg{2});axis([150 256 150 256]);
+0812   hold on
+0813   contour(res.currProj{2},5,<span class="string">'w'</span>)
+0814   cI = linspace(0,max(cx),6);
+0815   contour(res.currImg{2},cI(2:end),<span class="string">'k'</span>)
+0816   hold off
+0817   set(gca,<span class="string">'yticklabel'</span>,<span class="string">''</span>)
+0818   <a href="../tools/colorbar_labeled.html" class="code" title="function handle=colorbar_labeled(label,lg,varargin)">colorbar_labeled</a>(<span class="string">'R'</span>)
+0819   subplot(4,2,3)
+0820   pcolor(XfI(:,:,400),YfI(:,:,400),res.Vem{1}(:,:,400)),shading flat
+0821   hold on
+0822   <span class="comment">%axis equal</span>
+0823   [~,i1_i2(1),i1_i2(2)] = <a href="../tools/max2D.html" class="code" title="function [Imax,i1,i2] = max2D(Iin)">max2D</a>(res.Vem{1}(:,:,400));
+0824   subplot(4,2,4)
+0825   plot(squeeze(res.Vem{1}(i1_i2(1),i1_i2(2),:)),squeeze(ZfI(i1_i2(1),i1_i2(2),:)),<span class="string">'r'</span>,<span class="string">'linewidth'</span>,2)
+0826   hold on
+0827   plot(squeeze(res.Vem{2}(i1_i2(1),i1_i2(2),:)),squeeze(ZfI(i1_i2(1),i1_i2(2),:)),<span class="string">'k'</span>,<span class="string">'linewidth'</span>,2)
+0828   axis([0 8e7 50 400])
+0829   hold off
+0830   mRayD(i1) = getframe(gcf);
+0831   delete(ph)
+0832 <span class="keyword">end</span>
+0833 
+0834 
+0835 <span class="keyword">for</span> i1 = 1:20,
+0836   Iq = ( wiener2(ImStack{1}(:,:,i1),[3,3]) - wiener2(imbg{1}(:,:,i1),[3,3]) ) * 1/C_filter6370;
+0837   stns(1).img = Iq;
+0838   Iq = ( wiener2(ImStack{3}(:,:,i1),[3,3]) - wiener2(imbg{3}(:,:,i1),[3,3]) ) * 1/C_filter7774;
+0839   stns(2).img = Iq;
+0840   parTest = It4(i1,:);
+0841   I0b(v_p) = It2_ny(i1,:);
+0842   parTest = <a href="../tools/fminsearchbnd.html" class="code" title="function [x,fval,exitflag,output] = fminsearchbnd(fun,x0,LB,UB,options,varargin)">fminsearchbnd</a>(@(I) <a href="err4FlamingRays.html" class="code" title="function res = err4FlamingRays(Par,var_pars,par0,stns,ImRois,Z3D,x2D,y2D,Ie2H,E,out_arg_type,z_max,errOps)">err4FlamingRays</a>(I,v_p4,I0b,stns,{errMask,errMask},ZfI,XfI(:,:,115),YfI(:,:,115),{A1Z,A2Z},E,1,110,errOps),<span class="keyword">...</span>
+0843                           parTest,parMin([1,3,5:end]),parMax([1,3,5:end]),fmsOPS);
+0844   It4(i1,:) = parTest;
+0845   disp(i1)
+0846 <span class="keyword">end</span>
+0847 
+0848 
+0849 <span class="keyword">for</span> i1 = 1:20,
+0850   Iq = ( wiener2(ImStack{1}(:,:,i1),[3,3]) - wiener2(imbg{1}(:,:,i1),[3,3]) ) * 1/C_filter6370;
+0851   stns(1).img = Iq;
+0852   Iq = ( wiener2(ImStack{3}(:,:,i1),[3,3]) - wiener2(imbg{3}(:,:,i1),[3,3]) ) * 1/C_filter7774;
+0853   stns(2).img = Iq;
+0854   parTest = It2In(i1,:);
+0855   I0b(v_p) = It2(i1,:);
+0856   parTest = <a href="../tools/fminsearchbnd.html" class="code" title="function [x,fval,exitflag,output] = fminsearchbnd(fun,x0,LB,UB,options,varargin)">fminsearchbnd</a>(@(I) <a href="err4FlamingRays.html" class="code" title="function res = err4FlamingRays(Par,var_pars,par0,stns,ImRois,Z3D,x2D,y2D,Ie2H,E,out_arg_type,z_max,errOps)">err4FlamingRays</a>(I,v_p,I0b,stns,{errMask,errMask},ZfI,XfI(:,:,115),YfI(:,:,115),{A1Z,A2Z},E,1,110,errOps),<span class="keyword">...</span>
+0857                           parTest,parMin([1:end]),parMax([1:end]),fmsOPS);
+0858   ItNy(i1,:) = parTest;
+0859   disp(i1)
+0860 <span class="keyword">end</span>
+0861 
+0862 <span class="comment">%% Model the results again:</span>
+0863 <span class="keyword">for</span> i1 = 1:size(ImStack{1},3),
+0864   Iq = ( wiener2(ImStack{1}(:,:,i1),[3,3]) - wiener2(imbg{1}(:,:,i1),[3,3]) ) * 1/C_filter6370;
+0865   stns(1).img = Iq;
+0866   Iq = ( wiener2(ImStack{3}(:,:,i1),[3,3]) - wiener2(imbg{3}(:,:,i1),[3,3]) ) * 1/C_filter7774;
+0867   stns(2).img = Iq;
+0868   res = <a href="err4FlamingRays.html" class="code" title="function res = err4FlamingRays(Par,var_pars,par0,stns,ImRois,Z3D,x2D,y2D,Ie2H,E,out_arg_type,z_max,errOps)">err4FlamingRays</a>(ItNy(i1,:),v_p,I0b,stns,{errMask,errMask},ZfI,XfI(:,:,115),YfI(:,:,115),{A2Z,A1Z},E,2,110,errOps);
+0869   ErrR2{1}(i1) = res.err;
+0870   IeRay(i1,:) = res.IeOutput{1};
+0871 <span class="keyword">end</span>
+0872 
+0873 subplot(4,1,1)
+0874 pcolor([1:20]*1/32,E*1e3,log10(IeRay')),shading flat,caxis([-5 0]+max(caxis))
+0875 set(gca,<span class="string">'yscale'</span>,<span class="string">'log'</span>)
+0876 hold on
+0877 xlabel(<span class="string">'time (s)'</span>)
+0878 ylabel(<span class="string">'Energy (eV)'</span>)
+0879 set(gca,<span class="string">'ytick'</span>,[100 1000 10000])
+0880 <a href="../tools/colorbar_labeled.html" class="code" title="function handle=colorbar_labeled(label,lg,varargin)">colorbar_labeled</a>(<span class="string">'/eV/m^2/s'</span>,<span class="string">'log'</span>)
+0881 <span class="keyword">for</span> i1 = 1:size(ImStack{1},3),
+0882   Iq = ( wiener2(ImStack{1}(:,:,i1),[3,3]) - wiener2(imbg{1}(:,:,i1),[3,3]) ) * 1/C_filter6370;
+0883   stns(1).img = Iq;
+0884   Iq = ( wiener2(ImStack{3}(:,:,i1),[3,3]) - wiener2(imbg{3}(:,:,i1),[3,3]) ) * 1/C_filter7774;
+0885   stns(2).img = Iq;
+0886   res = <a href="err4FlamingRays.html" class="code" title="function res = err4FlamingRays(Par,var_pars,par0,stns,ImRois,Z3D,x2D,y2D,Ie2H,E,out_arg_type,z_max,errOps)">err4FlamingRays</a>(ItNy(i1,:),v_p,I0b,stns,{errMask,errMask},ZfI,XfI(:,:,115),YfI(:,:,115),{A1Z,A2Z},E,2,110);
+0887   ErrR{1}(i1) = res.err;
+0888   subplot(4,1,1)
+0889   <span class="comment">%semilogy(E,res.IeOutput{1})</span>
+0890   ph = plot((i1+0.5)/32*[1 1],E([1,end])*1e3,<span class="string">'k'</span>);
+0891   subplot(4,2,5)
+0892   imagesc(res.currImg{1}),<a href="../Imgtools/imgs_smart_caxis.html" class="code" title="function cax = imgs_smart_caxis(alpha,varargin)">imgs_smart_caxis</a>(0.0003,res.currImg{1}),axis([150 256 150 256]) 
+0893   hold on
+0894   contour(res.currProj{1},7,<span class="string">'w'</span>)
+0895   hold off
+0896   ylabel(<span class="string">'Obs'</span>)
+0897   <a href="../tools/colorbar_labeled.html" class="code" title="function handle=colorbar_labeled(label,lg,varargin)">colorbar_labeled</a>(<span class="string">'R'</span>)
+0898   title(<span class="string">'ASK #1'</span>)
+0899   set(gca,<span class="string">'xticklabel'</span>,<span class="string">''</span>)
+0900   subplot(4,2,6)
+0901   imagesc(res.currImg{2}),<a href="../Imgtools/imgs_smart_caxis.html" class="code" title="function cax = imgs_smart_caxis(alpha,varargin)">imgs_smart_caxis</a>(0.0003,res.currImg{2}),axis([150 256 150 256]) 
+0902   hold on
+0903   contour(res.currProj{2},7,<span class="string">'w'</span>)
+0904   hold off
+0905   <a href="../tools/colorbar_labeled.html" class="code" title="function handle=colorbar_labeled(label,lg,varargin)">colorbar_labeled</a>(<span class="string">'R'</span>)
+0906   title(<span class="string">'ASK #3'</span>)
+0907   set(gca,<span class="string">'xticklabel'</span>,<span class="string">''</span>)
+0908   set(gca,<span class="string">'yticklabel'</span>,<span class="string">''</span>)
+0909   subplot(4,2,7)
+0910   imagesc(res.currProj{1}),<a href="../Imgtools/imgs_smart_caxis.html" class="code" title="function cax = imgs_smart_caxis(alpha,varargin)">imgs_smart_caxis</a>(0.0003,res.currImg{1}),axis([150 256 150 256])
+0911   ylabel(<span class="string">'Mod'</span>)
+0912   <a href="../tools/colorbar_labeled.html" class="code" title="function handle=colorbar_labeled(label,lg,varargin)">colorbar_labeled</a>(<span class="string">'R'</span>)
+0913   subplot(4,2,8)
+0914   imagesc(res.currProj{2}),<a href="../Imgtools/imgs_smart_caxis.html" class="code" title="function cax = imgs_smart_caxis(alpha,varargin)">imgs_smart_caxis</a>(0.0003,res.currImg{2}),axis([150 256 150 256])
+0915   set(gca,<span class="string">'yticklabel'</span>,<span class="string">''</span>)
+0916   <a href="../tools/colorbar_labeled.html" class="code" title="function handle=colorbar_labeled(label,lg,varargin)">colorbar_labeled</a>(<span class="string">'R'</span>)
+0917   subplot(4,2,3)
+0918   pcolor(XfI(:,:,400),YfI(:,:,400),res.Vem{1}(:,:,400)),shading flat
+0919   hold on
+0920   <span class="comment">%axis equal</span>
+0921   [~,i1_i2(1),i1_i2(2)] = <a href="../tools/max2D.html" class="code" title="function [Imax,i1,i2] = max2D(Iin)">max2D</a>(res.Vem{1}(:,:,400));
+0922   subplot(4,2,4)
+0923   plot(squeeze(res.Vem{1}(i1_i2(1),i1_i2(2),:)),squeeze(ZfI(i1_i2(1),i1_i2(2),:)),<span class="string">'r'</span>,<span class="string">'linewidth'</span>,2)
+0924   hold on
+0925   plot(squeeze(res.Vem{2}(i1_i2(1),i1_i2(2),:)),squeeze(ZfI(i1_i2(1),i1_i2(2),:)),<span class="string">'k'</span>,<span class="string">'linewidth'</span>,2)
+0926   axis([0 8e7 50 400])
+0927   hold off
+0928   mRay(i1) = getframe(gcf);
+0929   delete(ph)
+0930 <span class="keyword">end</span>
+0931 
+0932 
+0933 v_p4 = v_p([1 3 5:end]);
+0934 parTest = It2(12,[1 3 5:end]);
+0935 fmsOPS.MaxFunEvals = 200;
+0936 I0b(v_p) = It2(12,:);
+0937 <span class="comment">%% Search for all of them (for this time-step):</span>
+0938 <span class="keyword">for</span> i1 = 12<span class="comment">%:size(ImStack{1},3),</span>
+0939   Iq = ( wiener2(ImStack{1}(:,:,i1),[3,3]) - wiener2(imbg{1}(:,:,i1),[3,3]) ) * 1/C_filter6370;
+0940   stns(1).img = Iq;
+0941   Iq = ( wiener2(ImStack{3}(:,:,i1),[3,3]) - wiener2(imbg{3}(:,:,i1),[3,3]) ) * 1/C_filter7774;
+0942   stns(2).img = Iq;
+0943   parTest = <a href="../tools/fminsearchbnd.html" class="code" title="function [x,fval,exitflag,output] = fminsearchbnd(fun,x0,LB,UB,options,varargin)">fminsearchbnd</a>(@(I) <a href="err4FlamingRays.html" class="code" title="function res = err4FlamingRays(Par,var_pars,par0,stns,ImRois,Z3D,x2D,y2D,Ie2H,E,out_arg_type,z_max,errOps)">err4FlamingRays</a>(I,v_p4,I0b,stns,{errMask,errMask},ZfI,XfI(:,:,115),YfI(:,:,115),{A1Z,A2Z},E,1,110,errOps),<span class="keyword">...</span>
+0944                           parTest,parMin([1 3 5:end]),parMax([1 3 5:end]),fmsOPS);
+0945   ItF(i1,:) = parTest;
+0946 <span class="keyword">end</span>
+0947 <span class="comment">%% Then loop forward in time:</span>
+0948 parTest = ItF(12,:);
+0949 <span class="keyword">for</span> i1 = 13:size(ImStack{1},3),
+0950   Iq = ( wiener2(ImStack{1}(:,:,i1),[3,3]) - wiener2(imbg{1}(:,:,i1),[3,3]) ) * 1/C_filter6370;
+0951   stns(1).img = Iq;
+0952   Iq = ( wiener2(ImStack{3}(:,:,i1),[3,3]) - wiener2(imbg{3}(:,:,i1),[3,3]) ) * 1/C_filter7774;
+0953   stns(2).img = Iq;
+0954   parTest = <a href="../tools/fminsearchbnd.html" class="code" title="function [x,fval,exitflag,output] = fminsearchbnd(fun,x0,LB,UB,options,varargin)">fminsearchbnd</a>(@(I) <a href="err4FlamingRays.html" class="code" title="function res = err4FlamingRays(Par,var_pars,par0,stns,ImRois,Z3D,x2D,y2D,Ie2H,E,out_arg_type,z_max,errOps)">err4FlamingRays</a>(I,v_p4,I0b,stns,{errMask,errMask},ZfI,XfI(:,:,115),YfI(:,:,115),{A1Z,A2Z},E,1,110,errOps),<span class="keyword">...</span>
+0955                           parTest,parMin([1 3 5:end]),parMax([1 3 5:end]),fmsOPS);
+0956   ItF(i1,:) = parTest;
+0957 <span class="keyword">end</span>
+0958 parTest = ItF(12,:);
+0959 <span class="comment">%% Then loop backwards in time:</span>
+0960 <span class="keyword">for</span> i1 = 11:-1:1,
+0961   Iq = ( wiener2(ImStack{1}(:,:,i1),[3,3]) - wiener2(imbg{1}(:,:,i1),[3,3]) ) * 1/C_filter6370;
+0962   stns(1).img = Iq;
+0963   Iq = ( wiener2(ImStack{3}(:,:,i1),[3,3]) - wiener2(imbg{3}(:,:,i1),[3,3]) ) * 1/C_filter7774;
+0964   stns(2).img = Iq;
+0965   parTest = <a href="../tools/fminsearchbnd.html" class="code" title="function [x,fval,exitflag,output] = fminsearchbnd(fun,x0,LB,UB,options,varargin)">fminsearchbnd</a>(@(I) <a href="err4FlamingRays.html" class="code" title="function res = err4FlamingRays(Par,var_pars,par0,stns,ImRois,Z3D,x2D,y2D,Ie2H,E,out_arg_type,z_max,errOps)">err4FlamingRays</a>(I,v_p4,I0b,stns,{errMask,errMask},ZfI,XfI(:,:,115),YfI(:,:,115),{A1Z,A2Z},E,1,110,errOps),<span class="keyword">...</span>
+0966                           parTest,parMin([1 3 5:end]),parMax([1 3 5:end]),fmsOPS);
+0967   ItF(i1,:) = parTest;
+0968 <span class="keyword">end</span>
+0969 
+0970 <span class="comment">%%</span>
+0971 <span class="comment">% v_p2 = 1:10;</span>
+0972 <span class="comment">% errOps.bias2cylindrical = 1e8;</span>
+0973 <span class="comment">% parTest2 = parTest(1:10);</span>
+0974 <span class="comment">% for i1 = 12:size(ImStack{1},3),</span>
+0975 <span class="comment">%   Iq = ( wiener2(ImStack{1}(:,:,i1),[3,3]) - wiener2(imbg{1}(:,:,i1),[3,3]) ) * 1/C_filter6370;</span>
+0976 <span class="comment">%   stns(1).img = Iq;</span>
+0977 <span class="comment">%   Iq = ( wiener2(ImStack{3}(:,:,i1),[3,3]) - wiener2(imbg{3}(:,:,i1),[3,3]) ) * 1/C_filter7774;</span>
+0978 <span class="comment">%   stns(2).img = Iq;</span>
+0979 <span class="comment">%   %parTest = fminsearch(@(I) err4FlamingRays(I,v_p,I0b,stns,{bgMask,bgMask},ZfI,XfI(:,:,115),YfI(:,:,115),{A2Z,A1Z},E,1,110),parTest);</span>
+0980 <span class="comment">%   parTest2 = fminsearchbnd(@(I) err4FlamingRays(I,v_p2,I0b,stns,{errMask,errMask},ZfI,XfI(:,:,115),YfI(:,:,115),{A1Z,A2Z},E,1,110,errOps),parTest2,parMin(1:10),parMax(1:10),fmsOPS);</span>
+0981 <span class="comment">%   It2(i1,:) = parTest2;</span>
+0982 <span class="comment">% end</span>
+0983 <span class="comment">%</span>
+0984 <span class="comment">%</span>
+0985 <span class="comment">% for i1 = 1:size(ImStack{1},3),</span>
+0986 <span class="comment">%   Iq = ( wiener2(ImStack{1}(:,:,i1),[3,3]) - wiener2(imbg{1}(:,:,i1),[3,3]) ) * 1/C_filter6370;</span>
+0987 <span class="comment">%   stns(1).img = Iq;</span>
+0988 <span class="comment">%   Iq = ( wiener2(ImStack{3}(:,:,i1),[3,3]) - wiener2(imbg{3}(:,:,i1),[3,3]) ) * 1/C_filter7774;</span>
+0989 <span class="comment">%   stns(2).img = Iq;</span>
+0990 <span class="comment">%   %parTest = fminsearch(@(I) err4FlamingRays(I,v_p,I0b,stns,{bgMask,bgMask},ZfI,XfI(:,:,115),YfI(:,:,115),{A2Z,A1Z},E,1,110),parTest);</span>
+0991 <span class="comment">%   parTest = fminsearchbnd(@(I) err4FlamingRays(I,v_p,I0b,stns,{errMask,errMask},ZfI,XfI(:,:,115),YfI(:,:,115),{A1Z,A2Z},E,1,110,errOps),parTest,parMin,parMax,fmsOPS);</span>
+0992 <span class="comment">%   It2(i1,:) = parTest;</span>
+0993 <span class="comment">%   disp(sprintf('%d %02d-%02d-%02d %02d:%02d:%05.2f',i1,clock))</span>
+0994 <span class="comment">% end</span>
+0995 <span class="comment">% for i1 = 1:size(ImStack{1},3),</span>
+0996 <span class="comment">%   Iq = ( wiener2(ImStack{1}(:,:,i1),[3,3]) - wiener2(imbg{1}(:,:,i1),[3,3]) ) * 1/C_filter6370;</span>
+0997 <span class="comment">%   stns(1).img = Iq;</span>
+0998 <span class="comment">%   Iq = ( wiener2(ImStack{3}(:,:,i1),[3,3]) - wiener2(imbg{3}(:,:,i1),[3,3]) ) * 1/C_filter7774;</span>
+0999 <span class="comment">%   stns(2).img = Iq;</span>
+1000 <span class="comment">%   %parTest = fminsearch(@(I) err4FlamingRays(I,v_p,I0b,stns,{bgMask,bgMask},ZfI,XfI(:,:,115),YfI(:,:,115),{A2Z,A1Z},E,1,110),parTest);</span>
+1001 <span class="comment">%   parTest = fminsearchbnd(@(I) err4FlamingRays(I,v_p,I0b,stns,{errMask,errMask},ZfI,XfI(:,:,115),YfI(:,:,115),{A1Z,A2Z},E,1,110,errOps),It2(i1,:),parMin,parMax,fmsOPS);</span>
+1002 <span class="comment">%   It3(i1,:) = parTest;</span>
+1003 <span class="comment">%   disp(sprintf('%d %02d-%02d-%02d %02d:%02d:%05.2f',i1,clock))</span>
+1004 <span class="comment">% end</span>
+1005 <span class="comment">%</span>
+1006 <span class="comment">%</span>
+1007 <span class="comment">% for i1 = 12,%:size(ImStack{1},3),</span>
+1008 <span class="comment">%   Iq = ( wiener2(ImStack{1}(:,:,i1),[3,3]) - wiener2(imbg{1}(:,:,i1),[3,3]) ) * 1/C_filter6370;</span>
+1009 <span class="comment">%   stns(1).img = Iq;</span>
+1010 <span class="comment">%   Iq = ( wiener2(ImStack{3}(:,:,i1),[3,3]) - wiener2(imbg{3}(:,:,i1),[3,3]) ) * 1/C_filter7774;</span>
+1011 <span class="comment">%   stns(2).img = Iq;</span>
+1012 <span class="comment">%   res = err4FlamingRays(It2(i1,:),v_p,I0b,stns,{errMask,errMask},ZfI,XfI(:,:,115),YfI(:,:,115),{A2Z,A1Z},E,2,110);</span>
+1013 <span class="comment">%   IeRay(i1,:) = res.IeOutput{1};</span>
+1014 <span class="comment">% end</span>
+1015 <span class="comment">%</span>
+1016 <span class="comment">% subplot(3,1,1)</span>
+1017 <span class="comment">% pcolor([1:20]*1/32,E*1e3,log10(IeRay')),shading flat,caxis([-5 0]+max(caxis))</span>
+1018 <span class="comment">% set(gca,'yscale','log')</span>
+1019 <span class="comment">% hold on</span>
+1020 <span class="comment">% for i1 = 1:size(ImStack{1},3),</span>
+1021 <span class="comment">%   Iq = ( wiener2(ImStack{1}(:,:,i1),[3,3]) - wiener2(imbg{1}(:,:,i1),[3,3]) ) * 1/C_filter6370;</span>
+1022 <span class="comment">%   stns(1).img = Iq;</span>
+1023 <span class="comment">%   Iq = ( wiener2(ImStack{3}(:,:,i1),[3,3]) - wiener2(imbg{3}(:,:,i1),[3,3]) ) * 1/C_filter7774;</span>
+1024 <span class="comment">%   stns(2).img = Iq;</span>
+1025 <span class="comment">%   res = err4FlamingRays(It2(i1,:),v_p,I0b,stns,{errMask,errMask},ZfI,XfI(:,:,115),YfI(:,:,115),{A1Z,A2Z},E,2,110);</span>
+1026 <span class="comment">%   subplot(3,1,1)</span>
+1027 <span class="comment">%   %semilogy(E,res.IeOutput{1})</span>
+1028 <span class="comment">%   ph = plot((i1+0.5)/32*[1 1],E([1,end])*1e3,'k');</span>
+1029 <span class="comment">%   subplot(3,2,3)</span>
+1030 <span class="comment">%   imagesc(res.currImg{1}),imgs_smart_caxis(0.0003,res.currImg{1}),axis([150 256 150 256])</span>
+1031 <span class="comment">%   subplot(3,2,4)</span>
+1032 <span class="comment">%   imagesc(res.currImg{2}),imgs_smart_caxis(0.0003,res.currImg{2}),axis([150 256 150 256])</span>
+1033 <span class="comment">%   subplot(3,2,5)</span>
+1034 <span class="comment">%   imagesc(res.currProj{1}),imgs_smart_caxis(0.0003,res.currImg{1}),axis([150 256 150 256])</span>
+1035 <span class="comment">%   subplot(3,2,6)</span>
+1036 <span class="comment">%   imagesc(res.currProj{2}),imgs_smart_caxis(0.0003,res.currImg{2}),axis([150 256 150 256])</span>
+1037 <span class="comment">%   mRay(i1) = getframe(gcf);</span>
+1038 <span class="comment">%   delete(ph)</span>
+1039 <span class="comment">% end</span>
+1040 <span class="comment">%</span>
+1041 <span class="comment">%</span>
+1042 <span class="comment">%</span>
+1043 <span class="comment">% %% Strictly cylindrical...</span>
+1044 <span class="comment">%</span>
+1045 <span class="comment">%</span>
+1046 <span class="comment">% ItC = It(:,[1,2,4,3,6:end])/2 + It(:,[1,2,4,5,6:end])/2;</span>
+1047 <span class="comment">% %            I0     x0        y0      dS         g_x     E0      dE      g_E     g_E2     I1      E0    dE         g_E     g_E2</span>
+1048 <span class="comment">% parIC = [ 4.7336,   -6.0518, -12.553, 0.0021721, 2.2325, 3.2487, 2.9215, 2.9828, 0.47734, 0.927, 16.56,  0.044845, 1.8183, 1];</span>
+1049 <span class="comment">% pICMin = [  eps(1),-12.0518, -18.553, ds*1/3,    0.6325, 0.3248, 0.9215, 0.5828, 0.25,   eps(1),  0.56,  0.044845, 0.5183, 0.25];</span>
+1050 <span class="comment">% pICMax = [473.36,   -0.0518,  -6.553, 2.1721,    4.2325,32.487, 29.215,  4.9828, 2.47734,21.927, 16.56, 12.044845, 3.8183, 3.7833];</span>
+1051 <span class="comment">% vpC =    [  1          2       3          4      5       6       7       8       9       10      15     16         17      18];</span>
+1052 <span class="comment">%</span>
+1053 <span class="comment">% fmsOPS.Display = 'final';</span>
+1054 <span class="comment">% for i1 = 1:size(ImStack{1},3),</span>
+1055 <span class="comment">%   Iq = ( wiener2(ImStack{1}(:,:,i1),[3,3]) - wiener2(imbg{1}(:,:,i1),[3,3]) ) * 1/C_filter6370;</span>
+1056 <span class="comment">%   stns(1).img = Iq;</span>
+1057 <span class="comment">%   Iq = ( wiener2(ImStack{3}(:,:,i1),[3,3]) - wiener2(imbg{3}(:,:,i1),[3,3]) ) * 1/C_filter7774;</span>
+1058 <span class="comment">%   stns(2).img = Iq;</span>
+1059 <span class="comment">%   parTest = fminsearchbnd(@(I) err4FlamingRaysC(I,vpC,I0C,stns,{errMask,errMask},ZfI,XfI(:,:,115),YfI(:,:,115),{A2Z,A1Z},E,1,110),ItC(i1,:),pICMin,pICMax,fmsOPS);</span>
+1060 <span class="comment">%   ItC(i1,:) = parTest;</span>
+1061 <span class="comment">% end</span>
+1062 <span class="comment">%</span>
+1063 <span class="comment">% fmsOPS.Display = 'final';</span>
+1064 <span class="comment">% for i1 = 1:size(ImStack{1},3),</span>
+1065 <span class="comment">%   Iq = ( wiener2(ImStack{1}(:,:,i1),[3,3]) - wiener2(imbg{1}(:,:,i1),[3,3]) ) * 1/C_filter6370;</span>
+1066 <span class="comment">%   stns(1).img = Iq;</span>
+1067 <span class="comment">%   Iq = ( wiener2(ImStack{3}(:,:,i1),[3,3]) - wiener2(imbg{3}(:,:,i1),[3,3]) ) * 1/C_filter7774;</span>
+1068 <span class="comment">%   stns(2).img = Iq;</span>
+1069 <span class="comment">%   pICMin(2:3) = ItC0(i1,2:3)-0.5;</span>
+1070 <span class="comment">%   pICMax(2:3) = ItC0(i1,2:3)+0.5;</span>
+1071 <span class="comment">%   parTest = fminsearchbnd(@(I) err4FlamingRaysC(I,vpC,I0C,stns,{errMask,errMask},ZfI,XfI(:,:,115),YfI(:,:,115),{A2Z,A1Z},E,1,110),ItC0(i1,:),pICMin,pICMax,fmsOPS);</span>
+1072 <span class="comment">%   ItC(i1,:) = parTest;</span>
+1073 <span class="comment">% end</span>
+1074 <span class="comment">%</span>
+1075 <span class="comment">%</span>
+1076 <span class="comment">% for i1 = 1:size(ImStack{1},3),</span>
+1077 <span class="comment">%   Iq = ( wiener2(ImStack{1}(:,:,i1),[3,3]) - wiener2(imbg{1}(:,:,i1),[3,3]) ) * 1/C_filter6370;</span>
+1078 <span class="comment">%   stns(1).img = Iq;</span>
+1079 <span class="comment">%   Iq = ( wiener2(ImStack{3}(:,:,i1),[3,3]) - wiener2(imbg{3}(:,:,i1),[3,3]) ) * 1/C_filter7774;</span>
+1080 <span class="comment">%   stns(2).img = Iq;</span>
+1081 <span class="comment">%   %parTest = fminsearch(@(I) err4FlamingRays(I,v_p,I0b,stns,{bgMask,bgMask},ZfI,XfI(:,:,115),YfI(:,:,115),{A2Z,A1Z},E,1,110),parTest);</span>
+1082 <span class="comment">%   parTest = fminsearchbnd(@(I) err4FlamingRays(I,vpC,I0C,stns,{errMask,errMask},ZfI,XfI(:,:,115),YfI(:,:,115),{A2Z,A1Z},E,1,110),ItC(i1,:),pICMin,pICMax,fmsOPS);</span>
+1083 <span class="comment">%   It2(i1,:) = parTest;</span>
+1084 <span class="comment">% end</span>
+1085 <span class="comment">%</span>
+1086 <span class="comment">% for i1 = 1:size(ImStack{1},3),</span>
+1087 <span class="comment">%   Iq = ( wiener2(ImStack{1}(:,:,i1),[3,3]) - wiener2(imbg{1}(:,:,i1),[3,3]) ) * 1/C_filter6370;</span>
+1088 <span class="comment">%   stns(1).img = Iq;</span>
+1089 <span class="comment">%   Iq = ( wiener2(ImStack{3}(:,:,i1),[3,3]) - wiener2(imbg{3}(:,:,i1),[3,3]) ) * 1/C_filter7774;</span>
+1090 <span class="comment">%   stns(2).img = Iq;</span>
+1091 <span class="comment">%   res = err4FlamingRaysC(ItC(i1,:),vpC,I0C,stns,{errMask,errMask},ZfI,XfI(:,:,115),YfI(:,:,115),{A2Z,A1Z},E,2,110);</span>
+1092 <span class="comment">%   IeRay(i1,:) = res.IeOutput{1};</span>
+1093 <span class="comment">% end</span>
+1094 <span class="comment">%</span>
+1095 <span class="comment">% subplot(3,1,1)</span>
+1096 <span class="comment">% pcolor([1:20]*1/32,E*1e3,log10(IeRay')),shading flat,caxis([-5 0]+max(caxis))</span>
+1097 <span class="comment">% set(gca,'yscale','log')</span>
+1098 <span class="comment">% hold on</span>
+1099 <span class="comment">% for i1 = 1:size(ImStack{1},3),</span>
+1100 <span class="comment">%   Iq = ( wiener2(ImStack{1}(:,:,i1),[3,3]) - wiener2(imbg{1}(:,:,i1),[3,3]) ) * 1/C_filter6370;</span>
+1101 <span class="comment">%   stns(1).img = Iq;</span>
+1102 <span class="comment">%   Iq = ( wiener2(ImStack{3}(:,:,i1),[3,3]) - wiener2(imbg{3}(:,:,i1),[3,3]) ) * 1/C_filter7774;</span>
+1103 <span class="comment">%   stns(2).img = Iq;</span>
+1104 <span class="comment">%   res = err4FlamingRaysC(ItC(i1,:),vpC,I0C,stns,{errMask,errMask},ZfI,XfI(:,:,115),YfI(:,:,115),{A2Z,A1Z},E,2,110);</span>
+1105 <span class="comment">%   subplot(3,1,1)</span>
+1106 <span class="comment">%   %semilogy(E,res.IeOutput{1})</span>
+1107 <span class="comment">%   ph = plot((i1+0.5)/32*[1 1],E([1,end])*1e3,'k');</span>
+1108 <span class="comment">%   subplot(3,2,3)</span>
+1109 <span class="comment">%   imagesc(res.currImg{1}),imgs_smart_caxis(0.0003,res.currImg{1}),axis([150 256 150 256])</span>
+1110 <span class="comment">%   subplot(3,2,4)</span>
+1111 <span class="comment">%   imagesc(res.currImg{2}),imgs_smart_caxis(0.0003,res.currImg{2}),axis([150 256 150 256])</span>
+1112 <span class="comment">%   subplot(3,2,5)</span>
+1113 <span class="comment">%   imagesc(res.currProj{1}),imgs_smart_caxis(0.0003,res.currImg{1}),axis([150 256 150 256])</span>
+1114 <span class="comment">%   subplot(3,2,6)</span>
+1115 <span class="comment">%   imagesc(res.currProj{2}),imgs_smart_caxis(0.0003,res.currImg{2}),axis([150 256 150 256])</span>
+1116 <span class="comment">%   mRay(i1) = getframe(gcf);</span>
+1117 <span class="comment">%   delete(ph)</span>
+1118 <span class="comment">% end</span>
+1119 <span class="comment">%</span>
+1120 <span class="comment">% ItC2 = ItC;</span>
+1121 <span class="comment">% ItC2(:,2:3) = ItC2(:,2:3)*1.05;</span>
+1122 <span class="comment">% ItC2(:,6) = ItC2(:,6)/1.05;</span>
+1123 <span class="comment">% for i1 = 1:size(ImStack{1},3),</span>
+1124 <span class="comment">%   Iq = ( wiener2(ImStack{1}(:,:,i1),[3,3]) - wiener2(imbg{1}(:,:,i1),[3,3]) ) * 1/C_filter6370;</span>
+1125 <span class="comment">%   stns(1).img = Iq;</span>
+1126 <span class="comment">%   Iq = ( wiener2(ImStack{3}(:,:,i1),[3,3]) - wiener2(imbg{3}(:,:,i1),[3,3]) ) * 1/C_filter7774;</span>
+1127 <span class="comment">%   stns(2).img = Iq;</span>
+1128 <span class="comment">%   res = err4FlamingRaysC(ItC2(i1,:),vpC,I0C,stns,{errMask,errMask},ZfI,XfI(:,:,115),YfI(:,:,115),{A2Z,A1Z},E,2,110);</span>
+1129 <span class="comment">%   IeRay(i1,:) = res.IeOutput{1};</span>
+1130 <span class="comment">% end</span>
+1131 <span class="comment">% hold off</span>
+1132 <span class="comment">% subplot(3,1,1)</span>
+1133 <span class="comment">% pcolor([1:20]*1/32,E*1e3,log10(IeRay')),shading flat,caxis([-5 0]+max(caxis))</span>
+1134 <span class="comment">% set(gca,'yscale','log')</span>
+1135 <span class="comment">% hold on</span>
+1136 <span class="comment">% for i1 = 1:size(ImStack{1},3),</span>
+1137 <span class="comment">%   Iq = ( wiener2(ImStack{1}(:,:,i1),[3,3]) - wiener2(imbg{1}(:,:,i1),[3,3]) ) * 1/C_filter6370;</span>
+1138 <span class="comment">%   stns(1).img = Iq;</span>
+1139 <span class="comment">%   Iq = ( wiener2(ImStack{3}(:,:,i1),[3,3]) - wiener2(imbg{3}(:,:,i1),[3,3]) ) * 1/C_filter7774;</span>
+1140 <span class="comment">%   stns(2).img = Iq;</span>
+1141 <span class="comment">%   res = err4FlamingRaysC(ItC2(i1,:),vpC,I0C,stns,{errMask,errMask},ZfI,XfI(:,:,115),YfI(:,:,115),{A2Z,A1Z},E,2,110);</span>
+1142 <span class="comment">%   subplot(3,1,1)</span>
+1143 <span class="comment">%   %semilogy(E,res.IeOutput{1})</span>
+1144 <span class="comment">%   ph = plot((i1+0.5)/32*[1 1],E([1,end])*1e3,'k');</span>
+1145 <span class="comment">%   subplot(3,2,3)</span>
+1146 <span class="comment">%   imagesc(res.currImg{1}),imgs_smart_caxis(0.0003,res.currImg{1}),axis([150 256 150 256])</span>
+1147 <span class="comment">%   subplot(3,2,4)</span>
+1148 <span class="comment">%   imagesc(res.currImg{2}),imgs_smart_caxis(0.0003,res.currImg{2}),axis([150 256 150 256])</span>
+1149 <span class="comment">%   subplot(3,2,5)</span>
+1150 <span class="comment">%   imagesc(res.currProj{1}),imgs_smart_caxis(0.0003,res.currImg{1}),axis([150 256 150 256])</span>
+1151 <span class="comment">%   subplot(3,2,6)</span>
+1152 <span class="comment">%   imagesc(res.currProj{2}),imgs_smart_caxis(0.0003,res.currImg{2}),axis([150 256 150 256])</span>
+1153 <span class="comment">%   mRay(i1) = getframe(gcf);</span>
+1154 <span class="comment">%   delete(ph)</span>
+1155 <span class="comment">% end</span>
+1156 <span class="comment">%</span>
+1157 <span class="comment">%</span>
+1158 <span class="comment">% for i1 = 1:size(ImStack{1},3),</span>
+1159 <span class="comment">%   Iq = ( wiener2(ImStack{1}(:,:,i1),[3,3]) - wiener2(imbg{1}(:,:,i1),[3,3]) ) * 1/C_filter6370;</span>
+1160 <span class="comment">%   stns(1).img = Iq;</span>
+1161 <span class="comment">%   Iq = ( wiener2(ImStack{3}(:,:,i1),[3,3]) - wiener2(imbg{3}(:,:,i1),[3,3]) ) * 1/C_filter7774;</span>
+1162 <span class="comment">%   stns(2).img = Iq;</span>
+1163 <span class="comment">%   pICMin(2:3) = ItC2(i1,2:3)-0.5;</span>
+1164 <span class="comment">%   pICMax(2:3) = ItC2(i1,2:3)+0.5;</span>
+1165 <span class="comment">%   parTest = fminsearchbnd(@(I) err4FlamingRaysC(I,vpC,I0C,stns,{errMask,errMask},ZfI,XfI(:,:,115),YfI(:,:,115),{A2Z,A1Z},E,1,110),ItC2(i1,:),pICMin,pICMax,fmsOPS);</span>
+1166 <span class="comment">%   ItC2(i1,:) = parTest;</span>
+1167 <span class="comment">% end</span>
+1168 <span class="comment">%</span>
+1169 <span class="comment">% pT = [  4.804</span>
+1170 <span class="comment">%       -6.0539</span>
+1171 <span class="comment">%     0.0020815</span>
+1172 <span class="comment">%        -13.27</span>
+1173 <span class="comment">%       0.39244</span>
+1174 <span class="comment">%        2.6325</span>
+1175 <span class="comment">%        3.3457</span>
+1176 <span class="comment">%        2.8948</span>
+1177 <span class="comment">%         2.581</span>
+1178 <span class="comment">%       0.44457</span>
+1179 <span class="comment">%        16.479</span>
+1180 <span class="comment">%        16.755</span>
+1181 <span class="comment">%      0.050126</span>
+1182 <span class="comment">%         2.333</span>
+1183 <span class="comment">%        1.6808];</span>
+1184 <span class="comment">%</span>
+1185 <span class="comment">% pT2 = [ 4.804</span>
+1186 <span class="comment">%       -6.0539</span>
+1187 <span class="comment">%     0.0020815</span>
+1188 <span class="comment">%        -13.27</span>
+1189 <span class="comment">%       0.39244</span>
+1190 <span class="comment">%        2.6325</span>
+1191 <span class="comment">%        3.3457</span>
+1192 <span class="comment">%        2.8948</span>
+1193 <span class="comment">%         2.581</span>
+1194 <span class="comment">%       0.44457</span>
+1195 <span class="comment">%        16.479</span>
+1196 <span class="comment">%        1.5893</span>
+1197 <span class="comment">%        16.752</span>
+1198 <span class="comment">%      0.050126</span>
+1199 <span class="comment">%         2.333</span>
+1200 <span class="comment">%       -1.6808];</span>
+1201 <span class="comment">%</span>
+1202 <span class="comment">% disp('Starts with the Fit-n-Run!')</span>
+1203 <span class="comment">% fmsOPS = optimset('fminsearch');</span>
+1204 <span class="comment">% fmsOPS.Display = 'iter';</span>
+1205 <span class="comment">%</span>
+1206 <span class="comment">% for iT = indices2run,</span>
+1207 <span class="comment">%   %errOps.saveruns = sprintf('errlog%s-%02d.dat',dOPS.saveFileBaseName,iT);</span>
+1208 <span class="comment">%</span>
+1209 <span class="comment">%   [I0v,I0,v_p,bias_val,bias_Amp,Iupper,Ilower] = arc_split_reordernmerge_I0vpNbias(Ibestest{iT},IstartGuesses{iT},1);</span>
+1210 <span class="comment">%   %whos I0v I0 v_p bias_val bias_Amp Iupper Ilower</span>
+1211 <span class="comment">%   CurrCuts = {4*Keos{1}(:,iT),Keos{3}(:,iT)};</span>
+1212 <span class="comment">%   %testE0 = errDeParallax2DiffuseS(I0v,v_p,I0,1e-12*trmtr2Dto1D,{4*A1Z,A2Z},E,CurrCuts,Y,Z,[],[],2);</span>
+1213 <span class="comment">%   if dOPS.Plot4ShowInRun</span>
+1214 <span class="comment">%     testRes = errDeParallax2DiffuseS(I0v,v_p,I0,1e-12*trmtr2Dto1D,{4*A1Z,A2Z},E,CurrCuts,Y,Z,[],[],2,z_max);</span>
+1215 <span class="comment">%     arc_split_plotTestRes1(testRes,iT,1,[],[],[])</span>
+1216 <span class="comment">%   end</span>
+1217 <span class="comment">%   %keyboard</span>
+1218 <span class="comment">%   disp(sprintf('%d %02d-%02d-%02d %02d:%02d:%05.2f',iT,clock))</span>
+1219 <span class="comment">%   [Ip1F{iT},fv1(iT),exitflag,output] = fminsearchbnd(@(I) errDeParallax2DiffuseS(I,v_p,I0,1e-12*trmtr2Dto1D,{4*A1Z,A2Z},E,CurrCuts,Y,Z,bias_Amp',bias_val',1,z_max),I0v,Ilower,Iupper,fmsOPS);</span>
+1220 <span class="comment">%   fmsOPS.Display = 'notify';</span>
+1221 <span class="comment">%   if dOPS.forReals</span>
+1222 <span class="comment">%     I0c = I0;</span>
+1223 <span class="comment">%     I0c(v_p) = Ip1F{iT};</span>
+1224 <span class="comment">%     I0c = I0c(v_p);</span>
+1225 <span class="comment">%     I0c = Ip1F{iT}; % Has to be identical to the above!</span>
+1226 <span class="comment">%     [Ip1{iT},fv2(iT),exitflag,output] = fminsearchbnd(@(I) errDeParallax2DiffuseS(I,v_p,I0,1e-12*trmtr2Dto1D,{4*A1Z,A2Z},E,CurrCuts,Y,Z,bias_Amp',bias_val',1,z_max),I0c,Ilower,Iupper,fmsOPS);</span>
+1227 <span class="comment">%     I0c = I0;</span>
+1228 <span class="comment">%     I0c(v_p) = Ip1{iT};</span>
+1229 <span class="comment">%     I0c = I0c(v_p);</span>
+1230 <span class="comment">%     I0c = Ip1{iT}; % Has to be identical to the above!</span>
+1231 <span class="comment">%     [Ip1{iT},fv2(iT),exitflag,output] = fminsearchbnd(@(I) errDeParallax2DiffuseS(I,v_p,I0,1e-12*trmtr2Dto1D,{4*A1Z,A2Z},E,CurrCuts,Y,Z,bias_Amp',bias_val',1,z_max),I0c,Ilower,Iupper,fmsOPS);</span>
+1232 <span class="comment">%     I0c = I0;</span>
+1233 <span class="comment">%     I0c(v_p) = Ip1{iT};</span>
+1234 <span class="comment">%     I0c = I0c(v_p);</span>
+1235 <span class="comment">%     I0c = Ip1{iT}; % Has to be identical to the above!</span>
+1236 <span class="comment">%     [Ip1{iT},fv2(iT),exitflag,output] = fminsearchbnd(@(I) errDeParallax2DiffuseS(I,v_p,I0,1e-12*trmtr2Dto1D,{4*A1Z,A2Z},E,CurrCuts,Y,Z,bias_Amp',bias_val',1,z_max),I0c,Ilower,Iupper,fmsOPS);</span>
+1237 <span class="comment">%   end</span>
+1238 <span class="comment">%   Ibest{iT} = Ip1{iT};</span>
+1239 <span class="comment">%   testRes = errDeParallax2DiffuseS(Ip1{iT},v_p,I0,1e-12*trmtr2Dto1D,{4*A1Z,A2Z},E,CurrCuts,Y,Z,[],[],2,z_max);</span>
+1240 <span class="comment">%</span>
+1241 <span class="comment">%   if dOPS.Plot4ShowInRun</span>
+1242 <span class="comment">%     arc_split_plotTestRes1(testRes,iT,2,[],[],[])</span>
+1243 <span class="comment">%     print('-depsc2','-painters',sprintf([dOPS.saveFileBaseName,'-%d-%03d'],dOPS.verNR,iT))</span>
+1244 <span class="comment">%   end</span>
+1245 <span class="comment">%   disp(sprintf('%d %02d-%02d-%02d %02d:%02d:%05.2f',iT,clock))</span>
+1246 <span class="comment">%   testresfile = sprintf('%s-%02d-%02d.mat',dOPS.saveFileBaseName,dOPS.verNR,iT);</span>
+1247 <span class="comment">%   save(testresfile,'testRes','Ibest')</span>
+1248 <span class="comment">%</span>
+1249 <span class="comment">% end</span>
+1250 <span class="comment">% ItC = It(:,[1,2,4,3,6:end])/2 + It(:,[1,2,4,5,6:end])/2</span>
+1251 <span class="comment">%</span>
+1252 <span class="comment">% ItC(20,:) = ItC(4,:);</span>
+1253 <span class="comment">% parTest = I0C(vpC)</span>
+1254 <span class="comment">% for i1 = 9:size(ImStack{1},3),</span>
+1255 <span class="comment">%   Iq = ( wiener2(ImStack{1}(:,:,i1),[3,3]) - wiener2(imbg{1}(:,:,i1),[3,3]) ) * 1/C_filter6370;</span>
+1256 <span class="comment">%   stns(1).img = Iq;</span>
+1257 <span class="comment">%   Iq = ( wiener2(ImStack{3}(:,:,i1),[3,3]) - wiener2(imbg{3}(:,:,i1),[3,3]) ) * 1/C_filter7774;</span>
+1258 <span class="comment">%   stns(2).img = Iq;</span>
+1259 <span class="comment">%   parTest = fminsearchbnd(@(I) err4FlamingRaysC(I,vpC,I0C,stns,{errMask,errMask},ZfI,XfI(:,:,115),YfI(:,:,115),{A2Z,A1Z},E,1,110),parTest,pICMin,pICMax,fmsOPS);</span>
+1260 <span class="comment">%   ItC(i1,:) = parTest;</span>
+1261 <span class="comment">%   disp(sprintf('Now after itteration %d ',i1))</span>
+1262 <span class="comment">%   save ItC20121128_C.mat ItC</span>
+1263 <span class="comment">% end</span></pre></div>
+<hr><address>Generated on Thu 21-Jun-2018 22:40:16 by <strong>B.&nbsp;Gustavsson</strong> with <strong><a href="http://www.artefact.tk/software/matlab/m2html/" target="_parent">m2html</a></strong> &copy; 2003</address>
+</body>
+</html>

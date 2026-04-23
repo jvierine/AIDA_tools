@@ -1,0 +1,448 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
+                "http://www.w3.org/TR/REC-html40/loose.dtd">
+<html>
+<head>
+  <title>Description of img_splinefilter</title>
+  <meta name="keywords" content="img_splinefilter">
+  <meta name="description" content="IMG_SPLINEFILTER - spline fitting optimum statistical filter">
+  <meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+  <meta name="generator" content="m2html &copy; 2003 Guillaume Flandin">
+  <meta name="robots" content="index, follow">
+  <link type="text/css" rel="stylesheet" href="../m2html.css">
+</head>
+<body>
+<a name="_top"></a>
+<!-- menu.html Imgtools -->
+<h1>img_splinefilter
+</h1>
+
+<h2><a name="_name"></a>PURPOSE <a href="#_top"><img alt="^" border="0" src="../up.png"></a></h2>
+<div class="box"><strong>IMG_SPLINEFILTER - spline fitting optimum statistical filter</strong></div>
+
+<h2><a name="_synopsis"></a>SYNOPSIS <a href="#_top"><img alt="^" border="0" src="../up.png"></a></h2>
+<div class="box"><strong>function [varargout] = img_splinefilter(img_in,OPS) </strong></div>
+
+<h2><a name="_description"></a>DESCRIPTION <a href="#_top"><img alt="^" border="0" src="../up.png"></a></h2>
+<div class="fragment"><pre class="comment"> IMG_SPLINEFILTER - spline fitting optimum statistical filter
+  IMG_SPLINEFILTER is a filter based on 2-dimensional least square
+  fitting splines. A sequence of 2-D splines with increasing
+  number of node-points is fitted to the input matrix IMG_IN,
+  for which the statistical characteristics the noise is supposed
+  to be known; the known distribution of the noise is used to
+  calculate statistical measures of the fits (standard deviation
+  ofthe scaled residuals, Akaike Information Criterion,
+  sum-of-squares between the distribution of residuals and the
+  expected residual distribution), the 
+
+   [varargout] = img_splinefilter(img_in,OPS)
+ Calling:
+   [Img,Imgs,Measures,BestIndxs] = img_splinefilter(img_in,OPS);
+   OPS = img_splinefilter
+ Input:
+   img_in - double array with input image to filter
+   OPS    - optional struct with parameters to control filtering
+ Output:
+   Img       - average of the images of the best values of the
+               different statistical measures
+   Imgs      - images 
+   Measures  - statistical measures [4 x (MaxKnots-MinKnots+1)]
+               with standar deviation of the scaled residuals on
+               the first row, sum-of-squares of the difference
+               between the scaled residual distribution and the
+               expected on row 2, sum-of-squares of the difference
+               between the scaled residual distribution and the
+               expected excluding the first and last bin  on row
+               3, and the Akaike Information Criteria on row 4.
+   BestIndxs - 
+   OPS       - Optional structure with parameters controling the
+               filtering, default options returned when function
+               called without input arguments. The fields are: 
+               Order [3], integer for spline order (3 - cubic splines)
+               MaxKnots [21], maximum number of node points in
+                        vertical and horizontal dimension 
+               MinKnots [2], minimum number of node points in
+                        vertical and horizontal dimension
+               NoisePdfF [@normcdf], cumulative distribution function of
+                        noise statistics, defaults to normal
+                        distributed noise.
+               NoisePdfExtraArgs [{}]; if there should be extra arguments to
+                        the NoisePdfF function, here is the
+                        cell array to put them into.
+               NoiseRange [-3 3] Range of noise to calculate the
+                        distribution of the pixel noise
+               nrNR [101], number of bins to calculate the
+                        residual histogram in
+               NoiseScaleFcn [@(I,Is) (I-Is)./Is.^.5], Function to scale
+                        the noise with, this example assumes that
+                        the noise in I is N(Is,sqrt(Is))
+               display [0|{1}|2], whether to display the filtering or not
+               pause [1], how long to pause during displaying, -1
+                        disables pausing 
+               medianFilter [3], reg-size to use for prefiltering image
+                        to fit the 2-D splines to, sometimes
+                        preferable (when there is spiky noise),
+                        statistics or residuals is calculated with
+                        input image
+ 
+ Example:
+  Img_in = (9+peaks(234))*100;             
+  Img_in = Img_in + Img_in.^.5.*randn(size(Img_in));
+  OPS = img_splinefilter;
+  OPS.pause = 0.25;  
+  OPS.MaxKnots = 41;                   
+  clf                             
+  [Img_out,Imgs_out,Measures,bestIdxs] = img_splinefilter(Img_in,OPS);</pre></div>
+
+<!-- crossreference -->
+<h2><a name="_cross"></a>CROSS-REFERENCE INFORMATION <a href="#_top"><img alt="^" border="0" src="../up.png"></a></h2>
+This function calls:
+<ul style="list-style-image:url(../matlabicon.gif)">
+<li><a href="imgs_smart_caxis.html" class="code" title="function cax = imgs_smart_caxis(alpha,varargin)">imgs_smart_caxis</a>	imgs_smart_caxis - alpha-percentile setting of color-axis,</li><li><a href="../tools/colorbar_labeled.html" class="code" title="function handle=colorbar_labeled(label,lg,varargin)">colorbar_labeled</a>	COLORBAR_LABELED - colorbar with label for range linear or log</li><li><a href="../tools/medfilt2.html" class="code" title="function outM = medfilt2(inM,fc,varargin)">medfilt2</a>	MEDFILT2 - 2 dimensional sliding median filter</li><li><a href="../tools/merge_structs.html" class="code" title="function S_out = merge_structs(S1,S2)">merge_structs</a>	MERGE_STRUCTS - Merge all fields of S2 into S1.</li></ul>
+This function is called by:
+<ul style="list-style-image:url(../matlabicon.gif)">
+</ul>
+<!-- crossreference -->
+
+
+<h2><a name="_source"></a>SOURCE CODE <a href="#_top"><img alt="^" border="0" src="../up.png"></a></h2>
+<div class="fragment"><pre>0001 <a name="_sub0" href="#_subfunctions" class="code">function [varargout] = img_splinefilter(img_in,OPS)</a>
+0002 <span class="comment">% IMG_SPLINEFILTER - spline fitting optimum statistical filter</span>
+0003 <span class="comment">%  IMG_SPLINEFILTER is a filter based on 2-dimensional least square</span>
+0004 <span class="comment">%  fitting splines. A sequence of 2-D splines with increasing</span>
+0005 <span class="comment">%  number of node-points is fitted to the input matrix IMG_IN,</span>
+0006 <span class="comment">%  for which the statistical characteristics the noise is supposed</span>
+0007 <span class="comment">%  to be known; the known distribution of the noise is used to</span>
+0008 <span class="comment">%  calculate statistical measures of the fits (standard deviation</span>
+0009 <span class="comment">%  ofthe scaled residuals, Akaike Information Criterion,</span>
+0010 <span class="comment">%  sum-of-squares between the distribution of residuals and the</span>
+0011 <span class="comment">%  expected residual distribution), the</span>
+0012 <span class="comment">%</span>
+0013 <span class="comment">%   [varargout] = img_splinefilter(img_in,OPS)</span>
+0014 <span class="comment">% Calling:</span>
+0015 <span class="comment">%   [Img,Imgs,Measures,BestIndxs] = img_splinefilter(img_in,OPS);</span>
+0016 <span class="comment">%   OPS = img_splinefilter</span>
+0017 <span class="comment">% Input:</span>
+0018 <span class="comment">%   img_in - double array with input image to filter</span>
+0019 <span class="comment">%   OPS    - optional struct with parameters to control filtering</span>
+0020 <span class="comment">% Output:</span>
+0021 <span class="comment">%   Img       - average of the images of the best values of the</span>
+0022 <span class="comment">%               different statistical measures</span>
+0023 <span class="comment">%   Imgs      - images</span>
+0024 <span class="comment">%   Measures  - statistical measures [4 x (MaxKnots-MinKnots+1)]</span>
+0025 <span class="comment">%               with standar deviation of the scaled residuals on</span>
+0026 <span class="comment">%               the first row, sum-of-squares of the difference</span>
+0027 <span class="comment">%               between the scaled residual distribution and the</span>
+0028 <span class="comment">%               expected on row 2, sum-of-squares of the difference</span>
+0029 <span class="comment">%               between the scaled residual distribution and the</span>
+0030 <span class="comment">%               expected excluding the first and last bin  on row</span>
+0031 <span class="comment">%               3, and the Akaike Information Criteria on row 4.</span>
+0032 <span class="comment">%   BestIndxs -</span>
+0033 <span class="comment">%   OPS       - Optional structure with parameters controling the</span>
+0034 <span class="comment">%               filtering, default options returned when function</span>
+0035 <span class="comment">%               called without input arguments. The fields are:</span>
+0036 <span class="comment">%               Order [3], integer for spline order (3 - cubic splines)</span>
+0037 <span class="comment">%               MaxKnots [21], maximum number of node points in</span>
+0038 <span class="comment">%                        vertical and horizontal dimension</span>
+0039 <span class="comment">%               MinKnots [2], minimum number of node points in</span>
+0040 <span class="comment">%                        vertical and horizontal dimension</span>
+0041 <span class="comment">%               NoisePdfF [@normcdf], cumulative distribution function of</span>
+0042 <span class="comment">%                        noise statistics, defaults to normal</span>
+0043 <span class="comment">%                        distributed noise.</span>
+0044 <span class="comment">%               NoisePdfExtraArgs [{}]; if there should be extra arguments to</span>
+0045 <span class="comment">%                        the NoisePdfF function, here is the</span>
+0046 <span class="comment">%                        cell array to put them into.</span>
+0047 <span class="comment">%               NoiseRange [-3 3] Range of noise to calculate the</span>
+0048 <span class="comment">%                        distribution of the pixel noise</span>
+0049 <span class="comment">%               nrNR [101], number of bins to calculate the</span>
+0050 <span class="comment">%                        residual histogram in</span>
+0051 <span class="comment">%               NoiseScaleFcn [@(I,Is) (I-Is)./Is.^.5], Function to scale</span>
+0052 <span class="comment">%                        the noise with, this example assumes that</span>
+0053 <span class="comment">%                        the noise in I is N(Is,sqrt(Is))</span>
+0054 <span class="comment">%               display [0|{1}|2], whether to display the filtering or not</span>
+0055 <span class="comment">%               pause [1], how long to pause during displaying, -1</span>
+0056 <span class="comment">%                        disables pausing</span>
+0057 <span class="comment">%               medianFilter [3], reg-size to use for prefiltering image</span>
+0058 <span class="comment">%                        to fit the 2-D splines to, sometimes</span>
+0059 <span class="comment">%                        preferable (when there is spiky noise),</span>
+0060 <span class="comment">%                        statistics or residuals is calculated with</span>
+0061 <span class="comment">%                        input image</span>
+0062 <span class="comment">%</span>
+0063 <span class="comment">% Example:</span>
+0064 <span class="comment">%  Img_in = (9+peaks(234))*100;</span>
+0065 <span class="comment">%  Img_in = Img_in + Img_in.^.5.*randn(size(Img_in));</span>
+0066 <span class="comment">%  OPS = img_splinefilter;</span>
+0067 <span class="comment">%  OPS.pause = 0.25;</span>
+0068 <span class="comment">%  OPS.MaxKnots = 41;</span>
+0069 <span class="comment">%  clf</span>
+0070 <span class="comment">%  [Img_out,Imgs_out,Measures,bestIdxs] = img_splinefilter(Img_in,OPS);</span>
+0071 
+0072 <span class="comment">%   Copyright � 20110105 Bjorn Gustavsson, &lt;bjorn.gustavsson@irf.se&gt;</span>
+0073 <span class="comment">%   This is free software, licensed under GNU GPL version 2 or later</span>
+0074 
+0075 
+0076 <span class="comment">%% 1 Make the default options:</span>
+0077 dOPS.Order = 3;             <span class="comment">% Spline order (3 - cubic splines)</span>
+0078 dOPS.MaxKnots = 21;         <span class="comment">% Maximum number of node points in</span>
+0079                             <span class="comment">% vertical and horizontal dimension</span>
+0080 dOPS.MinKnots = 2;          <span class="comment">% Minimum number of node points in</span>
+0081                             <span class="comment">% vertical and horizontal dimension</span>
+0082 dOPS.NoisePdfF = @normcdf;  <span class="comment">% Cumulative distribution function of</span>
+0083                             <span class="comment">% noise statistics, defaults to normal</span>
+0084                             <span class="comment">% distributed noise.</span>
+0085 dOPS.NoisePdfExtraArgs = {};<span class="comment">% If there should be extra arguments to</span>
+0086                             <span class="comment">% the NoisePdfF function, here is the</span>
+0087                             <span class="comment">% cell array to put it into.</span>
+0088 dOPS.NoiseRange = [-3 3];   <span class="comment">% Range of noise to calculate the</span>
+0089                             <span class="comment">% distribution of the pixel noise</span>
+0090 dOPS.nrNR = 101;            <span class="comment">% Number of bins to calculate the</span>
+0091                             <span class="comment">% histogram in</span>
+0092 dOPS.NoiseScaleFcn = @(I,Is) (I-Is)./Is.^.5; <span class="comment">% Function to scale</span>
+0093                                              <span class="comment">% the noise with, this</span>
+0094                                              <span class="comment">% example assumes that</span>
+0095                                              <span class="comment">% the noise in I is N(Is,sqrt(Is))</span>
+0096 dOPS.display = 1;  <span class="comment">% Whether to display the filtering or not</span>
+0097 dOPS.pause = 1;    <span class="comment">% How long to pause during displaing, -1 disables</span>
+0098 dOPS.medianFilter = 3;    <span class="comment">% reg-size to use for prefiltering image</span>
+0099                           <span class="comment">% to fit the 2-D splines to</span>
+0100 
+0101 <span class="comment">%% 2 merge user-supplied options ontop of defaults:</span>
+0102 <span class="keyword">if</span> nargin == 0
+0103   varargout{1} = dOPS;
+0104   <span class="keyword">return</span>
+0105 <span class="keyword">elseif</span> nargin &gt; 1
+0106   dOPS = <a href="../tools/merge_structs.html" class="code" title="function S_out = merge_structs(S1,S2)">merge_structs</a>(dOPS,OPS);
+0107 <span class="keyword">end</span>
+0108 
+0109 <span class="comment">%% 3 Extract parameters</span>
+0110 order = dOPS.Order;
+0111 max_knts = dOPS.MaxKnots;
+0112 min_knts = dOPS.MinKnots;
+0113 NoiseScaleFcn = dOPS.NoiseScaleFcn;
+0114 NoisePdfF = dOPS.NoisePdfF;
+0115 
+0116 <span class="comment">%% 4 Allocate big numbers to the statistical measures:</span>
+0117 stdI = inf*ones(1,max_knts);
+0118 nfit = stdI;
+0119 nfit2 = stdI;
+0120 AIC = stdI;
+0121 
+0122 <span class="comment">%% 5 set-up of additional parameters for the statistical measures:</span>
+0123 <span class="comment">% coordinates for the scaled residuals (normal-distributed noise</span>
+0124 <span class="comment">% statistics are scaled to become N(0,1) so typical values of</span>
+0125 <span class="comment">% NoiseRange is something like +/-3)</span>
+0126 x = linspace(dOPS.NoiseRange(1),dOPS.NoiseRange(2),dOPS.nrNR);
+0127 x = [-inf,x,inf];
+0128 hI = zeros(max_knts,length(x));
+0129 eDfit = hI(:,1:end-1);
+0130 <span class="comment">%% 6 build the proper noise-distribution</span>
+0131 <span class="keyword">if</span> isempty(dOPS.NoisePdfExtraArgs)
+0132   <span class="comment">% In case it is simple</span>
+0133   nc01 = NoisePdfF(x);
+0134 <span class="keyword">else</span>
+0135   <span class="comment">% or needs extra arguments:</span>
+0136   nc01 = NoisePdfF(x,dOPS.NoisePdfExtraArgs{:});
+0137 <span class="keyword">end</span>
+0138 <span class="comment">% Convert the cumulative distribution values to probability</span>
+0139 <span class="comment">% densities:</span>
+0140 n01 = diff(nc01);
+0141 
+0142 <span class="comment">%% 7 In case pre-filtering with median-filter is requested</span>
+0143 <span class="keyword">if</span> dOPS.medianFilter &gt; 0,
+0144   img2fit = <a href="../tools/medfilt2.html" class="code" title="function outM = medfilt2(inM,fc,varargin)">medfilt2</a>(img_in,[1,1].*dOPS.medianFilter);
+0145 <span class="keyword">else</span>
+0146   img2fit = img_in;
+0147 <span class="keyword">end</span>
+0148 sz = size(img_in);
+0149 
+0150 <span class="comment">%% 8 Setup for displaying:</span>
+0151 <span class="keyword">if</span> dOPS.display == 1
+0152   phImgIn = subplot(2,3,1);
+0153   imagesc(img_in)
+0154   title(<span class="string">'Img_{in}'</span>)
+0155   cx = <a href="imgs_smart_caxis.html" class="code" title="function cax = imgs_smart_caxis(alpha,varargin)">imgs_smart_caxis</a>(0.003,img_in(:));
+0156 <span class="keyword">elseif</span> dOPS.display == 2
+0157   <span class="comment">% This variant seems a bit iffy when it comes to not crashing</span>
+0158   <span class="comment">% indx2plot = round(linspace(max(10,min_knts),max_knts-8,5));</span>
+0159   <span class="comment">% while this might be more robust...</span>
+0160   indx2plot = round(linspace(min_knts,max_knts,5));
+0161   spp_org = [2,1,1;4,5,11;4,5,12;4,5,13;4,5,14;4,5,15;5,1,4;5,1,5];
+0162   <span class="keyword">for</span> i1 = 1:(length(spp_org)-2),
+0163     sph(i1) = subplot(spp_org(i1,1),spp_org(i1,2),spp_org(i1,3));
+0164     axP{i1} = get(sph(i1),<span class="string">'position'</span>);
+0165   <span class="keyword">end</span>
+0166   dx = axP{i1}(1) - (axP{i1-1}(1)+axP{i1-1}(3));
+0167   <span class="keyword">for</span> i1 = 2:length(spp_org)-2,
+0168     set(sph(i1),<span class="string">'position'</span>,axP{i1}+[-(i1-2)/5*dx,axP{1}(2)-(axP{i1}(2)+axP{i1}(4)),4/5*dx,0])
+0169     axP{i1} = get(sph(i1),<span class="string">'position'</span>);
+0170   <span class="keyword">end</span>
+0171   axes(sph(1))
+0172   imagesc(img_in),set(gca,<span class="string">'xticklabel'</span>,<span class="string">''</span>)
+0173   cx = <a href="imgs_smart_caxis.html" class="code" title="function cax = imgs_smart_caxis(alpha,varargin)">imgs_smart_caxis</a>(0.003,img_in(:));
+0174   cblh = <a href="../tools/colorbar_labeled.html" class="code" title="function handle=colorbar_labeled(label,lg,varargin)">colorbar_labeled</a>(<span class="string">'Counts'</span>,<span class="string">'linear'</span>,<span class="string">'fontsize'</span>,12);
+0175   cblP = get(cblh,<span class="string">'position'</span>);
+0176   <span class="comment">%set(cblh,'position',[cblP(1)-0.01,axP{6}(2),cblP(3)+0.0,cblP(2)+cblP(4)-axP{6}(2)])</span>
+0177   set(cblh,<span class="string">'position'</span>,cblP+[-0.01,0,0,0])
+0178   <span class="keyword">for</span> i1 = (length(spp_org)-1):length(spp_org),
+0179     sph(i1) = subplot(spp_org(i1,1),spp_org(i1,2),spp_org(i1,3));
+0180     axP{i1} = get(sph(i1),<span class="string">'position'</span>);
+0181   <span class="keyword">end</span>
+0182   dy = axP{end-2}(2) - (axP{end-1}(2)+axP{end-1}(4));
+0183   set(sph(end-1),<span class="string">'position'</span>,axP{end-1}+[0,0,0,dy])
+0184   dy = axP{end-1}(2) - (axP{end}(2)+axP{end}(4));
+0185   set(sph(end),<span class="string">'position'</span>,axP{end}+[0,0,0,dy])
+0186   
+0187 <span class="keyword">end</span>
+0188 
+0189 <span class="comment">%% 9 actual filtering sequence</span>
+0190 <span class="keyword">for</span> i1 = min_knts:max_knts,
+0191   <span class="comment">% i1-length knot-point sequence</span>
+0192   knts = augknt(linspace(1,sz(1),i1),order);
+0193   <span class="comment">% Least square spline approximant:</span>
+0194   sI(i1) = spap2({knts,knts},[1,1]*order,{1:sz(1),1:sz(2)},img2fit);
+0195   <span class="comment">% with the corresponding least square spline approximation image</span>
+0196   Is = fnval(sI(i1),{1:sz(1),1:sz(2)});
+0197   
+0198   <span class="comment">% Calculate histogram of the scaled residual:</span>
+0199   hI(i1,:) = histc(NoiseScaleFcn(img_in(:),max(1,Is(:))),x);
+0200   <span class="comment">% Calculate the sum-of-squares between the &quot;residual histogram&quot;</span>
+0201   <span class="comment">% and a normal-distributed pdf:</span>
+0202   nfit(i1) = sum((hI(i1,1:end-1)/sum(hI(i1,:))-n01).^2);
+0203   nfit2(i1) = sum((hI(i1,2:end-2)/sum(hI(i1,2:end-2))-n01(2:end-1)).^2);
+0204   <span class="comment">% Calculate the standard deviation of the scaled residual:</span>
+0205   stdI(i1) = std(NoiseScaleFcn(img_in(:),max(1,Is(:))));
+0206   <span class="comment">% Calculate the Akaike Information Criteria:</span>
+0207   AIC(i1) = (sum(NoiseScaleFcn(img_in(:),max(1,Is(:))).^2)) + <span class="keyword">...</span>
+0208             (prod(sz)+length(knts)^2)/(prod(sz)-length(knts)^2-2);
+0209   <span class="comment">%  BIC(i1) = Do the same with the Bayesian information criteria</span>
+0210   BIC(i1) = (sum(NoiseScaleFcn(img_in(:),max(1,Is(:))).^2)) + <span class="keyword">...</span>
+0211             (length(knts)^2)*log(prod(sz));
+0212   
+0213   <span class="comment">% Save away the difference between the histogram and the</span>
+0214   <span class="comment">% normal-pdf:</span>
+0215   eDfit(i1,:) = hI(i1,1:end-1)/sum(hI(i1,1:end-1))-n01;
+0216   <span class="comment">%Idiff(i1) = mean((I(:)-Is(:)).^2);</span>
+0217   
+0218   
+0219   <span class="comment">% For displaying the current lsqfs-filtered image:</span>
+0220   <span class="keyword">if</span> dOPS.display == 1
+0221     subplot(2,3,3)
+0222     imagesc(Is),caxis(cx)
+0223     hold on
+0224     <span class="comment">% with the corresponding node points:</span>
+0225     <span class="keyword">if</span> i1 &lt; 20
+0226       [Kntx,Knty] = meshgrid(knts,knts);
+0227       plot(Kntx,Knty,<span class="string">'k+'</span>)
+0228     <span class="keyword">end</span>
+0229     hold off
+0230     title(<span class="string">'Img_N'</span>)
+0231     
+0232     subplot(2,3,2)
+0233     imagesc(img_in - Is),<a href="imgs_smart_caxis.html" class="code" title="function cax = imgs_smart_caxis(alpha,varargin)">imgs_smart_caxis</a>(0.005,img_in - Is)
+0234     title(<span class="string">'Scaled Img_{in}-Img_N'</span>)
+0235     
+0236     subplot(2,1,2)
+0237     ph = stairs(x,hI(i1,:)/sum(hI(i1,:)),<span class="string">'r'</span>,<span class="string">'linewidth'</span>,3);
+0238     hold on,
+0239     plot(x(2:end-1),n01(2:end),<span class="string">'b'</span>,<span class="string">'linewidth'</span>,3),
+0240     title(num2str([i1, stdI(i1), nfit(i1)]))
+0241     axis([x([2,end-1]) 0 1.2*max(n01(2:end))])
+0242     drawnow
+0243     <span class="keyword">if</span> dOPS.pause &gt; 0 &amp;&amp; i1 &gt; min_knts
+0244       pause(dOPS.pause)
+0245     <span class="keyword">elseif</span> dOPS.pause == 0 || i1 == min_knts
+0246       disp(<span class="string">'push any key'</span>)
+0247       pause
+0248     <span class="keyword">end</span>
+0249     set(ph,<span class="string">'color'</span>,<span class="string">'k'</span>,<span class="string">'linewidth'</span>,1),
+0250   <span class="keyword">elseif</span> dOPS.display == 2 &amp;&amp; any(i1==indx2plot)
+0251     i2p = 1+ find(i1==indx2plot);
+0252     axes(sph(i2p))
+0253     imagesc(Is),caxis(cx),
+0254     <span class="keyword">if</span> i2p &gt; 2
+0255       set(gca,<span class="string">'xticklabel'</span>,<span class="string">''</span>,<span class="string">'yticklabel'</span>,<span class="string">''</span>)
+0256     <span class="keyword">else</span>
+0257       set(gca,<span class="string">'xticklabel'</span>,<span class="string">''</span>)
+0258     <span class="keyword">end</span>
+0259     text(10,30,num2str(i1),<span class="string">'fontweight'</span>,<span class="string">'bold'</span>)
+0260   <span class="keyword">end</span>
+0261 <span class="keyword">end</span>
+0262 
+0263 <span class="keyword">if</span> dOPS.display == 1
+0264   subplot(2,2,4)
+0265   imagesc(1:size(eDfit,1),x(2:end-1),eDfit'),caxis([-1 1]/200)
+0266   ylabel(<span class="string">'Residual'</span>,<span class="string">'fontsize'</span>,14)
+0267   xlabel(<span class="string">'# knot-points per dimension'</span>,<span class="string">'fontsize'</span>,14)
+0268   title(<span class="string">'Residual distribution error'</span>,<span class="string">'fontsize'</span>,14)
+0269   <a href="../tools/colorbar_labeled.html" class="code" title="function handle=colorbar_labeled(label,lg,varargin)">colorbar_labeled</a>(<span class="string">''</span>,<span class="string">'linear'</span>,<span class="string">'fontsize'</span>,12)
+0270   subplot(2,2,3)
+0271   hold off
+0272   
+0273   
+0274   ph = semilogy(min_knts:max_knts,0.0001+[abs(stdI(min_knts:end)-1);
+0275                       400*(nfit(min_knts:end)-min(nfit(min_knts:end)));
+0276                       (AIC(min_knts:end)-min(AIC(min_knts:end)));
+0277                       (BIC(min_knts:end)-min(BIC(min_knts:end)));
+0278                       400*(nfit2(min_knts:end)-min(nfit2(min_knts:end)))],<span class="string">'.-'</span>);
+0279   axis tight
+0280   title(<span class="string">'Fit-measures'</span>,<span class="string">'fontsize'</span>,14)
+0281   xlabel(<span class="string">'# knot-points per dimension'</span>,<span class="string">'fontsize'</span>,14)
+0282   set(gca,<span class="string">'ytick'</span>,[1e-4 1e-2 1e0])
+0283   legend(ph,<span class="string">'abs(std-1)'</span>,<span class="string">'pdf-diff'</span>,<span class="string">'AIC'</span>,<span class="string">'BIC'</span>,<span class="string">'pdf-fit2'</span>)
+0284   
+0285 <span class="keyword">elseif</span> dOPS.display == 2
+0286   
+0287   
+0288   axes(sph(end))
+0289   ph = semilogy(min_knts:max_knts,0.0001+[abs(stdI(min_knts:end)-1);
+0290                       400*(nfit(min_knts:end)-min(nfit(min_knts:end)));
+0291                       (AIC(min_knts:end)-min(AIC(min_knts:end)));
+0292                       400*(nfit2(min_knts:end)-min(nfit2(min_knts:end)))],<span class="string">'.-'</span>);
+0293   axis tight
+0294   ylabel(<span class="string">'Fit-measures'</span>,<span class="string">'fontsize'</span>,14)
+0295   xlabel(<span class="string">'# knot-points per dimension'</span>,<span class="string">'fontsize'</span>,14)
+0296   set(gca,<span class="string">'ytick'</span>,[1e-4 1e-2 1e0])
+0297   legend(ph,<span class="string">'abs(std-1)'</span>,<span class="string">'pdf-diff'</span>,<span class="string">'AIC'</span>,<span class="string">'pdf-fit2'</span>)
+0298   
+0299   axes(sph(end-1))
+0300   imagesc(1:size(eDfit,1),x(2:end-1),eDfit'),caxis([-1 1]/200)
+0301   ylabel(<span class="string">'Residual'</span>,<span class="string">'fontsize'</span>,14)
+0302   <span class="comment">%xlabel('# knot-points per dimension','fontsize',14)</span>
+0303   <span class="comment">%title('Residual distribution error','fontsize',14)</span>
+0304   set(gca,<span class="string">'xticklabel'</span>,<span class="string">''</span>)
+0305   <a href="../tools/colorbar_labeled.html" class="code" title="function handle=colorbar_labeled(label,lg,varargin)">colorbar_labeled</a>(<span class="string">'\Delta # pixels'</span>,<span class="string">'linear'</span>,<span class="string">'fontsize'</span>,12)
+0306   
+0307 <span class="keyword">end</span>
+0308 [sNfit,isNfit] = sort(nfit(min_knts:end));
+0309 [sNfit2,isNfit2] = sort(nfit2(min_knts:end));
+0310 [sStdI,isStdI] = sort(abs(stdI(min_knts:end)-1));
+0311 [sAIC,isAIC] = sort(AIC(min_knts:end));
+0312 [sBIC,isBIC] = sort(BIC(min_knts:end));
+0313 <span class="keyword">if</span> nargout == 0
+0314   disp([isNfit(1:5)+min_knts-1;sNfit(1:5);stdI(isNfit(1:5)+min_knts-1)])
+0315   disp([isStdI(1:5)+min_knts-1;sNfit(isStdI(1:5)+min_knts-1);stdI(isStdI(1:5)+min_knts-1)])
+0316   disp([isAIC(1:5)+min_knts-1;sAIC(1:5)])
+0317 <span class="keyword">else</span>
+0318   
+0319   Measures = [stdI(min_knts:end);nfit(min_knts:end);nfit2(min_knts:end);AIC(min_knts:end)];
+0320   
+0321   BestIndxs = [isNfit(1),isNfit2(1),isStdI(1),isAIC(1),isBIC(1)];
+0322   Img = 0;
+0323   <span class="keyword">for</span> i1 = 1:length(BestIndxs),
+0324     Imgs{i1} = fnval(sI(BestIndxs(i1)+min_knts-1),{1:sz(1),1:sz(2)});
+0325     Img = Img+Imgs{i1}/length(BestIndxs);
+0326   <span class="keyword">end</span>
+0327   varargout{1} = Img;
+0328   varargout{2} = Imgs;
+0329   varargout{3} = Measures;
+0330   varargout{4} = BestIndxs;
+0331   <span class="keyword">if</span> dOPS.display == 1
+0332     subplot(2,3,3)
+0333     imagesc(Img)
+0334     caxis(cx)
+0335   <span class="keyword">end</span>
+0336   
+0337 <span class="keyword">end</span>
+0338</pre></div>
+<hr><address>Generated on Thu 21-Jun-2018 22:40:16 by <strong>B.&nbsp;Gustavsson</strong> with <strong><a href="http://www.artefact.tk/software/matlab/m2html/" target="_parent">m2html</a></strong> &copy; 2003</address>
+</body>
+</html>

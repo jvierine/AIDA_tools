@@ -1,0 +1,113 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
+                "http://www.w3.org/TR/REC-html40/loose.dtd">
+<html>
+<head>
+  <title>Description of newGACT_snippetStart</title>
+  <meta name="keywords" content="newGACT_snippetStart">
+  <meta name="description" content="% Automatic triangulation function to determine the peak altitude of">
+  <meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+  <meta name="generator" content="m2html &copy; 2003 Guillaume Flandin">
+  <meta name="robots" content="index, follow">
+  <link type="text/css" rel="stylesheet" href="../m2html.css">
+</head>
+<body>
+<a name="_top"></a>
+<!-- menu.html Tomography -->
+<h1>newGACT_snippetStart
+</h1>
+
+<h2><a name="_name"></a>PURPOSE <a href="#_top"><img alt="^" border="0" src="../up.png"></a></h2>
+<div class="box"><strong>% Automatic triangulation function to determine the peak altitude of</strong></div>
+
+<h2><a name="_synopsis"></a>SYNOPSIS <a href="#_top"><img alt="^" border="0" src="../up.png"></a></h2>
+<div class="box"><strong>This is a script file. </strong></div>
+
+<h2><a name="_description"></a>DESCRIPTION <a href="#_top"><img alt="^" border="0" src="../up.png"></a></h2>
+<div class="fragment"><pre class="comment">% Automatic triangulation function to determine the peak altitude of 
+ the emissions and hence the first guess for the tomography reconstruction
+ of ALIS.
+ to be called in tomography script
+ Bjorn Gustavsson (c) 2012
+ mod. C. Simon Wedlund Jan. 2012</pre></div>
+
+<!-- crossreference -->
+<h2><a name="_cross"></a>CROSS-REFERENCE INFORMATION <a href="#_top"><img alt="^" border="0" src="../up.png"></a></h2>
+This function calls:
+<ul style="list-style-image:url(../matlabicon.gif)">
+<li><a href="tomo_setup4reduced2D.html" class="code" title="function [trmtrs,U,V,X,Y,Z] = tomo_setup4reduced2D(stns,OPS)">tomo_setup4reduced2D</a>	tomo_setup4reduced2D - Set up coordinates and projection matrices</li><li><a href="../tools/ionization_profile_matrix.html" class="code" title="function [A] = ionization_profile_matrix(h,E,nO,nN2,nO2,density,OPTS)">ionization_profile_matrix</a>	IONIZATION_PROFILE_MATRIX - calculate ionization profiles</li></ul>
+This function is called by:
+<ul style="list-style-image:url(../matlabicon.gif)">
+<li><a href="../Examples/tomo20080305NewBeginnings.html" class="code" title="">tomo20080305NewBeginnings</a>	TOMO20080305NewBeginnings - script for tomographing ALIS 20080305 event, 18:40 UT</li><li><a href="tomo20080305NewBeginnings.html" class="code" title="">tomo20080305NewBeginnings</a>	TOMO20080305NewBeginnings - script for tomographing ALIS 20080305 event, 18:40 UT</li><li><a href="tomo20080305restart201708_01.html" class="code" title="">tomo20080305restart201708_01</a>	TOMO20080305NewBeginnings - script for tomographing ALIS 20080305 event, 18:40 UT</li></ul>
+<!-- crossreference -->
+
+
+<h2><a name="_source"></a>SOURCE CODE <a href="#_top"><img alt="^" border="0" src="../up.png"></a></h2>
+<div class="fragment"><pre>0001 <span class="comment">%% Automatic triangulation function to determine the peak altitude of</span>
+0002 <span class="comment">% the emissions and hence the first guess for the tomography reconstruction</span>
+0003 <span class="comment">% of ALIS.</span>
+0004 <span class="comment">% to be called in tomography script</span>
+0005 <span class="comment">% Bjorn Gustavsson (c) 2012</span>
+0006 <span class="comment">% mod. C. Simon Wedlund Jan. 2012</span>
+0007 
+0008 
+0009 <span class="comment">%%## Clunky-fix of lookup-things for tomo_setup4reduced2D:</span>
+0010 stns(1).obs.optpar = stns(1).optpar;
+0011 stns(2).obs.optpar = stns(2).optpar;
+0012 stns(3).obs.optpar = stns(3).optpar;
+0013 <span class="comment">%%## That function looks for the optpars in stns.obs.optpar - I</span>
+0014 <span class="comment">%%## dont dare to fidget around too much at the moment to change</span>
+0015 <span class="comment">%%## this...</span>
+0016 
+0017 OPS4red2D = <a href="tomo_setup4reduced2D.html" class="code" title="function [trmtrs,U,V,X,Y,Z] = tomo_setup4reduced2D(stns,OPS)">tomo_setup4reduced2D</a>;
+0018 OPS4red2D.PlotStuff = 1;  <span class="comment">% plots activated or not</span>
+0019 OPS4red2D.ds = 1;
+0020 OPS4red2D.zmax = 115;
+0021 <span class="comment">%% Determines the directions of the plane intersecting the two first</span>
+0022 <span class="comment">% stations and parallel to the B-field, as a reference plane for future</span>
+0023 <span class="comment">% projections. First station is Skibotn and is the reference station.</span>
+0024 <span class="comment">% 1D slices/cuts of the intensity distribution in this plane will be used</span>
+0025 <span class="comment">% to determine the altitude/energy/intensity for the first guess of the</span>
+0026 <span class="comment">% tomography reconstruction</span>
+0027 [M2Dto1D_12,U12,V12,X12,Y12,Z12] = <a href="tomo_setup4reduced2D.html" class="code" title="function [trmtrs,U,V,X,Y,Z] = tomo_setup4reduced2D(stns,OPS)">tomo_setup4reduced2D</a>(stns(1:2),OPS4red2D);
+0028 [M2Dto1D_13,U13,V13,X13,Y13,Z13] = <a href="tomo_setup4reduced2D.html" class="code" title="function [trmtrs,U,V,X,Y,Z] = tomo_setup4reduced2D(stns,OPS)">tomo_setup4reduced2D</a>(stns([1,3]),OPS4red2D);
+0029 
+0030 <span class="comment">%NEEEEEEEEEEEEEeeeeeeeeeeeewwwwwwwwwwwwwwsssssssssss! 20120220</span>
+0031 <span class="comment">% Am we need for calculations in the 2-D slice, that has its own</span>
+0032 <span class="comment">% altitude grid - I know, this will force us to more</span>
+0033 <span class="comment">% reinterpolations and mess...</span>
+0034 z2D = squeeze(Z12(1,1,:)); <span class="comment">% This is the altitude grid we need to</span>
+0035                            <span class="comment">% calculate the auroral production</span>
+0036                            <span class="comment">% matrices for.</span>
+0037 
+0038 <span class="comment">% Just to get an MSIS at the right altitudes:</span>
+0039 <span class="comment">% [nHe,nO,nN2,nO2,nAr,Mass,nH,nN,Tex,Tn] = msis(dateNtime4MSIS,z2D,69.2,21,70,87,3);</span>
+0040 f107a = MSISpars_f107af107pap(1);
+0041 f107p = MSISpars_f107af107pap(2);
+0042 ap = MSISpars_f107af107pap(3);
+0043 <span class="comment">% Currently broken f-mexing of msis.mex [nHe,nO,nN2,nO2,nAr,Mass,nH,nN,Tex,Tn] = msis(stns(1).obs.time,z2D,stns(1).obs.longlat(2),stns(1).obs.longlat(1),f107a,f107p,ap);</span>
+0044 load MSISE_00_day64_F70_Ap15.dat
+0045 h_msis = MSISE_00_day64_F70_Ap15(:,1);
+0046 nHe = interp1(h_msis,MSISE_00_day64_F70_Ap15(:,6)*1e6,z2D,<span class="string">'linear'</span>,<span class="string">'extrap'</span>);
+0047 nO =  interp1(h_msis,MSISE_00_day64_F70_Ap15(:,7)*1e6,z2D,<span class="string">'linear'</span>,<span class="string">'extrap'</span>);
+0048 nN2 = interp1(h_msis,MSISE_00_day64_F70_Ap15(:,8)*1e6,z2D,<span class="string">'linear'</span>,<span class="string">'extrap'</span>);
+0049 nO2 = interp1(h_msis,MSISE_00_day64_F70_Ap15(:,9)*1e6,z2D,<span class="string">'linear'</span>,<span class="string">'extrap'</span>);
+0050 nAr = interp1(h_msis,MSISE_00_day64_F70_Ap15(:,10)*1e6,z2D,<span class="string">'linear'</span>,<span class="string">'extrap'</span>);
+0051 nH =  interp1(h_msis,MSISE_00_day64_F70_Ap15(:,11)*1e6,z2D,<span class="string">'linear'</span>,<span class="string">'extrap'</span>);
+0052 nN =  interp1(h_msis,MSISE_00_day64_F70_Ap15(:,12)*1e6,z2D,<span class="string">'linear'</span>,<span class="string">'extrap'</span>);
+0053 Mass = interp1(h_msis,MSISE_00_day64_F70_Ap15(:,14)*1e3,z2D,<span class="string">'linear'</span>,<span class="string">'extrap'</span>);
+0054 Tex =  interp1(h_msis,MSISE_00_day64_F70_Ap15(:,15),z2D,<span class="string">'linear'</span>,<span class="string">'extrap'</span>);
+0055 Tn  = interp1(h_msis,MSISE_00_day64_F70_Ap15(:,16),z2D,<span class="string">'linear'</span>,<span class="string">'extrap'</span>);
+0056 semilogx([nN2,nO2,nO,Mass],z2D)
+0057 <span class="comment">%%## Removed, due to no clue about opts4ISR2IeofE: Am = ionization_profile_matrix(z2D,Energy,nO,nN2,nO2,Mass,opts4ISR2IeofE);</span>
+0058 Am = <a href="../tools/ionization_profile_matrix.html" class="code" title="function [A] = ionization_profile_matrix(h,E,nO,nN2,nO2,density,OPTS)">ionization_profile_matrix</a>(z2D,Energy,nO,nN2,nO2,Mass);
+0059 <span class="comment">%%## Change here to more real altitude</span>
+0060 <span class="comment">%production-profile-matrices... (If even needed, it is needed for</span>
+0061 <span class="comment">%getting a physical intepretation of the starttguesses' electron</span>
+0062 <span class="comment">%spectra, not necessarily otherwise...)</span>
+0063 Ie2H5577 = Am;
+0064 Ie2H4278 = Am;
+0065 Ie2H = {Ie2H5577,Ie2H5577}; <span class="comment">% This one will be used by the</span>
+0066                             <span class="comment">% err_GACT-function...</span></pre></div>
+<hr><address>Generated on Thu 21-Jun-2018 22:40:16 by <strong>B.&nbsp;Gustavsson</strong> with <strong><a href="http://www.artefact.tk/software/matlab/m2html/" target="_parent">m2html</a></strong> &copy; 2003</address>
+</body>
+</html>

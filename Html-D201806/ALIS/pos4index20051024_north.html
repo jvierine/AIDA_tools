@@ -1,0 +1,70 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
+                "http://www.w3.org/TR/REC-html40/loose.dtd">
+<html>
+<head>
+  <title>Description of pos4index20051024_north</title>
+  <meta name="keywords" content="pos4index20051024_north">
+  <meta name="description" content="pos4index20051024_north - ALIS fields-of-view for position: INDEX-rocket">
+  <meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+  <meta name="generator" content="m2html &copy; 2003 Guillaume Flandin">
+  <meta name="robots" content="index, follow">
+  <link type="text/css" rel="stylesheet" href="../m2html.css">
+</head>
+<body>
+<a name="_top"></a>
+<!-- menu.html ALIS -->
+<h1>pos4index20051024_north
+</h1>
+
+<h2><a name="_name"></a>PURPOSE <a href="#_top"><img alt="^" border="0" src="../up.png"></a></h2>
+<div class="box"><strong>pos4index20051024_north - ALIS fields-of-view for position: INDEX-rocket</strong></div>
+
+<h2><a name="_synopsis"></a>SYNOPSIS <a href="#_top"><img alt="^" border="0" src="../up.png"></a></h2>
+<div class="box"><strong>This is a script file. </strong></div>
+
+<h2><a name="_description"></a>DESCRIPTION <a href="#_top"><img alt="^" border="0" src="../up.png"></a></h2>
+<div class="fragment"><pre class="comment"> pos4index20051024_north - ALIS fields-of-view for position: INDEX-rocket</pre></div>
+
+<!-- crossreference -->
+<h2><a name="_cross"></a>CROSS-REFERENCE INFORMATION <a href="#_top"><img alt="^" border="0" src="../up.png"></a></h2>
+This function calls:
+<ul style="list-style-image:url(../matlabicon.gif)">
+<li><a href="../EARTH/nscand_map.html" class="code" title="function PH = nscand_map(latlong_or_xyz,axlim)">nscand_map</a>	NSCAND_MAP - plot topographic mat over northern Scandinavia</li></ul>
+This function is called by:
+<ul style="list-style-image:url(../matlabicon.gif)">
+</ul>
+<!-- crossreference -->
+
+
+<h2><a name="_source"></a>SOURCE CODE <a href="#_top"><img alt="^" border="0" src="../up.png"></a></h2>
+<div class="fragment"><pre>0001 <span class="comment">% pos4index20051024_north - ALIS fields-of-view for position: INDEX-rocket</span>
+0002 
+0003 OPS = alis_visiblevol;
+0004 OPS.LL = 1;
+0005 OPS.linewidth = 2;
+0006 OP = OPS;
+0007 OP = rmfield(OP,<span class="string">'clrs'</span>);
+0008 PH = <a href="../EARTH/nscand_map.html" class="code" title="function PH = nscand_map(latlong_or_xyz,axlim)">nscand_map</a>(<span class="string">'l'</span>);
+0009 hold on
+0010 OPS.clrs = [0 0 0];
+0011 h3 = alis_visiblevol(3,311, 15,110,60,0,OP);
+0012 <span class="comment">%h4 = alis_visiblevol(4,355, 33,110,60,0,OP);</span>
+0013 h4 = alis_visiblevol(4,5, 33,110,60,0,OP);
+0014 h5 = alis_visiblevol(5,85,  30,110,60,0,OP);
+0015 OPS.clrs = [.9 .6 0];
+0016 h11 = alis_visiblevol(11,0,0,0,90,0,OPS);
+0017 OPS.clrs = [.6 0 1];
+0018 h10 = alis_visiblevol(10,180,10,110,90,0,OPS);
+0019 axis([15 26 67 71])
+0020 OPS.clrs = [0 0 0];
+0021 h1 = alis_visiblevol(1,20,  20,110,60,0,OPS);
+0022 plot3(longIndx,latIndx,hIndx,<span class="string">'w-'</span>,<span class="string">'linewidth'</span>,2)
+0023 plot3(sat_pos(:,3),sat_pos(:,2),sat_pos(:,end),<span class="string">'k.--'</span>)
+0024 axis([15 26 67 71])
+0025 set(gca,<span class="string">'fontsize'</span>,14)
+0026 set(gca,<span class="string">'fontsize'</span>,15)
+0027 xlabel(<span class="string">'Longitude'</span>)
+0028 ylabel(<span class="string">'Latitude'</span>)</pre></div>
+<hr><address>Generated on Thu 21-Jun-2018 22:40:16 by <strong>B.&nbsp;Gustavsson</strong> with <strong><a href="http://www.artefact.tk/software/matlab/m2html/" target="_parent">m2html</a></strong> &copy; 2003</address>
+</body>
+</html>

@@ -1,0 +1,47 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
+                "http://www.w3.org/TR/REC-html40/loose.dtd">
+<html>
+<head>
+  <title>Description of starfitcmp</title>
+  <meta name="keywords" content="starfitcmp">
+  <meta name="description" content="">
+  <meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+  <meta name="generator" content="m2html &copy; 2003 Guillaume Flandin">
+  <meta name="robots" content="index, follow">
+  <link type="text/css" rel="stylesheet" href="../m2html.css">
+</head>
+<body>
+<a name="_top"></a>
+<!-- menu.html Starcal -->
+<h1>starfitcmp
+</h1>
+
+<h2><a name="_name"></a>PURPOSE <a href="#_top"><img alt="^" border="0" src="../up.png"></a></h2>
+<div class="box"><strong></strong></div>
+
+<h2><a name="_synopsis"></a>SYNOPSIS <a href="#_top"><img alt="^" border="0" src="../up.png"></a></h2>
+<div class="box"><strong>This is a script file. </strong></div>
+
+<h2><a name="_description"></a>DESCRIPTION <a href="#_top"><img alt="^" border="0" src="../up.png"></a></h2>
+<div class="fragment"><pre class="comment"></pre></div>
+
+<!-- crossreference -->
+<h2><a name="_cross"></a>CROSS-REFERENCE INFORMATION <a href="#_top"><img alt="^" border="0" src="../up.png"></a></h2>
+This function calls:
+<ul style="list-style-image:url(../matlabicon.gif)">
+<li><a href="stardiff2.html" class="code" title="function [diff] = stardiff2(fv,xStar,yStar,starmat,x0,y0,d_x0y0)">stardiff2</a>	STARDIFF2 - total error of starfield fit.</li></ul>
+This function is called by:
+<ul style="list-style-image:url(../matlabicon.gif)">
+</ul>
+<!-- crossreference -->
+
+
+<h2><a name="_source"></a>SOURCE CODE <a href="#_top"><img alt="^" border="0" src="../up.png"></a></h2>
+<div class="fragment"><pre>0001 starpar = fminsearch(@(startvec) stardiff(startvec,xmin,xmax,ymin,ymax,starmat),startvec);<span class="comment">%updstraut.m</span>
+0002 starpar = fminsearch(@(startvec) <a href="stardiff2.html" class="code" title="function [diff] = stardiff2(fv,xStar,yStar,starmat,x0,y0,d_x0y0)">stardiff2</a>(startvec,xmin,xmax,ymin,ymax,starmat-bakgr2,x0,y0),startvec);<span class="comment">%autoidentify#1</span>
+0003 starpar = fminsearch(@(startvec) stardiff (startvec,xmin,xmax,ymin,ymax,starmat),startvec);<span class="comment">%autoidentify#2</span>
+0004 
+0005</pre></div>
+<hr><address>Generated on Thu 21-Jun-2018 22:40:16 by <strong>B.&nbsp;Gustavsson</strong> with <strong><a href="http://www.artefact.tk/software/matlab/m2html/" target="_parent">m2html</a></strong> &copy; 2003</address>
+</body>
+</html>

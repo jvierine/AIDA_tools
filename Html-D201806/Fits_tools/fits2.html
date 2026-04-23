@@ -1,0 +1,157 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
+                "http://www.w3.org/TR/REC-html40/loose.dtd">
+<html>
+<head>
+  <title>Description of fits2</title>
+  <meta name="keywords" content="fits2">
+  <meta name="description" content="FITS2 reads fits files stored in BE">
+  <meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+  <meta name="generator" content="m2html &copy; 2003 Guillaume Flandin">
+  <meta name="robots" content="index, follow">
+  <link type="text/css" rel="stylesheet" href="../m2html.css">
+</head>
+<body>
+<a name="_top"></a>
+<!-- menu.html Fits_tools -->
+<h1>fits2
+</h1>
+
+<h2><a name="_name"></a>PURPOSE <a href="#_top"><img alt="^" border="0" src="../up.png"></a></h2>
+<div class="box"><strong>FITS2 reads fits files stored in BE</strong></div>
+
+<h2><a name="_synopsis"></a>SYNOPSIS <a href="#_top"><img alt="^" border="0" src="../up.png"></a></h2>
+<div class="box"><strong>function [header,data] = fits2(name) </strong></div>
+
+<h2><a name="_description"></a>DESCRIPTION <a href="#_top"><img alt="^" border="0" src="../up.png"></a></h2>
+<div class="fragment"><pre class="comment"> FITS2 reads fits files stored in BE
+
+ Calling:
+ [header,data] = fits2(name)
+
+ INPUT:
+   NAME - file name
+
+ OUTPUT:
+   HEADER - primary fits header
+   DATA - first data block
+ Not tested for multi-header data, does not read multi dimensional
+ fits files</pre></div>
+
+<!-- crossreference -->
+<h2><a name="_cross"></a>CROSS-REFERENCE INFORMATION <a href="#_top"><img alt="^" border="0" src="../up.png"></a></h2>
+This function calls:
+<ul style="list-style-image:url(../matlabicon.gif)">
+<li><a href="fitsfindkey.html" class="code" title="function [i] = fitsfindkey(V,S)">fitsfindkey</a>	fitsfindkey - Searches a FITS header V for keyword S</li></ul>
+This function is called by:
+<ul style="list-style-image:url(../matlabicon.gif)">
+<li><a href="../Examples/ADA_1_loadnpreproc_p.html" class="code" title="">ADA_1_loadnpreproc_p</a>	% Loading and pre-processing of ALIS data</li><li><a href="fix_ccdcam6.html" class="code" title="">fix_ccdcam6</a>	Template/example of how to fix the "interesting" placement of</li><li><a href="read_img.html" class="code" title="function [img_out,img_head,obs] = read_img(filename,PREPRO_OPS)">read_img</a>	READ_IMG - reads image data and process header info.</li></ul>
+<!-- crossreference -->
+
+
+<h2><a name="_source"></a>SOURCE CODE <a href="#_top"><img alt="^" border="0" src="../up.png"></a></h2>
+<div class="fragment"><pre>0001 <a name="_sub0" href="#_subfunctions" class="code">function [header,data] = fits2(name)</a>
+0002 <span class="comment">% FITS2 reads fits files stored in BE</span>
+0003 <span class="comment">%</span>
+0004 <span class="comment">% Calling:</span>
+0005 <span class="comment">% [header,data] = fits2(name)</span>
+0006 <span class="comment">%</span>
+0007 <span class="comment">% INPUT:</span>
+0008 <span class="comment">%   NAME - file name</span>
+0009 <span class="comment">%</span>
+0010 <span class="comment">% OUTPUT:</span>
+0011 <span class="comment">%   HEADER - primary fits header</span>
+0012 <span class="comment">%   DATA - first data block</span>
+0013 <span class="comment">% Not tested for multi-header data, does not read multi dimensional</span>
+0014 <span class="comment">% fits files</span>
+0015 
+0016 <span class="comment">%   Copyright � 19970709 Bjorn Gustavsson, &lt;bjorn.gustavsson@irf.se&gt;</span>
+0017 <span class="comment">%   This is free software, licensed under GNU GPL version 2 or later</span>
+0018 
+0019 no_end_yet = 1;
+0020 reached_endoffile = 0;
+0021 
+0022 <span class="comment">% Try to open file:</span>
+0023 [fid] = fopen(strtrim(name),<span class="string">'r'</span>,<span class="string">'ieee-be'</span>);
+0024 <span class="keyword">if</span> (fid == -1),
+0025   error([<span class="string">'Could not open file: '</span>,name])
+0026 <span class="keyword">end</span>
+0027 i1=1;
+0028 
+0029 <span class="comment">% Start with reading FITS-header:</span>
+0030 <span class="keyword">while</span> ( no_end_yet )
+0031   
+0032   s = fread(fid,80,<span class="string">'char'</span>);
+0033   
+0034   st=char(s');
+0035   
+0036   <span class="keyword">if</span> ( strncmp(st,<span class="string">'END'</span>,3) == 1 )
+0037   
+0038     no_end_yet = 0;
+0039     
+0040   <span class="keyword">end</span>
+0041   <span class="comment">% Buld cell arrays of fits-key word and key-values</span>
+0042   key{i1} = sscanf(st,<span class="string">'%8s='</span>,1);
+0043   keyval{i1}=deblank(st(10:end));
+0044   <span class="comment">% And an ordinary char-array</span>
+0045   <span class="keyword">if</span> ( i1 == 1 )
+0046     header = st;
+0047   <span class="keyword">else</span>
+0048     <span class="comment">% header = str2mat(header,st);</span>
+0049     header = char(header,st);
+0050   <span class="keyword">end</span>
+0051   i1=i1+1;
+0052   <span class="keyword">if</span> feof(fid)
+0053     reached_endoffile = 1;
+0054     <span class="keyword">break</span>
+0055   <span class="keyword">end</span>
+0056 <span class="keyword">end</span>
+0057 <span class="comment">% If we've reached End-Of-File before we've gotten an end of the</span>
+0058 <span class="comment">% header...</span>
+0059 <span class="keyword">if</span> no_end_yet || reached_endoffile
+0060   data = [];
+0061   disp([<span class="string">'There is something fishy with fits file: '</span>,name])
+0062   <span class="keyword">return</span>
+0063 <span class="keyword">end</span>
+0064 i1 = i1-1;
+0065 <span class="keyword">while</span> rem(i1,36) ~= 0
+0066   fread(fid,80,<span class="string">'char'</span>);
+0067   i1 = i1+1;
+0068 <span class="keyword">end</span>
+0069 
+0070 <span class="keyword">if</span> ( nargout &gt; 1 )
+0071   <span class="comment">% by now we should be able to tell the dimensions of the image in</span>
+0072   <span class="comment">% the current fits-file:</span>
+0073   sx=sscanf(keyval{<a href="fitsfindkey.html" class="code" title="function [i] = fitsfindkey(V,S)">fitsfindkey</a>(key,<span class="string">'NAXIS1'</span>)},<span class="string">'%d'</span>);
+0074   sy=sscanf(keyval{<a href="fitsfindkey.html" class="code" title="function [i] = fitsfindkey(V,S)">fitsfindkey</a>(key,<span class="string">'NAXIS2'</span>)},<span class="string">'%d'</span>);
+0075   <span class="comment">% ...and the data format/number of bits per pixel:</span>
+0076   bitpix=sscanf(keyval{<a href="fitsfindkey.html" class="code" title="function [i] = fitsfindkey(V,S)">fitsfindkey</a>(key,<span class="string">'BITPIX'</span>)},<span class="string">'%d'</span>);
+0077   <span class="comment">% with those three numbers we should be able to read the image</span>
+0078   <span class="comment">% field:</span>
+0079   data=0;
+0080   <span class="keyword">if</span> bitpix==8,
+0081     data=fread(fid,[sx,sy],<span class="string">'uint8'</span>);
+0082   <span class="keyword">end</span>
+0083   <span class="keyword">if</span> bitpix==16,
+0084     data=fread(fid,[sx,sy],<span class="string">'int16'</span>);
+0085   <span class="keyword">end</span>
+0086   <span class="keyword">if</span> bitpix==32,
+0087     data=fread(fid,[sx,sy],<span class="string">'int32'</span>);
+0088   <span class="keyword">end</span>
+0089   <span class="keyword">if</span> bitpix==-32,
+0090     data=fread(fid,[sx,sy],<span class="string">'float32'</span>);
+0091   <span class="keyword">end</span>
+0092   <span class="keyword">if</span> bitpix==-64,
+0093     data=fread(fid,[sx,sy],<span class="string">'float64'</span>);
+0094   <span class="keyword">end</span>
+0095   
+0096   data = data';
+0097   <span class="keyword">if</span> ~all(size(data)==[sy sx])
+0098     data(sy,sx) = 0;
+0099   <span class="keyword">end</span>
+0100   
+0101 <span class="keyword">end</span>
+0102 fclose(fid);
+0103 <span class="comment">% before we leave we close the file after us!</span></pre></div>
+<hr><address>Generated on Thu 21-Jun-2018 22:40:16 by <strong>B.&nbsp;Gustavsson</strong> with <strong><a href="http://www.artefact.tk/software/matlab/m2html/" target="_parent">m2html</a></strong> &copy; 2003</address>
+</body>
+</html>

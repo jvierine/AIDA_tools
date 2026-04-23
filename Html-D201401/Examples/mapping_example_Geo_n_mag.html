@@ -1,0 +1,97 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
+                "http://www.w3.org/TR/REC-html40/loose.dtd">
+<html>
+<head>
+  <title>Description of mapping_example_Geo_n_mag</title>
+  <meta name="keywords" content="mapping_example_Geo_n_mag">
+  <meta name="description" content="% Example script for projecting an All-sky image to lat-long grid">
+  <meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+  <meta name="generator" content="m2html &copy; 2003 Guillaume Flandin">
+  <meta name="robots" content="index, follow">
+  <link type="text/css" rel="stylesheet" href="../m2html.css">
+</head>
+<body>
+<a name="_top"></a>
+<!-- menu.html Examples -->
+<h1>mapping_example_Geo_n_mag
+</h1>
+
+<h2><a name="_name"></a>PURPOSE <a href="#_top"><img alt="^" border="0" src="../up.png"></a></h2>
+<div class="box"><strong>% Example script for projecting an All-sky image to lat-long grid</strong></div>
+
+<h2><a name="_synopsis"></a>SYNOPSIS <a href="#_top"><img alt="^" border="0" src="../up.png"></a></h2>
+<div class="box"><strong>This is a script file. </strong></div>
+
+<h2><a name="_description"></a>DESCRIPTION <a href="#_top"><img alt="^" border="0" src="../up.png"></a></h2>
+<div class="fragment"><pre class="comment">% Example script for projecting an All-sky image to lat-long grid</pre></div>
+
+<!-- crossreference -->
+<h2><a name="_cross"></a>CROSS-REFERENCE INFORMATION <a href="#_top"><img alt="^" border="0" src="../up.png"></a></h2>
+This function calls:
+<ul style="list-style-image:url(../matlabicon.gif)">
+<li><a href="../Camera/inv_proj_img_ll.html" class="code" title="function Im_proj = inv_proj_img_ll(img_in,optmod,optpar,lat0,long0,alt0,lat,long,alt,ze_max)">inv_proj_img_ll</a>	INV_PROJ_IMG_LL - map IMG_IN to a latitude-longitude grid LAT, LONG</li><li><a href="../EARTH/geo2mag.html" class="code" title="function [mLong,mLat] = geo2mag(Long,Lat,longMpole,latMpole)">geo2mag</a>	GEO2MAG - Convert from geographic to geomagnetic coordinates</li><li><a href="../EARTH/geo2mag95.html" class="code" title="function [mLong,mLat] = geo2mag95(Long,Lat)">geo2mag95</a>	GEO2MAG95 - Convert from geographic to geomagnetic coordinates</li></ul>
+This function is called by:
+<ul style="list-style-image:url(../matlabicon.gif)">
+</ul>
+<!-- crossreference -->
+
+
+<h2><a name="_source"></a>SOURCE CODE <a href="#_top"><img alt="^" border="0" src="../up.png"></a></h2>
+<div class="fragment"><pre>0001 <span class="comment">%% Example script for projecting an All-sky image to lat-long grid</span>
+0002 
+0003 <span class="comment">%%</span>
+0004 <span class="comment">% It is assumed that a geometric calibration has been done with</span>
+0005 <span class="comment">% AIDA-tools starcal function giving optical parameters describing</span>
+0006 <span class="comment">% the geometric character and rotation of the camera (or any other</span>
+0007 <span class="comment">% function giving the consistent parameters). The optical</span>
+0008 <span class="comment">% parameters are expected to be in a variable: optpRamfjordNIPR here.</span>
+0009 <span class="comment">%</span>
+0010 
+0011 <span class="comment">%% Dependencies:</span>
+0012 <span class="comment">% * This script uses several functions from AIDA_tools</span>
+0013 <span class="comment">% * Further the script uses functions from the m_map toolbox</span>
+0014 <span class="comment">%   available from: http://www.eos.ubc.ca/~rich/map.html</span>
+0015 
+0016 
+0017 Ramfjord_long = 19 + 13/60 + 38/3600;
+0018 Ramfjord_lat = 69 + 35/60 + 11/3600;
+0019 optpRamfjordNIPR = [-0.71846, -0.7096, -1.1126, 0.6338, 0.91097, 0.0020362,0.016534, 0.47431, 2, 0];
+0020 
+0021 <span class="comment">%% Define a geographic lat-long grid:</span>
+0022 [Long,Lat] = meshgrid(linspace(7,31,500),linspace(65,74,506));
+0023 <span class="comment">%% Project an ASC-image to that long-lat grid at 105 km of altitude:</span>
+0024 Im_projLL = <a href="../Camera/inv_proj_img_ll.html" class="code" title="function Im_proj = inv_proj_img_ll(img_in,optmod,optpar,lat0,long0,alt0,lat,long,alt,ze_max)">inv_proj_img_ll</a>(d,<span class="keyword">...</span>
+0025                             optpRamfjordNIPR(9),optpRamfjordNIPR,<span class="keyword">...</span>
+0026                             Ramfjord_lat,Ramfjord_long,0.15,<span class="keyword">...</span>
+0027                             Lat,Long,105,80);
+0028 
+0029 <span class="comment">%% Prepare for geomagnetic grid:</span>
+0030 <span class="comment">%% Convert the geographic grid to geomagnetic:</span>
+0031 [mLong,mLat] = <a href="../EARTH/geo2mag95.html" class="code" title="function [mLong,mLat] = geo2mag95(Long,Lat)">geo2mag95</a>(Long,Lat);
+0032 [mLong,mLat] = <a href="../EARTH/geo2mag.html" class="code" title="function [mLong,mLat] = geo2mag(Long,Lat,longMpole,latMpole)">geo2mag</a>(Long,Lat);
+0033 
+0034 <span class="comment">%% Plot the projected image on the 2 grids:</span>
+0035 subplot(1,2,2)
+0036 m_coord(<span class="string">'IGRF2000-geomagnetic'</span>); <span class="comment">% Now assume that values are in geomagnetic</span>
+0037 m_proj(<span class="string">'lambert'</span>,<span class="string">'long'</span>,[100 135],<span class="string">'lat'</span>,[60 80]);
+0038 m_pcolor(mLong,mLat,Im_projLL),shading flat
+0039 <span class="comment">% m_coast</span>
+0040 <span class="keyword">try</span>
+0041   m_usercoast(<span class="string">'Lambert-0-35E-65-80N'</span>,<span class="string">'color'</span>,<span class="string">'k'</span>,<span class="string">'linewidth'</span>,1);
+0042 <span class="keyword">catch</span>
+0043   m_gshhs_i(<span class="string">'save'</span>,<span class="string">'Lambert-0-35E-65-80N'</span>);
+0044   m_usercoast(<span class="string">'Lambert-0-35E-65-80N'</span>,<span class="string">'color'</span>,<span class="string">'k'</span>,<span class="string">'linewidth'</span>,1);
+0045 <span class="keyword">end</span>
+0046 m_grid(<span class="string">'box'</span>,<span class="string">'fancy'</span>,<span class="string">'tickdir'</span>,<span class="string">'in'</span>);
+0047 subplot(1,2,1)
+0048 m_coord(<span class="string">'geographic'</span>); <span class="comment">% Define all in geographic,,,</span>
+0049 m_proj(<span class="string">'lambert'</span>,<span class="string">'long'</span>,[7 31],<span class="string">'lat'</span>,[65 74]);   
+0050 m_pcolor(Long,Lat,Im_projLL),shading flat
+0051 m_coast
+0052 m_grid(<span class="string">'box'</span>,<span class="string">'fancy'</span>,<span class="string">'tickdir'</span>,<span class="string">'in'</span>);
+0053 
+0054 <span class="comment">%% If desired print figure to file:</span>
+0055 <span class="comment">% print -depsc2 -painters Geo-n-Mag-mappings.eps</span></pre></div>
+<hr><address>Generated on Mon 27-Jan-2014 17:32:33 by <strong>B.&nbsp;Gustavsson</strong> with <strong><a href="http://www.artefact.tk/software/matlab/m2html/" target="_parent">m2html</a></strong> &copy; 2003</address>
+</body>
+</html>

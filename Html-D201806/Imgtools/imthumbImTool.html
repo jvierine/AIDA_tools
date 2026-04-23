@@ -1,0 +1,232 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
+                "http://www.w3.org/TR/REC-html40/loose.dtd">
+<html>
+<head>
+  <title>Description of imthumbImTool</title>
+  <meta name="keywords" content="imthumbImTool">
+  <meta name="description" content="IMTHUMBIMTOOL - display image and intensities in centre line and column">
+  <meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+  <meta name="generator" content="m2html &copy; 2003 Guillaume Flandin">
+  <meta name="robots" content="index, follow">
+  <link type="text/css" rel="stylesheet" href="../m2html.css">
+</head>
+<body>
+<a name="_top"></a>
+<!-- menu.html Imgtools -->
+<h1>imthumbImTool
+</h1>
+
+<h2><a name="_name"></a>PURPOSE <a href="#_top"><img alt="^" border="0" src="../up.png"></a></h2>
+<div class="box"><strong>IMTHUMBIMTOOL - display image and intensities in centre line and column</strong></div>
+
+<h2><a name="_synopsis"></a>SYNOPSIS <a href="#_top"><img alt="^" border="0" src="../up.png"></a></h2>
+<div class="box"><strong>function imH = imthumbImTool(im,ops) </strong></div>
+
+<h2><a name="_description"></a>DESCRIPTION <a href="#_top"><img alt="^" border="0" src="../up.png"></a></h2>
+<div class="fragment"><pre class="comment"> IMTHUMBIMTOOL - display image and intensities in centre line and column
+   Works for both RGB-images and grayscale images.
+
+ Calling:
+   imH = imthumbImTool(im)
+ Input:
+   im - image, either [nR x nC x 3] rgb-image, or [nR x nC]
+        gray-scale image</pre></div>
+
+<!-- crossreference -->
+<h2><a name="_cross"></a>CROSS-REFERENCE INFORMATION <a href="#_top"><img alt="^" border="0" src="../up.png"></a></h2>
+This function calls:
+<ul style="list-style-image:url(../matlabicon.gif)">
+<li><a href="../tools/colorbar_labeled.html" class="code" title="function handle=colorbar_labeled(label,lg,varargin)">colorbar_labeled</a>	COLORBAR_LABELED - colorbar with label for range linear or log</li></ul>
+This function is called by:
+<ul style="list-style-image:url(../matlabicon.gif)">
+<li><a href="imthumb_load_n_show.html" class="code" title="function ph = imthumb_load_n_show(filename,figHandle)">imthumb_load_n_show</a>	LOAD_N_SHOW - Callback wrapper function for loading and</li></ul>
+<!-- crossreference -->
+
+
+<h2><a name="_source"></a>SOURCE CODE <a href="#_top"><img alt="^" border="0" src="../up.png"></a></h2>
+<div class="fragment"><pre>0001 <a name="_sub0" href="#_subfunctions" class="code">function imH = imthumbImTool(im,ops)</a>
+0002 <span class="comment">% IMTHUMBIMTOOL - display image and intensities in centre line and column</span>
+0003 <span class="comment">%   Works for both RGB-images and grayscale images.</span>
+0004 <span class="comment">%</span>
+0005 <span class="comment">% Calling:</span>
+0006 <span class="comment">%   imH = imthumbImTool(im)</span>
+0007 <span class="comment">% Input:</span>
+0008 <span class="comment">%   im - image, either [nR x nC x 3] rgb-image, or [nR x nC]</span>
+0009 <span class="comment">%        gray-scale image</span>
+0010 
+0011 
+0012 <span class="comment">%   Copyright � 20140122 Bjorn Gustavsson, &lt;bjorn.gustavsson@irf.se&gt;</span>
+0013 <span class="comment">%   This is free software, licensed under GNU GPL version 2 or later</span>
+0014 
+0015 clf
+0016 
+0017 <span class="comment">% A layout where the image display covers 4x4 subplots out of 5x5</span>
+0018 <span class="comment">% and the line-cuts get 4x1 and 1x4 subplots seems like an OK</span>
+0019 <span class="comment">% layout:</span>
+0020 axImg = subplot(5,5,[1:4,6:9,11:14,16:19]);
+0021 
+0022 <span class="comment">% Displaying of image</span>
+0023 <span class="keyword">if</span> strcmpi(ops.ImShowFcn,<span class="string">'imagesc'</span>)
+0024   imH = imagesc(im);
+0025 <span class="keyword">else</span>
+0026   imH = imshow(im,<span class="string">'Parent'</span>,axImg);
+0027 <span class="keyword">end</span>
+0028 
+0029 set(gca,<span class="string">'xticklabel'</span>,<span class="string">''</span>,<span class="string">'tickdir'</span>,<span class="string">'out'</span>)
+0030 imsz = size(im);
+0031 axIm = axis;
+0032 clbH = [];
+0033 hold on
+0034 
+0035 <span class="comment">% With central line and column plotted ontop:</span>
+0036 phX = plot([1 imsz(2)],imsz(1)*[1,1]/2,<span class="string">'k--'</span>,<span class="string">'linewidth'</span>,0.5);
+0037 phY = plot([1 1]*imsz(2)/2,[1 imsz(1)],<span class="string">'k--'</span>,<span class="string">'linewidth'</span>,0.5);
+0038 
+0039 
+0040 <span class="keyword">if</span> length(imsz) &gt; 2 <span class="comment">% RGB</span>
+0041   
+0042   <span class="comment">%% Then we should plot the R, G and B chanels along those central</span>
+0043   <span class="comment">%  cuts on the right side of the image:</span>
+0044   axC = subplot(5,5,[5:5:20]); <span class="comment">%#ok&lt;*NBRAK&gt;</span>
+0045   pC = plot(axC,squeeze(im(:,round(imsz(2)/2),:)),1:size(im,1),<span class="keyword">...</span>
+0046             <span class="string">'linewidth'</span>,ops.LineWidths,<span class="keyword">...</span>
+0047             <span class="string">'linestyle'</span>,ops.LineStyles);
+0048   ax_C = axis;
+0049   axis([ax_C(1:2),axIm(3:4)])
+0050   set(gca,<span class="string">'ydir'</span>,get(axImg,<span class="string">'ydir'</span>)) <span class="comment">% Give the column plot the same</span>
+0051                                     <span class="comment">% direction of the</span>
+0052                                     <span class="comment">% pixel/vertical coordinate</span>
+0053   set(gca,<span class="string">'yaxisLocation'</span>,<span class="string">'right'</span>,<span class="string">'yticklabel'</span>,<span class="string">''</span>)
+0054   <span class="comment">% and below the bottom of the image:</span>
+0055   axR = subplot(5,5,21:24);
+0056   pR = plot(axR,1:size(im,2),squeeze(im(round(imsz(1)/2),:,:)),<span class="keyword">...</span>
+0057             <span class="string">'linewidth'</span>,ops.LineWidths,<span class="keyword">...</span>
+0058             <span class="string">'linestyle'</span>,ops.LineStyles);
+0059   ax_R = axis;
+0060   axis([axIm(1:2),ax_R(3:4)])
+0061   set(gca,<span class="string">'xdir'</span>,get(axImg,<span class="string">'xdir'</span>))
+0062   <span class="comment">% Set the correct colors of the lines:</span>
+0063   set(pR(1),<span class="string">'color'</span>,<span class="string">'r'</span>)
+0064   set(pR(2),<span class="string">'color'</span>,<span class="string">'g'</span>)
+0065   set(pR(3),<span class="string">'color'</span>,<span class="string">'b'</span>)
+0066   set(pC(1),<span class="string">'color'</span>,<span class="string">'r'</span>)
+0067   set(pC(2),<span class="string">'color'</span>,<span class="string">'g'</span>)
+0068   set(pC(3),<span class="string">'color'</span>,<span class="string">'b'</span>)
+0069   imR = im(:,:,1);
+0070   imG = im(:,:,2);
+0071   imB = im(:,:,3);
+0072   
+0073   [imHist(:,1)] = hist(double(imR(:)),unique(double(im(:))));
+0074   [imHist(:,2)] = hist(double(imG(:)),unique(double(im(:))));
+0075   [imHist(:,3)] = hist(double(imB(:)),unique(double(im(:))));
+0076   
+0077   xHist = unique(double(im(:)));
+0078   
+0079 <span class="keyword">else</span>
+0080   
+0081   <span class="comment">% We have a gray-scale image so same as above, except only for</span>
+0082   <span class="comment">% one pair of image intensity curves:</span>
+0083   colormap(gray)
+0084   axC = subplot(5,5,[5:5:20]);
+0085   plot(axC,squeeze(im(:,round(imsz(2)/2))),1:size(im,1),<span class="keyword">...</span>
+0086        <span class="string">'linewidth'</span>,ops.LineWidths,<span class="keyword">...</span>
+0087        <span class="string">'linestyle'</span>,ops.LineStyles,<span class="keyword">...</span>
+0088        <span class="string">'color'</span>,    ops.LineColor);
+0089   ax_C = axis;
+0090   axis([ax_C(1:2),axIm(3:4)])
+0091   
+0092   set(gca,<span class="string">'ydir'</span>,get(axImg,<span class="string">'ydir'</span>))
+0093   set(gca,<span class="string">'yaxisLocation'</span>,<span class="string">'right'</span>,<span class="string">'yticklabel'</span>,<span class="string">''</span>)
+0094   axR = subplot(5,5,21:24);
+0095   plot(axR,1:size(im,2),squeeze(im(round(imsz(1)/2),:)),<span class="keyword">...</span>
+0096        <span class="string">'linewidth'</span>,ops.LineWidths,<span class="keyword">...</span>
+0097        <span class="string">'linestyle'</span>,ops.LineStyles,<span class="keyword">...</span>
+0098        <span class="string">'color'</span>,    ops.LineColor);
+0099   ax_R = axis;
+0100   axis([axIm(1:2),ax_R(3:4)])
+0101   set(gca,<span class="string">'xdir'</span>,get(axImg,<span class="string">'xdir'</span>))
+0102   
+0103   [imHist,xHist] = hist(double(im(:)),unique(double(im(:))));
+0104   <span class="keyword">if</span> strcmpi(ops.colorbar,<span class="string">'always'</span>)
+0105     axes(axImg)
+0106     clbH = <a href="../tools/colorbar_labeled.html" class="code" title="function handle=colorbar_labeled(label,lg,varargin)">colorbar_labeled</a>(<span class="string">''</span>);
+0107     set(clbH,<span class="string">'yticklabel'</span>,<span class="string">''</span>)
+0108   <span class="keyword">end</span>
+0109   
+0110 <span class="keyword">end</span>
+0111 
+0112 axes(axImg)
+0113 <span class="comment">% Make the image panel respond to mouse-clicks:</span>
+0114 set(imH,<span class="string">'ButtonDownfcn'</span>,<span class="string">'imthumbImToolupdateRCcuts'</span>)
+0115 
+0116 <span class="comment">%% If needed create the scale and colormap menubars</span>
+0117 makeScaleMenu = 1;
+0118 gcfCldr = get(gcf,<span class="string">'Children'</span>);
+0119 <span class="keyword">for</span> i1 = 1:length(gcfCldr)
+0120   <span class="keyword">if</span> strcmp(get(gcfCldr(i1),<span class="string">'type'</span>),<span class="string">'uimenu'</span>) &amp;&amp; strcmp(get(gcfCldr(i1),<span class="string">'label'</span>),<span class="string">'Scale'</span>)
+0121     makeScaleMenu = 0;
+0122   <span class="keyword">end</span>
+0123 <span class="keyword">end</span>
+0124 
+0125 <span class="keyword">if</span> makeScaleMenu
+0126   
+0127   mh = uimenu(gcf,<span class="string">'Label'</span>,<span class="string">'Scale'</span>);
+0128   uimenu(mh,<span class="string">'Label'</span>,<span class="string">'Linear'</span>,  <span class="string">'callback'</span>,<span class="string">'imthumbScaler(7)'</span>);
+0129   uimenu(mh,<span class="string">'Label'</span>,<span class="string">'SQRT'</span>,    <span class="string">'callback'</span>,<span class="string">'imthumbScaler(8)'</span>);
+0130   uimenu(mh,<span class="string">'Label'</span>,<span class="string">'LOG'</span>,     <span class="string">'callback'</span>,<span class="string">'imthumbScaler(9)'</span>);
+0131   uimenu(mh,<span class="string">'Label'</span>,<span class="string">'Hist-eq'</span>, <span class="string">'callback'</span>,<span class="string">'imthumbScaler(10)'</span>);
+0132   uimenu(mh,<span class="string">'Label'</span>,<span class="string">'Brighten'</span>,<span class="string">'callback'</span>,<span class="string">'imthumbScaler(11)'</span>,<span class="string">'separator'</span>,<span class="string">'on'</span>);
+0133   uimenu(mh,<span class="string">'Label'</span>,<span class="string">'Darken'</span>,  <span class="string">'callback'</span>,<span class="string">'imthumbScaler(12)'</span>);
+0134   uimenu(mh,<span class="string">'Label'</span>,<span class="string">'min-MAX'</span>, <span class="string">'callback'</span>,<span class="string">'imthumbScaler(1)'</span>,<span class="string">'separator'</span>,<span class="string">'on'</span>);
+0135   uimenu(mh,<span class="string">'Label'</span>,<span class="string">'99.9%'</span>,   <span class="string">'callback'</span>,<span class="string">'imthumbScaler(2)'</span>);
+0136   uimenu(mh,<span class="string">'Label'</span>,<span class="string">'99%'</span>,     <span class="string">'callback'</span>,<span class="string">'imthumbScaler(3)'</span>);
+0137   uimenu(mh,<span class="string">'Label'</span>,<span class="string">'97%'</span>,     <span class="string">'callback'</span>,<span class="string">'imthumbScaler(4)'</span>);
+0138   uimenu(mh,<span class="string">'Label'</span>,<span class="string">'95%'</span>,     <span class="string">'callback'</span>,<span class="string">'imthumbScaler(5)'</span>);
+0139   uimenu(mh,<span class="string">'Label'</span>,<span class="string">'90%'</span>,     <span class="string">'callback'</span>,<span class="string">'imthumbScaler(6)'</span>);
+0140   
+0141   colormapmenu = 0;
+0142   <span class="keyword">if</span> strcmpi(ops.lutbar,<span class="string">'on'</span>)
+0143     <span class="keyword">try</span>
+0144       lutbar
+0145       colormapmenu = 0;
+0146     <span class="keyword">catch</span>
+0147       colormapmenu = 1;
+0148     <span class="keyword">end</span>
+0149   <span class="keyword">end</span>
+0150   <span class="keyword">if</span> colormapmenu
+0151     mh2  = uimenu(gcf,<span class="string">'Label'</span>,<span class="string">'Colour'</span>);
+0152     uimenu(mh2,<span class="string">'Label'</span>,<span class="string">'bone'</span>,  <span class="string">'callback'</span>,<span class="string">'colormap(bone)'</span>);
+0153     uimenu(mh2,<span class="string">'Label'</span>,<span class="string">'gray'</span>,  <span class="string">'callback'</span>,<span class="string">'colormap(gray)'</span>);
+0154     uimenu(mh2,<span class="string">'Label'</span>,<span class="string">'jet'</span>,   <span class="string">'callback'</span>,<span class="string">'colormap(jet)'</span>);
+0155     uimenu(mh2,<span class="string">'Label'</span>,<span class="string">'hot'</span>,   <span class="string">'callback'</span>,<span class="string">'colormap(hot)'</span>);
+0156     uimenu(mh2,<span class="string">'Label'</span>,<span class="string">'pink'</span>,  <span class="string">'callback'</span>,<span class="string">'colormap(pink)'</span>);
+0157     uimenu(mh2,<span class="string">'Label'</span>,<span class="string">'copper'</span>,<span class="string">'callback'</span>,<span class="string">'colormap(copper)'</span>);
+0158     uimenu(mh2,<span class="string">'Label'</span>,<span class="string">'winter'</span>,<span class="string">'callback'</span>,<span class="string">'colormap(winter)'</span>);
+0159     uimenu(mh2,<span class="string">'Label'</span>,<span class="string">'autumn'</span>,<span class="string">'callback'</span>,<span class="string">'colormap(autumn)'</span>);
+0160     uimenu(mh2,<span class="string">'Label'</span>,<span class="string">'summer'</span>,<span class="string">'callback'</span>,<span class="string">'colormap(summer)'</span>);
+0161     uimenu(mh2,<span class="string">'Label'</span>,<span class="string">'spring'</span>,<span class="string">'callback'</span>,<span class="string">'colormap(spring)'</span>);
+0162     uimenu(mh2,<span class="string">'Label'</span>,<span class="string">'cool'</span>,  <span class="string">'callback'</span>,<span class="string">'colormap(cool)'</span>);
+0163     uimenu(mh2,<span class="string">'Label'</span>,<span class="string">'hsv'</span>,   <span class="string">'callback'</span>,<span class="string">'colormap(hsv)'</span>);
+0164   <span class="keyword">end</span>
+0165   
+0166 <span class="keyword">end</span>
+0167 
+0168 <span class="comment">% Stuff away necessay handles (image, lines and axes handles) and</span>
+0169 <span class="comment">% sizes for use by the buttondownfunctioncallback:</span>
+0170 Udata.axImg  = axImg;
+0171 Udata.axZoom = [];
+0172 Udata.phX    = phX;
+0173 Udata.phY    = phY;
+0174 Udata.clbH   = clbH;
+0175 Udata.axC    = axC;
+0176 Udata.axR    = axR;
+0177 Udata.imsz   = imsz;
+0178 Udata.imHist = imHist;
+0179 Udata.xHist  = xHist;
+0180 Udata.cmap   = colormap;
+0181 Udata.ops    = ops;
+0182 
+0183 set(gcf,<span class="string">'userdata'</span>,Udata)</pre></div>
+<hr><address>Generated on Thu 21-Jun-2018 22:40:16 by <strong>B.&nbsp;Gustavsson</strong> with <strong><a href="http://www.artefact.tk/software/matlab/m2html/" target="_parent">m2html</a></strong> &copy; 2003</address>
+</body>
+</html>

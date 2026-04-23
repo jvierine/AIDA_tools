@@ -1,0 +1,78 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
+                "http://www.w3.org/TR/REC-html40/loose.dtd">
+<html>
+<head>
+  <title>Description of pChapman</title>
+  <meta name="keywords" content="pChapman">
+  <meta name="description" content="pCHAPMAN - gives a polynomially generalized Chapman profile.">
+  <meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+  <meta name="generator" content="m2html &copy; 2003 Guillaume Flandin">
+  <meta name="robots" content="index, follow">
+  <link type="text/css" rel="stylesheet" href="../m2html.css">
+</head>
+<body>
+<a name="_top"></a>
+<!-- menu.html tools -->
+<h1>pChapman
+</h1>
+
+<h2><a name="_name"></a>PURPOSE <a href="#_top"><img alt="^" border="0" src="../up.png"></a></h2>
+<div class="box"><strong>pCHAPMAN - gives a polynomially generalized Chapman profile.</strong></div>
+
+<h2><a name="_synopsis"></a>SYNOPSIS <a href="#_top"><img alt="^" border="0" src="../up.png"></a></h2>
+<div class="box"><strong>function [chpm_int] = pChapman(pars,z) </strong></div>
+
+<h2><a name="_description"></a>DESCRIPTION <a href="#_top"><img alt="^" border="0" src="../up.png"></a></h2>
+<div class="fragment"><pre class="comment"> pCHAPMAN - gives a polynomially generalized Chapman profile.
+ 
+ Calling:
+   chpm_int = chapman(I0,hmax,w0,h)
+ Input: 
+   I0 - Max intensity
+   H0 - altitude of max intensity
+   W0 - width
+   H  - Altitude array.</pre></div>
+
+<!-- crossreference -->
+<h2><a name="_cross"></a>CROSS-REFERENCE INFORMATION <a href="#_top"><img alt="^" border="0" src="../up.png"></a></h2>
+This function calls:
+<ul style="list-style-image:url(../matlabicon.gif)">
+</ul>
+This function is called by:
+<ul style="list-style-image:url(../matlabicon.gif)">
+</ul>
+<!-- crossreference -->
+
+
+<h2><a name="_source"></a>SOURCE CODE <a href="#_top"><img alt="^" border="0" src="../up.png"></a></h2>
+<div class="fragment"><pre>0001 <a name="_sub0" href="#_subfunctions" class="code">function [chpm_int] = pChapman(pars,z)</a>
+0002 <span class="comment">% pCHAPMAN - gives a polynomially generalized Chapman profile.</span>
+0003 <span class="comment">%</span>
+0004 <span class="comment">% Calling:</span>
+0005 <span class="comment">%   chpm_int = chapman(I0,hmax,w0,h)</span>
+0006 <span class="comment">% Input:</span>
+0007 <span class="comment">%   I0 - Max intensity</span>
+0008 <span class="comment">%   H0 - altitude of max intensity</span>
+0009 <span class="comment">%   W0 - width</span>
+0010 <span class="comment">%   H  - Altitude array.</span>
+0011 
+0012 <span class="comment">%       Bjorn Gustavsson</span>
+0013 <span class="comment">%    Copyright � 1997 by Bjorn Gustavsson</span>
+0014 <span class="comment">%   This is free software, licensed under GNU GPL version 2 or later</span>
+0015 
+0016 I0 = pars(1);
+0017 z1 = z - pars(2);
+0018 w0  = [1 pars(3)];
+0019 polycoeffs = [fliplr(pars(4:end)),0];
+0020 
+0021 h_u = (z1)./w0(2);
+0022 h_d = (z1)./w0(1);
+0023   
+0024 hi = h_d;
+0025 hi(z1&gt;0) = h_u(z1&gt;0);
+0026 
+0027 hi = polyval(polycoeffs,hi);
+0028 chpm_int = 1*I0*exp(1-hi-exp(-hi));</pre></div>
+<hr><address>Generated on Thu 21-Jun-2018 22:40:16 by <strong>B.&nbsp;Gustavsson</strong> with <strong><a href="http://www.artefact.tk/software/matlab/m2html/" target="_parent">m2html</a></strong> &copy; 2003</address>
+</body>
+</html>

@@ -1,0 +1,267 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
+                "http://www.w3.org/TR/REC-html40/loose.dtd">
+<html>
+<head>
+  <title>Description of alis_img_overview</title>
+  <meta name="keywords" content="alis_img_overview">
+  <meta name="description" content="ALIS_IMG_OVERVIEW - make ALIS data overview-plots by scanning OVERVIEW-files and INDEX-files">
+  <meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+  <meta name="generator" content="m2html &copy; 2003 Guillaume Flandin">
+  <meta name="robots" content="index, follow">
+  <link type="text/css" rel="stylesheet" href="../../m2html.css">
+</head>
+<body>
+<a name="_top"></a>
+<!-- ../menu.html ALIS --><!-- menu.html AVOK -->
+<h1>alis_img_overview
+</h1>
+
+<h2><a name="_name"></a>PURPOSE <a href="#_top"><img alt="^" border="0" src="../../up.png"></a></h2>
+<div class="box"><strong>ALIS_IMG_OVERVIEW - make ALIS data overview-plots by scanning OVERVIEW-files and INDEX-files</strong></div>
+
+<h2><a name="_synopsis"></a>SYNOPSIS <a href="#_top"><img alt="^" border="0" src="../../up.png"></a></h2>
+<div class="box"><strong>function [scrhndl] = alis_img_overview(ov_filename,f_filename,PO,print_or_what) </strong></div>
+
+<h2><a name="_description"></a>DESCRIPTION <a href="#_top"><img alt="^" border="0" src="../../up.png"></a></h2>
+<div class="fragment"><pre class="comment"> ALIS_IMG_OVERVIEW - make ALIS data overview-plots by scanning OVERVIEW-files and INDEX-files
+   Works for file structure that I have on my PC -
+   sorry. Esentially superceeded by Peter Rydesaters data-base.
+ 
+ Calling:
+ [scrhndl] = alis_img_overview(ov_filename,f_filename,PO,print_or_what)
+ 
+ OV_FILENAME - string with OVERVIEW file name to scan,
+ F_FILENAME - string with INDEX file name that hold the
+              correspondning image file names.
+ PO - PRE_PROC_OPS struct see TYPICAL_PRE_PROC_OPS
+ PRINT_OR_WHAT - 1 for feeding the plot directly to printer, 0
+                 just pauses - then printin/saving is possible by
+                 the graphical interface.
+
+ See also <a href="alis_overview.html" class="code" title="function [M,filters,Times,I_minmax] = alis_overview(files,POs,OPS)">ALIS_OVERVIEW</a> for a more current version</pre></div>
+
+<!-- crossreference -->
+<h2><a name="_cross"></a>CROSS-REFERENCE INFORMATION <a href="#_top"><img alt="^" border="0" src="../../up.png"></a></h2>
+This function calls:
+<ul style="list-style-image:url(../../matlabicon.gif)">
+<li><a href="../../Fits_tools/inimg.html" class="code" title="function [img_out,img_head,obs] = inimg(filename,PREPRO_OPS)">inimg</a>	INIMG - reads and pre-process an image.</li><li><a href="../../Fits_tools/try_to_be_smart.html" class="code" title="function [obs] = try_to_be_smart(img_head,ALIS_FITS,PO)">try_to_be_smart</a>	TRY_TO_BE_SMART parses an (ALIS) fits header for observation info</li><li><a href="../../tools/mysubplot.html" class="code" title="function theAxis = mysubplot(nrows, ncols, thisPlot)">mysubplot</a>	MYSUBPLOT Create axes in tiled positions.</li></ul>
+This function is called by:
+<ul style="list-style-image:url(../../matlabicon.gif)">
+</ul>
+<!-- crossreference -->
+
+
+<h2><a name="_source"></a>SOURCE CODE <a href="#_top"><img alt="^" border="0" src="../../up.png"></a></h2>
+<div class="fragment"><pre>0001 <a name="_sub0" href="#_subfunctions" class="code">function [scrhndl] = alis_img_overview(ov_filename,f_filename,PO,print_or_what)</a>
+0002 <span class="comment">% ALIS_IMG_OVERVIEW - make ALIS data overview-plots by scanning OVERVIEW-files and INDEX-files</span>
+0003 <span class="comment">%   Works for file structure that I have on my PC -</span>
+0004 <span class="comment">%   sorry. Esentially superceeded by Peter Rydesaters data-base.</span>
+0005 <span class="comment">%</span>
+0006 <span class="comment">% Calling:</span>
+0007 <span class="comment">% [scrhndl] = alis_img_overview(ov_filename,f_filename,PO,print_or_what)</span>
+0008 <span class="comment">%</span>
+0009 <span class="comment">% OV_FILENAME - string with OVERVIEW file name to scan,</span>
+0010 <span class="comment">% F_FILENAME - string with INDEX file name that hold the</span>
+0011 <span class="comment">%              correspondning image file names.</span>
+0012 <span class="comment">% PO - PRE_PROC_OPS struct see TYPICAL_PRE_PROC_OPS</span>
+0013 <span class="comment">% PRINT_OR_WHAT - 1 for feeding the plot directly to printer, 0</span>
+0014 <span class="comment">%                 just pauses - then printin/saving is possible by</span>
+0015 <span class="comment">%                 the graphical interface.</span>
+0016 <span class="comment">%</span>
+0017 <span class="comment">% See also ALIS_OVERVIEW for a more current version</span>
+0018 
+0019 <span class="comment">% Copyright Bjorn Gustavsson 20050112</span>
+0020 
+0021 
+0022 
+0023 PREPROC_OPS = PO;
+0024 
+0025 get_time = 0;
+0026 colormap(bone)
+0027 orient tall
+0028 
+0029 ovfid=fopen(ov_filename,<span class="string">'r'</span>);
+0030 fvfid=fopen(f_filename,<span class="string">'r'</span>)
+0031 indx = 0;
+0032 iii = 1;
+0033 ovline = fgetl(ovfid);
+0034 pline_indx = 1;
+0035 <span class="keyword">while</span> ( 1 )
+0036   
+0037   ovline = fgetl(ovfid);
+0038   <span class="keyword">if</span> ~isstr(ovline),
+0039     <span class="keyword">return</span>,
+0040   <span class="keyword">end</span>
+0041   
+0042   <span class="keyword">if</span> ( strncmp(ovline(1:5),<span class="string">'-----'</span>,5) )
+0043     get_time = 1;
+0044     skip_rest = 1;
+0045     <span class="keyword">if</span> ( indx ~= 0 )
+0046       pline_indx = pline_indx + 1;
+0047       <span class="keyword">if</span> 7*(pline_indx-1)-6 == 1
+0048         ops.datetitle = 1;
+0049       <span class="keyword">else</span>
+0050         ops.datetitle = 0;
+0051       <span class="keyword">end</span>
+0052       <a href="../../tools/mysubplot.html" class="code" title="function theAxis = mysubplot(nrows, ncols, thisPlot)">mysubplot</a>(5,7,7*(pline_indx-1)-6)
+0053       overviewplot(STN,AZ,ZE,FRG,tidstr,ops);
+0054       set(gca,<span class="string">'yticklabel'</span>,<span class="string">''</span>)
+0055       set(gca,<span class="string">'xticklabel'</span>,<span class="string">''</span>)
+0056       clear STN AZ ZE FRG
+0057       iii = 1;
+0058       <span class="keyword">if</span> ( pline_indx == 6 )
+0059         <a href="../../tools/mysubplot.html" class="code" title="function theAxis = mysubplot(nrows, ncols, thisPlot)">mysubplot</a>(5,7,2)
+0060         set(gca,<span class="string">'yticklabel'</span>,<span class="string">''</span>)
+0061         set(gca,<span class="string">'xticklabel'</span>,<span class="string">''</span>)
+0062         title(<span class="string">'S01'</span>,<span class="string">'fontsize'</span>,18,<span class="string">'fontweight'</span>,<span class="string">'bold'</span>)
+0063         axis off
+0064         <a href="../../tools/mysubplot.html" class="code" title="function theAxis = mysubplot(nrows, ncols, thisPlot)">mysubplot</a>(5,7,3)
+0065         set(gca,<span class="string">'yticklabel'</span>,<span class="string">''</span>)
+0066         set(gca,<span class="string">'xticklabel'</span>,<span class="string">''</span>)
+0067         title(<span class="string">'S02'</span>,<span class="string">'fontsize'</span>,18,<span class="string">'fontweight'</span>,<span class="string">'bold'</span>)
+0068         axis off
+0069         <a href="../../tools/mysubplot.html" class="code" title="function theAxis = mysubplot(nrows, ncols, thisPlot)">mysubplot</a>(5,7,4)
+0070         set(gca,<span class="string">'yticklabel'</span>,<span class="string">''</span>)
+0071         set(gca,<span class="string">'xticklabel'</span>,<span class="string">''</span>)
+0072         title(<span class="string">'S03'</span>,<span class="string">'fontsize'</span>,18,<span class="string">'fontweight'</span>,<span class="string">'bold'</span>)
+0073         axis off
+0074         <a href="../../tools/mysubplot.html" class="code" title="function theAxis = mysubplot(nrows, ncols, thisPlot)">mysubplot</a>(5,7,5)
+0075         set(gca,<span class="string">'yticklabel'</span>,<span class="string">''</span>)
+0076         set(gca,<span class="string">'xticklabel'</span>,<span class="string">''</span>)
+0077         title(<span class="string">'S04'</span>,<span class="string">'fontsize'</span>,18,<span class="string">'fontweight'</span>,<span class="string">'bold'</span>)
+0078         axis off
+0079         <a href="../../tools/mysubplot.html" class="code" title="function theAxis = mysubplot(nrows, ncols, thisPlot)">mysubplot</a>(5,7,6)
+0080         set(gca,<span class="string">'yticklabel'</span>,<span class="string">''</span>)
+0081         set(gca,<span class="string">'xticklabel'</span>,<span class="string">''</span>)
+0082         title(<span class="string">'S05'</span>,<span class="string">'fontsize'</span>,18,<span class="string">'fontweight'</span>,<span class="string">'bold'</span>)
+0083         axis off
+0084         <a href="../../tools/mysubplot.html" class="code" title="function theAxis = mysubplot(nrows, ncols, thisPlot)">mysubplot</a>(5,7,7)
+0085         set(gca,<span class="string">'yticklabel'</span>,<span class="string">''</span>)
+0086         set(gca,<span class="string">'xticklabel'</span>,<span class="string">''</span>)
+0087         title(<span class="string">'S06'</span>,<span class="string">'fontsize'</span>,18,<span class="string">'fontweight'</span>,<span class="string">'bold'</span>)
+0088         axis off
+0089         drawnow
+0090         <span class="keyword">if</span> print_or_what
+0091           print -dpsc2
+0092         <span class="keyword">else</span>
+0093           disp(<span class="string">'Press any key to continue'</span>)
+0094           pause
+0095         <span class="keyword">end</span>
+0096         pline_indx = 1;
+0097         clf
+0098       <span class="keyword">end</span>
+0099     <span class="keyword">end</span>
+0100   <span class="keyword">end</span>
+0101   disp(ovline)
+0102   <span class="keyword">if</span> ( get_time == 1 &amp; skip_rest == 0 )
+0103     subplot
+0104     [datestr,ovline] = strtok(ovline);
+0105     [timestr,ovline] = strtok(ovline);
+0106     get_time = 0;
+0107     tidstr = [datestr,<span class="string">' '</span>,timestr];
+0108     indx = indx+1;
+0109   <span class="keyword">end</span>
+0110   <span class="keyword">if</span> ( skip_rest == 0 )
+0111     [stn,ovline] = strtok(ovline);
+0112     [str,ovline] = strtok(ovline);
+0113     [frgstr,ovline] = strtok(ovline);
+0114     [azstr,ovline] =  strtok(ovline);
+0115     [zestr,ovline] =  strtok(ovline);
+0116     STN(iii) = str2num(stn);
+0117     Az = str2num(azstr);
+0118     <span class="keyword">if</span> isempty(Az)
+0119       AZ(iii) = 0;
+0120     <span class="keyword">else</span>
+0121       AZ(iii) = Az;
+0122     <span class="keyword">end</span>
+0123     Ze = str2num(zestr);
+0124     <span class="keyword">if</span> isempty(Ze)
+0125       ZE(iii) = 0;
+0126     <span class="keyword">else</span>
+0127       ZE(iii) = Ze;
+0128     <span class="keyword">end</span>
+0129     <span class="comment">% read image filename from the index.txt file</span>
+0130     fline = fgetl(fvfid);
+0131     <span class="keyword">if</span> ~isstr(fline),
+0132       <span class="keyword">return</span>,
+0133     <span class="keyword">end</span>
+0134     <span class="keyword">if</span> strcmp(fline(1),<span class="string">'*'</span>)
+0135       fline = fgetl(fvfid);
+0136     <span class="keyword">end</span>
+0137     [q,fline] = strtok(fline,<span class="string">' '</span>); <span class="comment">%read away the timestring</span>
+0138     filename = [strtok(fline,<span class="string">' '</span>),<span class="string">'.raf'</span>];
+0139     <span class="keyword">if</span> strncmp(filename,<span class="string">'9'</span>,1)
+0140       filename = [<span class="string">'19'</span>,filename];
+0141     <span class="keyword">end</span>
+0142     <span class="comment">%load the image and do som preprocessing</span>
+0143     [img_in,head] = <a href="../../Fits_tools/inimg.html" class="code" title="function [img_out,img_head,obs] = inimg(filename,PREPRO_OPS)">inimg</a>(lower(filename),PREPROC_OPS);
+0144     <span class="comment">%have to read stn directly from, image header hrmph</span>
+0145     obs = <a href="../../Fits_tools/try_to_be_smart.html" class="code" title="function [obs] = try_to_be_smart(img_head,ALIS_FITS,PO)">try_to_be_smart</a>(head,1);
+0146     <span class="keyword">if</span> min(size(img_in))&gt;257
+0147       img_in = img_in(1:2:<span class="keyword">end</span>,1:2:end)+<span class="keyword">...</span>
+0148                img_in(1:2:<span class="keyword">end</span>,2:2:end)+<span class="keyword">...</span>
+0149                img_in(2:2:<span class="keyword">end</span>,1:2:end)+<span class="keyword">...</span>
+0150                img_in(2:2:<span class="keyword">end</span>,2:2:end);
+0151     <span class="keyword">end</span>
+0152     <span class="keyword">if</span> min(size(img_in))&gt;257
+0153       img_in = img_in(1:2:<span class="keyword">end</span>,1:2:end)+<span class="keyword">...</span>
+0154                img_in(1:2:<span class="keyword">end</span>,2:2:end)+<span class="keyword">...</span>
+0155                img_in(2:2:<span class="keyword">end</span>,1:2:end)+<span class="keyword">...</span>
+0156                img_in(2:2:<span class="keyword">end</span>,2:2:end);
+0157     <span class="keyword">end</span>
+0158     img_in = img_in-min(img_in(:));
+0159     clear img_out
+0160     <span class="keyword">if</span> (strcmp(frgstr,<span class="string">'5577'</span>)|strcmp(frgstr,<span class="string">'5590'</span>))
+0161       FRG{iii} = [0 1 0];
+0162     <span class="keyword">elseif</span> (strcmp(frgstr,<span class="string">'4278'</span>) | strcmp(frgstr,<span class="string">'4285'</span>))
+0163     FRG{iii} = [0 .3 1];
+0164     <span class="keyword">elseif</span> (strcmp(frgstr,<span class="string">'6300'</span>) | strcmp(frgstr,<span class="string">'6310'</span>))
+0165       FRG{iii} = [1 0 0];
+0166     <span class="keyword">elseif</span> (strcmp(frgstr,<span class="string">'8446'</span>) | strcmp(frgstr,<span class="string">'8455'</span>))
+0167       FRG{iii} = [.7 0 0];
+0168     <span class="keyword">else</span>
+0169       FRG{iii} = [0 0 0];
+0170       img_out = img_in;
+0171     <span class="keyword">end</span>
+0172     
+0173     <span class="keyword">if</span> ( abs(obs.filter - 5577 ) &lt;100 )
+0174       img_out(:,:,2) = img_in/max(img_in(:));
+0175       img_out(:,:,3) = 0*img_out(:,:,1);
+0176     <span class="keyword">elseif</span> ( abs( obs.filter - 4278 ) &lt; 100 )
+0177       img_out(:,:,3) = img_in/max(img_in(:));
+0178     <span class="keyword">elseif</span> ( abs( obs.filter - 6300 ) &lt; 50 )
+0179       img_out(:,:,1) = img_in/max(img_in(:));
+0180       img_out(:,:,2) = 0*img_in/max(img_in(:));
+0181       img_out(:,:,3) = 0*img_out(:,:,1);
+0182     <span class="keyword">elseif</span> ( abs( obs.filter - 8446 ) &lt; 50 )
+0183       img_out(:,:,1) = 0.7*img_in/max(img_in(:));
+0184       img_out(:,:,2) = 0*img_in/max(img_in(:));
+0185       img_out(:,:,3) = 0.1*img_out(:,:,1);
+0186     <span class="keyword">else</span>
+0187       img_out = img_in;
+0188     <span class="keyword">end</span>
+0189     
+0190     <a href="../../tools/mysubplot.html" class="code" title="function theAxis = mysubplot(nrows, ncols, thisPlot)">mysubplot</a>(5,7,1+obs.station+7*(pline_indx-1))
+0191     imagesc(img_out),axis xy,
+0192     set(gca,<span class="string">'yticklabel'</span>,<span class="string">''</span>)
+0193     set(gca,<span class="string">'xticklabel'</span>,<span class="string">''</span>)
+0194     iii = iii + 1;
+0195     
+0196   <span class="keyword">end</span> <span class="comment">% if ( skip_rest == 0 )</span>
+0197   
+0198   skip_rest = 0;
+0199   
+0200 <span class="keyword">end</span> <span class="comment">% while ( 1 )</span>
+0201 
+0202 
+0203 fclose(ovfid);
+0204 fclose(fvfid);
+0205 OK = 1;
+0206 scrhndl = uicontrol(<span class="string">'style'</span>,<span class="string">'slider'</span>,<span class="string">'position'</span>,[225 90 15 780]);
+0207 set(scrhndl,<span class="string">'position'</span>,[225 90 15 780])
+0208 set(scrhndl,<span class="string">'Max'</span>,0,<span class="string">'min'</span>,-indx,<span class="string">'value'</span>,0)
+0209 set(scrhndl,<span class="string">'sliderstep'</span>,[1/abs(indx),15/(abs(indx))])
+0210 set(scrhndl,<span class="string">'callback'</span>,<span class="string">'axis([-2 1 get(scrhndl,''value'')-15 get(scrhndl,''value'')])'</span>)</pre></div>
+<hr><address>Generated on Mon 27-Jan-2014 17:32:33 by <strong>B.&nbsp;Gustavsson</strong> with <strong><a href="http://www.artefact.tk/software/matlab/m2html/" target="_parent">m2html</a></strong> &copy; 2003</address>
+</body>
+</html>

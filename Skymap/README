@@ -1,0 +1,159 @@
+Skymap - Medium accuracy star chart program.
+
+          Björn Gustavsson
+	  Dept. of Physics and Technology
+	  UIT, the Arctic University of Norway, Tromsø
+	  <bjorn.gustavsson@uit.no>
+
+SKYMAP An easy to use astronomical starchart. The sky-map has a rather
+easy-to-use graphical interface. The default star catalog is the
+Bright Star Catalog.  The programme is coupled to the Pulkovo
+Spectrophotometric catalog and can display the stellar spectra for
+those stars with resolution of 5-10 nm. In addition there are
+functions to read the much more extensive SAO-catalog, but this has
+seldom been used, and makes the programme more sluggish. The accuracy
+was compared to Xephem and found to agree. Skymap can also interface
+with the PlanetsPos_package [1] to get the position of the Moon and the
+planets.
+
+These functions was developed as a part of a programme for geometric
+and intensity calibration of cameras for imaging of the northern
+lights. This objective and the accuracy requirements influenced many
+design-choises [2].
+
+The position-calculation of the stars does not include the nutation,
+and the refraction does not yet include corrections for temperature
+and pressure, however it is prepared for.
+
+
+skymap;
+[SkMp] = skymap;
+[SkMp] = skymap(pos,time);
+[SkMp] = skymap(pos,time,SkMp);
+
+==============================================================
+skymap.m
+==============================================================
+  skymap sets up a graphical user interface for 
+  the skymap and an input figure for selection of 
+  observation sites and date and time. The program should be called in
+  one of the three ways above. Here it is important that the output
+  argument is literally 'SkMp', since the program stores its state
+  and all variables in this struct and looks for a variable with that
+  name when used. POS is a 1 by 2 vector with latitude and longitude -
+  positive east and north. Time should be in the format [yyyy m d h m s].
+  If you supply SkMp it should contain the correct fields.
+
+==============================================================
+getspec.m: [wl,E_fluxes] = getspec(bright_star_nr,verbosity)
+==============================================================
+  getspec is a wrapper to getsp, which is a C-shell script that reads
+  the Pulkovo Pulkovo Spectrophotometric Catalog. WAVELENGTHS are
+  given in nm, and ENERGYFLUXES in W/m^2/m. The shell-script works
+  provided that the C-shell is installed. This is a trivial task in
+  any UNIX/LINUX system, presumably also on MAC-OS computers. What the
+  possibilities are in current MS-windows systems I do not know, there
+  ought to be something - perhaps Hamilton-C-shell, or MS-powertools?
+
+==============================================================
+date2juldate.m: [jd] = date2juldate(date)
+==============================================================
+  
+  Function date2juldate(date) 
+  calculates the julian date ( jd ) at 0h ut 
+  takes input date as an array with date(1) <-> the year ( 1995 - 95 ) 
+                                   date(2) <-> month 
+                                   date(3) <-> day nr in month 
+
+==============================================================
+nutation.m: [N] = nutation(date,utc)
+==============================================================
+
+  Function that do _not_ calculate the correction matrix for
+  nutation. It is left for other users to replace with a function that
+  calculates the appropriate rotation matrix. As of now it does
+  nothing. Or rather returns eye(3) - but as for rotation matrixes
+  that is about just the same.
+
+==============================================================
+refrcorr.m: [apze] = refrcorr(ze[,T_ground[,p_ground]])
+==============================================================
+
+  Function REFRCORR - a simple atmospheric refraction 
+  correction function for zenith angles. 
+
+==============================================================
+starpos2.m: [az,ze,apze] = starpos2(ra,decl,date,utc,lat,long)
+==============================================================
+
+  STARPOS2 - function that calculates the azimuth, zenith 
+  and apparent zenith angles for a sky object. 
+  It makes some good corrections for precession. 
+  Formulas from spherical astronomy by Robin m. Green 
+  Cambridge Univ. Press. 1985 
+  
+  Input:  ra <-> right acsention of the object in hour 
+          decl <-> declination of the object in degrees 
+          date <-> date for the observation. Date = [year month day] 
+          utc <-> utc time for the observation. UTC = [hour minute second] 
+          lat <-> latitude of the observer in degres 
+          long <-> longitude of the observer 
+  Output: az <-> azimuth angle clockwise from north in radians 
+          ze <-> zenith angle in radians 
+          apze <-> apparent zenith angle in radians
+
+==============================================================
+utc2losidt.m: [localsidtime] = utc2losidt(date,utc,longitud)
+==============================================================
+  
+   Function UTC2LOSIDT calculates the local sidereal time. 
+   Takes date and utc and longitude as argument. 
+   date(1) <-> the year ( 95 <-> 1995 ) 
+   date(2) <-> month 
+   date(3) <-> day nr in month 
+   utc(1) <-> hh 
+   utc(2) <-> mm 
+   utc(3) <-> ss.ms 
+   longitude in degrees!
+
+==============================================================
+utc2sidt.m: [sidtime] = utc2sidt(date,utc)
+==============================================================
+   
+   Function UTC2SIDT calculates the sidereal time. 
+   Takes date and utc as argument. 
+   date(1) <-> the year ( 1995 - 95 ) 
+   date(2) <-> month 
+   date(3) <-> day nr in month 
+   utc(1) <-> hh 
+   utc(2) <-> mm 
+   utc(3) <-> ss.ms
+
+==============================================================
+the rest.m
+==============================================================
+
+  The remaining functions are more or less background functions
+  that are appropriately accessed through the GUI.
+
+==============================================================
+User tuning
+==============================================================
+
+To modify the list of observation sites and observation
+positions, all a user need to do is to modify/add/remove
+as wanted in the files Stations/*.stations. 
+
+To include higher order corrections in the positions the
+user can modify the functions refrcorr.m and nutation.m
+
+For copyright see COPYRIGHT.
+
+For simple use just type 'skymap' at the prompt.
+
+Links:
+(1): https://se.mathworks.com/matlabcentral/fileexchange/77359-positions-of-solar-system-bodies
+(2): http://www2.irf.se/~bjorn/thesis/node14.html
+
+
+Enjoy!

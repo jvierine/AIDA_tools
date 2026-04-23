@@ -1,0 +1,64 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
+                "http://www.w3.org/TR/REC-html40/loose.dtd">
+<html>
+<head>
+  <title>Description of alis_avok_exportvars</title>
+  <meta name="keywords" content="alis_avok_exportvars">
+  <meta name="description" content="ALIS_AVOK_EXPORTVARS - export overview variables to matlab workspace">
+  <meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+  <meta name="generator" content="m2html &copy; 2003 Guillaume Flandin">
+  <meta name="robots" content="index, follow">
+  <link type="text/css" rel="stylesheet" href="../../m2html.css">
+</head>
+<body>
+<a name="_top"></a>
+<!-- ../menu.html ALIS --><!-- menu.html AVOK -->
+<h1>alis_avok_exportvars
+</h1>
+
+<h2><a name="_name"></a>PURPOSE <a href="#_top"><img alt="^" border="0" src="../../up.png"></a></h2>
+<div class="box"><strong>ALIS_AVOK_EXPORTVARS - export overview variables to matlab workspace</strong></div>
+
+<h2><a name="_synopsis"></a>SYNOPSIS <a href="#_top"><img alt="^" border="0" src="../../up.png"></a></h2>
+<div class="box"><strong>function alis_avok_exportvars(AvOk) </strong></div>
+
+<h2><a name="_description"></a>DESCRIPTION <a href="#_top"><img alt="^" border="0" src="../../up.png"></a></h2>
+<div class="fragment"><pre class="comment"> ALIS_AVOK_EXPORTVARS - export overview variables to matlab workspace</pre></div>
+
+<!-- crossreference -->
+<h2><a name="_cross"></a>CROSS-REFERENCE INFORMATION <a href="#_top"><img alt="^" border="0" src="../../up.png"></a></h2>
+This function calls:
+<ul style="list-style-image:url(../../matlabicon.gif)">
+</ul>
+This function is called by:
+<ul style="list-style-image:url(../../matlabicon.gif)">
+</ul>
+<!-- crossreference -->
+
+
+<h2><a name="_source"></a>SOURCE CODE <a href="#_top"><img alt="^" border="0" src="../../up.png"></a></h2>
+<div class="fragment"><pre>0001 <a name="_sub0" href="#_subfunctions" class="code">function alis_avok_exportvars(AvOk)</a>
+0002 <span class="comment">% ALIS_AVOK_EXPORTVARS - export overview variables to matlab workspace</span>
+0003 <span class="comment">%</span>
+0004 
+0005 
+0006 AvOk.exp_var_indx = [get(AvOk.exportvars,<span class="string">'value'</span>)];AvOk.exp_var_indx = find([AvOk.exp_var_indx{:}]);
+0007 <span class="keyword">for</span> jj = 1:length(unique(AvOk.Stns));
+0008   
+0009   AvOk.ass_str{1} = [<span class="string">'filenames_'</span>,AvOk.STNN2NAME{AvOk.Stns(jj)},<span class="string">' = '</span>,<span class="string">'AvOk.Files{AvOk.Stns('</span>,num2str(jj),<span class="string">')};'</span>];
+0010   AvOk.ass_str{2} = [   <span class="string">'wl_emi_'</span>,AvOk.STNN2NAME{AvOk.Stns(jj)},<span class="string">' = '</span>,<span class="string">'AvOk.Wl_emi{AvOk.Stns('</span>,num2str(jj),<span class="string">')};'</span>];
+0011   AvOk.ass_str{3} = [    <span class="string">'t_obs_'</span>,AvOk.STNN2NAME{AvOk.Stns(jj)},<span class="string">' = '</span>,<span class="string">'AvOk.T_obs{AvOk.Stns('</span>,num2str(jj),<span class="string">')};'</span>];
+0012   AvOk.ass_str{4} = [     <span class="string">'optp_'</span>,AvOk.STNN2NAME{AvOk.Stns(jj)},<span class="string">' = '</span>,<span class="string">'AvOk.Optps{AvOk.Stns('</span>,num2str(jj),<span class="string">')};'</span>];
+0013   AvOk.ass_str{5} = [      <span class="string">'keo_'</span>,AvOk.STNN2NAME{AvOk.Stns(jj)},<span class="string">' = '</span>,<span class="string">'AvOk.Keo{AvOk.Stns('</span>,num2str(jj),<span class="string">')};'</span>];
+0014   
+0015   <span class="keyword">for</span> ii = AvOk.exp_var_indx,
+0016     
+0017     evalin(<span class="string">'base'</span>,deblank(AvOk.ass_str{ii}))
+0018     disp(deblank(AvOk.ass_str{ii}))
+0019     
+0020   <span class="keyword">end</span>
+0021   
+0022 <span class="keyword">end</span></pre></div>
+<hr><address>Generated on Thu 21-Jun-2018 22:40:16 by <strong>B.&nbsp;Gustavsson</strong> with <strong><a href="http://www.artefact.tk/software/matlab/m2html/" target="_parent">m2html</a></strong> &copy; 2003</address>
+</body>
+</html>

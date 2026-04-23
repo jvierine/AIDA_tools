@@ -1,0 +1,154 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
+                "http://www.w3.org/TR/REC-html40/loose.dtd">
+<html>
+<head>
+  <title>Description of ALIS_movie_reencoder</title>
+  <meta name="keywords" content="ALIS_movie_reencoder">
+  <meta name="description" content="ALIS_MOVIE_REENCODER - Movie re-encoding to reduce output file size">
+  <meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+  <meta name="generator" content="m2html &copy; 2003 Guillaume Flandin">
+  <meta name="robots" content="index, follow">
+  <link type="text/css" rel="stylesheet" href="../m2html.css">
+</head>
+<body>
+<a name="_top"></a>
+<!-- menu.html ALIS -->
+<h1>ALIS_movie_reencoder
+</h1>
+
+<h2><a name="_name"></a>PURPOSE <a href="#_top"><img alt="^" border="0" src="../up.png"></a></h2>
+<div class="box"><strong>ALIS_MOVIE_REENCODER - Movie re-encoding to reduce output file size</strong></div>
+
+<h2><a name="_synopsis"></a>SYNOPSIS <a href="#_top"><img alt="^" border="0" src="../up.png"></a></h2>
+<div class="box"><strong>function [OK1n2,msg1n2] = ALIS_movie_reencoder(data_path,OVC_options,overwrite) </strong></div>
+
+<h2><a name="_description"></a>DESCRIPTION <a href="#_top"><img alt="^" border="0" src="../up.png"></a></h2>
+<div class="fragment"><pre class="comment"> ALIS_MOVIE_REENCODER - Movie re-encoding to reduce output file size
+  On unix systems matlab's movie2avi function only produces &quot;raw&quot;
+  uncompressed avi-files, which is good for image clarity and
+  quality but a tad costly on file-size. This function uses
+  mencoder to re-encode all avi-files below the current working
+  directory, saving the output in a separate file.
+ 
+ Calling:
+  [OK1n2,msg1n2] = ALIS_movie_reencoder([data_path],[OVC_options],[overwrite])
+ Input:
+  data_path   - full or relative path to directory from which to
+                search for avi-files. Optional, defaults to
+                current working directory
+  OVC_options - optional ovc-options for mencoder, to be used if
+                you really know how mencoder works, defaults to:
+                x264 -x264encopts subq=6:frameref=6:bframes=3:weight_b:bitrate=5000
+  overwrite   - flag for overwriting the original file, default
+                behaviour is to not overwrite, set to 1.414213562
+                to overwrite, and yes the choice of value for
+                overwriting was deliberately inconvenient and
+                awkward for obvious reasons.
+ Output:
+  OK1n2  - array [n_avifiles x 2] with return status for mencoder
+           pass 1 and pass 2,
+  msg1n2 - cell array with output from the mencoder calls.
+  overwrite = 0;
+
+ Example:
+  data_path = '/alis/Overviews/2002/03/10';
+  OVC_ops   = 'x264 -x264encopts subq=6:frameref=6:bframes=3:weight_b:bitrate=8000';
+  [OK1n2,msg1n2] = ALIS_movie_reencoder(data_path,OVC_ops,0);</pre></div>
+
+<!-- crossreference -->
+<h2><a name="_cross"></a>CROSS-REFERENCE INFORMATION <a href="#_top"><img alt="^" border="0" src="../up.png"></a></h2>
+This function calls:
+<ul style="list-style-image:url(../matlabicon.gif)">
+</ul>
+This function is called by:
+<ul style="list-style-image:url(../matlabicon.gif)">
+<li><a href="ALIS_mk_overviews.html" class="code" title="function ok = ALIS_mk_overviews(ALIS_root_dir,years2do)">ALIS_mk_overviews</a>	ALIS_MK_DB_KEOS - Update ALIS Keogram-database</li></ul>
+<!-- crossreference -->
+
+
+<h2><a name="_source"></a>SOURCE CODE <a href="#_top"><img alt="^" border="0" src="../up.png"></a></h2>
+<div class="fragment"><pre>0001 <a name="_sub0" href="#_subfunctions" class="code">function [OK1n2,msg1n2] = ALIS_movie_reencoder(data_path,OVC_options,overwrite)</a>
+0002 <span class="comment">% ALIS_MOVIE_REENCODER - Movie re-encoding to reduce output file size</span>
+0003 <span class="comment">%  On unix systems matlab's movie2avi function only produces &quot;raw&quot;</span>
+0004 <span class="comment">%  uncompressed avi-files, which is good for image clarity and</span>
+0005 <span class="comment">%  quality but a tad costly on file-size. This function uses</span>
+0006 <span class="comment">%  mencoder to re-encode all avi-files below the current working</span>
+0007 <span class="comment">%  directory, saving the output in a separate file.</span>
+0008 <span class="comment">%</span>
+0009 <span class="comment">% Calling:</span>
+0010 <span class="comment">%  [OK1n2,msg1n2] = ALIS_movie_reencoder([data_path],[OVC_options],[overwrite])</span>
+0011 <span class="comment">% Input:</span>
+0012 <span class="comment">%  data_path   - full or relative path to directory from which to</span>
+0013 <span class="comment">%                search for avi-files. Optional, defaults to</span>
+0014 <span class="comment">%                current working directory</span>
+0015 <span class="comment">%  OVC_options - optional ovc-options for mencoder, to be used if</span>
+0016 <span class="comment">%                you really know how mencoder works, defaults to:</span>
+0017 <span class="comment">%                x264 -x264encopts subq=6:frameref=6:bframes=3:weight_b:bitrate=5000</span>
+0018 <span class="comment">%  overwrite   - flag for overwriting the original file, default</span>
+0019 <span class="comment">%                behaviour is to not overwrite, set to 1.414213562</span>
+0020 <span class="comment">%                to overwrite, and yes the choice of value for</span>
+0021 <span class="comment">%                overwriting was deliberately inconvenient and</span>
+0022 <span class="comment">%                awkward for obvious reasons.</span>
+0023 <span class="comment">% Output:</span>
+0024 <span class="comment">%  OK1n2  - array [n_avifiles x 2] with return status for mencoder</span>
+0025 <span class="comment">%           pass 1 and pass 2,</span>
+0026 <span class="comment">%  msg1n2 - cell array with output from the mencoder calls.</span>
+0027 <span class="comment">%  overwrite = 0;</span>
+0028 <span class="comment">%</span>
+0029 <span class="comment">% Example:</span>
+0030 <span class="comment">%  data_path = '/alis/Overviews/2002/03/10';</span>
+0031 <span class="comment">%  OVC_ops   = 'x264 -x264encopts subq=6:frameref=6:bframes=3:weight_b:bitrate=8000';</span>
+0032 <span class="comment">%  [OK1n2,msg1n2] = ALIS_movie_reencoder(data_path,OVC_ops,0);</span>
+0033 <span class="comment">%</span>
+0034 
+0035 <span class="comment">%   Copyright � 2014 Bjorn Gustavsson, &lt;bjorn.gustavsson@irf.se&gt;</span>
+0036 <span class="comment">%   This is free software, licensed under GNU GPL version 2 or later</span>
+0037 
+0038 <span class="keyword">if</span> nargin &lt; 1 || isempty(data_path)
+0039   data_path = <span class="string">'.'</span>;
+0040 <span class="keyword">end</span>
+0041 <span class="keyword">if</span> nargin &lt; 2 || isempty(OVC_options)
+0042   <span class="comment">%% Default mencoder options, for details please look at the</span>
+0043   <span class="comment">%  mencoder documentation, simple adaption of this one should be</span>
+0044   <span class="comment">%  simpler</span>
+0045   OVC_options = <span class="string">'x264 -x264encopts subq=6:frameref=6:bframes=3:weight_b:bitrate=5000'</span>;
+0046 <span class="keyword">end</span>
+0047 <span class="keyword">if</span> nargin &lt; 3 || isempty(overwrite)
+0048   overwrite = 0;
+0049 <span class="keyword">end</span>
+0050 
+0051 [OK,avi_files] = my_unix([<span class="string">'find '</span>,data_path,<span class="string">' -name \*.avi'</span>]);
+0052 pause(1)
+0053 <span class="keyword">for</span> iFile = 1:size(avi_files,1),
+0054   
+0055   currFile = strtrim(avi_files(iFile,:));
+0056   [fPath,fName,fExt] = fileparts(currFile);
+0057   <span class="keyword">if</span> abs(overwrite - 1.414213562) &lt; eps
+0058     outname = fName;
+0059   <span class="keyword">else</span>
+0060     outname = [fName,<span class="string">'-01'</span>];
+0061   <span class="keyword">end</span>
+0062   outFile = fullfile(fPath,[outname,fExt]);
+0063   <span class="comment">%encstr1 = ['mencoder -really-quiet ',currFile,' -ovc ',x264 -x264encopts subq=6:frameref=6:bframes=3:weight_b:bitrate=5000,':pass=1 -o /dev/null'];</span>
+0064   <span class="comment">%encstr2 = ['mencoder -really-quiet ',currFile,' -ovc ',x264 -x264encopts subq=6:frameref=6:bframes=3:weight_b:bitrate=5000,':pass=2 -o ',outFile];</span>
+0065   encstr1 = [<span class="string">'mencoder -really-quiet '</span>,currFile,<span class="string">' -ovc '</span>,OVC_options,<span class="string">':pass=1 -o /dev/null'</span>];
+0066   encstr2 = [<span class="string">'mencoder -really-quiet '</span>,currFile,<span class="string">' -ovc '</span>,OVC_options,<span class="string">':pass=2 -o '</span>,outFile];
+0067   
+0068   <span class="keyword">try</span>
+0069     disp(encstr1)
+0070     [OK1(iFile),msg1{iFile}] = unix(encstr1);
+0071     disp(encstr2)
+0072     [OK2(iFile),msg2{iFile}] = unix(encstr2);
+0073   <span class="keyword">catch</span>
+0074     disp([<span class="string">'Encountered some problems with file: '</span>,currFile])
+0075     disp(<span class="string">'...pushing on...'</span>)
+0076   <span class="keyword">end</span>
+0077   
+0078 <span class="keyword">end</span>
+0079 <span class="keyword">if</span> nargout &gt; 0
+0080   OK1n2 = [OK1(:),OK2(:)];
+0081   msg1n2 = [msg1;msg2];
+0082 <span class="keyword">end</span></pre></div>
+<hr><address>Generated on Thu 21-Jun-2018 22:40:16 by <strong>B.&nbsp;Gustavsson</strong> with <strong><a href="http://www.artefact.tk/software/matlab/m2html/" target="_parent">m2html</a></strong> &copy; 2003</address>
+</body>
+</html>

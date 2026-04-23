@@ -1,0 +1,15 @@
+Instalation.
+
+Simple. Really. 
+
+1. Put the Skymap directory somwhere you want your matlab-files, like ~/matlab
+2. Add the Skymap directory to your matlab-path.
+4. Set execute permission for /stars/getsp
+4.1 If you are on a system whithout the c-shell you have to install
+    that in order to get the stellar spectra out of the Pulkovo
+    spectrophotometric catalog. 
+4.2 If you work in an operating-system that doesn't have a /tmp
+    directory for temporary files then you will have to modify the
+    paths to the test1.qWe and stasr12.qwe in the files getspec.m,
+    makespec.m, guigetspec.m and plotspec.m
+5. Done

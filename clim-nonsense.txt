@@ -1,0 +1,95 @@
+./ASK/IC/sotonChem2em_TAVplot.m:clim([-dOPS.DeltaCaxis 0]+max(clim))
+./ASK/IC/askChem2em_TAVplot.m:clim([-dOPS.DeltaCaxis 0]+max(clim))
+./tools/cline.m:clim(crange)
+./tools/freezeColors.m:    %preserve parent axis clim
+./tools/freezeColors.m:    originalClim = get(parentAx, 'clim');    
+./tools/freezeColors.m:    %restore clim (so colorbar will show correct limits)
+./tools/freezeColors.m:        set(parentAx,'clim',originalClim)
+./tools/arrow3.m:    set(ax,'clim',[minM,maxM]); c=LocalInterp(minM,maxM,map,M);
+./tools/arrow3.m:  'xlim',xr,'ylim',yr,'zlim',zr,'clim',get(ax,'CLim'));
+./Tomography/hh_tomo1234_New01.m:imagesc(imgs_HAARP6300{1}),clim([-.5 .8])
+./Tomography/hh_tomo1234_New01.m:imagesc(imgs_HIPAS5577{1}),clim([-.5 .8])
+./Tomography/hh_tomo1234_New01.m:imagesc(imgs_HIPAS6300{1}),clim([-0.05 0.1])
+./Tomography/tomo20080305NewBeginnings.m:  cX{i1} = clim;
+./Tomography/tomo20080305NewBeginnings.m:  clim(cX{i1})
+./Tomography/tomo20080305FinalIR_082011.m:  cx2(i2,:) = clim;
+./Tomography/tomo20080305FinalIR_082011.m:  cx1(i2,:) = clim;
+./Tomography/tomo20080305FinalIR_082011.m:  cx3(i2,:) = clim;
+./Tomography/tomo20080305FinalIR_082011.m:  cx1(i2,:) = clim;
+./Tomography/tomo20080305FinalIR_082011.m:  cx2(i2,:) = clim;
+./Tomography/tomo20080305FinalIR_082011.m:  cx3(i2,:) = clim;
+./Tomography/tomo20061212ariel3.m:  cx1(i2,:) = clim;
+./Tomography/tomo20061212ariel3.m:  cx2(i2,:) = clim;
+./Tomography/tomo20061212ariel3.m:  cx3(i2,:) = clim;
+./Tomography/tomo20061212ariel3.m:  clim(Cx1(i2,:))
+./Tomography/tomo20061212ariel3.m:  clim(Cx2(i2,:))
+./Tomography/tomo20061212ariel3.m:  clim(Cx3(i2,:))
+./Tomography/tomo20061212ariel3.m:  clim([0 1.7e8])
+./Tomography/tomo20061212ariel3.m:  clim([0 2.1e8])
+./Tomography/tomo20061212ariel3.m:  clim([0 5e8])
+./Tomography/tomo20061212ariel3.m:  clim([0 Cx(i2)])
+./Tomography/tomo20061212ariel3.m:  clim([0 Cx(i2)])
+./Tomography/tomo20061212ariel3.m:  clim([0 Cx(i2)])
+./Tomography/tomo20061212ariel3.m:  clim(fx)
+./Tomography/tomo20061212ariel3.m:  clim(fx)
+./Tomography/tomo20061212ariel3.m:  clim(fx)
+./Tomography/tomo_EXMPL970216.m:slice(Vem0,47,50,20),shading interp,clim([0 .7e8]),view(90,0)
+./Tomography/tomo_EXMPL970216.m:slice(Vem0,47,50,20),shading interp,clim([0 .7e8]),view(0,90)
+./Tomography/tomo_EXMPL970216.m:slice(Vem0,47,50,20),shading interp,clim([0 .7e8]),view(90,0)
+./Tomography/tomo_EXMPL970216.m:slice(Vem,47,50,20),shading interp,clim([0 .7e8])
+./Tomography/tomo_EXMPL970216.m:slice(Vem,47,50,20),shading interp,clim([0 .7e8]),view(0,90)
+./Tomography/tomo_EXMPL970216.m:slice(Vem,47,50,20),shading interp,clim([0 .7e8]),view(90,0)
+./Tomography/tomo_EXMPL970216.m:slice(Vemx,47,50,20),shading interp,clim([0 .7e8])
+./Tomography/tomo_EXMPL970216.m:slice(Vemx,47,50,20),shading interp,clim([0 .7e8]),view(0,90)
+./Tomography/tomo_EXMPL970216.m:slice(Vemx,47,50,20),shading interp,clim([0 .7e8]),view(90,0)
+./Tomography/tomo20080305restart201708_01.m:  cX{i1} = clim;
+./Tomography/tomo20080305restart201708_01.m:  clim(cX{i1})
+./Tomography/tomo20130308setupNframework.m:  cX{i1} = clim;
+./Tomography/tomo20130308setupNframework.m:  clim(cX{i1})
+./ALIS/alis_find_data.m:% Start climbing the directory tree with ALIS data.
+./ALIS/alis_find_data2b.m:% Start climbing the directory tree with ALIS data.
+./ALIS/alis_find_data2.m:% Start climbing the directory tree with ALIS data.
+./Spectral_cal/M7/spc_autoidentify.m:    set(gca,'climmode','manual')
+./Spectral_cal/M7/spc_autoidentify.m:        set(gca,'climmode','manual')
+./Fits_tools/interference_rem_auto.m:  clim([0 if_level])
+./Aurora/starter4PointsOverImgE.m:clim([-10 0]+max(clim))
+./Aurora/starter4PointsOverImgE.m:clim([-10 0]+max(clim))
+./Aurora/starter4PointsOverImgE.m:clim([-10 0]+max(clim))
+./Aurora/starter4PointsOverImgE.m:clim([-10 0]+max(clim)),
+./Aurora/starter4FlamingRayE.m:clim([-10 0]+max(clim))
+./Aurora/starter4FlamingRayE.m:clim([-10 0]+max(clim))
+./Aurora/starter4FlamingRayE.m:clim([-10 0]+max(clim))
+./Aurora/starter4FlamingRayE.m:clim([-10 0]+max(clim)),
+./Aurora/flamingraysnapshot.m:clim([-5 0]+max(clim))
+./Aurora/runner4FlamingRaysTOWARDSx0y0WideningE2.m:pcolor([1:20]*1/32,E*1e3,log10(IeRay')),shading flat,clim([-5 0]+max(clim))
+./Examples/tomo20080305NewBeginnings.m:  cX{i1} = clim;
+./Examples/tomo20080305NewBeginnings.m:  clim(cX{i1})
+./Examples/tomo_EXMPL970216.m:slice(Vem0,47,50,20),shading interp,clim([0 .7e8]),view(90,0)
+./Examples/tomo_EXMPL970216.m:slice(Vem0,47,50,20),shading interp,clim([0 .7e8]),view(0,90)
+./Examples/tomo_EXMPL970216.m:slice(Vem0,47,50,20),shading interp,clim([0 .7e8]),view(90,0)
+./Examples/tomo_EXMPL970216.m:slice(Vem,47,50,20),shading interp,clim([0 .7e8])
+./Examples/tomo_EXMPL970216.m:slice(Vem,47,50,20),shading interp,clim([0 .7e8]),view(0,90)
+./Examples/tomo_EXMPL970216.m:slice(Vem,47,50,20),shading interp,clim([0 .7e8]),view(90,0)
+./Examples/tomo_EXMPL970216.m:slice(Vemx,47,50,20),shading interp,clim([0 .7e8])
+./Examples/tomo_EXMPL970216.m:slice(Vemx,47,50,20),shading interp,clim([0 .7e8]),view(0,90)
+./Examples/tomo_EXMPL970216.m:slice(Vemx,47,50,20),shading interp,clim([0 .7e8]),view(90,0)
+./Examples/ADA_1_loadnpreproc_p.m:clim([-25066 -23866])
+./Examples/ADA_1_loadnpreproc_p.m:clim([-24566 -23866])
+./Examples/ADA_1_loadnpreproc_p.m:imagesc(d),clim([-25066 -23866]+25066)
+./Examples/ADA_1_loadnpreproc_p.m:imagesc(d),clim([-25066 -23866]+25066)
+./Examples/ADA_1_loadnpreproc_p.m:imagesc(d),clim([-25066 -23866]+25066)
+./Examples/ADA_1_loadnpreproc_p.m:imagesc(d),clim([-25066 -23866]+25066)
+./Starcal/starplot2.m:cax = clim;
+./Starcal/starplot2.m:clim(cax)
+./Starcal/M6/runopticsoptimization.m:    cax = clim;
+./Starcal/M6/autoidentify.m:    set(gca,'climmode','manual')
+./Starcal/M6/autoidentify.m:        set(gca,'climmode','manual')
+./Starcal/M7/autoidentify0.m:    set(gca,'climmode','manual')
+./Starcal/M7/autoidentify0.m:        set(gca,'climmode','manual')
+./Starcal/M7/autoidentify.m:    set(gca,'climmode','manual')
+./Starcal/M7/autoidentify.m:        set(gca,'climmode','manual')
+./Skymap/starplot.m:  cax = clim;
+./Skymap/starplot.m:  clim(cax)
+./Imgtools/imgs_smart_caxis.m:%   sets clims to [alpha,1-alpha] points of the cumulative
+./Imgtools/imgs_plot_bg_red_clall.m:      clim(cax(min(i,size(cax,1)),:))
+./Imgtools/imgs_plot_bg_red_clall.m:    out_var(i,:) = clim;

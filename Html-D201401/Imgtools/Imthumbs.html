@@ -1,0 +1,410 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
+                "http://www.w3.org/TR/REC-html40/loose.dtd">
+<html>
+<head>
+  <title>Description of Imthumbs</title>
+  <meta name="keywords" content="Imthumbs">
+  <meta name="description" content="IMTHUMBS - display thumbnails gallery of list of images">
+  <meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+  <meta name="generator" content="m2html &copy; 2003 Guillaume Flandin">
+  <meta name="robots" content="index, follow">
+  <link type="text/css" rel="stylesheet" href="../m2html.css">
+</head>
+<body>
+<a name="_top"></a>
+<!-- menu.html Imgtools -->
+<h1>Imthumbs
+</h1>
+
+<h2><a name="_name"></a>PURPOSE <a href="#_top"><img alt="^" border="0" src="../up.png"></a></h2>
+<div class="box"><strong>IMTHUMBS - display thumbnails gallery of list of images</strong></div>
+
+<h2><a name="_synopsis"></a>SYNOPSIS <a href="#_top"><img alt="^" border="0" src="../up.png"></a></h2>
+<div class="box"><strong>function Ops = Imthumbs(inFiles,spp_layout,ops) </strong></div>
+
+<h2><a name="_description"></a>DESCRIPTION <a href="#_top"><img alt="^" border="0" src="../up.png"></a></h2>
+<div class="fragment"><pre class="comment"> IMTHUMBS - display thumbnails gallery of list of images 
+  IMMTHUMBS loads and downsamples a given list of image files and
+  displays them in scrollsubplots, then after browsing the user
+  can select individual images to load to the workspace or display
+  in an separate figure where the image can be studied further.
+  The current figure will be used for the thumbnail gallery, and
+  another figure will be created for the full-image displays.
+  
+ Calling:
+   Imthumb([inFiles],[spp_layout],[ops])
+   ops = Imthumbs
+ Input:
+   inFiles   - files with imreadable images, either an array of 
+               structs as returned by dir, or a string array. The
+               files should be in the current directory or the
+               filenames has to be full or relative filenames to 
+               files in other directories. If left out Imthumb
+               will look for image files in the current
+               directory.
+  spp_layout - optional array with subplot layout of the thumbnail
+               gallery [nRow, nCols] will display nRows x nCols
+               number of images in nRows with nCols number of
+               subplots, scrollsubplot is used to extend the
+               figure canvas. If spp_layout is not given the
+               default values of [3,3] is used.
+  ops        - optional struct with options for Imthumb. The
+               default options struct is returned when Imthumbs is
+               called with an output argument and without input
+               arguments. The current option fields are:
+               .LineWidths - default linewidth: 1
+               .LineStyles - [{ '-' }|'--'|'-.'|':'|'.']
+               .LineColor  - [{ 'r' }|'b'|'g'|'c'|'m'|'k'|[R,G,B]]
+               .ImShowFcn  - [{ 'imagesc' }| 'imshow' ]
+               .ImToolFcn  - [{ 'imthumbImTool'}| 'imtool' ]
+               .fontsizes  - default fontsize: 12
+               .lutbar     - [{'on'}| 'off'] colormaps in a
+                       toolbar ('on') or a menu ('off')
+               .colorbar   - [ {'hist'} | 'always'|'off'] to show
+                       a colorbar next to the full-scale
+                       gray-scale images, 'hist' for when plotting
+                       intensity histograms.
+               .ThumbnailTitles = [{ 'off' }| 'on' ]
+               .ThumbnailTargetSize = 256; Target size for small
+                       dimension size of thumbnail, change this
+                       will not change appearance much.
+               .Waitbar    - [ {'on'} | 'off' ] to show a waitbar
+                       or not during the creation of the thumbnail
+                       gallery.
+
+ 
+  Each thumbnail image has a pop-up menu with image information
+  and items for loading the full image to the workspace, or
+  display it in the full-view figure.
+
+  Example:
+   % Move to where some images are:
+   cd /usr/local/MATLAB/R2013a/toolbox/images/imdemos
+   % (If you don't have the Image proc just pick another directory
+   % of yours...)
+   % list some images of interest:
+   qP = dir('*.png');
+   qT = dir('*.tif*');
+   % Create a 3x3 scrollable thumbnail gallery:
+   Imthumbs([qP;qT])
+
+   %  change to show all images, also adjust the linewidths: 
+   ops = Imthumbs;
+   ops.LineWidths = 2;
+   Imthumb([],[3,4],ops)
+ 
+ From there basic information about the image and options to
+ display the full image and to load the image into a named
+ workspace variable can be reached by pushing the right mouse
+ button over the image of interest. In the &quot;Full-scale view&quot;
+ figure line and column cuts can be selected with the left and
+ middle mouse button (for RGB images the line cuts will be plotted
+ as HSV values after middle-clicks), intensity and cumulative
+ intensity histograms are displayed after right-button clicks.
+
+ This tool require the SCROLLSUBPLOT function FEX-ID: 7730, and
+ additional functionality is gained with LUTBAR function, FEX-ID: 9137</pre></div>
+
+<!-- crossreference -->
+<h2><a name="_cross"></a>CROSS-REFERENCE INFORMATION <a href="#_top"><img alt="^" border="0" src="../up.png"></a></h2>
+This function calls:
+<ul style="list-style-image:url(../matlabicon.gif)">
+<li><a href="../tools/ischar.html" class="code" title="function TrueOrFalse = ischar(str)">ischar</a>	ISCHAR - return true if STR is a char-array</li><li><a href="../tools/merge_structs.html" class="code" title="function S_out = merge_structs(S1,S2)">merge_structs</a>	MERGE_STRUCTS - Merge all fields of S2 into S1.</li><li><a href="../tools/scrollsubplot.html" class="code" title="function theAxis = scrollsubplot(nrows, ncols, thisPlot)">scrollsubplot</a>	SCROLLSUBPLOT Create axes in tiled positions.</li></ul>
+This function is called by:
+<ul style="list-style-image:url(../matlabicon.gif)">
+</ul>
+<!-- crossreference -->
+
+<h2><a name="_subfunctions"></a>SUBFUNCTIONS <a href="#_top"><img alt="^" border="0" src="../up.png"></a></h2>
+<ul style="list-style-image:url(../matlabicon.gif)">
+<li><a href="#_sub1" class="code">function outstr = str2strarr(iminfo)</a></li><li><a href="#_sub2" class="code">function ImFiles = get_im_names</a></li><li><a href="#_sub3" class="code">function S_out = merge_structs(S1,S2)</a></li></ul>
+<h2><a name="_source"></a>SOURCE CODE <a href="#_top"><img alt="^" border="0" src="../up.png"></a></h2>
+<div class="fragment"><pre>0001 <a name="_sub0" href="#_subfunctions" class="code">function Ops = Imthumbs(inFiles,spp_layout,ops)</a>
+0002 <span class="comment">% IMTHUMBS - display thumbnails gallery of list of images</span>
+0003 <span class="comment">%  IMMTHUMBS loads and downsamples a given list of image files and</span>
+0004 <span class="comment">%  displays them in scrollsubplots, then after browsing the user</span>
+0005 <span class="comment">%  can select individual images to load to the workspace or display</span>
+0006 <span class="comment">%  in an separate figure where the image can be studied further.</span>
+0007 <span class="comment">%  The current figure will be used for the thumbnail gallery, and</span>
+0008 <span class="comment">%  another figure will be created for the full-image displays.</span>
+0009 <span class="comment">%</span>
+0010 <span class="comment">% Calling:</span>
+0011 <span class="comment">%   Imthumb([inFiles],[spp_layout],[ops])</span>
+0012 <span class="comment">%   ops = Imthumbs</span>
+0013 <span class="comment">% Input:</span>
+0014 <span class="comment">%   inFiles   - files with imreadable images, either an array of</span>
+0015 <span class="comment">%               structs as returned by dir, or a string array. The</span>
+0016 <span class="comment">%               files should be in the current directory or the</span>
+0017 <span class="comment">%               filenames has to be full or relative filenames to</span>
+0018 <span class="comment">%               files in other directories. If left out Imthumb</span>
+0019 <span class="comment">%               will look for image files in the current</span>
+0020 <span class="comment">%               directory.</span>
+0021 <span class="comment">%  spp_layout - optional array with subplot layout of the thumbnail</span>
+0022 <span class="comment">%               gallery [nRow, nCols] will display nRows x nCols</span>
+0023 <span class="comment">%               number of images in nRows with nCols number of</span>
+0024 <span class="comment">%               subplots, scrollsubplot is used to extend the</span>
+0025 <span class="comment">%               figure canvas. If spp_layout is not given the</span>
+0026 <span class="comment">%               default values of [3,3] is used.</span>
+0027 <span class="comment">%  ops        - optional struct with options for Imthumb. The</span>
+0028 <span class="comment">%               default options struct is returned when Imthumbs is</span>
+0029 <span class="comment">%               called with an output argument and without input</span>
+0030 <span class="comment">%               arguments. The current option fields are:</span>
+0031 <span class="comment">%               .LineWidths - default linewidth: 1</span>
+0032 <span class="comment">%               .LineStyles - [{ '-' }|'--'|'-.'|':'|'.']</span>
+0033 <span class="comment">%               .LineColor  - [{ 'r' }|'b'|'g'|'c'|'m'|'k'|[R,G,B]]</span>
+0034 <span class="comment">%               .ImShowFcn  - [{ 'imagesc' }| 'imshow' ]</span>
+0035 <span class="comment">%               .ImToolFcn  - [{ 'imthumbImTool'}| 'imtool' ]</span>
+0036 <span class="comment">%               .fontsizes  - default fontsize: 12</span>
+0037 <span class="comment">%               .lutbar     - [{'on'}| 'off'] colormaps in a</span>
+0038 <span class="comment">%                       toolbar ('on') or a menu ('off')</span>
+0039 <span class="comment">%               .colorbar   - [ {'hist'} | 'always'|'off'] to show</span>
+0040 <span class="comment">%                       a colorbar next to the full-scale</span>
+0041 <span class="comment">%                       gray-scale images, 'hist' for when plotting</span>
+0042 <span class="comment">%                       intensity histograms.</span>
+0043 <span class="comment">%               .ThumbnailTitles = [{ 'off' }| 'on' ]</span>
+0044 <span class="comment">%               .ThumbnailTargetSize = 256; Target size for small</span>
+0045 <span class="comment">%                       dimension size of thumbnail, change this</span>
+0046 <span class="comment">%                       will not change appearance much.</span>
+0047 <span class="comment">%               .Waitbar    - [ {'on'} | 'off' ] to show a waitbar</span>
+0048 <span class="comment">%                       or not during the creation of the thumbnail</span>
+0049 <span class="comment">%                       gallery.</span>
+0050 <span class="comment">%</span>
+0051 <span class="comment">%</span>
+0052 <span class="comment">%  Each thumbnail image has a pop-up menu with image information</span>
+0053 <span class="comment">%  and items for loading the full image to the workspace, or</span>
+0054 <span class="comment">%  display it in the full-view figure.</span>
+0055 <span class="comment">%</span>
+0056 <span class="comment">%  Example:</span>
+0057 <span class="comment">%   % Move to where some images are:</span>
+0058 <span class="comment">%   cd /usr/local/MATLAB/R2013a/toolbox/images/imdemos</span>
+0059 <span class="comment">%   % (If you don't have the Image proc just pick another directory</span>
+0060 <span class="comment">%   % of yours...)</span>
+0061 <span class="comment">%   % list some images of interest:</span>
+0062 <span class="comment">%   qP = dir('*.png');</span>
+0063 <span class="comment">%   qT = dir('*.tif*');</span>
+0064 <span class="comment">%   % Create a 3x3 scrollable thumbnail gallery:</span>
+0065 <span class="comment">%   Imthumbs([qP;qT])</span>
+0066 <span class="comment">%</span>
+0067 <span class="comment">%   %  change to show all images, also adjust the linewidths:</span>
+0068 <span class="comment">%   ops = Imthumbs;</span>
+0069 <span class="comment">%   ops.LineWidths = 2;</span>
+0070 <span class="comment">%   Imthumb([],[3,4],ops)</span>
+0071 <span class="comment">%</span>
+0072 <span class="comment">% From there basic information about the image and options to</span>
+0073 <span class="comment">% display the full image and to load the image into a named</span>
+0074 <span class="comment">% workspace variable can be reached by pushing the right mouse</span>
+0075 <span class="comment">% button over the image of interest. In the &quot;Full-scale view&quot;</span>
+0076 <span class="comment">% figure line and column cuts can be selected with the left and</span>
+0077 <span class="comment">% middle mouse button (for RGB images the line cuts will be plotted</span>
+0078 <span class="comment">% as HSV values after middle-clicks), intensity and cumulative</span>
+0079 <span class="comment">% intensity histograms are displayed after right-button clicks.</span>
+0080 <span class="comment">%</span>
+0081 <span class="comment">% This tool require the SCROLLSUBPLOT function FEX-ID: 7730, and</span>
+0082 <span class="comment">% additional functionality is gained with LUTBAR function, FEX-ID: 9137</span>
+0083 
+0084 <span class="comment">%   Copyright � 20140122 Bjorn Gustavsson, &lt;bjorn.gustavsson@irf.se&gt;</span>
+0085 <span class="comment">%   This is free software, licensed under GNU GPL version 2 or later</span>
+0086 
+0087 
+0088 Dops.LineWidths = 1;   <span class="comment">%  [0.5, { 1 }, 2, 3, ...]</span>
+0089 Dops.LineStyles = <span class="string">'-'</span>; <span class="comment">%  [{ '-' },'--','-.',':','.']</span>
+0090 Dops.LineColor  = <span class="string">'r'</span>;  <span class="comment">%  [{ 'r' },'b','g','c','m','k',[R,G,B]]</span>
+0091 Dops.ImShowFcn  = <span class="string">'imagesc'</span>; <span class="comment">% imshow</span>
+0092 Dops.ImToolFcn  = <span class="string">'imthumbImTool'</span>; <span class="comment">% imtool</span>
+0093 Dops.fontsizes  = 12;
+0094 Dops.colorbar   = <span class="string">'hist'</span>; <span class="comment">% [{'hist'}|'always','off']</span>
+0095 Dops.Waitbar    = <span class="string">'on'</span>; <span class="comment">% 'off'</span>
+0096 Dops.lutbar     = <span class="string">'on'</span>; <span class="comment">% 'off'</span>
+0097 Dops.ThumbnailTitles = <span class="string">'off'</span>; <span class="comment">% or 'on'</span>
+0098 Dops.ThumbnailTargetSize = 256; <span class="comment">% Target size for small dimension size</span>
+0099 
+0100 <span class="keyword">if</span> nargout &amp;&amp; nargin == 0
+0101   Ops = Dops;
+0102   <span class="keyword">return</span>
+0103 <span class="keyword">elseif</span> nargin &gt; 2 &amp;&amp; ~isempty(ops)
+0104   Dops = <a href="../tools/merge_structs.html" class="code" title="function S_out = merge_structs(S1,S2)">merge_structs</a>(Dops,ops);
+0105 <span class="keyword">end</span>
+0106 
+0107 <span class="keyword">if</span> strcmpi(Dops.Waitbar,<span class="string">'on'</span>)
+0108   wbh = waitbar(0,<span class="string">'Working on...'</span>);
+0109 <span class="keyword">end</span>
+0110 <span class="keyword">if</span> ( nargin &lt; 1 || isempty(inFiles) )
+0111   inFiles = <a href="#_sub2" class="code" title="subfunction ImFiles = get_im_names">get_im_names</a>;
+0112 <span class="keyword">end</span>
+0113 
+0114 <span class="keyword">if</span> nargin &lt; 2 || isempty(spp_layout)
+0115   <span class="comment">% If no spp_layout given, use the default:</span>
+0116   spp_layout = [3,3];
+0117 <span class="keyword">end</span>
+0118 
+0119 colormap(gray)
+0120 fig_overviews = gcf;
+0121 set(fig_overviews,<span class="string">'name'</span>,<span class="string">'Thumbnail gallery'</span>)
+0122 <span class="keyword">if</span> ~strcmpi(Dops.ImToolFcn,<span class="string">'imtool'</span>)
+0123   fig_full = figure(<span class="string">'name'</span>,<span class="string">'Full-scale view'</span>); <span class="comment">% pos and such tbd</span>
+0124 <span class="keyword">else</span>
+0125   fig_full = 0;
+0126 <span class="keyword">end</span>
+0127 figure(fig_overviews)
+0128 
+0129 wpwd = pwd; <span class="comment">% filesnames have to be full or relative path from</span>
+0130             <span class="comment">% current directory, to make files loadable from</span>
+0131             <span class="comment">% wherever we prepend the file with the current working</span>
+0132             <span class="comment">% directory</span>
+0133 <span class="keyword">if</span> isstruct(inFiles(1))
+0134   inFiles = char(inFiles.name);
+0135 <span class="keyword">end</span>
+0136 <span class="comment">%% Loop over the image files</span>
+0137 <span class="keyword">for</span> i1 = 1:size(inFiles,1),
+0138   <span class="comment">%% 0 create scrollsubplots:</span>
+0139   <span class="keyword">if</span> strcmpi(Dops.Waitbar,<span class="string">'on'</span>)
+0140     waitbar(i1/size(inFiles,1),wbh,[<span class="string">'Working on file: '</span>,strtrim(inFiles(i1,:))])
+0141   <span class="keyword">end</span>
+0142   <a href="../tools/scrollsubplot.html" class="code" title="function theAxis = scrollsubplot(nrows, ncols, thisPlot)">scrollsubplot</a>(spp_layout(1),spp_layout(2),i1)
+0143   <span class="comment">%% 1 Read the images:</span>
+0144   imfo = imfinfo(strtrim(inFiles(i1,:)));
+0145   <span class="keyword">if</span> strcmp(imfo(1).ColorType,<span class="string">'indexed'</span>) <span class="comment">% Then we have an indexed image</span>
+0146     <span class="keyword">if</span> length(imfo) &gt; 1
+0147       [im,cmap] = imread(strtrim(inFiles(i1,:)),1);
+0148     <span class="keyword">else</span>
+0149       [im,cmap] = imread(strtrim(inFiles(i1,:)));
+0150     <span class="keyword">end</span>
+0151     im = ind2rgb(im,cmap);
+0152   <span class="keyword">else</span>
+0153     <span class="keyword">if</span> length(imfo) &gt; 1
+0154       [im] = imread(strtrim(inFiles(i1,:)),1);
+0155     <span class="keyword">else</span>
+0156       [im] = imread(strtrim(inFiles(i1,:)));
+0157     <span class="keyword">end</span>
+0158   <span class="keyword">end</span>
+0159   namestr = strtrim(inFiles(i1,:));
+0160   namestr4load = fullfile(wpwd,namestr);<span class="comment">%strtrim(inFiles(i1,:));</span>
+0161   imfo = <a href="#_sub1" class="code" title="subfunction outstr = str2strarr(iminfo)">str2strarr</a>(imfo(1));
+0162   
+0163   <span class="comment">% determine suitable downsampling factor, making the smallest</span>
+0164   <span class="comment">% thumbnail dimension just larger than 256 (the default number) pixels...</span>
+0165   pixStep = max(1,min(floor(size(im(:,:,1))/Dops.ThumbnailTargetSize)));
+0166   <span class="keyword">if</span> length(size(im)) &gt; 2
+0167     im = im(1:pixStep:<span class="keyword">end</span>,1:pixStep:<span class="keyword">end</span>,1:3); <span class="comment">% ...and downsample</span>
+0168   <span class="keyword">else</span>
+0169     im = im(1:pixStep:<span class="keyword">end</span>,1:pixStep:end); <span class="comment">% ...and downsample</span>
+0170   <span class="keyword">end</span>
+0171   <span class="keyword">if</span> strcmpi(Dops.ImShowFcn,<span class="string">'imagesc'</span>)
+0172     imagesc(im),set(gca,<span class="string">'xtick'</span>,[],<span class="string">'ytick'</span>,[])
+0173   <span class="keyword">else</span>
+0174     imshow(im),set(gca,<span class="string">'xtick'</span>,[],<span class="string">'ytick'</span>,[])
+0175   <span class="keyword">end</span>
+0176   <span class="keyword">if</span> strcmpi(Dops.ThumbnailTitles,<span class="string">'on'</span>)
+0177     title(strtrim(inFiles(i1,:)),<span class="string">'interpreter'</span>,<span class="string">'none'</span>)
+0178   <span class="keyword">end</span>
+0179   
+0180   <span class="comment">%% 2 Prepare uicontextmenu contents</span>
+0181   <span class="comment">% strings for callbacks loading image to workspace as a named</span>
+0182   <span class="comment">% variable (Im001, Im002,...)</span>
+0183   assignstr = [<span class="string">'Im'</span>,sprintf(<span class="string">'%03d'</span>,i1),<span class="string">' = imread('''</span>,namestr4load,<span class="string">''');'</span>];
+0184   <span class="comment">% and display in the full-view figure</span>
+0185   dispstring = [<span class="string">'imthumb_load_n_show('''</span>,sprintf(namestr4load),<span class="string">''','</span>,num2str(fig_full),<span class="string">')'</span>];
+0186   
+0187   <span class="comment">% ...and strings for the menu lables:</span>
+0188   hlbload = [<span class="string">'Load image as: Im'</span>,sprintf(<span class="string">'%03d'</span>,i1)];
+0189   hlbshow = <span class="string">'Show full image'</span>;
+0190   
+0191   <span class="comment">%% 3 Create the uicontextmenu:</span>
+0192   hcmenu = uicontextmenu;
+0193   uimenu(hcmenu, <span class="string">'Label'</span>, namestr );
+0194   uimenu(hcmenu, <span class="string">'Label'</span>, hlbshow, <span class="string">'Callback'</span>,dispstring );
+0195   uimenu(hcmenu, <span class="string">'Label'</span>, hlbload, <span class="string">'Callback'</span>,assignstr );
+0196   <span class="keyword">for</span> iHeader = 1:size(imfo,1),
+0197     <span class="keyword">if</span> iHeader == 1
+0198       uimenu(hcmenu, <span class="string">'Label'</span>, imfo(iHeader,:),<span class="string">'Separator'</span>,<span class="string">'on'</span>);
+0199     <span class="keyword">else</span>      
+0200       uimenu(hcmenu, <span class="string">'Label'</span>, imfo(iHeader,:));
+0201     <span class="keyword">end</span>
+0202   <span class="keyword">end</span>
+0203   hlines = findall(gca,<span class="string">'Type'</span>,<span class="string">'image'</span>);
+0204   set(hlines,<span class="string">'uicontextmenu'</span>,hcmenu);
+0205   
+0206 <span class="keyword">end</span>
+0207 <span class="keyword">if</span> strcmpi(Dops.Waitbar,<span class="string">'on'</span>)
+0208   close(wbh)
+0209 <span class="keyword">end</span>
+0210 set(gcf,<span class="string">'userdata'</span>,Dops)
+0211 <a name="_sub1" href="#_subfunctions" class="code">function outstr = str2strarr(iminfo)</a>
+0212 <span class="comment">% STR2STRARR - subfunction for making the IMFINFO struct into a</span>
+0213 <span class="comment">% neatly displayable string</span>
+0214 <span class="comment">%</span>
+0215 <span class="comment">% Calling</span>
+0216 <span class="comment">%   outstr = str2strarr(iminfo)</span>
+0217 
+0218 
+0219 fieldnms = fieldnames(iminfo(1));
+0220 
+0221 outstr = <span class="string">'Image Info:'</span>;
+0222 <span class="keyword">for</span> iFields = 2:length(fieldnms),
+0223   
+0224   <span class="keyword">if</span> ~isempty(iminfo(1).(fieldnms{iFields}))
+0225     <span class="keyword">if</span> <a href="../tools/ischar.html" class="code" title="function TrueOrFalse = ischar(str)">ischar</a>(iminfo(1).(fieldnms{iFields}))
+0226       outstr = char(outstr,sprintf(<span class="string">'%s:\t\t%s\n'</span>,fieldnms{iFields},iminfo(1).(fieldnms{iFields})));
+0227     <span class="keyword">elseif</span> ( isnumeric(iminfo(1).(fieldnms{iFields})) &amp;&amp; <span class="keyword">...</span>
+0228              all( rem(iminfo(1).(fieldnms{iFields})(:),1) == 0 ) )
+0229       outstr = char(outstr,sprintf(<span class="string">'%s:\t\t%d \n'</span>,fieldnms{iFields},iminfo(1).(fieldnms{iFields})));
+0230     <span class="keyword">elseif</span> isnumeric(iminfo(1).(fieldnms{iFields}))
+0231       outstr = char(outstr,sprintf(<span class="string">'%s:\t\t%f \n'</span>,fieldnms{iFields},iminfo(1).(fieldnms{iFields})));
+0232     <span class="keyword">end</span>
+0233   <span class="keyword">end</span>
+0234   
+0235 <span class="keyword">end</span>
+0236 
+0237 outstr = outstr(:,1:min(100,size(outstr,2)));
+0238 
+0239 <a name="_sub2" href="#_subfunctions" class="code">function ImFiles = get_im_names</a>
+0240 <span class="comment">% GET_IM_NAMES Get the names of all images in a directory</span>
+0241 
+0242 
+0243 D = dir;
+0244 
+0245 iIm = 0;
+0246  
+0247 
+0248 <span class="comment">% Go through the directory list</span>
+0249 CF = cell(size(D));
+0250 <span class="keyword">for</span> iD = 1:length(D)
+0251   <span class="comment">% Check if file is a supported image type</span>
+0252   [pth,name,ext] = fileparts(D(iD).name); <span class="comment">%#ok&lt;*ASGLU&gt;</span>
+0253   <span class="keyword">if</span>  ( ~D(iD).isdir &amp;&amp; <span class="keyword">...</span>
+0254         ~isempty(ext) &amp;&amp; <span class="keyword">...</span>
+0255         (any(strcmpi(ext, {<span class="string">'.bmp'</span>, <span class="keyword">...</span>
+0256                         <span class="string">'.fits'</span>,<span class="keyword">...</span>
+0257                         <span class="string">'.jpeg'</span>,<span class="keyword">...</span>
+0258                         <span class="string">'.jpg'</span>, <span class="keyword">...</span>
+0259                         <span class="string">'.pbm'</span>, <span class="keyword">...</span>
+0260                         <span class="string">'.pgm'</span>, <span class="keyword">...</span>
+0261                         <span class="string">'.png'</span>, <span class="keyword">...</span>
+0262                         <span class="string">'.ppm'</span>, <span class="keyword">...</span>
+0263                         <span class="string">'.ras'</span>, <span class="keyword">...</span>
+0264                         <span class="string">'.tif'</span>, <span class="keyword">...</span>
+0265                         <span class="string">'.tiff'</span>}))) )
+0266 <span class="comment">% Encountered some problems with IMREAD on multi-frame gif-files so removed them from automatic listing %'.gif', ...</span>
+0267     iIm = iIm + 1;
+0268     CF{iIm} = D(iD).name;
+0269     <span class="comment">% ImFiles(iIm,1:length(D(iD).name)) = D(iD).name;</span>
+0270   <span class="keyword">end</span>
+0271 <span class="keyword">end</span>
+0272 ImFiles = char(CF{1:iIm});
+0273 
+0274 <a name="_sub3" href="#_subfunctions" class="code">function S_out = merge_structs(S1,S2)</a>
+0275 <span class="comment">% MERGE_STRUCTS - Merge all fields of S2 into S1.</span>
+0276 <span class="comment">%</span>
+0277 
+0278 
+0279 S_out = S1;
+0280 
+0281 fields2 = fieldnames(S2);
+0282 <span class="keyword">for</span> curr_field = fields2(:)',
+0283   
+0284   S_out = setfield(S_out,curr_field{:},getfield(S2,curr_field{:}));
+0285   
+0286 <span class="keyword">end</span></pre></div>
+<hr><address>Generated on Mon 27-Jan-2014 17:32:33 by <strong>B.&nbsp;Gustavsson</strong> with <strong><a href="http://www.artefact.tk/software/matlab/m2html/" target="_parent">m2html</a></strong> &copy; 2003</address>
+</body>
+</html>

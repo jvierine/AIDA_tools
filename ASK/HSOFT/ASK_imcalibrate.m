@@ -1,0 +1,35 @@
+function img_out = ASK_imcalibrate(img_in,dt_over_tbetweendarks)
+% ASK_IMCALIBRATE - scale the images to Rayleighs
+%   
+% Calling:
+%   img_out = ASK_imcalibrate(img_in,d_field,fmd_field)
+% Input:
+%   img_in    - Input image, uncalibrated
+%   d_field   - Dark/background image
+%   fmd_field - flatfield/sensitivity image
+% Output:
+%   img_out - (img_in - d_field)./fmd_field;
+%
+% Written to mimic imcalibrate.pro
+%
+% Function def was: function img_out = ASK_imcalibrate(img_in)%,d_field,fmd_field)
+
+% Modified from add_multi.pro
+% Copyright Bjorn Gustavsson 20110131
+% GPL 3.0 or later applies
+
+global imcal % WITH: d_field, fmd_field
+
+if nargin == 1
+  img_out = (img_in - imcal.d_field(:,:,1))./imcal.fmd_field;
+else
+  dt_tblock = dt_over_tbetweendarks;
+  if size(imcal.d_field,3) > 1
+    % Here we now do linear interpolation between darks
+    img_out = (img_in - (imcal.d_field(:,:,1) + ...
+                         dt_tblock*(imcal.d_field(:,:,2)-imcal.d_field(:,:,1)))...
+              )./imcal.fmd_field;
+  else
+    img_out = (img_in - imcal.d_field(:,:,1) )./imcal.fmd_field;      
+  end
+end

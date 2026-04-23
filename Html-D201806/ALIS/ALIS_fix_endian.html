@@ -1,0 +1,101 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
+                "http://www.w3.org/TR/REC-html40/loose.dtd">
+<html>
+<head>
+  <title>Description of ALIS_fix_endian</title>
+  <meta name="keywords" content="ALIS_fix_endian">
+  <meta name="description" content="ALIS_FIX_ENDIAN - set the right endian-field in the preprocessing options struct">
+  <meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+  <meta name="generator" content="m2html &copy; 2003 Guillaume Flandin">
+  <meta name="robots" content="index, follow">
+  <link type="text/css" rel="stylesheet" href="../m2html.css">
+</head>
+<body>
+<a name="_top"></a>
+<!-- menu.html ALIS -->
+<h1>ALIS_fix_endian
+</h1>
+
+<h2><a name="_name"></a>PURPOSE <a href="#_top"><img alt="^" border="0" src="../up.png"></a></h2>
+<div class="box"><strong>ALIS_FIX_ENDIAN - set the right endian-field in the preprocessing options struct</strong></div>
+
+<h2><a name="_synopsis"></a>SYNOPSIS <a href="#_top"><img alt="^" border="0" src="../up.png"></a></h2>
+<div class="box"><strong>function PO = ALIS_fix_endian(PO,date_obs) </strong></div>
+
+<h2><a name="_description"></a>DESCRIPTION <a href="#_top"><img alt="^" border="0" src="../up.png"></a></h2>
+<div class="fragment"><pre class="comment"> ALIS_FIX_ENDIAN - set the right endian-field in the preprocessing options struct
+   
+ Calling:
+   PO = ALIS_fix_endian(PO,date_obs)
+ Input:
+   PO - struct with pre-processing options as returned from
+        typical_pre_proc_ops 
+   date_obs - array with [yyyy, mm, dd,...]
+ Output:
+   PO - pre-processing options struct with the right BE/LE field
+        set
+ 
+ Example:
+   PO = typical_pre_proc_ops('ALIS');
+   PO = ALIS_fix_endian(PO,[1999 02 16 17 36 10]);
+   % ...
+   PO = ALIS_fix_endian(PO,[2002 03 10]);
+   
+ See also <a href="ALIS_get_right_endian.html" class="code" title="function Endian = ALIS_get_right_endian(date_obs)">ALIS_GET_RIGHT_ENDIAN</a>, TYPICAL_PRE_PROC_OPS, INIMG</pre></div>
+
+<!-- crossreference -->
+<h2><a name="_cross"></a>CROSS-REFERENCE INFORMATION <a href="#_top"><img alt="^" border="0" src="../up.png"></a></h2>
+This function calls:
+<ul style="list-style-image:url(../matlabicon.gif)">
+<li><a href="ALIS_get_right_endian.html" class="code" title="function Endian = ALIS_get_right_endian(date_obs)">ALIS_get_right_endian</a>	ALIS_GET_RIGHT_ENDIAN - get the right endian for ALIS' fits files</li></ul>
+This function is called by:
+<ul style="list-style-image:url(../matlabicon.gif)">
+</ul>
+<!-- crossreference -->
+
+
+<h2><a name="_source"></a>SOURCE CODE <a href="#_top"><img alt="^" border="0" src="../up.png"></a></h2>
+<div class="fragment"><pre>0001 <a name="_sub0" href="#_subfunctions" class="code">function PO = ALIS_fix_endian(PO,date_obs)</a>
+0002 <span class="comment">% ALIS_FIX_ENDIAN - set the right endian-field in the preprocessing options struct</span>
+0003 <span class="comment">%</span>
+0004 <span class="comment">% Calling:</span>
+0005 <span class="comment">%   PO = ALIS_fix_endian(PO,date_obs)</span>
+0006 <span class="comment">% Input:</span>
+0007 <span class="comment">%   PO - struct with pre-processing options as returned from</span>
+0008 <span class="comment">%        typical_pre_proc_ops</span>
+0009 <span class="comment">%   date_obs - array with [yyyy, mm, dd,...]</span>
+0010 <span class="comment">% Output:</span>
+0011 <span class="comment">%   PO - pre-processing options struct with the right BE/LE field</span>
+0012 <span class="comment">%        set</span>
+0013 <span class="comment">%</span>
+0014 <span class="comment">% Example:</span>
+0015 <span class="comment">%   PO = typical_pre_proc_ops('ALIS');</span>
+0016 <span class="comment">%   PO = ALIS_fix_endian(PO,[1999 02 16 17 36 10]);</span>
+0017 <span class="comment">%   % ...</span>
+0018 <span class="comment">%   PO = ALIS_fix_endian(PO,[2002 03 10]);</span>
+0019 <span class="comment">%</span>
+0020 <span class="comment">% See also ALIS_GET_RIGHT_ENDIAN, TYPICAL_PRE_PROC_OPS, INIMG</span>
+0021 
+0022 
+0023 <span class="comment">%   Copyright � 2014 Bjorn Gustavsson, &lt;bjorn.gustavsson@irf.se&gt;</span>
+0024 <span class="comment">%   This is free software, licensed under GNU GPL version 2 or later</span>
+0025 
+0026 Endian = <a href="ALIS_get_right_endian.html" class="code" title="function Endian = ALIS_get_right_endian(date_obs)">ALIS_get_right_endian</a>(date_obs);
+0027 
+0028 <span class="keyword">switch</span> Endian
+0029  <span class="keyword">case</span> <span class="string">'BE'</span>
+0030   PO.BE = 1;
+0031   <span class="keyword">if</span> isfield(PO,<span class="string">'LE'</span>) 
+0032     PO = rmfield(PO,<span class="string">'LE'</span>);
+0033   <span class="keyword">end</span>
+0034  <span class="keyword">case</span> <span class="string">'LE'</span>
+0035   PO.LE = 1;
+0036   <span class="keyword">if</span> isfield(PO,<span class="string">'BE'</span>) 
+0037     PO = rmfield(PO,<span class="string">'BE'</span>);
+0038   <span class="keyword">end</span>
+0039  <span class="keyword">otherwise</span>
+0040   disp(<span class="string">'Dont know how this happened, but: ALIS_fix_endian failed.'</span>)
+0041 <span class="keyword">end</span></pre></div>
+<hr><address>Generated on Thu 21-Jun-2018 22:40:16 by <strong>B.&nbsp;Gustavsson</strong> with <strong><a href="http://www.artefact.tk/software/matlab/m2html/" target="_parent">m2html</a></strong> &copy; 2003</address>
+</body>
+</html>

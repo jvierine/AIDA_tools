@@ -1,0 +1,84 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
+                "http://www.w3.org/TR/REC-html40/loose.dtd">
+<html>
+<head>
+  <title>Description of mirror_point_line</title>
+  <meta name="keywords" content="mirror_point_line">
+  <meta name="description" content="MIRROR_POINT_LINE - mirror point coordinate in arbitrary line">
+  <meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+  <meta name="generator" content="m2html &copy; 2003 Guillaume Flandin">
+  <meta name="robots" content="index, follow">
+  <link type="text/css" rel="stylesheet" href="../m2html.css">
+</head>
+<body>
+<a name="_top"></a>
+<!-- menu.html Geometry -->
+<h1>mirror_point_line
+</h1>
+
+<h2><a name="_name"></a>PURPOSE <a href="#_top"><img alt="^" border="0" src="../up.png"></a></h2>
+<div class="box"><strong>MIRROR_POINT_LINE - mirror point coordinate in arbitrary line</strong></div>
+
+<h2><a name="_synopsis"></a>SYNOPSIS <a href="#_top"><img alt="^" border="0" src="../up.png"></a></h2>
+<div class="box"><strong>function r_out = mirror_point_line(r_in,r0,r1) </strong></div>
+
+<h2><a name="_description"></a>DESCRIPTION <a href="#_top"><img alt="^" border="0" src="../up.png"></a></h2>
+<div class="fragment"><pre class="comment"> MIRROR_POINT_LINE - mirror point coordinate in arbitrary line
+   mirror_point_line mirrors 2-d points in/on/across line between
+   two arbitrary points
+ 
+ Calling:
+   r_out = mirror_point_line(r_in,r0,r1)
+ input:
+   r_in - points to mirror [nP x 2], double array
+   r0   - point number one on line, two-element double array
+   r1   - point number two on line, two-element double array
+ Output:
+   r_out - mirrored points, [nP x 2], double array
+ 
+ r0 and r1 should not be the same point
+ no argument checking done.</pre></div>
+
+<!-- crossreference -->
+<h2><a name="_cross"></a>CROSS-REFERENCE INFORMATION <a href="#_top"><img alt="^" border="0" src="../up.png"></a></h2>
+This function calls:
+<ul style="list-style-image:url(../matlabicon.gif)">
+</ul>
+This function is called by:
+<ul style="list-style-image:url(../matlabicon.gif)">
+</ul>
+<!-- crossreference -->
+
+
+<h2><a name="_source"></a>SOURCE CODE <a href="#_top"><img alt="^" border="0" src="../up.png"></a></h2>
+<div class="fragment"><pre>0001 <a name="_sub0" href="#_subfunctions" class="code">function r_out = mirror_point_line(r_in,r0,r1)</a>
+0002 <span class="comment">% MIRROR_POINT_LINE - mirror point coordinate in arbitrary line</span>
+0003 <span class="comment">%   mirror_point_line mirrors 2-d points in/on/across line between</span>
+0004 <span class="comment">%   two arbitrary points</span>
+0005 <span class="comment">%</span>
+0006 <span class="comment">% Calling:</span>
+0007 <span class="comment">%   r_out = mirror_point_line(r_in,r0,r1)</span>
+0008 <span class="comment">% input:</span>
+0009 <span class="comment">%   r_in - points to mirror [nP x 2], double array</span>
+0010 <span class="comment">%   r0   - point number one on line, two-element double array</span>
+0011 <span class="comment">%   r1   - point number two on line, two-element double array</span>
+0012 <span class="comment">% Output:</span>
+0013 <span class="comment">%   r_out - mirrored points, [nP x 2], double array</span>
+0014 <span class="comment">%</span>
+0015 <span class="comment">% r0 and r1 should not be the same point</span>
+0016 <span class="comment">% no argument checking done.</span>
+0017 
+0018 
+0019 dx = r1(1) - r0(1);
+0020 dy = r1(2) - r0(2);
+0021 
+0022 a   = (dx * dx - dy * dy) / (dx * dx + dy*dy);
+0023 b   = 2 * dx * dy / (dx*dx + dy*dy);
+0024 
+0025 x2  = (a * (r_in(:,1) - r0(1)) + b*(r_in(:,2) - r0(2)) + r0(1)); 
+0026 y2  = (b * (r_in(:,1) - r0(1)) - a*(r_in(:,2) - r0(2)) + r0(2));
+0027 
+0028 r_out = [x2,y2];</pre></div>
+<hr><address>Generated on Thu 21-Jun-2018 22:40:16 by <strong>B.&nbsp;Gustavsson</strong> with <strong><a href="http://www.artefact.tk/software/matlab/m2html/" target="_parent">m2html</a></strong> &copy; 2003</address>
+</body>
+</html>

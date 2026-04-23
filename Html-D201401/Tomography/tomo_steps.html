@@ -1,0 +1,293 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
+                "http://www.w3.org/TR/REC-html40/loose.dtd">
+<html>
+<head>
+  <title>Description of tomo_steps</title>
+  <meta name="keywords" content="tomo_steps">
+  <meta name="description" content="TOMO_STEPS - tomographic itterative step(s).">
+  <meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+  <meta name="generator" content="m2html &copy; 2003 Guillaume Flandin">
+  <meta name="robots" content="index, follow">
+  <link type="text/css" rel="stylesheet" href="../m2html.css">
+</head>
+<body>
+<a name="_top"></a>
+<!-- menu.html Tomography -->
+<h1>tomo_steps
+</h1>
+
+<h2><a name="_name"></a>PURPOSE <a href="#_top"><img alt="^" border="0" src="../up.png"></a></h2>
+<div class="box"><strong>TOMO_STEPS - tomographic itterative step(s).</strong></div>
+
+<h2><a name="_synopsis"></a>SYNOPSIS <a href="#_top"><img alt="^" border="0" src="../up.png"></a></h2>
+<div class="box"><strong>function [Vem,stns] = tomo_steps(Vem,stns,tomo_ops,nr_laps) </strong></div>
+
+<h2><a name="_description"></a>DESCRIPTION <a href="#_top"><img alt="^" border="0" src="../up.png"></a></h2>
+<div class="fragment"><pre class="comment"> TOMO_STEPS - tomographic itterative step(s).
+ VEM is the current 3D distribution STNS are the struct that
+ contain the images and camera set up. TOMO_OPS is the struct
+ containing the options controling the processing of the
+ itteration, NR_LAPS are the number of steps to itterate. 
+ 
+ Calling:
+ [Vem,stns] = tomo_steps(Vem,stns,tomo_ops,nr_laps)
+
+ See also TOMO_INP_CAMERA, <a href="camera_set_up_sc.html" class="code" title="function [uv,d,l_cl,bfk,ds,sz3d] = camera_set_up_sc(r,xi,yi,zi,optpar,robs,imgsize,nr_layers,cmtr,ds)">CAMERA_SET_UP_SC</a>, <a href="make_tomo_ops.html" class="code" title="function tomo_ops = make_tomo_ops(stns)">MAKE_TOMO_OPS</a></pre></div>
+
+<!-- crossreference -->
+<h2><a name="_cross"></a>CROSS-REFERENCE INFORMATION <a href="#_top"><img alt="^" border="0" src="../up.png"></a></h2>
+This function calls:
+<ul style="list-style-image:url(../matlabicon.gif)">
+<li><a href="../Imgtools/imgs_deconv_crude.html" class="code" title="function img_out = imgs_deconv_crude(img_in,psf,damp_level,edge_t_scale)">imgs_deconv_crude</a>	imgs_deconv_crude - Deconvolution, amplitude cut-off method</li><li><a href="../Imgtools/imgs_smart_caxis.html" class="code" title="function cax = imgs_smart_caxis(alpha,varargin)">imgs_smart_caxis</a>	imgs_smart_caxis - alpha-percentile setting of color-axis,</li><li><a href="backprojection.html" class="code" title="function dVem = backprojection(b,p,uv,l_cl,bfk,indx,tomoptions)">backprojection</a>	BACKPROJECTION - Function that projects the localized ratios</li><li><a href="fastprojection.html" class="code" title="function img_out = fastprojection(Vem,uv,d,l_cl,bfk,imgsize,sens_mtr,sz3d)">fastprojection</a>	FASTPROJECTION - project the volume emission VEM down to image IMG_OUT.</li><li><a href="../tools/medfilt2.html" class="code" title="function outM = medfilt2(inM,fc,varagin)">medfilt2</a>	MEDFILT2 - 2 dimensional sliding median filter</li><li><a href="../tools/mysubplot.html" class="code" title="function theAxis = mysubplot(nrows, ncols, thisPlot)">mysubplot</a>	MYSUBPLOT Create axes in tiled positions.</li></ul>
+This function is called by:
+<ul style="list-style-image:url(../matlabicon.gif)">
+<li><a href="../Examples/tomo20080305NewBeginnings.html" class="code" title="">tomo20080305NewBeginnings</a>	TOMO20080305NewBeginnings - script for tomographing ALIS 20080305 event, 18:40 UT</li><li><a href="../Examples/tomo_EXMPL970216.html" class="code" title="">tomo_EXMPL970216</a>	% Template/example script for auroral tomography,</li><li><a href="ba_rt_error.html" class="code" title="function err = ba_rt_error(Par,stns,OPS,XfI,YfI,ZfI,rstns,tomo_ops)">ba_rt_error</a>	BA_RT_ERROR - Black aurora inversion error function</li><li><a href="tomo20061212ariel3.html" class="code" title="">tomo20061212ariel3</a>	TOMO20061212ARIEL3 - script for tomographing ALIS 20061212 event</li><li><a href="tomo20080305FinalIR_082011.html" class="code" title="">tomo20080305FinalIR_082011</a>	TOMO20080305FinalIR_082011 - script for tomographing ALIS 20080305 event, 18:40 UT</li><li><a href="tomo20080305NewBeginnings.html" class="code" title="">tomo20080305NewBeginnings</a>	TOMO20080305NewBeginnings - script for tomographing ALIS 20080305 event, 18:40 UT</li><li><a href="tomo20130308setupNframework.html" class="code" title="">tomo20130308setupNframework</a>	TOMO20080305NewBeginnings - script for tomographing ALIS 20080305 event, 18:40 UT</li><li><a href="tomo_EXMPL970216.html" class="code" title="">tomo_EXMPL970216</a>	% TOMO_EXMPL970216 - Template/example script for auroral tomography,</li><li><a href="tomo_skeleton.html" class="code" title="">tomo_skeleton</a>	% TOMO_SKELETON - Template/example script for auroral tomography,</li></ul>
+<!-- crossreference -->
+
+
+<h2><a name="_source"></a>SOURCE CODE <a href="#_top"><img alt="^" border="0" src="../up.png"></a></h2>
+<div class="fragment"><pre>0001 <a name="_sub0" href="#_subfunctions" class="code">function [Vem,stns] = tomo_steps(Vem,stns,tomo_ops,nr_laps)</a>
+0002 <span class="comment">% TOMO_STEPS - tomographic itterative step(s).</span>
+0003 <span class="comment">% VEM is the current 3D distribution STNS are the struct that</span>
+0004 <span class="comment">% contain the images and camera set up. TOMO_OPS is the struct</span>
+0005 <span class="comment">% containing the options controling the processing of the</span>
+0006 <span class="comment">% itteration, NR_LAPS are the number of steps to itterate.</span>
+0007 <span class="comment">%</span>
+0008 <span class="comment">% Calling:</span>
+0009 <span class="comment">% [Vem,stns] = tomo_steps(Vem,stns,tomo_ops,nr_laps)</span>
+0010 <span class="comment">%</span>
+0011 <span class="comment">% See also TOMO_INP_CAMERA, CAMERA_SET_UP_SC, MAKE_TOMO_OPS</span>
+0012 <span class="comment">%</span>
+0013 
+0014 <span class="comment">%   Copyright � 20050110 Bjorn Gustavsson, &lt;bjorn.gustavsson@irf.se&gt;</span>
+0015 <span class="comment">%   This is free software, licensed under GNU GPL version 2 or later</span>
+0016 
+0017 i1 = 0;
+0018 
+0019 <span class="keyword">for</span> i3 = 1:nr_laps,
+0020   
+0021   <span class="keyword">switch</span> tomo_ops(1).tomotype
+0022    <span class="keyword">case</span> 0
+0023     <span class="comment">%art</span>
+0024     <span class="keyword">for</span> j2 = 1:3
+0025       io = find( [tomo_ops(:).randorder] == j2 );
+0026       junk = rand([1 length(io)]);
+0027       [junk,order] = sort(junk);
+0028       <span class="keyword">for</span> k = 1:length(order),
+0029         <span class="keyword">if</span> isfield(stns,<span class="string">'sens_mtr'</span>)
+0030           stns(io(order(k))).proj = <a href="fastprojection.html" class="code" title="function img_out = fastprojection(Vem,uv,d,l_cl,bfk,imgsize,sens_mtr,sz3d)">fastprojection</a>(Vem, <span class="keyword">...</span>
+0031                                                    stns(io(order(k))).uv, <span class="keyword">...</span>
+0032                                                    stns(io(order(k))).d, <span class="keyword">...</span>
+0033                                                    stns(io(order(k))).l_cl, <span class="keyword">...</span>
+0034                                                    stns(io(order(k))).bfk, <span class="keyword">...</span>
+0035                                                    size(stns(io(order(k))).img),<span class="keyword">...</span>
+0036                                                    stns(io(order(k))).sens_mtr);
+0037         <span class="keyword">else</span>
+0038           stns(io(order(k))).proj = <a href="fastprojection.html" class="code" title="function img_out = fastprojection(Vem,uv,d,l_cl,bfk,imgsize,sens_mtr,sz3d)">fastprojection</a>(Vem, <span class="keyword">...</span>
+0039                                                    stns(io(order(k))).uv, <span class="keyword">...</span>
+0040                                                    stns(io(order(k))).d, <span class="keyword">...</span>
+0041                                                    stns(io(order(k))).l_cl, <span class="keyword">...</span>
+0042                                                    stns(io(order(k))).bfk, <span class="keyword">...</span>
+0043                                                    size(stns(io(order(k))).img));
+0044         <span class="keyword">end</span>
+0045     Vem(:) = Vem(:) + <a href="backprojection.html" class="code" title="function dVem = backprojection(b,p,uv,l_cl,bfk,indx,tomoptions)">backprojection</a>(stns(io(order(k))).img, <span class="keyword">...</span>
+0046                                          stns(io(order(k))).proj, <span class="keyword">...</span>
+0047                                          stns(io(order(k))).uv, <span class="keyword">...</span>
+0048                                          stns(io(order(k))).l_cl, <span class="keyword">...</span>
+0049                                          stns(io(order(k))).bfk, <span class="keyword">...</span>
+0050                                          io(order(k)), <span class="keyword">...</span>
+0051                                          tomo_ops)'/size(Vem,3);
+0052     <span class="comment">%Infindx = find(~isfinite(Vem(:)));</span>
+0053     Vem(~isfinite(Vem(:))) = 0;
+0054       <span class="keyword">end</span>
+0055     <span class="keyword">end</span>
+0056    <span class="keyword">case</span> 1
+0057     <span class="comment">%art</span>
+0058     <span class="keyword">for</span> j2 = 1:3
+0059       io = find( [tomo_ops(:).randorder] == j2 );
+0060       junk = rand([1 length(io)]);
+0061       [junk,order] = sort(junk);
+0062       <span class="keyword">for</span> k = 1:length(order),
+0063         <span class="keyword">if</span> isfield(stns,<span class="string">'sens_mtr'</span>)
+0064           stns(io(order(k))).proj = <a href="fastprojection.html" class="code" title="function img_out = fastprojection(Vem,uv,d,l_cl,bfk,imgsize,sens_mtr,sz3d)">fastprojection</a>(Vem, <span class="keyword">...</span>
+0065                                                    stns(io(order(k))).uv, <span class="keyword">...</span>
+0066                                                    stns(io(order(k))).d, <span class="keyword">...</span>
+0067                                                    stns(io(order(k))).l_cl, <span class="keyword">...</span>
+0068                                                    stns(io(order(k))).bfk, <span class="keyword">...</span>
+0069                                                    size(stns(io(order(k))).img),<span class="keyword">...</span>
+0070                                                    stns(io(order(k))).sens_mtr);
+0071         <span class="keyword">else</span>
+0072           stns(io(order(k))).proj = <a href="fastprojection.html" class="code" title="function img_out = fastprojection(Vem,uv,d,l_cl,bfk,imgsize,sens_mtr,sz3d)">fastprojection</a>(Vem, <span class="keyword">...</span>
+0073                                                    stns(io(order(k))).uv, <span class="keyword">...</span>
+0074                                                    stns(io(order(k))).d, <span class="keyword">...</span>
+0075                                                    stns(io(order(k))).l_cl, <span class="keyword">...</span>
+0076                                                    stns(io(order(k))).bfk, <span class="keyword">...</span>
+0077                                                    size(stns(io(order(k))).img));
+0078         <span class="keyword">end</span>
+0079     Vem(:) = Vem(:).*<a href="backprojection.html" class="code" title="function dVem = backprojection(b,p,uv,l_cl,bfk,indx,tomoptions)">backprojection</a>(stns(io(order(k))).img, <span class="keyword">...</span>
+0080                                          stns(io(order(k))).proj, <span class="keyword">...</span>
+0081                                          stns(io(order(k))).uv, <span class="keyword">...</span>
+0082                                          stns(io(order(k))).l_cl, <span class="keyword">...</span>
+0083                                          stns(io(order(k))).bfk, <span class="keyword">...</span>
+0084                                          io(order(k)), <span class="keyword">...</span>
+0085                                          tomo_ops)';
+0086     <span class="comment">%Infindx = find(~isfinite(Vem(:)));</span>
+0087     Vem(~isfinite(Vem(:))) = 0;
+0088       <span class="keyword">end</span>
+0089     <span class="keyword">end</span>
+0090    <span class="keyword">case</span> 2
+0091     <span class="comment">%msirt</span>
+0092     <span class="keyword">for</span> j2 = 1:length(stns),
+0093       <span class="keyword">if</span> isfield(stns,<span class="string">'sens_mtr'</span>)
+0094         stns(j2).proj = <a href="fastprojection.html" class="code" title="function img_out = fastprojection(Vem,uv,d,l_cl,bfk,imgsize,sens_mtr,sz3d)">fastprojection</a>(Vem, <span class="keyword">...</span>
+0095                                        stns(j2).uv, <span class="keyword">...</span>
+0096                                        stns(j2).d, <span class="keyword">...</span>
+0097                                        stns(j2).l_cl, <span class="keyword">...</span>
+0098                                        stns(j2).bfk, <span class="keyword">...</span>
+0099                                        size(stns(j2).img),<span class="keyword">...</span>
+0100                                        stns(j2).sens_mtr);
+0101       <span class="keyword">else</span>
+0102         stns(j2).proj = <a href="fastprojection.html" class="code" title="function img_out = fastprojection(Vem,uv,d,l_cl,bfk,imgsize,sens_mtr,sz3d)">fastprojection</a>(Vem, <span class="keyword">...</span>
+0103                                        stns(j2).uv, <span class="keyword">...</span>
+0104                                        stns(j2).d, <span class="keyword">...</span>
+0105                                        stns(j2).l_cl, <span class="keyword">...</span>
+0106                                        stns(j2).bfk, <span class="keyword">...</span>
+0107                                        size(stns(j2).img));
+0108       <span class="keyword">end</span>
+0109     <span class="keyword">end</span>
+0110     <span class="keyword">for</span> j2 = 1:length(stns),
+0111       
+0112       Vem(:) = Vem(:).*real(<a href="backprojection.html" class="code" title="function dVem = backprojection(b,p,uv,l_cl,bfk,indx,tomoptions)">backprojection</a>(stns(j2).img,<span class="keyword">...</span>
+0113                       stns(j2).proj,<span class="keyword">...</span>
+0114                       stns(j2).uv,<span class="keyword">...</span>
+0115                       stns(j2).l_cl,<span class="keyword">...</span>
+0116                       stns(j2).bfk,<span class="keyword">...</span>
+0117                       j2, <span class="keyword">...</span>
+0118                       tomo_ops).^(1/length(stns)))';
+0119 
+0120     <span class="keyword">end</span>
+0121     <span class="comment">%Infindx = find(~isfinite(Vem(:)));</span>
+0122     Vem(~isfinite(Vem(:))) = 0;
+0123    <span class="keyword">case</span> 3
+0124     <span class="comment">%sirt</span>
+0125     <span class="keyword">for</span> j2 = 1:length(stns),
+0126       <span class="keyword">if</span> isfield(stns,<span class="string">'sens_mtr'</span>)
+0127         stns(j2).proj = <a href="fastprojection.html" class="code" title="function img_out = fastprojection(Vem,uv,d,l_cl,bfk,imgsize,sens_mtr,sz3d)">fastprojection</a>(Vem, <span class="keyword">...</span>
+0128                                        stns(j2).uv, <span class="keyword">...</span>
+0129                                        stns(j2).d, <span class="keyword">...</span>
+0130                                        stns(j2).l_cl, <span class="keyword">...</span>
+0131                                        stns(j2).bfk, <span class="keyword">...</span>
+0132                                        size(stns(j2).img),<span class="keyword">...</span>
+0133                                        stns(j2).sens_mtr);
+0134       <span class="keyword">else</span>
+0135         stns(j2).proj = <a href="fastprojection.html" class="code" title="function img_out = fastprojection(Vem,uv,d,l_cl,bfk,imgsize,sens_mtr,sz3d)">fastprojection</a>(Vem, <span class="keyword">...</span>
+0136                                        stns(j2).uv, <span class="keyword">...</span>
+0137                                        stns(j2).d, <span class="keyword">...</span>
+0138                                        stns(j2).l_cl, <span class="keyword">...</span>
+0139                                        stns(j2).bfk, <span class="keyword">...</span>
+0140                                        size(stns(j2).img));
+0141       <span class="keyword">end</span>
+0142     <span class="keyword">end</span>
+0143     dVem = <a href="backprojection.html" class="code" title="function dVem = backprojection(b,p,uv,l_cl,bfk,indx,tomoptions)">backprojection</a>(stns(1).img,<span class="keyword">...</span>
+0144               stns(1).proj,<span class="keyword">...</span>
+0145               stns(1).uv,<span class="keyword">...</span>
+0146               stns(1).l_cl,<span class="keyword">...</span>
+0147               stns(1).bfk,<span class="keyword">...</span>
+0148               1, <span class="keyword">...</span>
+0149               tomo_ops);
+0150     <span class="keyword">for</span> j2 = 2:length(stns),
+0151       dVem = dVem + <a href="backprojection.html" class="code" title="function dVem = backprojection(b,p,uv,l_cl,bfk,indx,tomoptions)">backprojection</a>(stns(j2).img,<span class="keyword">...</span>
+0152                    stns(j2).proj,<span class="keyword">...</span>
+0153                    stns(j2).uv,<span class="keyword">...</span>
+0154                    stns(j2).l_cl,<span class="keyword">...</span>
+0155                    stns(j2).bfk,<span class="keyword">...</span>
+0156                    j2, <span class="keyword">...</span>
+0157                    tomo_ops);
+0158     <span class="keyword">end</span>
+0159     Vem(:) = Vem(:).*dVem(:)/length(stns);
+0160     <span class="comment">%Infindx = find(~isfinite(Vem(:)));</span>
+0161     Vem(~isfinite(Vem(:))) = 0;
+0162    <span class="keyword">otherwise</span> <span class="comment">%4</span>
+0163          <span class="comment">%fmape</span>
+0164   <span class="keyword">end</span> <span class="comment">% switch tomotype</span>
+0165   
+0166   <span class="keyword">if</span> strcmp(tomo_ops(1).disp,<span class="string">'disp'</span>)
+0167     
+0168     <span class="keyword">for</span> i12 = 1:length(stns),
+0169       
+0170       <a href="../tools/mysubplot.html" class="code" title="function theAxis = mysubplot(nrows, ncols, thisPlot)">mysubplot</a>(length(stns)+1,2,1+2*(i12-1))
+0171       cla
+0172       imagesc(stns(i12).img),axis xy
+0173       <a href="../Imgtools/imgs_smart_caxis.html" class="code" title="function cax = imgs_smart_caxis(alpha,varargin)">imgs_smart_caxis</a>(0.001,stns(i12).img)
+0174       cax = caxis;
+0175       hold on
+0176       contour(<span class="string">'v6'</span>,stns(i12).proj,12,<span class="string">'k'</span>)
+0177       norm_regx1 = tomo_ops(i12).renorm(1);
+0178       <a href="../tools/mysubplot.html" class="code" title="function theAxis = mysubplot(nrows, ncols, thisPlot)">mysubplot</a>(length(stns)+1,2,2*(i12))
+0179       imagesc(stns(i12).proj),axis xy,
+0180       <span class="keyword">if</span> ~isfinite(norm_regx1)
+0181         caxis(cax)
+0182       <span class="keyword">end</span>
+0183       
+0184     <span class="keyword">end</span>
+0185     <span class="keyword">if</span> isfield(tomo_ops(1),<span class="string">'iZ'</span>)  &amp; ~isempty(tomo_ops(1).iZ)
+0186       iZ = tomo_ops(1).iZ;
+0187     <span class="keyword">else</span>
+0188       iZ = 15;
+0189     <span class="keyword">end</span>
+0190     <a href="../tools/mysubplot.html" class="code" title="function theAxis = mysubplot(nrows, ncols, thisPlot)">mysubplot</a>(length(stns)+1,1,length(stns)+1)
+0191     imagesc(squeeze(Vem(:,:,15))),<a href="../Imgtools/imgs_smart_caxis.html" class="code" title="function cax = imgs_smart_caxis(alpha,varargin)">imgs_smart_caxis</a>(0.01,squeeze(Vem(:,:,iZ)))
+0192     <a href="../Imgtools/imgs_smart_caxis.html" class="code" title="function cax = imgs_smart_caxis(alpha,varargin)">imgs_smart_caxis</a>(0.001,squeeze(Vem(:,:,iZ)))
+0193     drawnow
+0194     
+0195   <span class="keyword">end</span>
+0196   
+0197   <span class="keyword">if</span> i3 &lt; nr_laps,
+0198     
+0199     <span class="comment">% Here, after the itteration, we do filtering to suppress noise</span>
+0200     <span class="keyword">switch</span> tomo_ops(1).filtertype
+0201      <span class="keyword">case</span> 1 <span class="comment">% horizontal 2D averaging</span>
+0202       <span class="keyword">for</span> k = 1:size(Vem,3),
+0203         Vem(:,:,k) = conv2(squeeze(Vem(:,:,k)),tomo_ops(1).filterkernel,<span class="string">'same'</span>);
+0204       <span class="keyword">end</span>
+0205      <span class="keyword">case</span> 2 <span class="comment">% horizontal 2D median</span>
+0206       <span class="keyword">for</span> k = 1:size(Vem,3),
+0207         Vem(:,:,k) = <a href="../tools/medfilt2.html" class="code" title="function outM = medfilt2(inM,fc,varagin)">medfilt2</a>(squeeze(Vem(:,:,k)),tomo_ops(1).filterkernel);
+0208       <span class="keyword">end</span>
+0209      <span class="keyword">case</span> 3 <span class="comment">% proximity filtering</span>
+0210       fiel_align_int = sum(Vem,3);
+0211       filt_f_a_i = conv2(fiel_align_int,tomo_ops(1).filterkernel,<span class="string">'same'</span>);
+0212       <span class="keyword">for</span> k = 1:size(Vem,3),
+0213         Vem(:,:,k) = conv2(squeeze(Vem(:,:,k)),tomo_ops(1).filterkernel,<span class="string">'same'</span>).*fiel_align_int./filt_f_a_i;
+0214       <span class="keyword">end</span>
+0215       <span class="comment">%Infindx = find(~isfinite(Vem(:)));</span>
+0216       Vem(~isfinite(Vem(:))) = 0;
+0217      <span class="keyword">case</span> 4 <span class="comment">% proximity sharpening, Lucy-Richardson deconvolution-like</span>
+0218       fiel_align_int = sum(Vem,3);
+0219       <span class="comment">%filt_f_a_i = conv2(fiel_align_int,tomo_ops(1).filterkernel,'same');</span>
+0220       deconvd_f_a_i = <a href="../Imgtools/imgs_deconv_crude.html" class="code" title="function img_out = imgs_deconv_crude(img_in,psf,damp_level,edge_t_scale)">imgs_deconv_crude</a>(fiel_align_int,tomo_ops(1).filterkernel,1,1);
+0221       <span class="keyword">for</span> k = 1:size(Vem,3),
+0222         Vem(:,:,k) = squeeze(Vem(:,:,k)).*deconvd_f_a_i./fiel_align_int;
+0223       <span class="keyword">end</span>
+0224       <span class="comment">%Infindx = find(~isfinite(Vem(:)));</span>
+0225       Vem(~isfinite(Vem(:))) = 0;
+0226      <span class="keyword">otherwise</span>
+0227       <span class="comment">% no filtering</span>
+0228     <span class="keyword">end</span> <span class="comment">% switch filtertype</span>
+0229     
+0230     i1 = i1+1;
+0231   <span class="keyword">end</span> <span class="comment">% while (i&lt;4),</span>
+0232   
+0233 <span class="keyword">end</span>
+0234 
+0235 <span class="keyword">for</span> j2 = 1:length(stns),
+0236   stns(j2).proj = <a href="fastprojection.html" class="code" title="function img_out = fastprojection(Vem,uv,d,l_cl,bfk,imgsize,sens_mtr,sz3d)">fastprojection</a>(Vem, <span class="keyword">...</span>
+0237                                  stns(j2).uv, <span class="keyword">...</span>
+0238                                  stns(j2).d, <span class="keyword">...</span>
+0239                                  stns(j2).l_cl, <span class="keyword">...</span>
+0240                                  stns(j2).bfk, <span class="keyword">...</span>
+0241                                  size(stns(j2).img));
+0242 <span class="keyword">end</span></pre></div>
+<hr><address>Generated on Mon 27-Jan-2014 17:32:33 by <strong>B.&nbsp;Gustavsson</strong> with <strong><a href="http://www.artefact.tk/software/matlab/m2html/" target="_parent">m2html</a></strong> &copy; 2003</address>
+</body>
+</html>

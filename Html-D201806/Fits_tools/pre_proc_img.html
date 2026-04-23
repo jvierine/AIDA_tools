@@ -1,0 +1,733 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
+                "http://www.w3.org/TR/REC-html40/loose.dtd">
+<html>
+<head>
+  <title>Description of pre_proc_img</title>
+  <meta name="keywords" content="pre_proc_img">
+  <meta name="description" content="PRE_PROC_IMG - systematic image correction and preprocessing of">
+  <meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+  <meta name="generator" content="m2html &copy; 2003 Guillaume Flandin">
+  <meta name="robots" content="index, follow">
+  <link type="text/css" rel="stylesheet" href="../m2html.css">
+</head>
+<body>
+<a name="_top"></a>
+<!-- menu.html Fits_tools -->
+<h1>pre_proc_img
+</h1>
+
+<h2><a name="_name"></a>PURPOSE <a href="#_top"><img alt="^" border="0" src="../up.png"></a></h2>
+<div class="box"><strong>PRE_PROC_IMG - systematic image correction and preprocessing of</strong></div>
+
+<h2><a name="_synopsis"></a>SYNOPSIS <a href="#_top"><img alt="^" border="0" src="../up.png"></a></h2>
+<div class="box"><strong>function img_out = pre_proc_img(img_in,obs,PREPRO_OPS) </strong></div>
+
+<h2><a name="_description"></a>DESCRIPTION <a href="#_top"><img alt="^" border="0" src="../up.png"></a></h2>
+<div class="fragment"><pre class="comment"> PRE_PROC_IMG - systematic image correction and preprocessing of
+ images 
+ 
+ Calling: 
+   img_out = pre_proc_img(img_in,obs,PREPRO_OPS)
+   def_pre_proc_ops = pre_proc_img
+ Input:
+   IMG_IN - input image, double [nY x nX]
+   PREPRO_OPS - struct with preprocessing instructions.
+ Output:
+   IMG_OUT - preprocessed image. 
+ or if function is called without input options it outputs
+   def_pre_proc_ops - the default pre-processing options.
+ 
+ The fields of PREPRO_OPS that is used are: 
+   quadfix:       - for imagers that have multiple read-out
+                    electronics quadrants of halves migh have
+                    zero-levels that drift relative to each
+                    other. If overscan-strips (O-S) are available,
+                    this can be corrected for. Value here is
+                    [0,1,2] for 0, 1 or 2 O-Ss. The O-S are
+                    supposed to be in the first and last columns
+                    of the image
+   quadfixsize: - Size of the O-S, if set to Zero, the size will
+                  be calculated as abs(diff(size(img_in)))/quadfix
+   replaceborder: First and last row of the ALIS images are often
+                  way off compared to the second and second last
+                  row. With this set to 1 the first and last row
+                  will be replaced with the 2nd and second last
+                  rows.
+   badpixfix: -  Set to 1 if there is a bad-pixel map that can be
+                 used to find the dead, white, hot and cold pixels
+                 to make it possible to correct.
+   outimgsize: - Set to something to allow for post-binning, for
+                 resize-ratios of 2, 4 8 and 16 this should be
+                 relatively fast.
+   medianfilter: - for image filtering, array of filtersizes for
+                   cascading filtering ( medianfilter &gt; 0,
+                   wienerfilter &lt; 0, complex numbers will lead to
+                   filtering with gen_susan), example
+                   PO.medianfilter = [3 -5] -&gt; 
+                   I = wiener2(medfilt2(I,[3 3]),[5 5]),
+                   PO.medianfilter = 2 + 1.5i -&gt;
+                   I = gen_susan(I, fK, gsOPS); 
+                   where fK is a Gaussian filter with 1/e-width of
+                   4, and scaling of the intensity weights as
+                   exp(-|I-I0|^2/(1.5*I)) - straight Poissonian
+                   should be exp(-|I-I0|^2/(I)). With
+                   real(PO.medianfilter)&gt;0 the center pixels are not
+                   included in the bilateral filtering step
+                   leading to a more median-filter characteristic,
+                   with real(PO.medianfilter) &lt; 0 the center
+                   pixels are included leading to a filter
+                   characteristics more similar to the Lee-sigma
+                   filter. 
+   defaultccd6:    Only ALIS-signifficant: ALIS CCD-6 has a bug in
+                   the AstroCam software, with this set to 1
+                   corrections are made.
+   bias_correction: Set to one if there is bias images to use for bias-removal
+   bzero_sign:      Sign of BZERO if that is found in image header/obs-struct.
+   imreg:           Set to sub-array if not entire image is wanted
+                    [iu1,iu2,iv1,iv2] with u and v as horizontal
+                    and vertical image coordinates respectively,
+                    I = I(iv1:iv2,iu1:iu2);
+   C_cam: - matrix for image intensity scaling, such as correcting
+            for Pixel Response Non Uniformity, or vignetting. I = I/C_cam;
+   remove_these_stars: List of stars to mask out from the
+                       image. Should be an array [2 x N] with
+                       right ascension and declination in degrees.
+   optpar:          parameters for optical characteristics. Used
+                    for masking of stars and calculation of
+                    flat-field correction.
+   size_r_t_s: Size of the mask, in pixels. size_r_t_s = 2
+               corresponds to a square mask of -2:2 centred on the
+               ideal image position from the catalogued star
+               position.
+   v_interf_notches: Some ALIS-images has severe vertical
+                     interference. This should be set to an array
+                     of vertical spatial requencies to filter
+                     out. Automatically accounts for wrapping and
+                     mirroring.
+   psf: Point spread function for deblurring/sharpening.
+
+ The following three fields are used for automatic removal of
+ interference noise. The method use the ratio between the
+ unfiltered image and the sigma-filtered image and identifies
+ interference frequencies as the 2-D frequencies that are above
+ INTERFERENCE_LEVEL. The Sigma-filter (wiener2 in matlab parlance)
+ is done with a region of INTERFERENCE_SWF.*[1,1]. The
+ interference pattern can be tweaked somewhat with the
+ INTERFERENCE_METHODs 
+   interference_level: Inf (off because only ratios larger than
+                       Inf will be identified as interference
+                       signal), smaller values leads to masking of
+                       increasing number of requencies. 
+   interference_method: [{'flat'} | 'interp' | 'weighted'] 
+   interference_swf: 3  size of region for wiener2
+
+   img_histeq: - do histogram equalisation, give the equalized
+                 image a flat histogram with IMG_HISTEQ number of bins.
+   hist_crop:  - set to percentage of histogram to crop in top and
+                 bottom.
+   find_optpar: - search for optical parameters, if set to 1,
+   fairly outdated so keep this at its default value at 0.
+ 
+ See also <a href="inimg.html" class="code" title="function [img_out,img_head,obs] = inimg(filename,PREPRO_OPS)">INIMG</a>, <a href="typical_pre_proc_ops.html" class="code" title="function PO = typical_pre_proc_ops(pp_type,varargin)">TYPICAL_PRE_PROC_OPS</a></pre></div>
+
+<!-- crossreference -->
+<h2><a name="_cross"></a>CROSS-REFERENCE INFORMATION <a href="#_top"><img alt="^" border="0" src="../up.png"></a></h2>
+This function calls:
+<ul style="list-style-image:url(../matlabicon.gif)">
+<li><a href="../Camera/ffs_correction2.html" class="code" title="function [ff] = ffs_correction2(imgsize,optpar,optmod)">ffs_correction2</a>	FFS_CORRECTION2 - flat-field variation for optical transfer</li><li><a href="../Camera/project_directions.html" class="code" title="function [ua,wa] = project_directions(az,ze,optpar,optmod,imgsiz)">project_directions</a>	PROJECT_DIRECTIONS - calculates the image positions [UA,WA] from (AZ,ZE)</li><li><a href="bad_pixel_fix.html" class="code" title="function Img = bad_pixel_fix(Img,bad_p_map)">bad_pixel_fix</a>	BAD_PIXEL_FIX - simple badpixel korrection function works on</li><li><a href="bias_correction.html" class="code" title="function Img = bias_correction(Img,obs)">bias_correction</a>	BIAS_CORRECTION - Corrects zero level bias from ALIS ccd images</li><li><a href="interference_rem_auto.html" class="code" title="function img_out = interference_rem_auto(img_in,if_level,method,wpsm)">interference_rem_auto</a>	INTERFERENCE_REM_RAUTO - automatic high frequency interference reduction</li><li><a href="quad_extrafix.html" class="code" title="function Img = quad_extrafix(Img)">quad_extrafix</a>	QUAD_EXTRAFIX - extra balancing of quadrants</li><li><a href="quadfix3.html" class="code" title="function [img_out] = quadfix3(img_in,strips,stripsize)">quadfix3</a>	QUADFIX3 quadrant balancing of raw CCD data from overscan-strips</li><li><a href="rem_vert_interference.html" class="code" title="function imgout = rem_vert_interference(imgin,notch_lines,nrregs)">rem_vert_interference</a>	REM_VERT_INTERFERENCE - Notch filter to remove vertical</li><li><a href="removerscanstrip.html" class="code" title="function img_out = removerscanstrip(in_img,strips,stripsize)">removerscanstrip</a>	REMOVERSCANSTRIP - removes overscan-strips from raw CCD data</li><li><a href="replace_border.html" class="code" title="function [Img] = replace_border(Img)">replace_border</a>	REPLACE_BORDER - replaces the outermost border</li><li><a href="typical_pre_proc_ops.html" class="code" title="function PO = typical_pre_proc_ops(pp_type,varargin)">typical_pre_proc_ops</a>	TYPICAL_PRE_PROC_OPS - Typical ALIS-fits preprocessing options</li><li><a href="../Imgtools/gen_susan.html" class="code" title="function J = gen_susan(I,w,OPS)">gen_susan</a>	gen_susan - Generalized SUSAN 2-D filtering</li><li><a href="../Imgtools/img_histeq.html" class="code" title="function out_img = img_histeq(in_img,hist_lim)">img_histeq</a>	img_histeq - histogram equalisation.</li><li><a href="../Skymap/starpos2.html" class="code" title="function [az,ze,apze] = starpos2(ra,decl,date,utc,lat,long)">starpos2</a>	STARPOS2 gives the azimuth, zenith and apparent zenith angles</li><li><a href="../Starcal/IOfcns/inimage.html" class="code" title="function [true] = inimage(x,y,bx,by)">inimage</a>	INIMAGE  tests if a point (X,Y) is within the image,</li><li><a href="../tools/medfilt2.html" class="code" title="function outM = medfilt2(inM,fc,varargin)">medfilt2</a>	MEDFILT2 - 2 dimensional sliding median filter</li></ul>
+This function is called by:
+<ul style="list-style-image:url(../matlabicon.gif)">
+<li><a href="inimg.html" class="code" title="function [img_out,img_head,obs] = inimg(filename,PREPRO_OPS)">inimg</a>	INIMG - reads and pre-process an image.</li></ul>
+<!-- crossreference -->
+
+
+<h2><a name="_source"></a>SOURCE CODE <a href="#_top"><img alt="^" border="0" src="../up.png"></a></h2>
+<div class="fragment"><pre>0001 <a name="_sub0" href="#_subfunctions" class="code">function img_out = pre_proc_img(img_in,obs,PREPRO_OPS)</a>
+0002 <span class="comment">% PRE_PROC_IMG - systematic image correction and preprocessing of</span>
+0003 <span class="comment">% images</span>
+0004 <span class="comment">%</span>
+0005 <span class="comment">% Calling:</span>
+0006 <span class="comment">%   img_out = pre_proc_img(img_in,obs,PREPRO_OPS)</span>
+0007 <span class="comment">%   def_pre_proc_ops = pre_proc_img</span>
+0008 <span class="comment">% Input:</span>
+0009 <span class="comment">%   IMG_IN - input image, double [nY x nX]</span>
+0010 <span class="comment">%   PREPRO_OPS - struct with preprocessing instructions.</span>
+0011 <span class="comment">% Output:</span>
+0012 <span class="comment">%   IMG_OUT - preprocessed image.</span>
+0013 <span class="comment">% or if function is called without input options it outputs</span>
+0014 <span class="comment">%   def_pre_proc_ops - the default pre-processing options.</span>
+0015 <span class="comment">%</span>
+0016 <span class="comment">% The fields of PREPRO_OPS that is used are:</span>
+0017 <span class="comment">%   quadfix:       - for imagers that have multiple read-out</span>
+0018 <span class="comment">%                    electronics quadrants of halves migh have</span>
+0019 <span class="comment">%                    zero-levels that drift relative to each</span>
+0020 <span class="comment">%                    other. If overscan-strips (O-S) are available,</span>
+0021 <span class="comment">%                    this can be corrected for. Value here is</span>
+0022 <span class="comment">%                    [0,1,2] for 0, 1 or 2 O-Ss. The O-S are</span>
+0023 <span class="comment">%                    supposed to be in the first and last columns</span>
+0024 <span class="comment">%                    of the image</span>
+0025 <span class="comment">%   quadfixsize: - Size of the O-S, if set to Zero, the size will</span>
+0026 <span class="comment">%                  be calculated as abs(diff(size(img_in)))/quadfix</span>
+0027 <span class="comment">%   replaceborder: First and last row of the ALIS images are often</span>
+0028 <span class="comment">%                  way off compared to the second and second last</span>
+0029 <span class="comment">%                  row. With this set to 1 the first and last row</span>
+0030 <span class="comment">%                  will be replaced with the 2nd and second last</span>
+0031 <span class="comment">%                  rows.</span>
+0032 <span class="comment">%   badpixfix: -  Set to 1 if there is a bad-pixel map that can be</span>
+0033 <span class="comment">%                 used to find the dead, white, hot and cold pixels</span>
+0034 <span class="comment">%                 to make it possible to correct.</span>
+0035 <span class="comment">%   outimgsize: - Set to something to allow for post-binning, for</span>
+0036 <span class="comment">%                 resize-ratios of 2, 4 8 and 16 this should be</span>
+0037 <span class="comment">%                 relatively fast.</span>
+0038 <span class="comment">%   medianfilter: - for image filtering, array of filtersizes for</span>
+0039 <span class="comment">%                   cascading filtering ( medianfilter &gt; 0,</span>
+0040 <span class="comment">%                   wienerfilter &lt; 0, complex numbers will lead to</span>
+0041 <span class="comment">%                   filtering with gen_susan), example</span>
+0042 <span class="comment">%                   PO.medianfilter = [3 -5] -&gt;</span>
+0043 <span class="comment">%                   I = wiener2(medfilt2(I,[3 3]),[5 5]),</span>
+0044 <span class="comment">%                   PO.medianfilter = 2 + 1.5i -&gt;</span>
+0045 <span class="comment">%                   I = gen_susan(I, fK, gsOPS);</span>
+0046 <span class="comment">%                   where fK is a Gaussian filter with 1/e-width of</span>
+0047 <span class="comment">%                   4, and scaling of the intensity weights as</span>
+0048 <span class="comment">%                   exp(-|I-I0|^2/(1.5*I)) - straight Poissonian</span>
+0049 <span class="comment">%                   should be exp(-|I-I0|^2/(I)). With</span>
+0050 <span class="comment">%                   real(PO.medianfilter)&gt;0 the center pixels are not</span>
+0051 <span class="comment">%                   included in the bilateral filtering step</span>
+0052 <span class="comment">%                   leading to a more median-filter characteristic,</span>
+0053 <span class="comment">%                   with real(PO.medianfilter) &lt; 0 the center</span>
+0054 <span class="comment">%                   pixels are included leading to a filter</span>
+0055 <span class="comment">%                   characteristics more similar to the Lee-sigma</span>
+0056 <span class="comment">%                   filter.</span>
+0057 <span class="comment">%   defaultccd6:    Only ALIS-signifficant: ALIS CCD-6 has a bug in</span>
+0058 <span class="comment">%                   the AstroCam software, with this set to 1</span>
+0059 <span class="comment">%                   corrections are made.</span>
+0060 <span class="comment">%   bias_correction: Set to one if there is bias images to use for bias-removal</span>
+0061 <span class="comment">%   bzero_sign:      Sign of BZERO if that is found in image header/obs-struct.</span>
+0062 <span class="comment">%   imreg:           Set to sub-array if not entire image is wanted</span>
+0063 <span class="comment">%                    [iu1,iu2,iv1,iv2] with u and v as horizontal</span>
+0064 <span class="comment">%                    and vertical image coordinates respectively,</span>
+0065 <span class="comment">%                    I = I(iv1:iv2,iu1:iu2);</span>
+0066 <span class="comment">%   C_cam: - matrix for image intensity scaling, such as correcting</span>
+0067 <span class="comment">%            for Pixel Response Non Uniformity, or vignetting. I = I/C_cam;</span>
+0068 <span class="comment">%   remove_these_stars: List of stars to mask out from the</span>
+0069 <span class="comment">%                       image. Should be an array [2 x N] with</span>
+0070 <span class="comment">%                       right ascension and declination in degrees.</span>
+0071 <span class="comment">%   optpar:          parameters for optical characteristics. Used</span>
+0072 <span class="comment">%                    for masking of stars and calculation of</span>
+0073 <span class="comment">%                    flat-field correction.</span>
+0074 <span class="comment">%   size_r_t_s: Size of the mask, in pixels. size_r_t_s = 2</span>
+0075 <span class="comment">%               corresponds to a square mask of -2:2 centred on the</span>
+0076 <span class="comment">%               ideal image position from the catalogued star</span>
+0077 <span class="comment">%               position.</span>
+0078 <span class="comment">%   v_interf_notches: Some ALIS-images has severe vertical</span>
+0079 <span class="comment">%                     interference. This should be set to an array</span>
+0080 <span class="comment">%                     of vertical spatial requencies to filter</span>
+0081 <span class="comment">%                     out. Automatically accounts for wrapping and</span>
+0082 <span class="comment">%                     mirroring.</span>
+0083 <span class="comment">%   psf: Point spread function for deblurring/sharpening.</span>
+0084 <span class="comment">%</span>
+0085 <span class="comment">% The following three fields are used for automatic removal of</span>
+0086 <span class="comment">% interference noise. The method use the ratio between the</span>
+0087 <span class="comment">% unfiltered image and the sigma-filtered image and identifies</span>
+0088 <span class="comment">% interference frequencies as the 2-D frequencies that are above</span>
+0089 <span class="comment">% INTERFERENCE_LEVEL. The Sigma-filter (wiener2 in matlab parlance)</span>
+0090 <span class="comment">% is done with a region of INTERFERENCE_SWF.*[1,1]. The</span>
+0091 <span class="comment">% interference pattern can be tweaked somewhat with the</span>
+0092 <span class="comment">% INTERFERENCE_METHODs</span>
+0093 <span class="comment">%   interference_level: Inf (off because only ratios larger than</span>
+0094 <span class="comment">%                       Inf will be identified as interference</span>
+0095 <span class="comment">%                       signal), smaller values leads to masking of</span>
+0096 <span class="comment">%                       increasing number of requencies.</span>
+0097 <span class="comment">%   interference_method: [{'flat'} | 'interp' | 'weighted']</span>
+0098 <span class="comment">%   interference_swf: 3  size of region for wiener2</span>
+0099 <span class="comment">%</span>
+0100 <span class="comment">%   img_histeq: - do histogram equalisation, give the equalized</span>
+0101 <span class="comment">%                 image a flat histogram with IMG_HISTEQ number of bins.</span>
+0102 <span class="comment">%   hist_crop:  - set to percentage of histogram to crop in top and</span>
+0103 <span class="comment">%                 bottom.</span>
+0104 <span class="comment">%   find_optpar: - search for optical parameters, if set to 1,</span>
+0105 <span class="comment">%   fairly outdated so keep this at its default value at 0.</span>
+0106 <span class="comment">%</span>
+0107 <span class="comment">% See also INIMG, TYPICAL_PRE_PROC_OPS</span>
+0108 
+0109 
+0110 <span class="comment">%   Copyright � 20050804 Bjorn Gustavsson, &lt;bjorn.gustavsson@irf.se&gt;</span>
+0111 <span class="comment">%   This is free software, licensed under GNU GPL version 2 or later</span>
+0112 
+0113 <span class="keyword">persistent</span> ff  optp
+0114 
+0115 <span class="keyword">if</span> nargin == 0
+0116   
+0117   <span class="comment">% If no input arguments give the default PO-struct</span>
+0118   img_out = <a href="typical_pre_proc_ops.html" class="code" title="function PO = typical_pre_proc_ops(pp_type,varargin)">typical_pre_proc_ops</a>;
+0119   <span class="keyword">return</span>
+0120   
+0121 <span class="keyword">end</span>
+0122 
+0123 <span class="keyword">if</span> isempty(ff)
+0124   ff{1} = [];
+0125   optp{1} = [];
+0126 <span class="keyword">end</span>
+0127 
+0128 img_out = img_in;
+0129 
+0130 manual_ccd6 = 1;
+0131 
+0132 <span class="keyword">if</span> ~isempty(obs.camnr) &amp;&amp; obs.camnr == 6
+0133   
+0134   <span class="keyword">if</span> PREPRO_OPS.defaultccd6
+0135     
+0136     manual_ccd6 = 0;
+0137     <span class="keyword">switch</span> min(size(img_out))
+0138      <span class="keyword">case</span> 1024
+0139       img_out = img_out(:,[529:538 1:528 549:end 539:548]);
+0140      <span class="keyword">case</span> 512
+0141       img_out = img_out(:,[265:269 1:264 275:end 270:274]);
+0142      <span class="keyword">case</span> 256
+0143       img_out = img_out(:,[133:134 1:132 137:end 135:136]);
+0144      <span class="keyword">case</span> 128
+0145       img_out = img_out(:,[67 1:66 69:end 68]);
+0146      <span class="keyword">case</span> 64
+0147       img_out = img_out(:,[33 1:32 35:end 34]);
+0148      <span class="keyword">otherwise</span>
+0149       manual_ccd6 = 1;
+0150     <span class="keyword">end</span> <span class="comment">% switch min(size(img_out))</span>
+0151     
+0152   <span class="keyword">end</span> <span class="comment">% if isfield(PREPRO_OPS,</span>
+0153   
+0154 <span class="keyword">end</span> <span class="comment">% if obs.camnr</span>
+0155 
+0156 <span class="keyword">if</span> ~isempty(obs.camnr) &amp;&amp; obs.camnr == 6 &amp;&amp; manual_ccd6
+0157     
+0158     disp(<span class="string">'Current image are taken with ccd-cam 6 which is a little bit'</span>)
+0159     disp(<span class="string">'tricky to preprocess. So you have to untangle the central'</span>)
+0160     disp(<span class="string">'columns manually. Below follows a scheme that is a'</span>)
+0161     disp(<span class="string">'suggestion of what type of steps is suitable for'</span>)
+0162     disp(<span class="string">'256x256 images. Try and test step by step which modifications'</span>)
+0163     disp(<span class="string">'that are needed. to continue type: return at the prompt'</span>)
+0164     disp(<span class="string">'  d = img_out;'</span>)
+0165     disp(<span class="string">'  d = d(:,[1 133 134 2 3 4:132 137:end 135 136]);'</span>)
+0166 <span class="comment">% $$$     disp(exstr)</span>
+0167 <span class="comment">% $$$     exstr = '  d = img_out;';</span>
+0168 <span class="comment">% $$$     exstr = str2mat(exstr,'  d = d(:,[1 133 134 2 3 4:132 137:end 135 136]);');</span>
+0169 <span class="comment">% $$$     disp(exstr)</span>
+0170     
+0171 <span class="keyword">end</span> <span class="comment">% if  obs.camnr == 6 &amp;&amp; manual_ccd6</span>
+0172 
+0173 <span class="keyword">if</span> ~isempty(PREPRO_OPS.remove_these_stars)
+0174   <span class="keyword">if</span> PREPRO_OPS.quadfixsize
+0175     stripsize = PREPRO_OPS.quadfixsize;
+0176   <span class="keyword">else</span>
+0177     stripsize = .5*abs(diff(size(img_out)));
+0178   <span class="keyword">end</span>
+0179   bxy = size(img_out);
+0180   bx = bxy(1);
+0181   by = bxy(2);
+0182   [az,ze] = <a href="../Skymap/starpos2.html" class="code" title="function [az,ze,apze] = starpos2(ra,decl,date,utc,lat,long)">starpos2</a>(PREPRO_OPS.remove_these_stars(:,1),<span class="keyword">...</span>
+0183                      PREPRO_OPS.remove_these_stars(:,2),<span class="keyword">...</span>
+0184                      obs.time(1:3),<span class="keyword">...</span>
+0185                      obs.time(4:6),<span class="keyword">...</span>
+0186                      obs.longlat(2),<span class="keyword">...</span><span class="comment"> % Changed from obs.pos(2)</span>
+0187                      obs.longlat(1));   <span class="comment">% Changed from obs.pos(1)</span>
+0188   <span class="keyword">if</span> isfield(PREPRO_OPS,<span class="string">'optpar'</span>)
+0189     optpar = PREPRO_OPS.optpar;
+0190   <span class="keyword">end</span>
+0191   
+0192   <span class="keyword">if</span> isstruct(optpar)
+0193     [ua,wa] = <a href="../Camera/project_directions.html" class="code" title="function [ua,wa] = project_directions(az,ze,optpar,optmod,imgsiz)">project_directions</a>(az',ze',optpar,optpar.mod,bxy-[0,2]*stripsize);
+0194   <span class="keyword">else</span>
+0195     [ua,wa] = <a href="../Camera/project_directions.html" class="code" title="function [ua,wa] = project_directions(az,ze,optpar,optmod,imgsiz)">project_directions</a>(az',ze',optpar,optpar(9),bxy-[0,2]*stripsize);
+0196   <span class="keyword">end</span>
+0197   ua = round(ua)+stripsize;
+0198   wa = round(wa);
+0199   iu = find(<a href="../Starcal/IOfcns/inimage.html" class="code" title="function [true] = inimage(x,y,bx,by)">inimage</a>(ua-4,wa-4,bx-7,by-7));
+0200   
+0201   <span class="keyword">if</span> isfield(PREPRO_OPS,<span class="string">'size_r_t_s'</span>)
+0202     dl = PREPRO_OPS.size_r_t_s;
+0203   <span class="keyword">elseif</span> mean(size(img_out))&gt;256
+0204     dl = 2;
+0205   <span class="keyword">else</span>
+0206     dl = 1;
+0207   <span class="keyword">end</span>
+0208   
+0209   <span class="keyword">for</span> i = 1:length(iu),
+0210     wreg1 = max( min( wa(iu(i))-dl:wa(iu(i))+dl, bx), 1);
+0211     ureg1 = max( min( ua(iu(i))-dl:ua(iu(i))+dl ,by) ,1);
+0212     wreg2 = max( min( wa(iu(i))-(dl+1):wa(iu(i))+(dl+1), bx), 1);
+0213     ureg2 = max( min( ua(iu(i))-(dl+1):ua(iu(i))+(dl+1) ,by) ,1);
+0214     A_diff = length(ureg2)*length(wreg2) - length(ureg1)*length(wreg1);
+0215     
+0216     img_out(wreg1,ureg1) = (sum(sum(img_out(wreg2,ureg2)))-<span class="keyword">...</span>
+0217                               sum(sum(img_out(wreg1,ureg1))))/A_diff;
+0218     
+0219   <span class="keyword">end</span>
+0220   
+0221 <span class="keyword">end</span>
+0222 
+0223 <span class="keyword">if</span> isfield(PREPRO_OPS,<span class="string">'bzero_sign'</span>) &amp;&amp; ~isempty(PREPRO_OPS.bzero_sign)
+0224   
+0225   <span class="keyword">try</span>
+0226     img_out = img_out + sign(PREPRO_OPS.bzero_sign)*obs.BZERO;
+0227   <span class="keyword">catch</span>
+0228     warning(<span class="string">'Could not correct image intensities with BZERO'</span>)
+0229   <span class="keyword">end</span>
+0230   
+0231 <span class="keyword">end</span>
+0232 
+0233 
+0234 <span class="keyword">if</span> ~isempty(PREPRO_OPS.v_interf_notches)
+0235   
+0236   img_out = <a href="rem_vert_interference.html" class="code" title="function imgout = rem_vert_interference(imgin,notch_lines,nrregs)">rem_vert_interference</a>(img_out([2 2:end-1 end-1],:),PREPRO_OPS.v_interf_notches,2);
+0237   
+0238 <span class="keyword">end</span>
+0239 
+0240 <span class="keyword">if</span> ( PREPRO_OPS.quadfix )
+0241   
+0242   <span class="keyword">if</span> PREPRO_OPS.quadfixsize
+0243     stripsize = PREPRO_OPS.quadfixsize;
+0244   <span class="keyword">else</span>
+0245     stripsize = .5*abs(diff(size(img_out)));
+0246     <span class="keyword">if</span> stripsize == 2
+0247       stripsize = 1;
+0248     <span class="keyword">end</span>
+0249   <span class="keyword">end</span>
+0250   
+0251   <span class="keyword">if</span> ( stripsize )
+0252     
+0253     img_out = <a href="quadfix3.html" class="code" title="function [img_out] = quadfix3(img_in,strips,stripsize)">quadfix3</a>(img_out,2,stripsize);
+0254     img_out = <a href="removerscanstrip.html" class="code" title="function img_out = removerscanstrip(in_img,strips,stripsize)">removerscanstrip</a>(img_out,2,.5*abs(diff(size(img_out))));
+0255     
+0256   <span class="keyword">end</span>
+0257   
+0258 <span class="keyword">end</span>
+0259 
+0260 <span class="keyword">if</span> PREPRO_OPS.bias_correction
+0261   
+0262   img_out = <a href="bias_correction.html" class="code" title="function Img = bias_correction(Img,obs)">bias_correction</a>(img_out,obs);
+0263   
+0264 <span class="keyword">end</span>
+0265 
+0266 <span class="keyword">if</span> PREPRO_OPS.replaceborder
+0267   
+0268   img_out = <a href="replace_border.html" class="code" title="function [Img] = replace_border(Img)">replace_border</a>(img_out);
+0269   
+0270 <span class="comment">%   if ( PREPRO_OPS.quadfix )</span>
+0271 <span class="comment">%</span>
+0272 <span class="comment">%     img_out = quad_extrafix(img_out);</span>
+0273 <span class="comment">%</span>
+0274 <span class="comment">%   end</span>
+0275   
+0276 <span class="keyword">end</span>
+0277 
+0278 <span class="keyword">if</span> ( ~isempty(PREPRO_OPS.C_cam') &amp;&amp; <span class="keyword">...</span>
+0279      ( all( size(PREPRO_OPS.C_cam) == size(img_out) ) || <span class="keyword">...</span>
+0280        all( size(PREPRO_OPS.C_cam) == 1 ) ) )
+0281   
+0282   img_out = img_out./PREPRO_OPS.C_cam;
+0283   
+0284 <span class="keyword">end</span>
+0285 
+0286 <span class="keyword">if</span> PREPRO_OPS.badpixfix
+0287   
+0288   badpix_file = fullfile([<span class="string">'ccd'</span>,num2str(obs.camnr)],<span class="string">'badpix.dat'</span>);
+0289   <span class="comment">% Haer skulle man kunna testa med inpaint_nans</span>
+0290   <span class="keyword">if</span> exist(badpix_file,<span class="string">'file'</span>)
+0291     
+0292     load(badpix_file)
+0293     bp_tbl = badpix;
+0294     bpm = sparse(ceil(bp_tbl(:,2)/(1024/size(img_out,1))), <span class="keyword">...</span><span class="comment"> </span>
+0295                  ceil(bp_tbl(:,1)/(1024/size(img_out,2))), <span class="keyword">...</span>
+0296                  ones(size(bp_tbl(:,1))), <span class="keyword">...</span>
+0297                  size(img_out,1),size(img_out,2));
+0298     bpm = spones(bpm);
+0299     img_out = <a href="bad_pixel_fix.html" class="code" title="function Img = bad_pixel_fix(Img,bad_p_map)">bad_pixel_fix</a>(img_out,bpm);
+0300     
+0301     <span class="comment">% here everything after clear is interpreted as a string and thus</span>
+0302     <span class="comment">% cam*badpix is a regexp...</span>
+0303     clear bpm badpix bp_tbl
+0304   <span class="keyword">end</span>
+0305 <span class="keyword">end</span>
+0306 
+0307 <span class="keyword">if</span> ~isempty(PREPRO_OPS.imreg)
+0308   
+0309   imregion = PREPRO_OPS.imreg;
+0310   img_out = img_out(imregion(3):imregion(4),imregion(1):imregion(2));
+0311   
+0312 <span class="keyword">end</span>
+0313 
+0314 
+0315 <span class="keyword">if</span> PREPRO_OPS.interference_level &lt; inf
+0316 
+0317   <span class="keyword">if</span> PREPRO_OPS.quadfix
+0318     img_out(1:end/2,1:end/2) = <a href="interference_rem_auto.html" class="code" title="function img_out = interference_rem_auto(img_in,if_level,method,wpsm)">interference_rem_auto</a>(img_out(1:end/2,1:end/2),<span class="keyword">...</span>
+0319                                                       PREPRO_OPS.interference_level,<span class="keyword">...</span>
+0320                                                       PREPRO_OPS.interference_method,<span class="keyword">...</span>
+0321                                                       PREPRO_OPS.interference_swf);
+0322     img_out(1:end/2,end/2+1:end) = <a href="interference_rem_auto.html" class="code" title="function img_out = interference_rem_auto(img_in,if_level,method,wpsm)">interference_rem_auto</a>(img_out(1:end/2,end/2+1:end),<span class="keyword">...</span>
+0323                                                       PREPRO_OPS.interference_level,<span class="keyword">...</span>
+0324                                                       PREPRO_OPS.interference_method,<span class="keyword">...</span>
+0325                                                       PREPRO_OPS.interference_swf);
+0326     img_out(end/2+1:<span class="keyword">end</span>,1:end/2) = <a href="interference_rem_auto.html" class="code" title="function img_out = interference_rem_auto(img_in,if_level,method,wpsm)">interference_rem_auto</a>(img_out(end/2+1:<span class="keyword">end</span>,1:end/2),<span class="keyword">...</span>
+0327                                                       PREPRO_OPS.interference_level,<span class="keyword">...</span>
+0328                                                       PREPRO_OPS.interference_method,<span class="keyword">...</span>
+0329                                                       PREPRO_OPS.interference_swf);
+0330     img_out(end/2+1:<span class="keyword">end</span>,end/2+1:end) = <a href="interference_rem_auto.html" class="code" title="function img_out = interference_rem_auto(img_in,if_level,method,wpsm)">interference_rem_auto</a>(img_out(end/2+1:<span class="keyword">end</span>,end/2+1:end),<span class="keyword">...</span>
+0331                                                       PREPRO_OPS.interference_level,<span class="keyword">...</span>
+0332                                                       PREPRO_OPS.interference_method,<span class="keyword">...</span>
+0333                                                       PREPRO_OPS.interference_swf);
+0334   <span class="keyword">else</span>
+0335     img_out = <a href="interference_rem_auto.html" class="code" title="function img_out = interference_rem_auto(img_in,if_level,method,wpsm)">interference_rem_auto</a>(img_out,<span class="keyword">...</span>
+0336                                       PREPRO_OPS.interference_level,<span class="keyword">...</span>
+0337                                       PREPRO_OPS.interference_method,<span class="keyword">...</span>
+0338                                       PREPRO_OPS.interference_swf);
+0339   <span class="keyword">end</span>
+0340 <span class="keyword">end</span>
+0341 
+0342 <span class="keyword">if</span> ( PREPRO_OPS.quadfix )
+0343     
+0344   img_out = <a href="quad_extrafix.html" class="code" title="function Img = quad_extrafix(Img)">quad_extrafix</a>(img_out);
+0345     
+0346 <span class="keyword">end</span>
+0347 
+0348 <span class="keyword">if</span> ~isreal(PREPRO_OPS.medianfilter)
+0349   gsOPS = <a href="../Imgtools/gen_susan.html" class="code" title="function J = gen_susan(I,w,OPS)">gen_susan</a>;
+0350 <span class="keyword">end</span>
+0351 <span class="keyword">for</span> ii = 1:length(PREPRO_OPS.medianfilter(:))
+0352   
+0353   <span class="keyword">if</span> ~isreal(PREPRO_OPS.medianfilter(ii)) <span class="comment">% If complex use gen_susan filter</span>
+0354     
+0355     gW = real(PREPRO_OPS.medianfilter(ii));
+0356     gsOPS.tau = abs(imag(PREPRO_OPS.medianfilter(ii)));
+0357     <span class="keyword">if</span> gW &lt; 0
+0358       gsOPS.include_center = 1;
+0359     <span class="keyword">else</span>
+0360       gsOPS.include_center = 0;
+0361     <span class="keyword">end</span>
+0362     x = -(ceil(min(abs(gW)+1,3))):(ceil(min(abs(gW)+1,3)));
+0363     [x,y] = meshgrid(x,x);
+0364     fK = exp(-(x.^2+y.^2)/gW^2);
+0365     fK = fK/sum(fK(:));
+0366     img_out = <a href="../Imgtools/gen_susan.html" class="code" title="function J = gen_susan(I,w,OPS)">gen_susan</a>(img_out,fK,gsOPS);
+0367     
+0368   <span class="keyword">elseif</span> ( PREPRO_OPS.medianfilter(ii) &gt; 0 ) <span class="comment">% Else if &gt; 0 use medfilt2</span>
+0369     
+0370     mfk = PREPRO_OPS.medianfilter(ii);
+0371     
+0372     <span class="comment">%2-D median filtering</span>
+0373     <span class="keyword">if</span> exist(<span class="string">'medfilt2'</span>,<span class="string">'file'</span>)
+0374       <span class="comment">%Use symmetric edge processing if available</span>
+0375       <span class="keyword">try</span>
+0376         img_out = <a href="../tools/medfilt2.html" class="code" title="function outM = medfilt2(inM,fc,varargin)">medfilt2</a>(img_out,[mfk mfk],<span class="string">'symmetric'</span>);
+0377       <span class="keyword">catch</span>
+0378         img_out = <a href="../tools/medfilt2.html" class="code" title="function outM = medfilt2(inM,fc,varargin)">medfilt2</a>(img_out,[mfk mfk]);
+0379       <span class="keyword">end</span>
+0380     <span class="keyword">else</span>
+0381       <span class="comment">%Fall back on repeated 1-D filtering</span>
+0382       img_out = medfilt1(medfilt1(img_out',mfk)',mfk);
+0383       
+0384     <span class="keyword">end</span>
+0385     <span class="comment">% sloppy fix to bug in matlab 5.1</span>
+0386     <span class="keyword">for</span> i = 1:floor(mfk/2),
+0387       <span class="keyword">for</span> j = 1:floor(mfk/2),
+0388         img_out(i,j) = img_out(ceil(mfk/2),ceil(mfk/2));
+0389         img_out(end+1-i,j) = img_out(end+1-ceil(mfk/2),ceil(mfk/2));
+0390         img_out(i,end+1-j) = img_out(ceil(mfk/2),end+1-ceil(mfk/2));
+0391         img_out(end+1-i,end+1-j) = img_out(end+1-ceil(mfk/2),end+1-ceil(mfk/2));
+0392       <span class="keyword">end</span>
+0393     <span class="keyword">end</span>
+0394   <span class="keyword">elseif</span> ( PREPRO_OPS.medianfilter(ii) &lt; 0 ) <span class="comment">% Otherwise use wiener2</span>
+0395     mfk = PREPRO_OPS.medianfilter(ii);
+0396     <span class="keyword">if</span> exist (<span class="string">'wiener2'</span>,<span class="string">'file'</span>)
+0397       img_out = wiener2(img_out,[-mfk -mfk]);
+0398     <span class="keyword">end</span>
+0399   <span class="keyword">end</span>
+0400 <span class="keyword">end</span>
+0401 
+0402 <span class="keyword">if</span> ~isempty(PREPRO_OPS.psf)
+0403   
+0404   img_out = invfilter_reg2(img_out,PREPRO_OPS.psf/sum(PREPRO_OPS.psf(:)));
+0405   
+0406 <span class="keyword">end</span> <span class="comment">%</span>
+0407 
+0408 
+0409 <span class="keyword">if</span>  ~isempty(obs.camnr) &amp;&amp; obs.camnr == 6
+0410   
+0411   <span class="keyword">if</span> isfield(PREPRO_OPS,<span class="string">'defaultccd6'</span>) &amp;&amp; PREPRO_OPS.defaultccd6
+0412     imgsize = size(img_out);
+0413     
+0414     img_out(1:imgsize(1)/2,1:imgsize(2)/2) = img_out(1:imgsize(1)/2,1:imgsize(2)/2)/1.08;
+0415     <span class="keyword">if</span> ( imgsize(1) == 256 )
+0416       img_out(:,128:129) = img_out(:,128:129)*2;
+0417     <span class="keyword">elseif</span> ( imgsize(1) == 128 )
+0418       img_out(:,64:65) = img_out(:,64:65)*4/3;
+0419     <span class="keyword">end</span>
+0420     <span class="keyword">if</span> ( PREPRO_OPS.quadfix )
+0421       
+0422       img_out = <a href="quad_extrafix.html" class="code" title="function Img = quad_extrafix(Img)">quad_extrafix</a>(img_out);
+0423       
+0424     <span class="keyword">end</span>
+0425     
+0426   <span class="keyword">end</span> <span class="comment">% if isfield(PREPRO_OPS,'defaultccd6'</span>
+0427   
+0428 <span class="keyword">end</span> <span class="comment">% if obs.camnr == 6</span>
+0429 
+0430 <span class="keyword">if</span> ( isfield(PREPRO_OPS,<span class="string">'ffc'</span>) &amp;&amp; <span class="keyword">...</span>
+0431      ~isempty(PREPRO_OPS.ffc) &amp;&amp; <span class="keyword">...</span>
+0432      ~all(PREPRO_OPS.ffc(:)==0) )
+0433   
+0434   <span class="keyword">if</span> all( size(PREPRO_OPS.ffc) == size(img_out) )
+0435     
+0436     img_out = img_out./PREPRO_OPS.ffc;
+0437     
+0438   <span class="keyword">elseif</span> ( isfield(obs,<span class="string">'optpar'</span>) || isfield(PREPRO_OPS,<span class="string">'optpar'</span>) )
+0439     
+0440     <span class="keyword">if</span> isfield(PREPRO_OPS,<span class="string">'optpar'</span>) &amp;&amp; ~isempty(PREPRO_OPS.optpar)
+0441       optpar = PREPRO_OPS.optpar;
+0442     <span class="keyword">else</span>
+0443       optpar = obs.optpar;
+0444     <span class="keyword">end</span>
+0445     <span class="keyword">if</span> ~isempty(optpar)
+0446       <span class="keyword">if</span> ( obs.camnr&gt;0 &amp;&amp; <span class="keyword">...</span>
+0447            ( ( length(ff) &lt; obs.camnr || isempty(ff{obs.camnr}) ) || <span class="keyword">...</span>
+0448              (~all(size(ff{obs.camnr})==size(img_out)) ) || <span class="keyword">...</span>
+0449              ( length(optp) &lt; obs.camnr || isempty(optp{obs.camnr}) ) || <span class="keyword">...</span>
+0450              ( ~isempty(optp{obs.camnr}) &amp;&amp; ~isequal(optp{obs.camnr},optpar) ) ) )
+0451         <span class="keyword">if</span> isstruct(optpar)
+0452           ff{obs.camnr} = <a href="../Camera/ffs_correction2.html" class="code" title="function [ff] = ffs_correction2(imgsize,optpar,optmod)">ffs_correction2</a>(size(img_out),optpar,optpar.mod);
+0453         <span class="keyword">else</span>
+0454           ff{obs.camnr} = <a href="../Camera/ffs_correction2.html" class="code" title="function [ff] = ffs_correction2(imgsize,optpar,optmod)">ffs_correction2</a>(size(img_out),optpar,optpar(9));
+0455         <span class="keyword">end</span>
+0456         optp{obs.camnr} = optpar;
+0457       <span class="keyword">end</span>
+0458       img_out = img_out./ff{obs.camnr};
+0459     <span class="keyword">end</span>
+0460   <span class="keyword">end</span>
+0461 <span class="keyword">end</span>
+0462 
+0463 <span class="keyword">if</span> ( ~isempty(PREPRO_OPS.outimgsize) &amp;&amp; <span class="keyword">...</span>
+0464      ~ all(PREPRO_OPS.outimgsize) == 0 &amp;&amp; <span class="keyword">...</span>
+0465      ~ all(PREPRO_OPS.outimgsize==size(img_out)) )
+0466   
+0467   fix_it_slowly = 1;
+0468   outimgsize = [1 1].*PREPRO_OPS.outimgsize; <span class="comment">% make sure outimgsize</span>
+0469                                              <span class="comment">% is 1x2</span>
+0470 <span class="comment">% $$$   if ( size(img_out,1) == size(img_out,2) &amp;&amp; ...</span>
+0471 <span class="comment">% $$$        outimgsize(1) == outimgsize(2) )</span>
+0472     
+0473   fix_it_slowly = 0;
+0474   resize_ratio = size(img_out) ./ outimgsize;
+0475   <span class="keyword">if</span> abs(diff(resize_ratio))/mean(resize_ratio) &gt; 0.1
+0476     disp(<span class="string">'WARNING, theresizing will change the aspect ratio of'</span>)
+0477     WarnStr = sprintf(<span class="string">'the image from [%d %d], %f to [%d %d], %f'</span>,<span class="keyword">...</span>
+0478                       size(img_out),size(img_out,1)/size(img_out,2),<span class="keyword">...</span>
+0479                       outimgsize,outimgsize(1)/outimgsize(2));
+0480     disp(WarnStr)
+0481   <span class="keyword">end</span>
+0482   <span class="keyword">switch</span> resize_ratio(1)
+0483    <span class="keyword">case</span> 1
+0484     <span class="comment">% do nothing already right size</span>
+0485    <span class="keyword">case</span> 2
+0486     img_out = img_out(1:2:<span class="keyword">end</span>,:) + img_out(2:2:<span class="keyword">end</span>,:);
+0487    <span class="keyword">case</span> 4
+0488     img_out = ( img_out(1:4:<span class="keyword">end</span>,:) + img_out(2:4:<span class="keyword">end</span>,:) + <span class="keyword">...</span>
+0489                 img_out(3:4:<span class="keyword">end</span>,:) + img_out(4:4:<span class="keyword">end</span>,:) );
+0490    <span class="keyword">case</span> 8
+0491     img_out = ( img_out(1:8:<span class="keyword">end</span>,:) + img_out(2:8:<span class="keyword">end</span>,:) + <span class="keyword">...</span>
+0492                 img_out(3:8:<span class="keyword">end</span>,:) + img_out(4:8:<span class="keyword">end</span>,:) + <span class="keyword">...</span>
+0493                 img_out(5:8:<span class="keyword">end</span>,:) + img_out(6:8:<span class="keyword">end</span>,:) + <span class="keyword">...</span>
+0494                 img_out(7:8:<span class="keyword">end</span>,:) + img_out(8:8:<span class="keyword">end</span>,:) );
+0495    <span class="keyword">case</span> 16
+0496     img_out = ( img_out(1:8:<span class="keyword">end</span>,:) + img_out(2:8:<span class="keyword">end</span>,:) + <span class="keyword">...</span>
+0497                 img_out(3:8:<span class="keyword">end</span>,:) + img_out(4:8:<span class="keyword">end</span>,:) + <span class="keyword">...</span>
+0498                 img_out(5:8:<span class="keyword">end</span>,:) + img_out(6:8:<span class="keyword">end</span>,:) + <span class="keyword">...</span>
+0499                 img_out(7:8:<span class="keyword">end</span>,:) + img_out(8:8:<span class="keyword">end</span>,:) );
+0500     img_out = img_out(1:2:<span class="keyword">end</span>,:) + img_out(2:2:<span class="keyword">end</span>,:);
+0501    <span class="keyword">otherwise</span>
+0502     fix_it_slowly = 1;
+0503   <span class="keyword">end</span>
+0504   <span class="keyword">switch</span> resize_ratio(2)
+0505    <span class="keyword">case</span> 1
+0506     <span class="comment">% do nothing already right size</span>
+0507    <span class="keyword">case</span> 2
+0508     img_out = img_out(:,1:2:end) + img_out(:,2:2:end);
+0509    <span class="keyword">case</span> 4
+0510     img_out = ( img_out(:,1:4:end) + img_out(:,2:4:end) + <span class="keyword">...</span>
+0511                 img_out(:,3:4:end) + img_out(:,4:4:end) );
+0512    <span class="keyword">case</span> 8
+0513     img_out = ( img_out(:,1:8:end) + img_out(:,2:8:end) + <span class="keyword">...</span>
+0514                 img_out(:,3:8:end) + img_out(:,4:8:end) + <span class="keyword">...</span>
+0515                 img_out(:,5:8:end) + img_out(:,6:8:end) + <span class="keyword">...</span>
+0516                 img_out(:,7:8:end) + img_out(:,8:8:end) );
+0517    <span class="keyword">case</span> 16
+0518     img_out = ( img_out(:,1:8:end) + img_out(:,2:8:end) + <span class="keyword">...</span>
+0519                 img_out(:,3:8:end) + img_out(:,4:8:end) + <span class="keyword">...</span>
+0520                 img_out(:,5:8:end) + img_out(:,6:8:end) + <span class="keyword">...</span>
+0521                 img_out(:,7:8:end) + img_out(:,8:8:end) );
+0522     img_out = img_out(:,1:2:end) + img_out(:,2:2:end);
+0523    <span class="keyword">otherwise</span>
+0524     fix_it_slowly = 1;
+0525   <span class="keyword">end</span>
+0526   <span class="comment">% end</span>
+0527   <span class="keyword">if</span> fix_it_slowly
+0528     <span class="keyword">if</span> ( all(size(img_out)./PREPRO_OPS.outimgsize &gt;= 1 ) &amp;&amp; <span class="keyword">...</span>
+0529          all(rem(size(img_out)./PREPRO_OPS.outimgsize,1)==0) ) 
+0530       fun = @(x) sum(x(:)); <span class="comment">% fun = inline('sum(x(:))');</span>
+0531       img_out = blkproc(img_out,size(img_out)./PREPRO_OPS.outimgsize, <span class="keyword">...</span>
+0532                         fun);
+0533     <span class="keyword">elseif</span> ~all(rem(size(img_out)./PREPRO_OPS.outimgsize,1)==0)
+0534       out_size = PREPRO_OPS.outimgsize.*[1 1];
+0535       img_out = interp2(img_out,<span class="keyword">...</span>
+0536                         linspace(1,size(img_out,2),out_size(2)),<span class="keyword">...</span>
+0537                         linspace(1,size(img_out,1),out_size(1))',<span class="string">'linear'</span>)*<span class="keyword">...</span>
+0538                 prod(size(img_out)./PREPRO_OPS.outimgsize);
+0539     <span class="keyword">else</span>
+0540       out_size = PREPRO_OPS.outimgsize.*[1 1];
+0541       img_out = interp2(img_out,<span class="keyword">...</span>
+0542                         linspace(1,size(img_out,2),out_size(2)),<span class="keyword">...</span>
+0543                         linspace(1,size(img_out,1),out_size(1))',<span class="string">'nearest'</span>)*<span class="keyword">...</span>
+0544                 prod(size(img_out)./PREPRO_OPS.outimgsize);
+0545     <span class="keyword">end</span>
+0546   <span class="keyword">end</span>
+0547 <span class="keyword">end</span>
+0548 <span class="keyword">if</span> ( isfield(PREPRO_OPS,<span class="string">'to_per_second'</span>) &amp;&amp; <span class="keyword">...</span>
+0549      PREPRO_OPS.to_per_second &amp;&amp; <span class="keyword">...</span>
+0550      isfield(obs,<span class="string">'exptime'</span>) &amp;&amp; <span class="keyword">...</span>
+0551      ~isempty(obs.exptime) )
+0552   img_out = img_out/obs.exptime;
+0553 <span class="keyword">end</span>
+0554 <span class="keyword">if</span> ( PREPRO_OPS.hist_crop )
+0555   
+0556   [b,x] = hist(img_out(:),100);
+0557   pc = cumsum(b)/numel(img_out);
+0558   I = find( ( PREPRO_OPS.hist_crop &lt; pc ) &amp; ( pc &lt; ( 1 - PREPRO_OPS.hist_crop )) );
+0559   <span class="keyword">if</span> ~isempty(I)
+0560     img_out = max(img_out,x(max(1,I(1)-1)));
+0561     img_out = min(img_out,x(min(I(end)+1,length(x))));
+0562   <span class="keyword">else</span>
+0563     <span class="keyword">try</span>
+0564       qu = (unique(img_out));
+0565       int_lim = qu(round(length(qu)*(PREPRO_OPS.hist_crop*[1 -1] + [0 1])));
+0566       img_out = max(min(img_out,int_lim(2)),int_lim(1));
+0567     <span class="keyword">catch</span>
+0568       
+0569       img_out = img_out;
+0570       
+0571     <span class="keyword">end</span>
+0572   <span class="keyword">end</span>
+0573 <span class="keyword">end</span>
+0574 
+0575 <span class="keyword">if</span> ( PREPRO_OPS.img_histeq )
+0576   
+0577   <span class="keyword">try</span>
+0578     img_out = <a href="../Imgtools/img_histeq.html" class="code" title="function out_img = img_histeq(in_img,hist_lim)">img_histeq</a>(img_out,PREPRO_OPS.img_histeq);
+0579   <span class="keyword">catch</span>
+0580     cmax = max(img_out(:));
+0581     cmin = min(img_out(:));
+0582     img_out = max(img_out,cmin+.01*(cmax-cmin));
+0583     img_out = min(img_out,cmax-.01*(cmax-cmin));
+0584   <span class="keyword">end</span>
+0585 <span class="keyword">end</span>
+0586</pre></div>
+<hr><address>Generated on Thu 21-Jun-2018 22:40:16 by <strong>B.&nbsp;Gustavsson</strong> with <strong><a href="http://www.artefact.tk/software/matlab/m2html/" target="_parent">m2html</a></strong> &copy; 2003</address>
+</body>
+</html>

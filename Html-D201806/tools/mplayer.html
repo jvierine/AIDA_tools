@@ -1,0 +1,659 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
+                "http://www.w3.org/TR/REC-html40/loose.dtd">
+<html>
+<head>
+  <title>Description of mplayer</title>
+  <meta name="keywords" content="mplayer">
+  <meta name="description" content="MPLAYER - movie player (avi or matlab movie)">
+  <meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+  <meta name="generator" content="m2html &copy; 2003 Guillaume Flandin">
+  <meta name="robots" content="index, follow">
+  <link type="text/css" rel="stylesheet" href="../m2html.css">
+</head>
+<body>
+<a name="_top"></a>
+<!-- menu.html tools -->
+<h1>mplayer
+</h1>
+
+<h2><a name="_name"></a>PURPOSE <a href="#_top"><img alt="^" border="0" src="../up.png"></a></h2>
+<div class="box"><strong>MPLAYER - movie player (avi or matlab movie)</strong></div>
+
+<h2><a name="_synopsis"></a>SYNOPSIS <a href="#_top"><img alt="^" border="0" src="../up.png"></a></h2>
+<div class="box"><strong>function mplayer(varargin) </strong></div>
+
+<h2><a name="_description"></a>DESCRIPTION <a href="#_top"><img alt="^" border="0" src="../up.png"></a></h2>
+<div class="fragment"><pre class="comment"> MPLAYER - movie player (avi or matlab movie)
+
+ This function may be called with 1 or no input arguments; either
+ way, it launches a full-featured avi player, complete with
+ &quot;play,&quot; &quot;pause,&quot; &quot;forward,&quot; &quot;reverse,&quot; &quot;loop,&quot; &quot;inter-frame
+ pause,&quot; &quot;skip-frame,&quot; &quot;forward 100 frames,&quot; &quot;back 100 frames,&quot;
+ &quot;beginning-of-file,&quot; and &quot;end-of-file capabilities.&quot; All
+ functions were written in MATLAB, and were tested using R12.1 and
+ R13. 
+
+ If called with 1 argument, the input argument must be either a
+ native matlab movie or a valid path/filename of a valid AVI file
+ to read and display. 
+ E.g., 
+ 
+ mplayer('/home/user/Sample-Data/ModelLERatFluorescein/LERat1.AVI')
+ mplayer(M)
+ 
+ With no input arguments (e.g., mplayer), the program will prompt
+ the user for the location of the file. 
+
+ While mplayer does not require the Image Processing Toolbox, it works
+ faster with it. (With the IP Toolbox, it calls imshow; otherwise, it
+ calls image(ind2rgb(cdata,map)).
+ 
+ Note that there is a minor bug in TMW's aviinfo mfile (which is
+ called by mplayer). It should not affect the performance of this
+ program. Nonetheless, for convenience, the first non-commented
+ line of this program turns off the warning message that you would
+ otherwise get running this program in R13.
+ 
+ Written by Brett Shoelson, Ph.D.
+ Comments, suggestions: shoelson@helix.nih.gov
+ Version 1 release: 8/12/03
+
+ Modified by Bjorn Gustavsson 2006/03/03</pre></div>
+
+<!-- crossreference -->
+<h2><a name="_cross"></a>CROSS-REFERENCE INFORMATION <a href="#_top"><img alt="^" border="0" src="../up.png"></a></h2>
+This function calls:
+<ul style="list-style-image:url(../matlabicon.gif)">
+<li><a href="ischar.html" class="code" title="function TrueOrFalse = ischar(str)">ischar</a>	ISCHAR - return true if STR is a char-array</li><li><a href="mplayer.html" class="code" title="function mplayer(varargin)">mplayer</a>	MPLAYER - movie player (avi or matlab movie)</li></ul>
+This function is called by:
+<ul style="list-style-image:url(../matlabicon.gif)">
+<li><a href="../ASK/HSOFT/ASK_play_keolines.html" class="code" title="function M = ASK_play_keolines(keos,OPS)">ASK_play_keolines</a>	ASK_PLAY_KEOLINES -</li><li><a href="mplayer.html" class="code" title="function mplayer(varargin)">mplayer</a>	MPLAYER - movie player (avi or matlab movie)</li></ul>
+<!-- crossreference -->
+
+<h2><a name="_subfunctions"></a>SUBFUNCTIONS <a href="#_top"><img alt="^" border="0" src="../up.png"></a></h2>
+<ul style="list-style-image:url(../matlabicon.gif)">
+<li><a href="#_sub1" class="code">function playbutton</a></li><li><a href="#_sub2" class="code">function pausebutton</a></li><li><a href="#_sub3" class="code">function forwardbutton</a></li><li><a href="#_sub4" class="code">function rewindbutton</a></li><li><a href="#_sub5" class="code">function forward100button</a></li><li><a href="#_sub6" class="code">function rewind100button</a></li><li><a href="#_sub7" class="code">function restartbutton</a></li><li><a href="#_sub8" class="code">function eofbutton</a></li><li><a href="#_sub9" class="code">function returnbutton</a></li><li><a href="#_sub10" class="code">function frameslider(iptb)</a></li></ul>
+<h2><a name="_source"></a>SOURCE CODE <a href="#_top"><img alt="^" border="0" src="../up.png"></a></h2>
+<div class="fragment"><pre>0001 <a name="_sub0" href="#_subfunctions" class="code">function mplayer(varargin)</a>
+0002 <span class="comment">% MPLAYER - movie player (avi or matlab movie)</span>
+0003 <span class="comment">%</span>
+0004 <span class="comment">% This function may be called with 1 or no input arguments; either</span>
+0005 <span class="comment">% way, it launches a full-featured avi player, complete with</span>
+0006 <span class="comment">% &quot;play,&quot; &quot;pause,&quot; &quot;forward,&quot; &quot;reverse,&quot; &quot;loop,&quot; &quot;inter-frame</span>
+0007 <span class="comment">% pause,&quot; &quot;skip-frame,&quot; &quot;forward 100 frames,&quot; &quot;back 100 frames,&quot;</span>
+0008 <span class="comment">% &quot;beginning-of-file,&quot; and &quot;end-of-file capabilities.&quot; All</span>
+0009 <span class="comment">% functions were written in MATLAB, and were tested using R12.1 and</span>
+0010 <span class="comment">% R13.</span>
+0011 <span class="comment">%</span>
+0012 <span class="comment">% If called with 1 argument, the input argument must be either a</span>
+0013 <span class="comment">% native matlab movie or a valid path/filename of a valid AVI file</span>
+0014 <span class="comment">% to read and display.</span>
+0015 <span class="comment">% E.g.,</span>
+0016 <span class="comment">%</span>
+0017 <span class="comment">% mplayer('/home/user/Sample-Data/ModelLERatFluorescein/LERat1.AVI')</span>
+0018 <span class="comment">% mplayer(M)</span>
+0019 <span class="comment">%</span>
+0020 <span class="comment">% With no input arguments (e.g., mplayer), the program will prompt</span>
+0021 <span class="comment">% the user for the location of the file.</span>
+0022 <span class="comment">%</span>
+0023 <span class="comment">% While mplayer does not require the Image Processing Toolbox, it works</span>
+0024 <span class="comment">% faster with it. (With the IP Toolbox, it calls imshow; otherwise, it</span>
+0025 <span class="comment">% calls image(ind2rgb(cdata,map)).</span>
+0026 <span class="comment">%</span>
+0027 <span class="comment">% Note that there is a minor bug in TMW's aviinfo mfile (which is</span>
+0028 <span class="comment">% called by mplayer). It should not affect the performance of this</span>
+0029 <span class="comment">% program. Nonetheless, for convenience, the first non-commented</span>
+0030 <span class="comment">% line of this program turns off the warning message that you would</span>
+0031 <span class="comment">% otherwise get running this program in R13.</span>
+0032 <span class="comment">%</span>
+0033 <span class="comment">% Written by Brett Shoelson, Ph.D.</span>
+0034 <span class="comment">% Comments, suggestions: shoelson@helix.nih.gov</span>
+0035 <span class="comment">% Version 1 release: 8/12/03</span>
+0036 <span class="comment">%</span>
+0037 <span class="comment">% Modified by Bjorn Gustavsson 2006/03/03</span>
+0038 
+0039 warning off MATLAB:mir_warning_variable_used_as_function
+0040 
+0041 <span class="comment">%Is the IP Toolbox present?</span>
+0042 <span class="keyword">try</span>
+0043   regionprops(ones(2));
+0044   iptb = 0;
+0045 <span class="keyword">catch</span>
+0046   iptb = 0;
+0047 <span class="keyword">end</span>    
+0048 
+0049 <span class="keyword">if</span> nargin == 0 || nargin == 1
+0050   <span class="comment">%Initialize</span>
+0051   delete(findobj(<span class="string">'tag'</span>,<span class="string">'mplayer'</span>));
+0052   <span class="keyword">if</span> nargin == 1
+0053     <span class="keyword">if</span> ~<a href="ischar.html" class="code" title="function TrueOrFalse = ischar(str)">ischar</a>(varargin{1}) <span class="comment">% ~isstr(varargin{1})</span>
+0054       tmpname = deblank([<span class="string">'/tmp/mplayer'</span>,num2str(round(1e8*rand(1,1)),<span class="string">'%08d'</span>),<span class="string">'.avi'</span>])
+0055       movie2avi(varargin{1},tmpname);
+0056       [pathname, filename, tmp1] = fileparts(tmpname);
+0057       playvals.tmpfilename = tmpname;
+0058     <span class="keyword">else</span>
+0059       [pathname, filename, tmp1] = fileparts(varargin{1});
+0060     <span class="keyword">end</span>
+0061   <span class="keyword">else</span>
+0062     [filename, pathname] = uigetfile(<span class="string">'*.avi'</span>, <span class="string">'Select an AVI file.'</span>);
+0063     <span class="keyword">if</span> ~filename
+0064       disp(<span class="string">'No appropriate file selected.'</span>);
+0065       <span class="keyword">return</span>
+0066     <span class="keyword">end</span>
+0067     [tmp,tmp,tmp1] = fileparts(filename);
+0068   <span class="keyword">end</span>
+0069   <span class="keyword">if</span> ~strcmpi(tmp1,<span class="string">'.avi'</span>)
+0070     disp(<span class="string">'Inappropriate file selected/requested.'</span>);
+0071     <span class="keyword">return</span>
+0072   <span class="keyword">end</span>
+0073   fullfile(pathname, filename)
+0074   framedir = aviinfo(fullfile(pathname, filename));
+0075   playvals.imnum = 1;
+0076   playvals.playcontinue = 0;
+0077   playvals.numims = framedir.NumFrames;
+0078   playvals.increment = 1;
+0079   playvals.paused = 0;
+0080   playvals.quit = 0;
+0081 <span class="comment">% $$$   figure('units', 'normalized',...</span>
+0082 <span class="comment">% $$$          'position', [0.25 0.2 0.5 0.55],...</span>
+0083 <span class="comment">% $$$          'name',['Sequence: ' fullfile(pathname, filename)],...</span>
+0084 <span class="comment">% $$$          'NumberTitle', 'off',...</span>
+0085 <span class="comment">% $$$          'doublebuffer', 'on', ...</span>
+0086 <span class="comment">% $$$          'backingstore', 'off',...</span>
+0087 <span class="comment">% $$$          'menubar', 'none',...</span>
+0088 <span class="comment">% $$$          'tag', 'mplayer',...</span>
+0089 <span class="comment">% $$$          'defaultaxesxtick',[],...</span>
+0090 <span class="comment">% $$$          'defaultaxesytick',[],...</span>
+0091 <span class="comment">% $$$          'closerequestfcn',...</span>
+0092 <span class="comment">% $$$          ['playvals = getappdata(gcf, ''playvals'');',...</span>
+0093 <span class="comment">% $$$           'tmp=get(gca,''title'');',...</span>
+0094 <span class="comment">% $$$           'tmps = get(tmp,''string'');',...</span>
+0095 <span class="comment">% $$$           'tmpc = get(tmp,''color'');',...</span>
+0096 <span class="comment">% $$$           'title(''Use the ''''STOP'''' button to close the figure and quit.'',''color'',''r'');',...</span>
+0097 <span class="comment">% $$$           'for ii = 1:5;',...</span>
+0098 <span class="comment">% $$$           'set(playvals.returnbutton,''foregroundcolor'',''r'');',...</span>
+0099 <span class="comment">% $$$           'pause(0.25);',...</span>
+0100 <span class="comment">% $$$           'set(playvals.returnbutton,''foregroundcolor'',''k'');',...</span>
+0101 <span class="comment">% $$$           'pause(0.25);',...</span>
+0102 <span class="comment">% $$$           'end;',...</span>
+0103 <span class="comment">% $$$           'title(tmps,''color'',tmpc);']);</span>
+0104 <span class="keyword">if</span> nargin &lt; 4
+0105   figure(<span class="string">'units'</span>, <span class="string">'normalized'</span>,<span class="keyword">...</span>
+0106          <span class="string">'position'</span>, [0.25 0.2 0.5 0.55],<span class="keyword">...</span>
+0107          <span class="string">'name'</span>,[<span class="string">'Sequence: '</span> fullfile(pathname, filename)],<span class="keyword">...</span>
+0108          <span class="string">'NumberTitle'</span>, <span class="string">'off'</span>,<span class="keyword">...</span>
+0109          <span class="string">'doublebuffer'</span>, <span class="string">'on'</span>, <span class="keyword">...</span>
+0110          <span class="string">'backingstore'</span>, <span class="string">'off'</span>,<span class="keyword">...</span>
+0111          <span class="string">'menubar'</span>, <span class="string">'none'</span>,<span class="keyword">...</span>
+0112          <span class="string">'tag'</span>, <span class="string">'mplayer'</span>,<span class="keyword">...</span>
+0113          <span class="string">'defaultaxesxtick'</span>,[],<span class="keyword">...</span>
+0114          <span class="string">'defaultaxesytick'</span>,[]);
+0115 <span class="keyword">else</span>
+0116    figure(<span class="string">'units'</span>, <span class="string">'normalized'</span>,<span class="keyword">...</span>
+0117          <span class="string">'position'</span>, varargin{4},<span class="keyword">...</span>
+0118          <span class="string">'name'</span>,[<span class="string">'Sequence: '</span> fullfile(pathname, filename)],<span class="keyword">...</span>
+0119          <span class="string">'NumberTitle'</span>, <span class="string">'off'</span>,<span class="keyword">...</span>
+0120          <span class="string">'doublebuffer'</span>, <span class="string">'on'</span>, <span class="keyword">...</span>
+0121          <span class="string">'backingstore'</span>, <span class="string">'off'</span>,<span class="keyword">...</span>
+0122          <span class="string">'menubar'</span>, <span class="string">'none'</span>,<span class="keyword">...</span>
+0123          <span class="string">'tag'</span>, <span class="string">'mplayer'</span>,<span class="keyword">...</span>
+0124          <span class="string">'defaultaxesxtick'</span>,[],<span class="keyword">...</span>
+0125          <span class="string">'defaultaxesytick'</span>,[]);
+0126    
+0127 <span class="keyword">end</span>
+0128   axes(<span class="string">'position'</span>, [0.1 0.225 0.8 0.7], <span class="string">'drawmode'</span>, <span class="string">'fast'</span>);
+0129   setappdata(gcf,<span class="string">'playbuttonfcnhandle'</span>,@<a href="#_sub1" class="code" title="subfunction playbutton">playbutton</a>);
+0130   setappdata(gcf,<span class="string">'pausebuttonfcnhandle'</span>,@<a href="#_sub2" class="code" title="subfunction pausebutton">pausebutton</a>);
+0131   setappdata(gcf,<span class="string">'forwardbuttonfcnhandle'</span>,@<a href="#_sub3" class="code" title="subfunction forwardbutton">forwardbutton</a>);
+0132   setappdata(gcf,<span class="string">'rewindbuttonfcnhandle'</span>,@<a href="#_sub4" class="code" title="subfunction rewindbutton">rewindbutton</a>);
+0133   setappdata(gcf,<span class="string">'forward100buttonfcnhandle'</span>,@<a href="#_sub5" class="code" title="subfunction forward100button">forward100button</a>);
+0134   setappdata(gcf,<span class="string">'rewind100buttonfcnhandle'</span>,@<a href="#_sub6" class="code" title="subfunction rewind100button">rewind100button</a>);
+0135   setappdata(gcf,<span class="string">'restartbuttonfcnhandle'</span>,@<a href="#_sub7" class="code" title="subfunction restartbutton">restartbutton</a>);
+0136   setappdata(gcf,<span class="string">'eofbuttonfcnhandle'</span>,@<a href="#_sub8" class="code" title="subfunction eofbutton">eofbutton</a>);
+0137   setappdata(gcf,<span class="string">'returnbuttonfcnhandle'</span>,@<a href="#_sub9" class="code" title="subfunction returnbutton">returnbutton</a>);
+0138   setappdata(gcf,<span class="string">'framesliderfcnhandle'</span>,@<a href="#_sub10" class="code" title="subfunction frameslider(iptb)">frameslider</a>);
+0139   
+0140   setappdata(gcf,<span class="string">'framedir'</span>,framedir);
+0141   setappdata(gcf,<span class="string">'iptb'</span>,iptb);
+0142   
+0143   uicontrol(<span class="string">'style'</span>,<span class="string">'frame'</span>,<span class="keyword">...</span>
+0144             <span class="string">'units'</span>,<span class="string">'normalized'</span>,<span class="keyword">...</span>
+0145             <span class="string">'position'</span>,[0.05 0.01 0.9 0.1925],<span class="keyword">...</span>
+0146             <span class="string">'foregroundcolor'</span>,<span class="string">'b'</span>,<span class="keyword">...</span>
+0147             <span class="string">'backgroundcolor'</span>,[0.6 0.6 0.6]);
+0148   playvals.playbutton = uicontrol(<span class="string">'style'</span>, <span class="string">'pushbutton'</span>,<span class="keyword">...</span>
+0149                                   <span class="string">'string'</span>, <span class="string">'&gt;'</span>,<span class="keyword">...</span>
+0150                                   <span class="string">'units'</span>, <span class="string">'normalized'</span>,<span class="keyword">...</span>
+0151                                   <span class="string">'position'</span>, [0.075 0.15 0.275 0.04], <span class="keyword">...</span>
+0152                                   <span class="string">'callback'</span>,<span class="string">'feval(getappdata(gcf,''playbuttonfcnhandle''));'</span> , <span class="keyword">...</span>
+0153                                   <span class="string">'fontunits'</span>, <span class="string">'normalized'</span>,<span class="keyword">...</span>
+0154                                   <span class="string">'fontsize'</span>, 0.8,<span class="keyword">...</span>
+0155                                   <span class="string">'tag'</span>, <span class="string">'playbutton'</span>, <span class="keyword">...</span>
+0156                                   <span class="string">'tooltipstring'</span>, <span class="string">'Starts playback and (re)sets increment to 1.'</span>);
+0157   playvals.pausebutton = uicontrol(<span class="string">'style'</span>, <span class="string">'pushbutton'</span>,<span class="keyword">...</span>
+0158                                    <span class="string">'string'</span>, <span class="string">'||'</span>,<span class="keyword">...</span>
+0159                                    <span class="string">'units'</span>, <span class="string">'normalized'</span>,<span class="keyword">...</span>
+0160                                    <span class="string">'position'</span>, [0.35 0.15 0.275 0.04], <span class="keyword">...</span>
+0161                                    <span class="string">'callback'</span>, <span class="string">'feval(getappdata(gcf,''pausebuttonfcnhandle''));'</span>, <span class="keyword">...</span>
+0162                                    <span class="string">'fontunits'</span>, <span class="string">'normalized'</span>,<span class="keyword">...</span>
+0163                                    <span class="string">'fontsize'</span>, 0.8, <span class="keyword">...</span>
+0164                                    <span class="string">'tooltipstring'</span>, <span class="string">'Pauses/un-pauses playback.'</span>,<span class="string">'tag'</span>,<span class="string">'pausebutton'</span>);
+0165   playvals.rewindbutton = uicontrol(<span class="string">'style'</span>, <span class="string">'pushbutton'</span>,<span class="keyword">...</span>
+0166                                     <span class="string">'string'</span>, <span class="string">'&lt;&lt;'</span>,<span class="keyword">...</span>
+0167                                     <span class="string">'units'</span>, <span class="string">'normalized'</span>,<span class="keyword">...</span>
+0168                                     <span class="string">'position'</span>, [0.2 0.11 0.15 0.04], <span class="keyword">...</span>
+0169                                     <span class="string">'callback'</span>, <span class="string">'feval(getappdata(gcf,''rewindbuttonfcnhandle''));'</span>, <span class="keyword">...</span>
+0170                                     <span class="string">'fontunits'</span>, <span class="string">'normalized'</span>,<span class="keyword">...</span>
+0171                                     <span class="string">'fontsize'</span>, 0.8, <span class="keyword">...</span>
+0172                                     <span class="string">'tooltipstring'</span>, <span class="string">'Decrease playback speed. (Slows down or reverses playback by decreasing frame increment.)'</span>);
+0173   playvals.forwardbutton = uicontrol(<span class="string">'style'</span>, <span class="string">'pushbutton'</span>,<span class="keyword">...</span>
+0174                                      <span class="string">'string'</span>, <span class="string">'&gt;&gt;'</span>,<span class="keyword">...</span>
+0175                                      <span class="string">'units'</span>, <span class="string">'normalized'</span>,<span class="keyword">...</span>
+0176                                      <span class="string">'position'</span>, [0.35 0.11 0.15 0.04], <span class="keyword">...</span>
+0177                                      <span class="string">'callback'</span>, <span class="string">'feval(getappdata(gcf,''forwardbuttonfcnhandle''));'</span>, <span class="keyword">...</span>
+0178                                      <span class="string">'fontunits'</span>, <span class="string">'normalized'</span>,<span class="keyword">...</span>
+0179                                      <span class="string">'fontsize'</span>, 0.8, <span class="keyword">...</span>
+0180                                      <span class="string">'tooltipstring'</span>, <span class="string">'Increase playback speed. (Speeds playback by skipping frames.)'</span>,<span class="keyword">...</span>
+0181                                      <span class="string">'interruptible'</span>,<span class="string">'off'</span>);
+0182   playvals.forward100button = uicontrol(<span class="string">'style'</span>, <span class="string">'pushbutton'</span>,<span class="keyword">...</span>
+0183                                         <span class="string">'string'</span>, <span class="string">'+100'</span>,<span class="keyword">...</span>
+0184                                         <span class="string">'units'</span>, <span class="string">'normalized'</span>, <span class="keyword">...</span>
+0185                                         <span class="string">'position'</span>, [0.5 0.11 0.135 0.04], <span class="keyword">...</span>
+0186                                         <span class="string">'callback'</span>, <span class="string">'feval(getappdata(gcf,''forward100buttonfcnhandle''));'</span>, <span class="keyword">...</span>
+0187                                         <span class="string">'fontunits'</span>, <span class="string">'normalized'</span>,<span class="keyword">...</span>
+0188                                         <span class="string">'fontsize'</span>, 0.6, <span class="keyword">...</span>
+0189                                         <span class="string">'tooltipstring'</span>, <span class="string">'Jump forward 100 frames (or to end of file).'</span>);
+0190   playvals.rewind100button = uicontrol(<span class="string">'style'</span>, <span class="string">'pushbutton'</span>,<span class="keyword">...</span>
+0191                                        <span class="string">'string'</span>, <span class="string">'-100'</span>,<span class="keyword">...</span>
+0192                                        <span class="string">'units'</span>, <span class="string">'normalized'</span>, <span class="keyword">...</span>
+0193                                        <span class="string">'position'</span>, [0.075 0.11 0.135 0.04], <span class="keyword">...</span>
+0194                                        <span class="string">'callback'</span>, <span class="string">'feval(getappdata(gcf,''rewind100buttonfcnhandle''));'</span>, <span class="keyword">...</span>
+0195                                        <span class="string">'fontunits'</span>, <span class="string">'normalized'</span>,<span class="keyword">...</span>
+0196                                        <span class="string">'fontsize'</span>, 0.6, <span class="keyword">...</span>
+0197                                        <span class="string">'tooltipstring'</span>, <span class="string">'Jump backward 100 frames (or to beginning of file).'</span>);
+0198   playvals.restartbutton = uicontrol(<span class="string">'style'</span>, <span class="string">'pushbutton'</span>,<span class="keyword">...</span>
+0199                                      <span class="string">'string'</span>, <span class="string">'restart'</span>,<span class="keyword">...</span>
+0200                                      <span class="string">'units'</span>, <span class="string">'normalized'</span>,<span class="keyword">...</span>
+0201                                      <span class="string">'position'</span>, [0.075 0.07 0.135 0.04], <span class="keyword">...</span>
+0202                                      <span class="string">'callback'</span>, <span class="string">'feval(getappdata(gcf,''restartbuttonfcnhandle''));'</span>, <span class="keyword">...</span>
+0203                                      <span class="string">'fontunits'</span>, <span class="string">'normalized'</span>,<span class="keyword">...</span>
+0204                                      <span class="string">'fontsize'</span>, 0.8, <span class="keyword">...</span>
+0205                                      <span class="string">'tooltipstring'</span>, <span class="string">'Return to first frame.'</span>,<span class="string">'tag'</span>,<span class="string">'restartbutton'</span>);
+0206   playvals.eofbutton = uicontrol(<span class="string">'style'</span>, <span class="string">'pushbutton'</span>,<span class="keyword">...</span>
+0207                                  <span class="string">'string'</span>, <span class="string">'-&gt;end'</span>,<span class="keyword">...</span>
+0208                                  <span class="string">'units'</span>, <span class="string">'normalized'</span>,<span class="keyword">...</span>
+0209                                  <span class="string">'position'</span>, [0.5 0.07 0.135 0.04], <span class="keyword">...</span>
+0210                                  <span class="string">'callback'</span>, <span class="string">'feval(getappdata(gcf,''eofbuttonfcnhandle''));'</span>, <span class="keyword">...</span>
+0211                                  <span class="string">'fontunits'</span>, <span class="string">'normalized'</span>,<span class="keyword">...</span>
+0212                                  <span class="string">'fontsize'</span>, 0.8, <span class="keyword">...</span>
+0213                                  <span class="string">'tooltipstring'</span>, <span class="string">'Go to last frame.'</span>,<span class="string">'tag'</span>,<span class="string">'eofbutton'</span>);
+0214   playvals.returnbutton = uicontrol(<span class="string">'style'</span>, <span class="string">'pushbutton'</span>,<span class="keyword">...</span>
+0215                                     <span class="string">'string'</span>, <span class="string">'end/quit/close'</span>,<span class="keyword">...</span>
+0216                                     <span class="string">'units'</span>, <span class="string">'normalized'</span>,<span class="keyword">...</span>
+0217                                     <span class="string">'position'</span>, [0.2 0.07 0.3 0.04], <span class="keyword">...</span>
+0218                                     <span class="string">'callback'</span>, <span class="string">'feval(getappdata(gcf,''returnbuttonfcnhandle''));'</span>, <span class="keyword">...</span>
+0219                                     <span class="string">'fontunits'</span>, <span class="string">'normalized'</span>,<span class="keyword">...</span>
+0220                                     <span class="string">'fontsize'</span>, 0.8, <span class="keyword">...</span>
+0221                                     <span class="string">'tooltipstring'</span>, <span class="string">'End playback and close AVI Player.'</span>,<span class="keyword">...</span>
+0222                                     <span class="string">'tag'</span>,<span class="string">'returnbutton'</span>);
+0223   playvals.frameslider = uicontrol(<span class="string">'style'</span>,<span class="string">'slider'</span>,<span class="keyword">...</span>
+0224                                    <span class="string">'units'</span>,<span class="string">'normalized'</span>,<span class="keyword">...</span>
+0225                                    <span class="string">'position'</span>,[0.075 0.02 0.55 0.04],<span class="keyword">...</span>
+0226                                    <span class="string">'min'</span>,1,<span class="keyword">...</span>
+0227                                    <span class="string">'max'</span>,playvals.numims,<span class="keyword">...</span>
+0228                                    <span class="string">'value'</span>,1,<span class="keyword">...</span>
+0229                                    <span class="string">'fontsize'</span>,10,<span class="keyword">...</span>
+0230                                    <span class="string">'userdata'</span>,framedir,<span class="keyword">...</span>
+0231                                    <span class="string">'callback'</span>,<span class="string">'iptb = getappdata(gcf,''iptb'');feval(getappdata(gcf,''framesliderfcnhandle''),iptb);'</span>,<span class="keyword">...</span>
+0232                                    <span class="string">'sliderstep'</span>,[1/playvals.numims 10/playvals.numims]);
+0233   playvals.loop = uicontrol(<span class="string">'style'</span>,<span class="string">'checkbox'</span>,<span class="keyword">...</span>
+0234                             <span class="string">'units'</span>,<span class="string">'normalized'</span>,<span class="keyword">...</span>
+0235                             <span class="string">'position'</span>,[0.64 0.02 0.15 0.04],<span class="keyword">...</span>
+0236                             <span class="string">'value'</span>,0,<span class="keyword">...</span>
+0237                             <span class="string">'fontsize'</span>,8,<span class="keyword">...</span>
+0238                             <span class="string">'string'</span>,<span class="string">'Loop'</span>,<span class="keyword">...</span>
+0239                             <span class="string">'backgroundcolor'</span>,[0.6 0.6 0.6],<span class="keyword">...</span>
+0240                             <span class="string">'tag'</span>,<span class="string">'Loop'</span>);
+0241   uicontrol(<span class="string">'style'</span>,<span class="string">'frame'</span>,<span class="keyword">...</span>
+0242             <span class="string">'units'</span>,<span class="string">'normalized'</span>,<span class="keyword">...</span>
+0243             <span class="string">'position'</span>,[0.64 0.07 0.29 0.12]);
+0244   playvals.pauseslider = uicontrol(<span class="string">'style'</span>,<span class="string">'slider'</span>,<span class="keyword">...</span>
+0245                                    <span class="string">'units'</span>,<span class="string">'normalized'</span>,<span class="keyword">...</span>
+0246                                    <span class="string">'position'</span>,[0.66 0.11 0.25 0.0375],<span class="keyword">...</span>
+0247                                    <span class="string">'value'</span>,0,<span class="keyword">...</span>
+0248                                    <span class="string">'min'</span>,0,<span class="keyword">...</span>
+0249                                    <span class="string">'max'</span>,5,<span class="keyword">...</span>
+0250                                    <span class="string">'sliderstep'</span>,[0.1, 1/5],<span class="keyword">...</span>
+0251                                    <span class="string">'tooltipstring'</span>,<span class="string">'Pauses display between frames by the number of seconds represented by the slider.'</span>,<span class="keyword">...</span>
+0252                                    <span class="string">'callback'</span>,<span class="string">'tmp = get(gcbo,''value''); set(findobj(''tag'',''pausesecsbox''),''string'',sprintf(''%0.1f'',tmp));'</span>);
+0253   tmp=uicontrol(<span class="string">'style'</span>,<span class="string">'text'</span>,<span class="keyword">...</span>
+0254                 <span class="string">'string'</span>,sprintf(<span class="string">'Inter-Frame Pause (seconds)'</span>),<span class="keyword">...</span>
+0255                 <span class="string">'units'</span>,<span class="string">'normalized'</span>,<span class="keyword">...</span>
+0256                 <span class="string">'position'</span>,[0.66 0.145 0.25 0.04],<span class="keyword">...</span>
+0257                 <span class="string">'fontname'</span>,<span class="string">'helvetica'</span>,<span class="keyword">...</span>
+0258                 <span class="string">'fontsize'</span>,7);
+0259   uicontrol(<span class="string">'style'</span>,<span class="string">'text'</span>,<span class="keyword">...</span>
+0260             <span class="string">'string'</span>,0,<span class="keyword">...</span>
+0261             <span class="string">'units'</span>,<span class="string">'normalized'</span>,<span class="keyword">...</span>
+0262             <span class="string">'position'</span>,[0.66 0.077 0.02 0.03]);
+0263   uicontrol(<span class="string">'style'</span>,<span class="string">'text'</span>,<span class="keyword">...</span>
+0264             <span class="string">'string'</span>,5,<span class="keyword">...</span>
+0265             <span class="string">'units'</span>,<span class="string">'normalized'</span>,<span class="keyword">...</span>
+0266             <span class="string">'position'</span>,[0.88 0.077 0.02 0.03]);
+0267   playvals.pausesecsbox = uicontrol(<span class="string">'style'</span>,<span class="string">'text'</span>,<span class="keyword">...</span>
+0268                                     <span class="string">'units'</span>,<span class="string">'normalized'</span>,<span class="keyword">...</span>
+0269                                     <span class="string">'position'</span>,[0.765 0.078 0.04 0.0275],<span class="keyword">...</span>
+0270                                     <span class="string">'string'</span>,0,<span class="keyword">...</span>
+0271                                     <span class="string">'tag'</span>,<span class="string">'pausesecsbox'</span>,<span class="keyword">...</span>
+0272                                     <span class="string">'fontsize'</span>,8,<span class="keyword">...</span>
+0273                                     <span class="string">'fontweight'</span>,<span class="string">'b'</span>);<span class="comment">%,'backgroundcolor',[0 0.6 0.6]</span>
+0274   
+0275   <span class="keyword">if</span> verLessThan(<span class="string">'matlab'</span>,<span class="string">'8.4'</span>)
+0276     frame = aviread(framedir.Filename, 1);
+0277   <span class="keyword">else</span>
+0278     
+0279   <span class="keyword">end</span>
+0280   <span class="keyword">if</span> iptb
+0281     <span class="keyword">if</span> ~isempty(frame.colormap)
+0282       imshow(ind2rgb(frame.cdata,frame.colormap));
+0283     <span class="keyword">else</span>
+0284       imshow(frame.cdata);
+0285     <span class="keyword">end</span>
+0286   <span class="keyword">else</span>
+0287     <span class="keyword">if</span> ~isempty(frame.colormap)
+0288       image(ind2rgb(frame.cdata,frame.colormap));
+0289     <span class="keyword">else</span>
+0290       image(frame.cdata);
+0291     <span class="keyword">end</span>
+0292   <span class="keyword">end</span>
+0293   <span class="keyword">if</span> playvals.increment &gt;= 1,
+0294     signstr = <span class="string">'+'</span>;
+0295   <span class="keyword">else</span>
+0296     signstr = <span class="string">''</span>;
+0297   <span class="keyword">end</span>;
+0298   title(sprintf(<span class="string">'Frame %i of %i (Increment: %s %i)'</span>,playvals.imnum, playvals.numims,signstr,playvals.increment), <span class="string">'color'</span>, <span class="string">'g'</span>, <span class="keyword">...</span>
+0299         <span class="string">'fontname'</span>, <span class="string">'Helvetica'</span>, <span class="string">'fontsize'</span>, 10);
+0300 <span class="keyword">else</span>
+0301   playvals = varargin{1};
+0302   framedir = varargin{2};
+0303   option = varargin{3};
+0304   playvals.imnum = 1;
+0305   playvals.playcontinue = 0;
+0306   playvals.paused = 0;
+0307   playvals.quit = 0;
+0308   frame = aviread(framedir.Filename, playvals.imnum);
+0309   <span class="keyword">switch</span> option
+0310    <span class="keyword">case</span> <span class="string">'Continue'</span>
+0311     <span class="keyword">if</span> iptb
+0312       <span class="keyword">if</span> ~isempty(frame.colormap)
+0313         imshow(ind2rgb(frame.cdata,frame.colormap));
+0314       <span class="keyword">else</span>
+0315         imshow(frame.cdata);
+0316       <span class="keyword">end</span>
+0317     <span class="keyword">else</span>
+0318       <span class="keyword">if</span> ~isempty(frame.colormap)
+0319         image(ind2rgb(frame.cdata,frame.colormap));
+0320       <span class="keyword">else</span>
+0321         image(frame.cdata);
+0322       <span class="keyword">end</span>
+0323     <span class="keyword">end</span>
+0324     signstr = <span class="string">'+'</span>;
+0325     title(sprintf(<span class="string">'Frame %i of %i (Increment: %s %i)'</span>,playvals.imnum, playvals.numims,signstr,playvals.increment), <span class="string">'color'</span>, <span class="string">'g'</span>, <span class="keyword">...</span>
+0326           <span class="string">'fontname'</span>, <span class="string">'Helvetica'</span>, <span class="string">'fontsize'</span>, 10);
+0327     set(playvals.frameslider,<span class="string">'value'</span>,playvals.imnum);
+0328    <span class="keyword">case</span> <span class="string">'Paused'</span>
+0329     title(<span class="string">'Press PLAY to begin'</span>,<span class="string">'color'</span>,<span class="string">'r'</span>);
+0330   <span class="keyword">end</span>
+0331 <span class="keyword">end</span>
+0332 setappdata(gcf, <span class="string">'playvals'</span>, playvals);
+0333 
+0334 waitforbuttonpress;
+0335 tmp = get(gco);
+0336 <span class="keyword">if</span> strcmp(tmp.Tag, <span class="string">'playbutton'</span>)
+0337   playvals = getappdata(gcf, <span class="string">'playvals'</span>);
+0338   playvals.playcontinue = 1;
+0339   set(playvals.playbutton,<span class="string">'foregroundcolor'</span>,[0 0.7 0]);
+0340   setappdata(gcf, <span class="string">'playvals'</span>, playvals);
+0341 <span class="keyword">elseif</span> strcmp(tmp.Tag, <span class="string">'returnbutton'</span>)
+0342   <a href="#_sub9" class="code" title="subfunction returnbutton">returnbutton</a>;
+0343   delete(gcf);
+0344   <span class="keyword">return</span>
+0345 <span class="keyword">elseif</span> strcmp(tmp.Tag,<span class="string">'Loop'</span>)
+0346   set(gco,<span class="string">'value'</span>,~get(gco,<span class="string">'value'</span>));
+0347   drawnow;
+0348   <a href="mplayer.html" class="code" title="function mplayer(varargin)">mplayer</a>(playvals,framedir,<span class="string">'Continue'</span>);
+0349 <span class="keyword">else</span>
+0350   <a href="mplayer.html" class="code" title="function mplayer(varargin)">mplayer</a>(playvals,framedir,<span class="string">'Paused'</span>);
+0351 <span class="keyword">end</span>
+0352 
+0353 <span class="keyword">while</span> playvals.playcontinue
+0354   playvals = getappdata(gcf, <span class="string">'playvals'</span>);
+0355   <span class="keyword">while</span> playvals.paused
+0356     playvals = getappdata(gcf, <span class="string">'playvals'</span>);
+0357     <span class="keyword">if</span> playvals.quit
+0358       playvals.playcontinue = 0;
+0359       playvals.paused = 0;
+0360       delete(gcf);
+0361       <span class="keyword">return</span>
+0362     <span class="keyword">end</span>
+0363     drawnow;
+0364   <span class="keyword">end</span>
+0365   
+0366   frame = aviread(framedir.Filename, playvals.imnum);
+0367   <span class="keyword">if</span> iptb
+0368     <span class="keyword">if</span> ~isempty(frame.colormap)
+0369       imshow(ind2rgb(frame.cdata,frame.colormap));
+0370     <span class="keyword">else</span>
+0371       imshow(frame.cdata);
+0372     <span class="keyword">end</span>
+0373   <span class="keyword">else</span>
+0374     <span class="keyword">if</span> ~isempty(frame.colormap)
+0375       image(ind2rgb(frame.cdata,frame.colormap));
+0376     <span class="keyword">else</span>
+0377       image(frame.cdata);
+0378     <span class="keyword">end</span>
+0379   <span class="keyword">end</span>
+0380   <span class="keyword">if</span> playvals.increment &gt;= 1, signstr = <span class="string">'+'</span>; <span class="keyword">else</span> signstr = <span class="string">''</span>; <span class="keyword">end</span>;
+0381   title(sprintf(<span class="string">'Frame %i of %i (Increment: %s %i)'</span>,playvals.imnum, playvals.numims,signstr,playvals.increment), <span class="string">'color'</span>, <span class="string">'g'</span>, <span class="keyword">...</span>
+0382         <span class="string">'fontname'</span>, <span class="string">'Helvetica'</span>, <span class="string">'fontsize'</span>, 10);
+0383   set(playvals.frameslider, <span class="string">'value'</span>, playvals.imnum);
+0384   
+0385   <span class="keyword">if</span> playvals.increment &gt; 0
+0386     <span class="keyword">if</span> playvals.imnum == playvals.numims
+0387       <span class="keyword">if</span> get(playvals.loop,<span class="string">'value'</span>)==1;
+0388         playvals.imnum=1;
+0389         pauselength = get(playvals.pauseslider,<span class="string">'value'</span>);
+0390         pause(pauselength);
+0391         frame = aviread(framedir.Filename, playvals.imnum);
+0392         <span class="keyword">if</span> iptb
+0393           <span class="keyword">if</span> ~isempty(frame.colormap)
+0394             imshow(ind2rgb(frame.cdata,frame.colormap));
+0395           <span class="keyword">else</span>
+0396             imshow(frame.cdata);
+0397           <span class="keyword">end</span>
+0398         <span class="keyword">else</span>
+0399           <span class="keyword">if</span> ~isempty(frame.colormap)
+0400             image(ind2rgb(frame.cdata,frame.colormap));
+0401           <span class="keyword">else</span>
+0402             image(frame.cdata);
+0403           <span class="keyword">end</span>
+0404         <span class="keyword">end</span>
+0405         <span class="keyword">if</span> playvals.increment &gt;= 1, signstr = <span class="string">'+'</span>; <span class="keyword">else</span> signstr = <span class="string">''</span>; <span class="keyword">end</span>;
+0406         title(sprintf(<span class="string">'Frame %i of %i (Increment: %s %i)'</span>,playvals.imnum, playvals.numims,signstr,playvals.increment), <span class="string">'color'</span>, <span class="string">'g'</span>, <span class="keyword">...</span>
+0407               <span class="string">'fontname'</span>, <span class="string">'Helvetica'</span>, <span class="string">'fontsize'</span>, 10);
+0408         set(playvals.frameslider, <span class="string">'value'</span>, playvals.imnum);
+0409       <span class="keyword">else</span>
+0410         playvals.playcontinue = 0;
+0411         <a href="mplayer.html" class="code" title="function mplayer(varargin)">mplayer</a>(playvals,framedir,<span class="string">'Paused'</span>);
+0412       <span class="keyword">end</span>
+0413     <span class="keyword">end</span>
+0414     playvals.imnum = min(playvals.imnum + playvals.increment, playvals.numims);
+0415   <span class="keyword">elseif</span> playvals.increment &lt; 0
+0416     <span class="keyword">if</span> playvals.imnum == 1
+0417       <span class="keyword">if</span> get(playvals.loop,<span class="string">'value'</span>)==1;
+0418         playvals.imnum = playvals.numims;
+0419         pauselength = get(playvals.pauseslider,<span class="string">'value'</span>);
+0420         pause(pauselength);
+0421         frame = aviread(framedir.Filename, playvals.imnum);
+0422         <span class="keyword">if</span> iptb
+0423           <span class="keyword">if</span> ~isempty(frame.colormap)
+0424             imshow(ind2rgb(frame.cdata,frame.colormap));
+0425           <span class="keyword">else</span>
+0426             imshow(frame.cdata);
+0427           <span class="keyword">end</span>
+0428         <span class="keyword">else</span>
+0429           <span class="keyword">if</span> ~isempty(frame.colormap)
+0430             image(ind2rgb(frame.cdata,frame.colormap));
+0431           <span class="keyword">else</span>
+0432             image(frame.cdata);
+0433           <span class="keyword">end</span>
+0434         <span class="keyword">end</span>
+0435         <span class="keyword">if</span> playvals.increment &gt;= 1, signstr = <span class="string">'+'</span>; <span class="keyword">else</span> signstr = <span class="string">''</span>; <span class="keyword">end</span>;
+0436         title(sprintf(<span class="string">'Frame %i of %i (Increment: %s %i)'</span>,playvals.imnum, playvals.numims,signstr,playvals.increment), <span class="string">'color'</span>, <span class="string">'g'</span>, <span class="keyword">...</span>
+0437               <span class="string">'fontname'</span>, <span class="string">'Helvetica'</span>, <span class="string">'fontsize'</span>, 10);
+0438         set(playvals.frameslider, <span class="string">'value'</span>, playvals.imnum);
+0439         
+0440       <span class="keyword">else</span>
+0441         playvals.increment = 1;
+0442         playvals.playcontinue = 0;
+0443         <a href="mplayer.html" class="code" title="function mplayer(varargin)">mplayer</a>(playvals,framedir,<span class="string">'Paused'</span>);
+0444       <span class="keyword">end</span>
+0445     <span class="keyword">end</span>
+0446     playvals.imnum = max(playvals.imnum + playvals.increment, 1);
+0447   <span class="keyword">end</span>
+0448   <span class="keyword">if</span> ~isempty(findobj(<span class="string">'tag'</span>,<span class="string">'mplayer'</span>))
+0449     setappdata(gcf, <span class="string">'playvals'</span>, playvals);
+0450     pauselength = get(playvals.pauseslider,<span class="string">'value'</span>);
+0451     <span class="comment">%pause(pauselength);</span>
+0452     <span class="keyword">for</span> ii = 0.1:0.1:pauselength <span class="comment">%This loop allows faster keypress-caused escape than, say, pause(5)</span>
+0453       pause(0.1);
+0454     <span class="keyword">end</span>
+0455     drawnow; <span class="comment">%This is necessary for the case of pauselength == 0</span>
+0456   <span class="keyword">else</span>
+0457     <span class="keyword">return</span>
+0458   <span class="keyword">end</span>
+0459   <span class="keyword">if</span> playvals.quit
+0460     playvals.playcontinue = 0;
+0461     playvals.paused = 0;
+0462     delete(gcf);
+0463     <span class="keyword">return</span>
+0464   <span class="keyword">end</span>
+0465 <span class="keyword">end</span>
+0466 
+0467 <span class="comment">%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%</span>
+0468 <span class="comment">% SUBFUNCTIONS</span>
+0469 <span class="comment">%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%</span>
+0470 
+0471 <a name="_sub1" href="#_subfunctions" class="code">function playbutton</a>
+0472 playvals = getappdata(gcf, <span class="string">'playvals'</span>);
+0473 <span class="keyword">if</span> ~playvals.paused, 
+0474   playvals.playcontinue = 1;
+0475   set(playvals.playbutton,<span class="string">'foregroundcolor'</span>,[0 0.7 0]);
+0476   setappdata(gcf, <span class="string">'playvals'</span>, playvals);
+0477 <span class="keyword">end</span>
+0478 <span class="keyword">return</span>
+0479 
+0480 <a name="_sub2" href="#_subfunctions" class="code">function pausebutton</a>
+0481 playvals = getappdata(gcf, <span class="string">'playvals'</span>);
+0482 playvals.paused = ~playvals.paused;
+0483 <span class="keyword">if</span> playvals.paused
+0484   set(playvals.pausebutton, <span class="string">'foregroundcolor'</span>, <span class="string">'r'</span>);
+0485   title(<span class="string">'Press PAUSE to resume...'</span>, <span class="string">'color'</span>, <span class="string">'r'</span>);
+0486   set(playvals.playbutton, <span class="string">'foregroundcolor'</span>,<span class="string">'k'</span>);
+0487 <span class="keyword">else</span>
+0488   <span class="keyword">if</span> playvals.increment &gt;= 1, signstr = <span class="string">'+'</span>; <span class="keyword">else</span> signstr = <span class="string">''</span>; <span class="keyword">end</span>;
+0489   title(sprintf(<span class="string">'Frame %i of %i (Increment: %s %i)'</span>,playvals.imnum, playvals.numims,signstr,playvals.increment), <span class="string">'color'</span>, <span class="string">'g'</span>, <span class="keyword">...</span>
+0490         <span class="string">'fontname'</span>, <span class="string">'Helvetica'</span>, <span class="string">'fontsize'</span>, 10);
+0491   set(playvals.pausebutton, <span class="string">'foregroundcolor'</span>, <span class="string">'k'</span>);
+0492   set(playvals.playbutton,<span class="string">'foregroundcolor'</span>,[0 0.7 0]);
+0493 <span class="keyword">end</span>
+0494 setappdata(gcf, <span class="string">'playvals'</span>, playvals);
+0495 <span class="keyword">return</span>
+0496 
+0497 <a name="_sub3" href="#_subfunctions" class="code">function forwardbutton</a>
+0498 playvals = getappdata(gcf, <span class="string">'playvals'</span>);
+0499 <span class="keyword">if</span> ~playvals.paused
+0500   playvals.increment = playvals.increment + 1;
+0501   <span class="keyword">if</span> playvals.increment == 0; playvals.increment = 1; <span class="keyword">end</span>
+0502   setappdata(gcf,<span class="string">'playvals'</span>,playvals);
+0503 <span class="keyword">end</span>
+0504 <span class="keyword">return</span>
+0505 
+0506 <a name="_sub4" href="#_subfunctions" class="code">function rewindbutton</a>
+0507 playvals = getappdata(gcf, <span class="string">'playvals'</span>);
+0508 <span class="keyword">if</span> ~playvals.paused
+0509   playvals.increment = playvals.increment - 1;
+0510   <span class="keyword">if</span> playvals.increment == 0; playvals.increment = -1; <span class="keyword">end</span>
+0511   setappdata(gcf, <span class="string">'playvals'</span>, playvals);
+0512 <span class="keyword">end</span>
+0513 <span class="keyword">return</span>
+0514 
+0515 <a name="_sub5" href="#_subfunctions" class="code">function forward100button</a>
+0516 playvals = getappdata(gcf, <span class="string">'playvals'</span>);
+0517 <span class="keyword">if</span> ~playvals.paused
+0518   playvals.imnum = min(playvals.imnum+100, playvals.numims);
+0519   setappdata(gcf, <span class="string">'playvals'</span>, playvals);
+0520 <span class="keyword">end</span>
+0521 <span class="keyword">return</span>
+0522 
+0523 <a name="_sub6" href="#_subfunctions" class="code">function rewind100button</a>
+0524 playvals = getappdata(gcf, <span class="string">'playvals'</span>);
+0525 <span class="keyword">if</span> ~playvals.paused
+0526   playvals.imnum = max(playvals.imnum-100, 1);
+0527   setappdata(gcf, <span class="string">'playvals'</span>, playvals);
+0528 <span class="keyword">end</span>
+0529 <span class="keyword">return</span>
+0530 
+0531 <a name="_sub7" href="#_subfunctions" class="code">function restartbutton</a>
+0532 playvals = getappdata(gcf, <span class="string">'playvals'</span>);
+0533 <span class="keyword">if</span> ~playvals.paused
+0534   playvals.imnum = 1;
+0535   setappdata(gcf, <span class="string">'playvals'</span>, playvals);
+0536 <span class="keyword">end</span>
+0537 <span class="keyword">return</span>
+0538 
+0539 <a name="_sub8" href="#_subfunctions" class="code">function eofbutton</a>
+0540 playvals = getappdata(gcf, <span class="string">'playvals'</span>);
+0541 <span class="keyword">if</span> ~playvals.paused
+0542   playvals.imnum = playvals.numims;
+0543   setappdata(gcf, <span class="string">'playvals'</span>, playvals);
+0544 <span class="keyword">end</span>
+0545 <span class="keyword">return</span>
+0546 
+0547 <a name="_sub9" href="#_subfunctions" class="code">function returnbutton</a>
+0548 playvals = getappdata(gcf, <span class="string">'playvals'</span>);
+0549 playvals.playcontinue = 0;
+0550 playvals.quit = 1;
+0551 <span class="keyword">if</span> isfield(playvals,<span class="string">'tmpfilename'</span>)
+0552   tmpfilename = playvals.tmpfilename;
+0553   unix([<span class="string">'rm '</span>,tmpfilename]);
+0554 <span class="keyword">end</span>
+0555 setappdata(gcf, <span class="string">'playvals'</span>, playvals);
+0556 <span class="keyword">return</span>
+0557 
+0558 <a name="_sub10" href="#_subfunctions" class="code">function frameslider(iptb)</a>
+0559 playvals = getappdata(gcf, <span class="string">'playvals'</span>);
+0560 framedir = get(gco,<span class="string">'userdata'</span>);
+0561 playvals.imnum = floor(get(playvals.frameslider,<span class="string">'value'</span>));
+0562 frame = aviread(framedir.Filename, playvals.imnum);
+0563 <span class="keyword">if</span> iptb
+0564   <span class="keyword">if</span> ~isempty(frame.colormap)
+0565     imshow(ind2rgb(frame.cdata,frame.colormap));
+0566   <span class="keyword">else</span>
+0567     imshow(frame.cdata);
+0568   <span class="keyword">end</span>
+0569 <span class="keyword">else</span>
+0570   <span class="keyword">if</span> ~isempty(frame.colormap)
+0571     image(ind2rgb(frame.cdata,frame.colormap));
+0572   <span class="keyword">else</span>
+0573     image(frame.cdata);
+0574   <span class="keyword">end</span>
+0575 <span class="keyword">end</span>
+0576 <span class="keyword">if</span> playvals.increment &gt;= 1, signstr = <span class="string">'+'</span>; <span class="keyword">else</span> signstr = <span class="string">''</span>; <span class="keyword">end</span>;
+0577 title(sprintf(<span class="string">'Frame %i of %i (Increment: %s %i)'</span>,playvals.imnum, playvals.numims,signstr,playvals.increment), <span class="string">'color'</span>, <span class="string">'g'</span>, <span class="keyword">...</span>
+0578       <span class="string">'fontname'</span>, <span class="string">'Helvetica'</span>, <span class="string">'fontsize'</span>, 10);
+0579 setappdata(gcf, <span class="string">'playvals'</span>, playvals);
+0580 <span class="keyword">return</span></pre></div>
+<hr><address>Generated on Thu 21-Jun-2018 22:40:16 by <strong>B.&nbsp;Gustavsson</strong> with <strong><a href="http://www.artefact.tk/software/matlab/m2html/" target="_parent">m2html</a></strong> &copy; 2003</address>
+</body>
+</html>

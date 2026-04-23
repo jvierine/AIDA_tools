@@ -1,0 +1,7 @@
+/* Created by mdot for Matlab */
+digraph m2html {
+
+  spc_autoidentify [URL="spc_autoidentify.html"];
+  star_int_search [URL="star_int_search.html"];
+  star_int_search_man [URL="star_int_search_man.html"];
+}

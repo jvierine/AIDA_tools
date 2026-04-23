@@ -1,0 +1,255 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
+                "http://www.w3.org/TR/REC-html40/loose.dtd">
+<html>
+<head>
+  <title>Description of inv_proj_img_latlong</title>
+  <meta name="keywords" content="inv_proj_img_latlong">
+  <meta name="description" content="INV_PROJ_IMG_LATLONG - calculate pixel-by-pixel Long-Lat coordinate for IMG_IN">
+  <meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+  <meta name="generator" content="m2html &copy; 2003 Guillaume Flandin">
+  <meta name="robots" content="index, follow">
+  <link type="text/css" rel="stylesheet" href="../m2html.css">
+</head>
+<body>
+<a name="_top"></a>
+<!-- menu.html Camera -->
+<h1>inv_proj_img_latlong
+</h1>
+
+<h2><a name="_name"></a>PURPOSE <a href="#_top"><img alt="^" border="0" src="../up.png"></a></h2>
+<div class="box"><strong>INV_PROJ_IMG_LATLONG - calculate pixel-by-pixel Long-Lat coordinate for IMG_IN</strong></div>
+
+<h2><a name="_synopsis"></a>SYNOPSIS <a href="#_top"><img alt="^" border="0" src="../up.png"></a></h2>
+<div class="box"><strong>function [Long,Lat,dh_final] = inv_proj_img_latlong(img_in,optmod,optpar,lat0,long0,alt0,alt,ze_max,options) </strong></div>
+
+<h2><a name="_description"></a>DESCRIPTION <a href="#_top"><img alt="^" border="0" src="../up.png"></a></h2>
+<div class="fragment"><pre class="comment"> INV_PROJ_IMG_LATLONG - calculate pixel-by-pixel Long-Lat coordinate for IMG_IN 
+   at altitude ALT. The image IMG_IN taken from LAT0, LONG0 at
+   an altitude ALT0 with a camera model OPTMOD and rotation and
+   optical transfer function caracterised by OPTPAR.
+ 
+ Callling:
+  [Long,Lat,dh_final] = inv_proj_img_latlong(IMG_IN,OPTMOD,OPTPAR,LAT0,LONG0,ALT0,ALT,ZE_MAX,options)
+
+ Input:
+  
+  IMG_IN - Input image (double) grayscale or rgb
+  OPTMOD - is the optical model/transfer function to use:
+           1 - f*tan(theta),
+           2 - f*sin(alfa*theta),
+           3 - f(alfa*theta + (1-alfa)*tan(theta))
+           4 - f*theta 5 - f*tan(alfa*theta)
+           5 - f*tan(alfa*theta)
+          -1 - non-parametric, unrotated from zenith, with look-up
+               tables,
+          -2 - non-parametric, rotated from zenith, with look-up
+               tables,
+  OPTPAR - is a vector caracterising the optical
+           transfer function, or an OPTPAR struct, with fields:
+           sinzecosaz, sinzesinaz, u, v that define the horizontal
+           components of a pixel l-o-s, and the pixel coordinates
+           for the corresponding horizontal l-o-s components,
+           respectively, and optionally a field rot (when used a
+           vector with 3 Tait-Bryant rotaion angles)
+  LAT0   - Latitude of camera (degrees)
+  LONG0  - Longitude of camera (degrees)
+  ALT0   - altitude of camera (km)
+  ALT    - altitude (km) coordinates of grid points to project image to
+  ZE_MAX - maximum zenith angle to use, optional - defaults to 85 deg
+  options - options for controlling fminsearchbnd, the fields
+            TolFun and TolX defaults to 0.001 if no other options
+            are given, this to speed up the running time - 
+  
+  The excecution time gets a bit longish (~40 minutes on a Vaio
+  1.7 GHz lap-top for a 512x512 image with 163366 pixels above
+  ZE_MAX), this is tenable for one-time efforts where a lat-long
+  grid is calculated once per altitude per season for a camera,
+  for other uses INV_PROJECT_IMG or INV_PROJ_IMG_LL that does
+  similar projections is recommended (the first to a plane
+  horizontal in the local Cartesian coordinate system centred at
+  LONG0, LAT0; and the second calculates the image intensities for
+  points on a regular LONG-LAT grid)
+ 
+ Example: 
+   optpar =  [-2.3603, 1.5209, 11.506, 64.502, 0.086649,-0.0025577, -0.0044151, 1, 1, 0];
+   optmod = 1;
+   lat0 = 63.154355;
+   long0 = 17.234802;
+   alt0 = 0.254;
+   alt = 110;
+   
+   %  For a grayscale image this is enough:
+   img_in = double(rgb2gray(imread('nlc214.jpg')));
+   [Long,Lat,dh_final] = inv_proj_img_latlong(img_in,optmod,optpar,lat0,long0,alt0,alt,ze_max)
+   pcolor(Long,Lat,img_in),shading flat
+ 
+       See also <a href="inv_proj_img_ll.html" class="code" title="function Im_proj = inv_proj_img_ll(img_in,optmod,optpar,lat0,long0,alt0,lat,long,alt,ze_max)">INV_PROJ_IMG_LL</a>, <a href="inv_project_img.html" class="code" title="function [xx,yy,zz] = inv_project_img(img_in,r,optmod,optpar,e_n,l_0,cmtr)">INV_PROJECT_IMG</a>, <a href="inv_project_img_surf.html" class="code" title="function [Im_proj] = inv_project_img_surf(img_in,r,optmod,optpar,Xs,Ys,Zs,cmtr)">INV_PROJECT_IMG_SURF</a>, <a href="camera_model.html" class="code" title="function [u,w] = camera_model(az,ze,e1,e2,e3,optpar,optmod,imsiz)">CAMERA_MODEL</a>, CAMERA_INV_MODEL</pre></div>
+
+<!-- crossreference -->
+<h2><a name="_cross"></a>CROSS-REFERENCE INFORMATION <a href="#_top"><img alt="^" border="0" src="../up.png"></a></h2>
+This function calls:
+<ul style="list-style-image:url(../matlabicon.gif)">
+<li><a href="inv_project_LineOfSightVectors.html" class="code" title="function epix = inv_project_LineOfSightVectors(px,py,inimg,r,optmod,optpar,e_n,l_0,cmtr)">inv_project_LineOfSightVectors</a>	INV_PROJECT_LineOfSightVectors - pixels coordinates to line-of-sight vectors</li><li><a href="../EARTH/xyz_2_llh.html" class="code" title="function [long,lat,h] = xyz_2_llh(lat0,long0,h0,r)">xyz_2_llh</a>	XYZ_2_LLH transforms X,Y,Z in an lat0,long0 centred horizontal system</li><li><a href="../Geometry/points_on_lines.html" class="code" title="function  [r_out] = points_on_lines(r_0,e_l,l)">points_on_lines</a>	POINTS_ON_LINES calculates the vectors to a set of points R_OUT</li><li><a href="../tools/fminsearchbnd.html" class="code" title="function [x,fval,exitflag,output] = fminsearchbnd(fun,x0,LB,UB,options,varargin)">fminsearchbnd</a>	FMINSEARCHBND: FMINSEARCH, but with bound constraints by transformation</li><li><a href="../tools/merge_structs.html" class="code" title="function S_out = merge_structs(S1,S2)">merge_structs</a>	MERGE_STRUCTS - Merge all fields of S2 into S1.</li></ul>
+This function is called by:
+<ul style="list-style-image:url(../matlabicon.gif)">
+</ul>
+<!-- crossreference -->
+
+<h2><a name="_subfunctions"></a>SUBFUNCTIONS <a href="#_top"><img alt="^" border="0" src="../up.png"></a></h2>
+<ul style="list-style-image:url(../matlabicon.gif)">
+<li><a href="#_sub1" class="code">function [lat,long,alt] = range2LongLatAlt(range,h_target,lat0,long0,h0,r0,epix)</a></li><li><a href="#_sub2" class="code">function dh2 = alt_error(range,h_target,lat0,long0,h0,r0,epix)</a></li></ul>
+<h2><a name="_source"></a>SOURCE CODE <a href="#_top"><img alt="^" border="0" src="../up.png"></a></h2>
+<div class="fragment"><pre>0001 <a name="_sub0" href="#_subfunctions" class="code">function [Long,Lat,dh_final] = inv_proj_img_latlong(img_in,optmod,optpar,lat0,long0,alt0,alt,ze_max,options)</a>
+0002 <span class="comment">% INV_PROJ_IMG_LATLONG - calculate pixel-by-pixel Long-Lat coordinate for IMG_IN</span>
+0003 <span class="comment">%   at altitude ALT. The image IMG_IN taken from LAT0, LONG0 at</span>
+0004 <span class="comment">%   an altitude ALT0 with a camera model OPTMOD and rotation and</span>
+0005 <span class="comment">%   optical transfer function caracterised by OPTPAR.</span>
+0006 <span class="comment">%</span>
+0007 <span class="comment">% Callling:</span>
+0008 <span class="comment">%  [Long,Lat,dh_final] = inv_proj_img_latlong(IMG_IN,OPTMOD,OPTPAR,LAT0,LONG0,ALT0,ALT,ZE_MAX,options)</span>
+0009 <span class="comment">%</span>
+0010 <span class="comment">% Input:</span>
+0011 <span class="comment">%</span>
+0012 <span class="comment">%  IMG_IN - Input image (double) grayscale or rgb</span>
+0013 <span class="comment">%  OPTMOD - is the optical model/transfer function to use:</span>
+0014 <span class="comment">%           1 - f*tan(theta),</span>
+0015 <span class="comment">%           2 - f*sin(alfa*theta),</span>
+0016 <span class="comment">%           3 - f(alfa*theta + (1-alfa)*tan(theta))</span>
+0017 <span class="comment">%           4 - f*theta 5 - f*tan(alfa*theta)</span>
+0018 <span class="comment">%           5 - f*tan(alfa*theta)</span>
+0019 <span class="comment">%          -1 - non-parametric, unrotated from zenith, with look-up</span>
+0020 <span class="comment">%               tables,</span>
+0021 <span class="comment">%          -2 - non-parametric, rotated from zenith, with look-up</span>
+0022 <span class="comment">%               tables,</span>
+0023 <span class="comment">%  OPTPAR - is a vector caracterising the optical</span>
+0024 <span class="comment">%           transfer function, or an OPTPAR struct, with fields:</span>
+0025 <span class="comment">%           sinzecosaz, sinzesinaz, u, v that define the horizontal</span>
+0026 <span class="comment">%           components of a pixel l-o-s, and the pixel coordinates</span>
+0027 <span class="comment">%           for the corresponding horizontal l-o-s components,</span>
+0028 <span class="comment">%           respectively, and optionally a field rot (when used a</span>
+0029 <span class="comment">%           vector with 3 Tait-Bryant rotaion angles)</span>
+0030 <span class="comment">%  LAT0   - Latitude of camera (degrees)</span>
+0031 <span class="comment">%  LONG0  - Longitude of camera (degrees)</span>
+0032 <span class="comment">%  ALT0   - altitude of camera (km)</span>
+0033 <span class="comment">%  ALT    - altitude (km) coordinates of grid points to project image to</span>
+0034 <span class="comment">%  ZE_MAX - maximum zenith angle to use, optional - defaults to 85 deg</span>
+0035 <span class="comment">%  options - options for controlling fminsearchbnd, the fields</span>
+0036 <span class="comment">%            TolFun and TolX defaults to 0.001 if no other options</span>
+0037 <span class="comment">%            are given, this to speed up the running time -</span>
+0038 <span class="comment">%</span>
+0039 <span class="comment">%  The excecution time gets a bit longish (~40 minutes on a Vaio</span>
+0040 <span class="comment">%  1.7 GHz lap-top for a 512x512 image with 163366 pixels above</span>
+0041 <span class="comment">%  ZE_MAX), this is tenable for one-time efforts where a lat-long</span>
+0042 <span class="comment">%  grid is calculated once per altitude per season for a camera,</span>
+0043 <span class="comment">%  for other uses INV_PROJECT_IMG or INV_PROJ_IMG_LL that does</span>
+0044 <span class="comment">%  similar projections is recommended (the first to a plane</span>
+0045 <span class="comment">%  horizontal in the local Cartesian coordinate system centred at</span>
+0046 <span class="comment">%  LONG0, LAT0; and the second calculates the image intensities for</span>
+0047 <span class="comment">%  points on a regular LONG-LAT grid)</span>
+0048 <span class="comment">%</span>
+0049 <span class="comment">% Example:</span>
+0050 <span class="comment">%   optpar =  [-2.3603, 1.5209, 11.506, 64.502, 0.086649,-0.0025577, -0.0044151, 1, 1, 0];</span>
+0051 <span class="comment">%   optmod = 1;</span>
+0052 <span class="comment">%   lat0 = 63.154355;</span>
+0053 <span class="comment">%   long0 = 17.234802;</span>
+0054 <span class="comment">%   alt0 = 0.254;</span>
+0055 <span class="comment">%   alt = 110;</span>
+0056 <span class="comment">%</span>
+0057 <span class="comment">%   %  For a grayscale image this is enough:</span>
+0058 <span class="comment">%   img_in = double(rgb2gray(imread('nlc214.jpg')));</span>
+0059 <span class="comment">%   [Long,Lat,dh_final] = inv_proj_img_latlong(img_in,optmod,optpar,lat0,long0,alt0,alt,ze_max)</span>
+0060 <span class="comment">%   pcolor(Long,Lat,img_in),shading flat</span>
+0061 <span class="comment">%</span>
+0062 <span class="comment">%       See also INV_PROJ_IMG_LL, INV_PROJECT_IMG, INV_PROJECT_IMG_SURF, CAMERA_MODEL, CAMERA_INV_MODEL</span>
+0063 
+0064 <span class="comment">%   Copyright � 2005 Bjorn Gustavsson, &lt;bjorn.gustavsson@irf.se&gt;</span>
+0065 <span class="comment">%   This is free software, licensed under GNU GPL version 2 or later</span>
+0066 
+0067 
+0068 <span class="comment">%% 0 Set the maximum zenith angle if needed</span>
+0069 <span class="keyword">if</span> nargin &lt; 8 || isempty(ze_max)
+0070   ze_max = 85;
+0071 <span class="keyword">end</span>
+0072 
+0073 fmsops = optimset(<span class="string">'fminsearch'</span>);
+0074 fmsops.TolFun = 0.001;
+0075 fmsops.TolX = 0.001;
+0076 <span class="keyword">if</span> nargin &gt; 8
+0077   fmsops = <a href="../tools/merge_structs.html" class="code" title="function S_out = merge_structs(S1,S2)">merge_structs</a>(fmsops,options);
+0078 <span class="keyword">end</span>
+0079 
+0080 <span class="comment">%% 1 Calculate the pixel coordinate grid</span>
+0081 [px,py] = meshgrid(1:size(img_in,1),1:size(img_in,2));
+0082 
+0083 <span class="comment">%% 2 Calculate the line-of-sight vectors for all pixels:</span>
+0084 epix = <a href="inv_project_LineOfSightVectors.html" class="code" title="function epix = inv_project_LineOfSightVectors(px,py,inimg,r,optmod,optpar,e_n,l_0,cmtr)">inv_project_LineOfSightVectors</a>(px(:)',py(:)',img_in,[0,0,0],optmod,optpar,[0 0 1],100,eye(3));
+0085 
+0086 <span class="comment">%% 3 Get the sorted indices of the e_z components</span>
+0087 [~,iS] = sort(epix(:,3),<span class="string">'descend'</span>);
+0088 <span class="comment">%%</span>
+0089 <span class="comment">% That way we can start calculating the latitude-longitude</span>
+0090 <span class="comment">% coordinates of pixels from the one closest to zenith (which ought</span>
+0091 <span class="comment">% to be easy) and then continue over increasing zenith angles. That</span>
+0092 <span class="comment">% way the range to the desired altitude will vary slowly, thereby</span>
+0093 <span class="comment">% making the search for the right range shorter</span>
+0094 
+0095 <span class="comment">%% 4 Initialise the output variables</span>
+0096 <span class="comment">%  with nans</span>
+0097 Lat  = nan*py;
+0098 Long = nan*py;
+0099 dh0 = nan*py;
+0100 dh_final = nan*py;
+0101 
+0102 <span class="comment">%% 5 Start the grunt work:</span>
+0103 <span class="comment">%  We start with the pixel looking closes to vertical. For the</span>
+0104 <span class="comment">%  pixel looking into vertical everything should be</span>
+0105 <span class="comment">%  trivial. Lat-Long should not vary much from the camera position,</span>
+0106 <span class="comment">%  and the range to the desired altitude ought to be close to the</span>
+0107 <span class="comment">%  altitude.</span>
+0108 h_target = alt;
+0109 range0 = alt;
+0110 r0 = [0,0,0];
+0111 n2do = sum(acos(epix(iS,3)) &lt; ze_max*pi/180);
+0112 wbh = waitbar(0,<span class="string">'Please wait...'</span>);
+0113 
+0114 OPS.tol = 0.001;
+0115 OPS.dx = 0.001;
+0116 OPS.maxitter = 1e3;
+0117 
+0118 <span class="keyword">for</span> i1 = 1:length(iS),
+0119   
+0120   <span class="keyword">if</span> acos(epix(iS(i1),3)) &lt; ze_max*pi/180
+0121     
+0122     <span class="comment">%% Search for the range where the line-of-sight intersects ALT</span>
+0123     dh0(iS(i1)) = <a href="#_sub2" class="code" title="subfunction dh2 = alt_error(range,h_target,lat0,long0,h0,r0,epix)">alt_error</a>(range0,h_target,lat0,long0,alt0,r0,epix(iS(i1),:));
+0124     [range,dh_final(iS(i1))] = <a href="../tools/fminsearchbnd.html" class="code" title="function [x,fval,exitflag,output] = fminsearchbnd(fun,x0,LB,UB,options,varargin)">fminsearchbnd</a>(@(l) <a href="#_sub2" class="code" title="subfunction dh2 = alt_error(range,h_target,lat0,long0,h0,r0,epix)">alt_error</a>(l,h_target,lat0,long0,alt0,r0,epix(iS(i1),:)),range0,0,100*range0,fmsops);
+0125     <span class="comment">%% Calculate the corresponding longitude-latitude</span>
+0126     [Lat(iS(i1)),Long(iS(i1)),alt] = <a href="#_sub1" class="code" title="subfunction [lat,long,alt] = range2LongLatAlt(range,h_target,lat0,long0,h0,r0,epix)">range2LongLatAlt</a>(range,h_target,lat0,long0,alt0,r0,epix(iS(i1),:));
+0127     <span class="comment">%% Set RANGE0 for the next pixel to the current RANGE - since</span>
+0128     <span class="comment">%  the pixels are sorted according to angle relative to zenith</span>
+0129     <span class="comment">%  RANGE should increase steadily and slowly so this should be</span>
+0130     <span class="comment">%  a good next start-guess.</span>
+0131     range0 = range;
+0132     
+0133   <span class="keyword">end</span>
+0134   <span class="keyword">if</span> mod(i1,100) == 0
+0135     waitbar(i1/n2do,wbh)
+0136   <span class="keyword">end</span>
+0137 
+0138 <span class="keyword">end</span>
+0139 
+0140 close(wbh)
+0141 
+0142 <a name="_sub1" href="#_subfunctions" class="code">function [lat,long,alt] = range2LongLatAlt(range,h_target,lat0,long0,h0,r0,epix)</a>
+0143 
+0144 r = <a href="../Geometry/points_on_lines.html" class="code" title="function  [r_out] = points_on_lines(r_0,e_l,l)">points_on_lines</a>(r0,epix,range)';
+0145 [long,lat,alt] = <a href="../EARTH/xyz_2_llh.html" class="code" title="function [long,lat,h] = xyz_2_llh(lat0,long0,h0,r)">xyz_2_llh</a>(lat0,long0,h0,r);
+0146 
+0147 <a name="_sub2" href="#_subfunctions" class="code">function dh2 = alt_error(range,h_target,lat0,long0,h0,r0,epix)</a>
+0148 
+0149 r = <a href="../Geometry/points_on_lines.html" class="code" title="function  [r_out] = points_on_lines(r_0,e_l,l)">points_on_lines</a>(r0,epix,range)';
+0150 [long,lat,h] = <a href="../EARTH/xyz_2_llh.html" class="code" title="function [long,lat,h] = xyz_2_llh(lat0,long0,h0,r)">xyz_2_llh</a>(lat0,long0,h0,r);
+0151 dh2 = (h/1e3-h_target)^2;</pre></div>
+<hr><address>Generated on Thu 21-Jun-2018 22:40:16 by <strong>B.&nbsp;Gustavsson</strong> with <strong><a href="http://www.artefact.tk/software/matlab/m2html/" target="_parent">m2html</a></strong> &copy; 2003</address>
+</body>
+</html>

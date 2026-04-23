@@ -1,0 +1,284 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
+                "http://www.w3.org/TR/REC-html40/loose.dtd">
+<html>
+<head>
+  <title>Description of ada_ex_imgs_show</title>
+  <meta name="keywords" content="ada_ex_imgs_show">
+  <meta name="description" content="% Basic image plots and such">
+  <meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+  <meta name="generator" content="m2html &copy; 2003 Guillaume Flandin">
+  <meta name="robots" content="index, follow">
+  <link type="text/css" rel="stylesheet" href="../m2html.css">
+</head>
+<body>
+<a name="_top"></a>
+<!-- menu.html Examples -->
+<h1>ada_ex_imgs_show
+</h1>
+
+<h2><a name="_name"></a>PURPOSE <a href="#_top"><img alt="^" border="0" src="../up.png"></a></h2>
+<div class="box"><strong>% Basic image plots and such</strong></div>
+
+<h2><a name="_synopsis"></a>SYNOPSIS <a href="#_top"><img alt="^" border="0" src="../up.png"></a></h2>
+<div class="box"><strong>This is a script file. </strong></div>
+
+<h2><a name="_description"></a>DESCRIPTION <a href="#_top"><img alt="^" border="0" src="../up.png"></a></h2>
+<div class="fragment"><pre class="comment">% Basic image plots and such</pre></div>
+
+<!-- crossreference -->
+<h2><a name="_cross"></a>CROSS-REFERENCE INFORMATION <a href="#_top"><img alt="^" border="0" src="../up.png"></a></h2>
+This function calls:
+<ul style="list-style-image:url(../matlabicon.gif)">
+<li><a href="../Fits_tools/typical_pre_proc_ops.html" class="code" title="function PO = typical_pre_proc_ops(pp_type,varargin)">typical_pre_proc_ops</a>	TYPICAL_PRE_PROC_OPS - Typical ALIS-fits preprocessing options</li><li><a href="../Geometry/point_on_line2.html" class="code" title="function  [r_out] = point_on_line2(r_0,e_l,l)">point_on_line2</a>	POINT_ON_LINE calculates the vector to a set of points R_OUT</li><li><a href="../Imgtools/imgs_keograms.html" class="code" title="function [varargout] = imgs_keograms(files,locnrs,line_not_columns,optp,PO)">imgs_keograms</a>	imgs_keograms - make keograms from sequence of image files.</li><li><a href="../Imgtools/imgs_keograms_r3.html" class="code" title="function [Keo,exptimes,Tstrs,filters] = imgs_keograms_r3(files,rs,r,optpar,PO)">imgs_keograms_r3</a>	imgs_keogram_r3 - make keogram of R3's projection in the image.</li><li><a href="../Imgtools/imgs_movie_r.html" class="code" title="function [M,Tstrs,caxout,exptimes,wl] = imgs_movie_r(files,reg,cax,opptp,PREPROC_OPS,movie_ops,avi_ops)">imgs_movie_r</a>	imgs_movie_r - produce a matlab movie M from a series of image files.</li><li><a href="../Imgtools/imgs_plot.html" class="code" title="function out_var = imgs_plot(files,PO,nrrows,rownr,nr_imgs_per_row,ff,img_reg,u1,v1,cax,outvartype)">imgs_plot</a>	imgs_plot - Plot a row of images</li><li><a href="../Imgtools/imgs_plot_bg_red.html" class="code" title="function out_var = imgs_plot_bg_red(files,PO,nrrows,rownr,nr_imgs_per_row,ff,img_reg,u1,v1,cax,outvartype)">imgs_plot_bg_red</a>	imgs_plot_bg_red - Plot a row of images with background reduction</li><li><a href="../Imgtools/imgs_regs_mmmm.html" class="code" title="function [I_max,I_mean,I_median,I_min,Tr_time,expt,filters] = imgs_regs_mmmm(files,regs,OPS,PO)">imgs_regs_mmmm</a>	imgs_regs_mmmm - max, mean, median and min from regions in an image-serie</li><li><a href="../tools/heateronoff.html" class="code" title="function h = heateronoff(level,hon,hoff,delta_level)">heateronoff</a>	HEATERONOFF - plottin heater on periods</li><li><a href="../tools/mysubplot.html" class="code" title="function theAxis = mysubplot(nrows, ncols, thisPlot)">mysubplot</a>	MYSUBPLOT Create axes in tiled positions.</li><li><a href="../tools/timetick.html" class="code" title="function timetick(x)">timetick</a>	TIMETICK - change axis-labels to time/date format. Clever choice</li></ul>
+This function is called by:
+<ul style="list-style-image:url(../matlabicon.gif)">
+</ul>
+<!-- crossreference -->
+
+
+<h2><a name="_source"></a>SOURCE CODE <a href="#_top"><img alt="^" border="0" src="../up.png"></a></h2>
+<div class="fragment"><pre>0001 <span class="comment">%% Basic image plots and such</span>
+0002 
+0003 <span class="comment">%% Simple analysis of time sequence of ALIS data</span>
+0004 
+0005 <span class="comment">% Here we will go through the use of</span>
+0006 <span class="comment">% * IMGS_REGS_MMMM - for max mean median and min in regions of</span>
+0007 <span class="comment">%   images.</span>
+0008 <span class="comment">% * IMGS_KEOGRAMS - for making keograms along several lines and</span>
+0009 <span class="comment">%   columns through images.</span>
+0010 <span class="comment">% * IMGS_MOVIE_R - for making animations/movies of region in images</span>
+0011 <span class="comment">% * IMGS_PLOT - display a region for some selected iamges.</span>
+0012 <span class="comment">% * IMGS_PLOT_BG_RED display a region for some selected iamges, now</span>
+0013 <span class="comment">%   with background reduction.</span>
+0014 <span class="comment">% * IMGS_KEOGRAMS_R3 - make keograms from the projected image</span>
+0015 <span class="comment">%   coordoinates  of a set of points/line.</span>
+0016 
+0017 <span class="comment">%% Set up of input parameters et al</span>
+0018 
+0019 <span class="comment">% Moving there just to load some files...</span>
+0020 cd /alis/stdnames/2002/03/10
+0021 
+0022 q = dir(<span class="string">'17/*B.fits'</span>);
+0023 files0310 = [repmat(<span class="string">'17/'</span>,[size(q,1) 1]),str2mat(q(:).name)];
+0024 q = dir(<span class="string">'18/*B.fits'</span>);
+0025 files0310 = [files0310;repmat(<span class="string">'18/'</span>,[size(q,1) 1]),str2mat(q(:).name)];
+0026 q = dir(<span class="string">'19/*B.fits'</span>);
+0027 files0310 = [files0310;repmat(<span class="string">'19/'</span>,[size(q,1) 1]),str2mat(q(:).name)];
+0028 q = dir(<span class="string">'20/*B.fits'</span>);
+0029 files0310 = [files0310;repmat(<span class="string">'20/'</span>,[size(q,1) 1]),str2mat(q(:).name)];
+0030 
+0031 load S010_S10_191827_0.acc
+0032 
+0033 
+0034 <span class="comment">%% Make default preprocessing options</span>
+0035 PO = <a href="../Fits_tools/typical_pre_proc_ops.html" class="code" title="function PO = typical_pre_proc_ops(pp_type,varargin)">typical_pre_proc_ops</a>;
+0036 <span class="comment">%%</span>
+0037 <span class="comment">% Setting outimgsize is some kind of insurance against not crashing</span>
+0038 <span class="comment">% the analysis if there suddenly are an  image with different size.</span>
+0039 <span class="comment">% For this data-set all images should already be 256x256. Then this</span>
+0040 <span class="comment">% takes n o extra time.</span>
+0041 PO.outimgsize = 256;
+0042 <span class="comment">%%</span>
+0043 <span class="comment">% If we know wether to use LE or BE this makes the loading of</span>
+0044 <span class="comment">% images more than twice as fast.</span>
+0045 PO.LE = 1;
+0046 <span class="comment">%%</span>
+0047 <span class="comment">% For this data set there is severe problems with interference so</span>
+0048 <span class="comment">% we have to remove that these lines in the fft.</span>
+0049 PO.v_interf_notches = [9 10 11 12 13 20 21 22];
+0050 <span class="comment">%%</span>
+0051 <span class="comment">% In order to avoid the problems with ripples from bright stars we</span>
+0052 <span class="comment">% should remove them before the interference reduction</span>
+0053 load(fullfile(fileparts(which(<span class="string">'skymap'</span>)),<span class="string">'stars'</span>,<span class="string">'Ybs.bjg'</span>))
+0054 <span class="comment">%%</span>
+0055 <span class="comment">% Here we select all stars brighter than magnitude 2</span>
+0056 is = find(Ybs(:,end-1)&lt;2);
+0057 PO.remove_these_stars = [ Ybs(is,1)+Ybs(is,2)/60+Ybs(is,3)/3600 <span class="keyword">...</span>
+0058                     Ybs(is,4)+Ybs(is,5)/60+Ybs(is,6)/3600];
+0059 PO.optpar = S010_S10_191827_0([7:14 6 end]);
+0060 
+0061 <span class="comment">%% IMGS_REGS_MMMM</span>
+0062 <span class="comment">% This function makes basic statistics (mmmm stands for max, mean,</span>
+0063 <span class="comment">% median and min - note: alphabetical order, well almost) on</span>
+0064 <span class="comment">% regions in a series of images. Here we select the regions:</span>
+0065 regs = [140   180    60   115
+0066         120   139    60   115
+0067         181   200    60   115
+0068         140   180   116   130];
+0069 <span class="comment">%%</span>
+0070 <span class="comment">% and this is how to call the function</span>
+0071 [I_max,I_mean,I_median,I_min,Tr_time,expt,filters] = <span class="keyword">...</span>
+0072     <a href="../Imgtools/imgs_regs_mmmm.html" class="code" title="function [I_max,I_mean,I_median,I_min,Tr_time,expt,filters] = imgs_regs_mmmm(files,regs,OPS,PO)">imgs_regs_mmmm</a>(files0310(450:550,:),regs,[],PO);
+0073 
+0074 <span class="comment">%%</span>
+0075 <span class="comment">% For this period we had a minor bug in ALIS. The time recorded in</span>
+0076 <span class="comment">% DATE-OBS was at the end of the exposure, this we fix here</span>
+0077 Tr_time = Tr_time-expt/3600000; <span class="comment">% Exposure time &quot;expt&quot; in ms</span>
+0078 <span class="comment">%%</span>
+0079 <span class="comment">% Further these functions returns time as hour of the month. This</span>
+0080 <span class="comment">% makes less problematic with the wraparound at midnight. But very</span>
+0081 <span class="comment">% confusing when it comes to combine with other data.</span>
+0082 
+0083 <span class="comment">% To sort out the data for this kind of experiments where we do</span>
+0084 <span class="comment">% quick filtrer-switching sequences we need to get the unique</span>
+0085 <span class="comment">% filters. During the years we have had filters identified by CW</span>
+0086 <span class="comment">% (A), filter position 0-6 and more recently very rigourusly with</span>
+0087 <span class="comment">% filter position as well as CW (nm) and emission (nm).</span>
+0088 Fnr = unique(filters);
+0089 <span class="comment">%%</span>
+0090 <span class="comment">% This is data from an experiment with EISCAT-Heating. The heater</span>
+0091 <span class="comment">% was turned on and off at these times:</span>
+0092 t_hon = 18 + [48:6:60]/60;
+0093 t_hoff = t_hon + 4/60;
+0094 
+0095 <span class="comment">%% Simple plotting cycle</span>
+0096 <span class="keyword">for</span> i = 1:length(Fnr),
+0097   
+0098   <span class="comment">% Larger subplots than matlabs, less space for labels and</span>
+0099   <span class="comment">% colorbars</span>
+0100   <a href="../tools/mysubplot.html" class="code" title="function theAxis = mysubplot(nrows, ncols, thisPlot)">mysubplot</a>(2,2,i),
+0101   <span class="comment">% Plot the difference between the &quot;centre&quot; region and the</span>
+0102   <span class="comment">% background regions</span>
+0103   ph(1) = plot(rem(Tr_time(filters==Fnr(i)),24),I_max(filters==Fnr(i),1)-mean(I_max(filters==Fnr(i),2:end),2));
+0104   hold on
+0105   ph(2) = plot(rem(Tr_time(filters==Fnr(i)),24),I_mean(filters==Fnr(i),1)-mean(I_mean(filters==Fnr(i),2:end),2),<span class="string">'r'</span>);
+0106   ph(3) = plot(rem(Tr_time(filters==Fnr(i)),24),I_median(filters==Fnr(i),1)-mean(I_median(filters==Fnr(i),2:end),2),<span class="string">'g'</span>);
+0107   <span class="comment">% This set the ticklables to time format</span>
+0108   <a href="../tools/timetick.html" class="code" title="function timetick(x)">timetick</a>
+0109   <span class="comment">% Make the lines fatter</span>
+0110   set(ph,<span class="string">'linewidth'</span>,2)
+0111   <span class="comment">% Add a legend with explaining text</span>
+0112   legend(ph,<span class="string">'I\_max'</span>,<span class="string">'I\_mean'</span>,<span class="string">'I\_median'</span>)
+0113   <span class="comment">% Get the current axis</span>
+0114   ax = axis;
+0115   <span class="comment">% so we can mark the periods when Heating transmitts</span>
+0116   h = <a href="../tools/heateronoff.html" class="code" title="function h = heateronoff(level,hon,hoff,delta_level)">heateronoff</a>(ax(3)+.5,t_hon,t_hoff);
+0117   <span class="comment">% Add grid marks</span>
+0118   grid on
+0119   
+0120 <span class="keyword">end</span>
+0121 
+0122 
+0123 <span class="comment">%% IMGS_KEOGRAMS</span>
+0124 
+0125 <span class="comment">% Simple keogram with cuts just along columns</span>
+0126 kolmns =           [140,160,180,90,120];
+0127 <span class="comment">%%</span>
+0128 <span class="comment">% or lines, here we select lines for keograms at #90 and #120</span>
+0129 lines_no_columns = [  0,  0,  0, 1,  1]; 
+0130 
+0131 [k140,k160,k180,l90,l120,exptimes,tstrs] = <span class="keyword">...</span>
+0132     <a href="../Imgtools/imgs_keograms.html" class="code" title="function [varargout] = imgs_keograms(files,locnrs,line_not_columns,optp,PO)">imgs_keograms</a>(files0310(450:550,:),kolmns,lines_no_columns,PO.optpar,PO);
+0133 <span class="comment">%%</span>
+0134 <span class="comment">% And a loop for showing the results</span>
+0135 clf
+0136 <span class="keyword">for</span> i = 1:length(Fnr),
+0137   
+0138   <a href="../tools/mysubplot.html" class="code" title="function theAxis = mysubplot(nrows, ncols, thisPlot)">mysubplot</a>(2,2,i)
+0139   
+0140   pcolor(rem(Tr_time(filters==Fnr(i)),24),50:120,k160(filters==Fnr(i),50:120)'- <span class="keyword">...</span>
+0141          k140(filters==Fnr(i),50:120)'/2-k180(filters==Fnr(i),50:120)'/2),
+0142   <span class="comment">% We should _ALWAYS_ use flat shading.</span>
+0143   shading flat
+0144   <a href="../tools/timetick.html" class="code" title="function timetick(x)">timetick</a>
+0145   ax = axis;
+0146   h = <a href="../tools/heateronoff.html" class="code" title="function h = heateronoff(level,hon,hoff,delta_level)">heateronoff</a>(ax(3)+.5,t_hon,t_hoff);
+0147   
+0148 <span class="keyword">end</span>
+0149 <span class="comment">%%</span>
+0150 clf
+0151 <span class="keyword">for</span> i = 1:length(Fnr),
+0152   
+0153   <a href="../tools/mysubplot.html" class="code" title="function theAxis = mysubplot(nrows, ncols, thisPlot)">mysubplot</a>(2,2,i)
+0154   
+0155   pcolor(rem(Tr_time(filters==Fnr(i)),24),130:180,l90(filters==Fnr(i),130:180)'- <span class="keyword">...</span>
+0156          l120(filters==Fnr(i),130:180)')
+0157   <span class="comment">% We should _ALWAYS_ use flat shading. It is even worth</span>
+0158   <span class="comment">% mentioning twice</span>
+0159   shading flat
+0160   <a href="../tools/timetick.html" class="code" title="function timetick(x)">timetick</a>
+0161   ax = axis;
+0162   h = <a href="../tools/heateronoff.html" class="code" title="function h = heateronoff(level,hon,hoff,delta_level)">heateronoff</a>(ax(3)+.5,t_hon,t_hoff);
+0163   
+0164 <span class="keyword">end</span>
+0165 
+0166 
+0167 <span class="comment">%% IMGS_MOVIE_R</span>
+0168 clf
+0169 [M,Tstrs,caxout,exptimes] = <a href="../Imgtools/imgs_movie_r.html" class="code" title="function [M,Tstrs,caxout,exptimes,wl] = imgs_movie_r(files,reg,cax,opptp,PREPROC_OPS,movie_ops,avi_ops)">imgs_movie_r</a>(files0310(450:550,:),regs(1,:),<span class="string">'auto'</span>,PO.optpar,PO);
+0170 
+0171 <span class="comment">% It is good to use the (filters==Fnr(indx)) construct to select</span>
+0172 <span class="comment">% frames images, point in time series. Even if an experiment is</span>
+0173 <span class="comment">% sceduled to make a regular filter sequence - the cycle is sure to</span>
+0174 <span class="comment">% be broken somewhere.</span>
+0175 
+0176 <span class="comment">% So showing the individual movies for each filter</span>
+0177 <span class="comment">%movie(gcf,M(filters==Fnr(1)),1,3)</span>
+0178 <span class="comment">%disp('Push any button')</span>
+0179 <span class="comment">%pause</span>
+0180 <span class="comment">%movie(gcf,M(filters==Fnr(2)),1,3)</span>
+0181 <span class="comment">%disp('Push any button')</span>
+0182 <span class="comment">%pause</span>
+0183 <span class="comment">%movie(gcf,M(filters==Fnr(3)),1,3)</span>
+0184 <span class="comment">%disp('Push any button')</span>
+0185 <span class="comment">%pause</span>
+0186 <span class="comment">%movie(gcf,M(filters==Fnr(4)),1,3)</span>
+0187 <span class="comment">%disp('Push any button')</span>
+0188 <span class="comment">%pause</span>
+0189 
+0190 
+0191 <span class="comment">%% IMGS_PLOT</span>
+0192 
+0193 <span class="comment">% Simple plot of images or region in images in same figure subplot style:</span>
+0194 clf
+0195 cax = <a href="../Imgtools/imgs_plot.html" class="code" title="function out_var = imgs_plot(files,PO,nrrows,rownr,nr_imgs_per_row,ff,img_reg,u1,v1,cax,outvartype)">imgs_plot</a>(files0310(31+[450:4:462],:),PO,4,1,4,1,regs(1,:),[],[],<span class="string">'auto'</span>,<span class="string">'cax'</span>);
+0196 cax = <a href="../Imgtools/imgs_plot.html" class="code" title="function out_var = imgs_plot(files,PO,nrrows,rownr,nr_imgs_per_row,ff,img_reg,u1,v1,cax,outvartype)">imgs_plot</a>(files0310(32+[450:4:462],:),PO,4,2,4,1,regs(1,:),[],[],<span class="string">'auto'</span>,<span class="string">'cax'</span>);
+0197 cax = <a href="../Imgtools/imgs_plot.html" class="code" title="function out_var = imgs_plot(files,PO,nrrows,rownr,nr_imgs_per_row,ff,img_reg,u1,v1,cax,outvartype)">imgs_plot</a>(files0310(33+[450:4:462],:),PO,4,3,4,1,regs(1,:),[],[],<span class="string">'auto'</span>,<span class="string">'cax'</span>);
+0198 cax = <a href="../Imgtools/imgs_plot.html" class="code" title="function out_var = imgs_plot(files,PO,nrrows,rownr,nr_imgs_per_row,ff,img_reg,u1,v1,cax,outvartype)">imgs_plot</a>(files0310(34+[450:4:462],:),PO,4,4,4,1,regs(1,:),[],[],<span class="string">'auto'</span>,<span class="string">'cax'</span>);
+0199 
+0200 <span class="comment">%% IMGS_PLOT_BG_RED</span>
+0201 
+0202 
+0203 <span class="comment">% Plot of images now with linear background reduction between first</span>
+0204 <span class="comment">% image in files, otherwise as above:</span>
+0205 clf
+0206 cax5 = <a href="../Imgtools/imgs_plot_bg_red.html" class="code" title="function out_var = imgs_plot_bg_red(files,PO,nrrows,rownr,nr_imgs_per_row,ff,img_reg,u1,v1,cax,outvartype)">imgs_plot_bg_red</a>(files0310(34+[446:4:462 482],:),PO,4,4,4,1,regs(1,:),[],[],<span class="string">''</span>,<span class="string">'cax'</span>);
+0207 cax4 = <a href="../Imgtools/imgs_plot_bg_red.html" class="code" title="function out_var = imgs_plot_bg_red(files,PO,nrrows,rownr,nr_imgs_per_row,ff,img_reg,u1,v1,cax,outvartype)">imgs_plot_bg_red</a>(files0310(33+[446:4:462 482],:),PO,4,3,4,1,regs(1,:),[],[],<span class="string">''</span>,<span class="string">'cax'</span>);
+0208 cax0 = <a href="../Imgtools/imgs_plot_bg_red.html" class="code" title="function out_var = imgs_plot_bg_red(files,PO,nrrows,rownr,nr_imgs_per_row,ff,img_reg,u1,v1,cax,outvartype)">imgs_plot_bg_red</a>(files0310(32+[446:4:462 482],:),PO,4,2,4,1,regs(1,:),[],[],<span class="string">''</span>,<span class="string">'cax'</span>);
+0209 cax1 = <a href="../Imgtools/imgs_plot_bg_red.html" class="code" title="function out_var = imgs_plot_bg_red(files,PO,nrrows,rownr,nr_imgs_per_row,ff,img_reg,u1,v1,cax,outvartype)">imgs_plot_bg_red</a>(files0310(31+[490 450 454 458 462 490],:),PO,4,1,4,1,regs(1,:),[],[],<span class="string">''</span>,<span class="string">'cax'</span>);
+0210 <span class="comment">%%</span>
+0211 <span class="comment">% The &quot;cax&quot; argument makes it possible to improve the scaling in</span>
+0212 <span class="comment">% cases there are pixels intensities far outside the interesting</span>
+0213 <span class="comment">% range</span>
+0214 cax4(3,:) = cax4(4,:);
+0215 cax4 = <a href="../Imgtools/imgs_plot_bg_red.html" class="code" title="function out_var = imgs_plot_bg_red(files,PO,nrrows,rownr,nr_imgs_per_row,ff,img_reg,u1,v1,cax,outvartype)">imgs_plot_bg_red</a>(files0310(33+[446:4:462 482],:),PO,4,3,4,1,regs(1,:),[],[],cax4,<span class="string">'cax'</span>);
+0216 
+0217 
+0218 <span class="comment">%% IMGS_KEOGRAMS_R3</span>
+0219 <span class="comment">% Byt tex till 19990216</span>
+0220 e_mag = [0 -sin(13*pi/180) cos(13*pi/180)];
+0221 r_bas = [-50 170 180]
+0222 l = 0:2:100;
+0223 <span class="comment">%%</span>
+0224 <span class="comment">% This function is very sensitive to orientation of the input</span>
+0225 <span class="comment">% arrays. Usually I have to transpose them a few times before I get</span>
+0226 <span class="comment">% it right. That is an annoyance but no serious problem...</span>
+0227 r_mag = <a href="../Geometry/point_on_line2.html" class="code" title="function  [r_out] = point_on_line2(r_0,e_l,l)">point_on_line2</a>(r_bas,e_mag',l);
+0228 
+0229 rs = [-2 168 0];
+0230 
+0231 <span class="comment">% Byt tex till 19990216</span>
+0232 [Keo,exptimes,Tstrs,filters] = <a href="../Imgtools/imgs_keograms_r3.html" class="code" title="function [Keo,exptimes,Tstrs,filters] = imgs_keograms_r3(files,rs,r,optpar,PO)">imgs_keograms_r3</a>(files0310(450:550,:),rs,r_mag,PO.optpar,PO);
+0233 
+0234 clf
+0235 <span class="keyword">for</span> i = 1:4,
+0236   subplot(2,2,i)
+0237   imagesc(Keo(filters==Fnr(i),:)')
+0238 <span class="keyword">end</span>
+0239 
+0240 
+0241 <span class="comment">%   Copyright © 2005 Bjorn Gustavsson, &lt;bjorn.gustavsson@irf.se&gt;</span>
+0242 <span class="comment">%   This is free software, licensed under GNU GPL version 2 or later</span></pre></div>
+<hr><address>Generated on Thu 21-Jun-2018 22:40:16 by <strong>B.&nbsp;Gustavsson</strong> with <strong><a href="http://www.artefact.tk/software/matlab/m2html/" target="_parent">m2html</a></strong> &copy; 2003</address>
+</body>
+</html>

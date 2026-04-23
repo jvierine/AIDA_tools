@@ -1,0 +1,229 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
+                "http://www.w3.org/TR/REC-html40/loose.dtd">
+<html>
+<head>
+  <title>Description of starter4FlamingRayE</title>
+  <meta name="keywords" content="starter4FlamingRayE">
+  <meta name="description" content="% Example script: how to estimate electron energies in flaming rays">
+  <meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+  <meta name="generator" content="m2html &copy; 2003 Guillaume Flandin">
+  <meta name="robots" content="index, follow">
+  <link type="text/css" rel="stylesheet" href="../m2html.css">
+</head>
+<body>
+<a name="_top"></a>
+<!-- menu.html Aurora -->
+<h1>starter4FlamingRayE
+</h1>
+
+<h2><a name="_name"></a>PURPOSE <a href="#_top"><img alt="^" border="0" src="../up.png"></a></h2>
+<div class="box"><strong>% Example script: how to estimate electron energies in flaming rays</strong></div>
+
+<h2><a name="_synopsis"></a>SYNOPSIS <a href="#_top"><img alt="^" border="0" src="../up.png"></a></h2>
+<div class="box"><strong>This is a script file. </strong></div>
+
+<h2><a name="_description"></a>DESCRIPTION <a href="#_top"><img alt="^" border="0" src="../up.png"></a></h2>
+<div class="fragment"><pre class="comment">% Example script: how to estimate electron energies in flaming rays</pre></div>
+
+<!-- crossreference -->
+<h2><a name="_cross"></a>CROSS-REFERENCE INFORMATION <a href="#_top"><img alt="^" border="0" src="../up.png"></a></h2>
+This function calls:
+<ul style="list-style-image:url(../matlabicon.gif)">
+<li><a href="err4FlamingRaysE.html" class="code" title="function res = err4FlamingRaysE(Par,var_pars,par0,stns,ImRois,Z3D,x2D,y2D,Ie2H,E,out_arg_type,z_max,errOps)">err4FlamingRaysE</a>	1        2    3    4      5   6   7   8    9 0           11    12</li><li><a href="projection_setup0H.html" class="code" title="">projection_setup0H</a>	% 1 Optical parameters</li><li><a href="setUpOfIe2H.html" class="code" title="">setUpOfIe2H</a>	% Set up script for producing the excitation profile matrices</li><li><a href="../Camera/inv_project_img.html" class="code" title="function [xx,yy,zz] = inv_project_img(img_in,r,optmod,optpar,e_n,l_0,cmtr)">inv_project_img</a>	INV_PROJECT_IMG - maps an image IMG_IN to a plane.</li><li><a href="../Imgtools/imgs_smart_caxis.html" class="code" title="function cax = imgs_smart_caxis(alpha,varargin)">imgs_smart_caxis</a>	imgs_smart_caxis - alpha-percentile setting of color-axis,</li><li><a href="../tools/colorbar_labeled.html" class="code" title="function handle=colorbar_labeled(label,lg,varargin)">colorbar_labeled</a>	COLORBAR_LABELED - colorbar with label for range linear or log</li><li><a href="../tools/fminsearchbnd.html" class="code" title="function [x,fval,exitflag,output] = fminsearchbnd(fun,x0,LB,UB,options,varargin)">fminsearchbnd</a>	FMINSEARCHBND: FMINSEARCH, but with bound constraints by transformation</li><li><a href="../tools/inpaint_nans.html" class="code" title="function B=inpaint_nans(A,method)">inpaint_nans</a>	INPAINT_NANS: in-paints over nans in an array</li><li><a href="../tools/medfilt2.html" class="code" title="function outM = medfilt2(inM,fc,varargin)">medfilt2</a>	MEDFILT2 - 2 dimensional sliding median filter</li></ul>
+This function is called by:
+<ul style="list-style-image:url(../matlabicon.gif)">
+<li><a href="runner4FlamingRayParSequence.html" class="code" title="">runner4FlamingRayParSequence</a>	% Run the core set-up tasks first</li><li><a href="runner4FlamingRaySequence.html" class="code" title="">runner4FlamingRaySequence</a>	% Run the core set-up tasks first</li><li><a href="runner4FlamingRaysAVGx0y0NarrowerE.html" class="code" title="">runner4FlamingRaysAVGx0y0NarrowerE</a>	% Run all set-up tasks first</li><li><a href="runner4FlamingRaysAVGx0y0WideningE.html" class="code" title="">runner4FlamingRaysAVGx0y0WideningE</a>	% Run all set-up tasks first</li><li><a href="runner4FlamingRaysTOWARDSx0y0NarrowerE.html" class="code" title="">runner4FlamingRaysTOWARDSx0y0NarrowerE</a>	% Run the core set-up tasks first</li><li><a href="runner4FlamingRaysTOWARDSx0y0WideningE.html" class="code" title="">runner4FlamingRaysTOWARDSx0y0WideningE</a>	% Run the core set-up tasks first</li><li><a href="runner4FlamingRaysTOWARDSx0y0WideningE2.html" class="code" title="">runner4FlamingRaysTOWARDSx0y0WideningE2</a>	% Run the core set-up tasks first</li><li><a href="runnerWithPanic.html" class="code" title="">runnerWithPanic</a>	% Run the core set-up tasks first</li></ul>
+<!-- crossreference -->
+
+
+<h2><a name="_source"></a>SOURCE CODE <a href="#_top"><img alt="^" border="0" src="../up.png"></a></h2>
+<div class="fragment"><pre>0001 <span class="comment">%% Example script: how to estimate electron energies in flaming rays</span>
+0002 
+0003 <span class="comment">%% 0 Load parameters and images:</span>
+0004 <span class="comment">%</span>
+0005 <span class="comment">% This file contains &quot;out-of-date&quot; excitation profiles for the</span>
+0006 <span class="comment">% given energy and altitude grid:</span>
+0007 whos -file Excitation-profiles-20120124.mat 
+0008 load Excitation-profiles-20120124.mat
+0009 subplot(1,2,1)
+0010 pcolor(E,z_trans(2:end),log10(a_N26730)),shading flat
+0011 caxis([-10 0]+max(caxis))
+0012 subplot(1,2,2)
+0013 pcolor(E,z_trans(2:end),log10(a_O7774)),shading flat
+0014 caxis([-10 0]+max(caxis))
+0015 <span class="comment">%%</span>
+0016 <span class="comment">%</span>
+0017 <span class="comment">%% Load the short image sequence, together with the polygons</span>
+0018 <span class="comment">% bounding an isolated flaming ray. The polygons I made with GINPUT,</span>
+0019 <span class="comment">% simply clicking away points along something I judged to be</span>
+0020 <span class="comment">% outside the ray and uncontaminated by other rays.</span>
+0021 whos -file ImS2.mat
+0022 load ImS2.mat
+0023 
+0024 <span class="comment">%% 1 Create one background mask that is the sum of the regions</span>
+0025 <span class="comment">%  covered by any polygon:</span>
+0026 bgMask = inP{1};
+0027 <span class="keyword">for</span> i1 = 2:length(ImStack)
+0028   bgMask = bgMask + inP{i1};
+0029 <span class="keyword">end</span>
+0030 <span class="comment">%%</span>
+0031 <span class="comment">% Simply make the background mask extend out to the image edge:</span>
+0032 bgMask(188:226,256) = 1;
+0033 bgMask = min(1,bgMask);
+0034 hold off
+0035 imagesc(bgMask)
+0036 
+0037 <span class="comment">%% 2 Calculate as good a back-ground as possible for each image in</span>
+0038 <span class="comment">%  6730 and 7774. The inpaint_nans function provides several fancy</span>
+0039 <span class="comment">%  inpainting (interpolating into areas from values on the</span>
+0040 <span class="comment">%  boundary, possibly taking into account gradients too):</span>
+0041 <span class="keyword">for</span> i1 = 1:size(ImStack{1},3),
+0042   img4bg = wiener2(<a href="../tools/medfilt2.html" class="code" title="function outM = medfilt2(inM,fc,varargin)">medfilt2</a>(ImStack{1}(:,:,i1),[3,3],<span class="string">'symmetric'</span>),[3,3]);
+0043   img4bg(bgMask==1) = nan;
+0044   imbg{1}(:,:,i1) = <a href="../tools/inpaint_nans.html" class="code" title="function B=inpaint_nans(A,method)">inpaint_nans</a>(img4bg,4);
+0045   img4bg = wiener2(<a href="../tools/medfilt2.html" class="code" title="function outM = medfilt2(inM,fc,varargin)">medfilt2</a>(ImStack{3}(:,:,i1),[3,3],<span class="string">'symmetric'</span>),[3,3]);
+0046   img4bg(bgMask==1) = nan;
+0047   imbg{3}(:,:,i1) = <a href="../tools/inpaint_nans.html" class="code" title="function B=inpaint_nans(A,method)">inpaint_nans</a>(img4bg,4);
+0048 <span class="keyword">end</span>
+0049 
+0050 <span class="keyword">for</span> i1 = 1:size(ImStack{1},3),
+0051   imbg3{1}(:,:,i1) = imbg{1}(:,:,max(1,i1-1))/4+imbg{1}(:,:,i1)/2 + imbg{1}(:,:,min(i1,size(ImStack{3},3)))/4;
+0052   imbg3{3}(:,:,i1) = imbg{3}(:,:,max(1,i1-1))/4+imbg{3}(:,:,i1)/2 + imbg{3}(:,:,min(i1,size(ImStack{3},3)))/4;
+0053 <span class="keyword">end</span>
+0054 
+0055 <span class="comment">%% 2b Calculate as good a back-ground as possible for each image in</span>
+0056 <span class="comment">%  6730 and 7774. The inpaint_nans function provides several fancy</span>
+0057 <span class="comment">%  inpainting (interpolating into areas from values on the</span>
+0058 <span class="comment">%  boundary, possibly taking into account gradients too):</span>
+0059 bgMask2 = bgMask;
+0060 bgMask2(188:226,256) = 0;
+0061 iY = [[37:42]+149,220:230];
+0062 <span class="keyword">for</span> i1 = 1:20,
+0063   cIedge = wiener1(squeeze(ImStack{1}(:,<span class="keyword">end</span>,i1))',[3]);
+0064   [pp,S] = polyfit(iY,cIedge(iY),1);
+0065   [BG1(i1,:),dBG4(i1,:)] = polyval(pp,150:256,S);
+0066 <span class="keyword">end</span>
+0067 
+0068 <span class="keyword">for</span> i1 = 1:size(ImStack{1},3),
+0069   ImStack{1}(1,:,i1) = ImStack{1}(2,:,i1);
+0070   ImStack{1}(:,1,i1) = ImStack{1}(:,2,i1);
+0071   ImStack{1}(<span class="keyword">end</span>,:,i1) = ImStack{1}(end-1,:,i1);
+0072   ImStack{1}(:,<span class="keyword">end</span>,i1) = ImStack{1}(:,end-1,i1);
+0073   ImStack{3}(1,:,i1) = ImStack{3}(2,:,i1);
+0074   ImStack{3}(:,1,i1) = ImStack{3}(:,2,i1);
+0075   ImStack{3}(<span class="keyword">end</span>,:,i1) = ImStack{3}(end-1,:,i1);
+0076   ImStack{3}(:,<span class="keyword">end</span>,i1) = ImStack{3}(:,end-1,i1);
+0077 <span class="keyword">end</span>
+0078 <span class="keyword">for</span> i1 = 1:size(ImStack{1},3),
+0079   
+0080   cIedge = wiener1(squeeze(ImStack{1}(:,<span class="keyword">end</span>,i1))',[3]);
+0081   [pp,S] = polyfit(iY,cIedge(iY),1);
+0082   [BG1(i1,:),dBG4(i1,:)] = polyval(pp,150:256,S);
+0083   
+0084   img2bg = wiener2(<a href="../tools/medfilt2.html" class="code" title="function outM = medfilt2(inM,fc,varargin)">medfilt2</a>(ImStack{1}(:,:,i1),[3,3],<span class="string">'symmetric'</span>),[3,3]);
+0085   img2bg(bgMask2==1) = nan;
+0086   im2bg(150:256,256) = BG1(i1,:);
+0087   imbg2{1}(:,:,i1) = <a href="../tools/inpaint_nans.html" class="code" title="function B=inpaint_nans(A,method)">inpaint_nans</a>(img2bg,4);
+0088   
+0089   cIedge = wiener1(squeeze(ImStack{1}(:,<span class="keyword">end</span>,i1))',[3]);
+0090   [pp,S] = polyfit(iY,cIedge(iY),1);
+0091   [BG1(i1,:),dBG4(i1,:)] = polyval(pp,150:256,S);
+0092   
+0093   img2bg = wiener2(<a href="../tools/medfilt2.html" class="code" title="function outM = medfilt2(inM,fc,varargin)">medfilt2</a>(ImStack{3}(:,:,i1),[3,3],<span class="string">'symmetric'</span>),[3,3]);
+0094   img2bg(bgMask==1) = nan;
+0095   im2bg(150:256,256) = BG1(i1,:);
+0096   imbg2{3}(:,:,i1) = <a href="../tools/inpaint_nans.html" class="code" title="function B=inpaint_nans(A,method)">inpaint_nans</a>(img2bg,4);
+0097 <span class="keyword">end</span>
+0098 
+0099 <span class="comment">%%</span>
+0100 <span class="comment">%  Display the estimated background images</span>
+0101 <span class="keyword">for</span> i1 = 1:size(ImStack{1},3),
+0102   subplot(2,2,1)
+0103   imagesc(imbg{1}(:,:,i1)),cX = <a href="../Imgtools/imgs_smart_caxis.html" class="code" title="function cax = imgs_smart_caxis(alpha,varargin)">imgs_smart_caxis</a>(0.003,imbg{1}(:,:,i1));colorbar
+0104   subplot(2,2,2)
+0105   imagesc(imbg{3}(:,:,i1)),cX = <a href="../Imgtools/imgs_smart_caxis.html" class="code" title="function cax = imgs_smart_caxis(alpha,varargin)">imgs_smart_caxis</a>(0.003,imbg{3}(:,:,i1));colorbar
+0106   subplot(2,2,3)
+0107   imagesc(ImStack{1}(:,:,i1))
+0108   subplot(2,2,4)
+0109   imagesc(ImStack{3}(:,:,i1))
+0110   title(sprintf(<span class="string">'%d out of %d'</span>,i1,size(ImStack{1},3)))
+0111   pause(1)
+0112   clf
+0113 <span class="keyword">end</span>
+0114 <span class="comment">%% Set up the projection from 3-D to ASK images:</span>
+0115 <a href="projection_setup0H.html" class="code" title="">projection_setup0H</a>
+0116 <span class="comment">%% Set-up of conversion from electron flux to emissions:</span>
+0117 <a href="setUpOfIe2H.html" class="code" title="">setUpOfIe2H</a>
+0118 clf
+0119 subplot(1,2,1)
+0120 pcolor(E,squeeze(ZfI(1,1,:)),log10(A1Z)),
+0121 shading flat
+0122 caxis([-10 0]+max(caxis))
+0123 <a href="../tools/colorbar_labeled.html" class="code" title="function handle=colorbar_labeled(label,lg,varargin)">colorbar_labeled</a>(<span class="string">'Ie''log'</span>)
+0124 xlabel(<span class="string">'Energy (keV)'</span>)
+0125 ylabel(<span class="string">'Altitude (km)'</span>)
+0126 subplot(1,2,2)
+0127 pcolor(E,squeeze(ZfI(1,1,:)),log10(A2Z)),
+0128 shading flat,
+0129 caxis([-10 0]+max(caxis)),
+0130 <a href="../tools/colorbar_labeled.html" class="code" title="function handle=colorbar_labeled(label,lg,varargin)">colorbar_labeled</a>(<span class="string">'Ie''log'</span>)
+0131 xlabel(<span class="string">'Energy (keV)'</span>)
+0132 ylabel(<span class="string">'Altitude (km)'</span>)
+0133 
+0134 <span class="comment">%% First run to scale input parameters:</span>
+0135 <span class="comment">%  First an array of initial parameters. Here the position is gotten from</span>
+0136 <span class="comment">%  manually projecting the images to ~115 km of altitude with</span>
+0137 <span class="comment">%  inv_project_img, then selecting a point close to the peak intensity of</span>
+0138 <span class="comment">%  the ray.</span>
+0139 [Xmax,Ymax] = <a href="../Camera/inv_project_img.html" class="code" title="function [xx,yy,zz] = inv_project_img(img_in,r,optmod,optpar,e_n,l_0,cmtr)">inv_project_img</a>(ImStack{1}(:,:,12),[0 0 0],optpASK1(9),optpASK1,[0 0 1],113.2,eye(3));
+0140 pcolor(Xmax,Ymax,ImStack{1}(:,:,12)),shading flat          
+0141 <span class="comment">%%</span>
+0142 <span class="comment">% That has a peak close to [ -6, -12.8], for the other parameters we just</span>
+0143 <span class="comment">% guess:</span>
+0144 <span class="comment">%           I0        x0            dx           y0          dy            g_x           E0           dE          g_E         g_E2         phiE     I1      E0      dE        g_E     g_E2</span>
+0145 I0 = [      1      -6.0993          0.3      -12.828          0.3            2            3            3            2            1            0
+0146             2            0          Inf            0          Inf            2           10            1            1            1            0];
+0147 
+0148 I0b = I0';
+0149 I0b = I0b(:);
+0150 I0C = (I0(:,[1,2,4,3,6:end])/2 + I0(:,[1,2,4,5,6:end])/2)';
+0151 
+0152 errOps.bias2cylindrical = 1e8;
+0153 fmsOPS = optimset(<span class="string">'fminsearch'</span>);
+0154 fmsOPS.Display = <span class="string">'final'</span>;
+0155 fmsOPS.MaxFunEvals = 500;
+0156 
+0157 <span class="comment">%            I0        x0     dx           y0      dy       g_x     E0      dE      g_E     g_E2  phiE   I1      E0      dE        g_E     g_E2</span>
+0158 parMem  = {   <span class="string">'I0'</span>,     <span class="string">'x0'</span>,    <span class="string">'dx'</span>,    <span class="string">'y0'</span>,    <span class="string">'dy'</span>,  <span class="string">'g_x'</span>,   <span class="string">'E0'</span>,   <span class="string">'dE'</span>,  <span class="string">'g_E'</span>,  <span class="string">'g_E2'</span>,<span class="string">'phiE'</span>,   <span class="string">'I1'</span>,   <span class="string">'E0'</span>,     <span class="string">'dE'</span>,  <span class="string">'g_E'</span>,<span class="string">'g_E2'</span>}                  
+0159 parTest = [ 4.7336,   -5.918, 0.31721, -13.253, 0.19745, 2.2325, .52487, 2.9215, 2.9828, 0.47734,     0,  0.927,  16.56, 0.044845, 1.8183, 1];
+0160 <span class="comment">%%</span>
+0161 <span class="comment">% These are the upper and lower bounds on the parameters we search for:</span>
+0162 parMin = [ eps(1), -12.0518, ds*1/3,    -18.553, ds*1/3,  0.6325, 0.1248, 0.9215, 0.5828, 0.25,   -2*pi,  eps(1),  0.56,  0.044845, 0.5183, 0.25];
+0163 parMax = [ 473.36,  -0.0518, 2.1721,     -6.553, 3.9745,  4.2325,32.487, 29.215,  4.9828, 2.47734, 2*pi,  21.927, 16.56, 12.044845, 3.8183, 3.7833];
+0164 <span class="comment">%%</span>
+0165 <span class="comment">% This is the indices into the full parameter array for the searched for</span>
+0166 <span class="comment">% parameters:</span>
+0167 v_p =    [  1          2       3            4      5        6       7       8       9      10        11    12  18     19        20      21];
+0168 <span class="comment">%%</span>
+0169 <span class="comment">% First search is to get the scale of the fluxes into the right order of</span>
+0170 <span class="comment">% magniture, so search only for them:</span>
+0171 vpI = [1 11];
+0172 parI = parTest([1 11]);
+0173 <span class="comment">%%</span>
+0174 <span class="comment">% and start in the middle of it all, with time-slice 12:</span>
+0175 i1 = 12;
+0176 Iq = ( wiener2(ImStack{1}(:,:,i1),[3,3]) - wiener2(imbg{1}(:,:,i1),[3,3]) ) * 1/C_filter6370;
+0177 stns(1).img = Iq;
+0178 Iq = ( wiener2(ImStack{3}(:,:,i1),[3,3]) - wiener2(imbg{3}(:,:,i1),[3,3]) ) * 1/C_filter7774;
+0179 stns(2).img = Iq;
+0180 parI = <a href="../tools/fminsearchbnd.html" class="code" title="function [x,fval,exitflag,output] = fminsearchbnd(fun,x0,LB,UB,options,varargin)">fminsearchbnd</a>(@(I) <a href="err4FlamingRaysE.html" class="code" title="function res = err4FlamingRaysE(Par,var_pars,par0,stns,ImRois,Z3D,x2D,y2D,Ie2H,E,out_arg_type,z_max,errOps)">err4FlamingRaysE</a>(I,vpI,I0b,stns,{bgMask,bgMask},ZfI,XfI(:,:,115),YfI(:,:,115),{A1Z,A2Z},E,1,113,errOps),parI,[eps(1) eps(1)],[1e6 1e6],fmsOPS);
+0181 <span class="comment">%%</span>
+0182 <span class="comment">% put those flux-scaling-factors into the start-guess:</span>
+0183 parTest([1 11]) = parI;
+0184 errMask = bgMask;
+0185 errMask(:,250:end) = 0;
+0186 
+0187</pre></div>
+<hr><address>Generated on Thu 21-Jun-2018 22:40:16 by <strong>B.&nbsp;Gustavsson</strong> with <strong><a href="http://www.artefact.tk/software/matlab/m2html/" target="_parent">m2html</a></strong> &copy; 2003</address>
+</body>
+</html>

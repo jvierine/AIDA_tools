@@ -1,0 +1,255 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
+                "http://www.w3.org/TR/REC-html40/loose.dtd">
+<html>
+<head>
+  <title>Description of avok_create</title>
+  <meta name="keywords" content="avok_create">
+  <meta name="description" content="AVOK_CREATE - create alis-view-overview-keograms user interface">
+  <meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+  <meta name="generator" content="m2html &copy; 2003 Guillaume Flandin">
+  <meta name="robots" content="index, follow">
+  <link type="text/css" rel="stylesheet" href="../../m2html.css">
+</head>
+<body>
+<a name="_top"></a>
+<!-- ../menu.html ALIS --><!-- menu.html AVOK -->
+<h1>avok_create
+</h1>
+
+<h2><a name="_name"></a>PURPOSE <a href="#_top"><img alt="^" border="0" src="../../up.png"></a></h2>
+<div class="box"><strong>AVOK_CREATE - create alis-view-overview-keograms user interface</strong></div>
+
+<h2><a name="_synopsis"></a>SYNOPSIS <a href="#_top"><img alt="^" border="0" src="../../up.png"></a></h2>
+<div class="box"><strong>function avok = avok_create(avok) </strong></div>
+
+<h2><a name="_description"></a>DESCRIPTION <a href="#_top"><img alt="^" border="0" src="../../up.png"></a></h2>
+<div class="fragment"><pre class="comment"> AVOK_CREATE - create alis-view-overview-keograms user interface
+   
+ Calling:
+  AvOk = avok_create;
+  AvOk = avok_create(AvOk);
+
+ In/Out-put:
+  AvOk - Alis-view-Overview-keograms struct.
+ 
+ Call with no input argument first time.</pre></div>
+
+<!-- crossreference -->
+<h2><a name="_cross"></a>CROSS-REFERENCE INFORMATION <a href="#_top"><img alt="^" border="0" src="../../up.png"></a></h2>
+This function calls:
+<ul style="list-style-image:url(../../matlabicon.gif)">
+</ul>
+This function is called by:
+<ul style="list-style-image:url(../../matlabicon.gif)">
+<li><a href="alis_img_overview_keos.html" class="code" title="function avok = alis_img_overview_keos(date)">alis_img_overview_keos</a>	ALIS_VIEW_OVERVIEW_KEOS - view ALIS overview keograms</li><li><a href="alis_view_overview_keos.html" class="code" title="function avok = alis_view_overview_keos(date)">alis_view_overview_keos</a>	ALIS_VIEW_OVERVIEW_KEOS - view ALIS overview keograms</li></ul>
+<!-- crossreference -->
+
+<h2><a name="_subfunctions"></a>SUBFUNCTIONS <a href="#_top"><img alt="^" border="0" src="../../up.png"></a></h2>
+<ul style="list-style-image:url(../../matlabicon.gif)">
+<li><a href="#_sub1" class="code">function avok = avok_exp_data(avok,uic_pos)</a></li><li><a href="#_sub2" class="code">function avok = avok_playctrl(avok,uic_pos)</a></li><li><a href="#_sub3" class="code">function avok = avok_ana_data(avok,uic_pos,styles,labels,callbacks,tt)</a></li></ul>
+<h2><a name="_source"></a>SOURCE CODE <a href="#_top"><img alt="^" border="0" src="../../up.png"></a></h2>
+<div class="fragment"><pre>0001 <a name="_sub0" href="#_subfunctions" class="code">function avok = avok_create(avok)</a>
+0002 <span class="comment">% AVOK_CREATE - create alis-view-overview-keograms user interface</span>
+0003 <span class="comment">%</span>
+0004 <span class="comment">% Calling:</span>
+0005 <span class="comment">%  AvOk = avok_create;</span>
+0006 <span class="comment">%  AvOk = avok_create(AvOk);</span>
+0007 <span class="comment">%</span>
+0008 <span class="comment">% In/Out-put:</span>
+0009 <span class="comment">%  AvOk - Alis-view-Overview-keograms struct.</span>
+0010 <span class="comment">%</span>
+0011 <span class="comment">% Call with no input argument first time.</span>
+0012 
+0013 
+0014 <span class="comment">% Data scrolling uicontrols</span>
+0015 nr_rows = 3;
+0016 nr_data_scrolls = 9;
+0017 x_scroll = linspace(0,1,nr_data_scrolls+1);
+0018 uic_posD(1:nr_data_scrolls,1) = x_scroll(1:nr_data_scrolls)';
+0019 uic_posD(1:nr_data_scrolls,3) = diff(x_scroll)';
+0020 uic_posD(1:nr_data_scrolls,4) = 1/nr_rows;
+0021 uic_posD(1:nr_data_scrolls,2) = 1-1/nr_rows;
+0022 
+0023 <span class="comment">% Data export uicontrols</span>
+0024 data_exports = {<span class="string">' 2-&gt;WS '</span>,<span class="string">'filenames'</span>,<span class="string">' t_obs '</span>,<span class="keyword">...</span>
+0025                 <span class="string">' l_0 '</span>,<span class="string">'optpar'</span>,<span class="string">' Keo '</span>};
+0026 nr_data_exports = 1+length([data_exports{:}]);
+0027 ex_scroll = linspace(0,1,nr_data_exports);
+0028 indx1 = 1;
+0029 <span class="keyword">for</span> i = 1:length(data_exports)
+0030   
+0031   indx2 = indx1 - 1 + length(data_exports{i});
+0032   uic_posE(i,1) = ex_scroll(indx1);
+0033   uic_posE(i,3) = diff(ex_scroll([indx1 indx2]));
+0034   indx1 = indx2;
+0035 <span class="keyword">end</span>
+0036 x_scale = 1/(uic_posE(i,3) + uic_posE(i,1));
+0037 uic_posE(:,[1 3]) = x_scale * uic_posE(:,[1 3]);
+0038 uic_posE(1:i,4) = 1/nr_rows;
+0039 uic_posE(1:i,2) = 1-2/nr_rows;
+0040 
+0041 
+0042 <span class="comment">% Data analysis uicontrols</span>
+0043 data_anal = {<span class="string">'Movie'</span>,<span class="string">'mono|rgb|irgb|E0'</span>,<span class="string">'mpg|avi|mat'</span>,<span class="string">'Char-E'</span>,<span class="string">'SSI'</span>,<span class="string">'Tomo'</span>};
+0044 styles = {<span class="string">'pushbutton'</span>,<span class="string">'popupmenu'</span>,<span class="string">'popupmenu'</span>,<span class="string">'pushbutton'</span>,<span class="string">'pushbutton'</span>,<span class="string">'pushbutton'</span>};
+0045 ana_clb = {<span class="string">'AvOk = avok_makin_movies(AvOk);'</span>,<span class="string">''</span>,<span class="string">''</span>,<span class="string">'Char-E'</span>,<span class="string">'ssi'</span>,<span class="string">'tomo'</span>};
+0046 
+0047 uic_posA = zeros(6,4);
+0048 Apos = linspace(0,1+1/6,8)
+0049 uic_posA(:,1) = Apos(1:end-2)';
+0050 uic_posA(:,3) = diff(Apos(1:end-1))';
+0051 uic_posA(1:i,4) = 1/nr_rows;
+0052 uic_posA(1:i,2) = 1-3/nr_rows;
+0053 
+0054 
+0055 
+0056 uic_pos = [uic_posD;uic_posE];
+0057 
+0058 AvOk.control_fig = figure;
+0059 set(AvOk.control_fig,<span class="string">'position'</span>,[256 308 350 60])
+0060 set(AvOk.control_fig,<span class="string">'name'</span>,<span class="string">'ADA control panel'</span>)
+0061 pixel_pos = get(AvOk.control_fig,<span class="string">'position'</span>);
+0062 set(AvOk.control_fig,<span class="string">'units'</span>,<span class="string">'centimeters'</span>);
+0063 cm_pos = get(AvOk.control_fig,<span class="string">'position'</span>);
+0064 set(AvOk.control_fig,<span class="string">'position'</span>,[cm_pos(1:3) nr_rows])
+0065 set(AvOk.control_fig,<span class="string">'units'</span>,<span class="string">'pixels'</span>);
+0066 
+0067 avok = <a href="#_sub2" class="code" title="subfunction avok = avok_playctrl(avok,uic_pos)">avok_playctrl</a>(avok,uic_posD);
+0068 avok = <a href="#_sub1" class="code" title="subfunction avok = avok_exp_data(avok,uic_pos)">avok_exp_data</a>(avok,uic_posE);
+0069 avok = <a href="#_sub3" class="code" title="subfunction avok = avok_ana_data(avok,uic_pos,styles,labels,callbacks,tt)">avok_ana_data</a>(avok,uic_posA,styles,data_anal,ana_clb);
+0070 
+0071 <span class="comment">%%% HIDEGUIs</span>
+0072 set(avok.uiprevday,<span class="string">'HandleVisibility'</span>,<span class="string">'callback'</span>)
+0073 set(avok.uinextday,<span class="string">'HandleVisibility'</span>,<span class="string">'callback'</span>)
+0074 set(avok.nextm,<span class="string">'HandleVisibility'</span>,<span class="string">'callback'</span>)
+0075 set(avok.lastm,<span class="string">'HandleVisibility'</span>,<span class="string">'callback'</span>)
+0076 set(avok.nexty,<span class="string">'HandleVisibility'</span>,<span class="string">'callback'</span>)
+0077 set(avok.lasty,<span class="string">'HandleVisibility'</span>,<span class="string">'callback'</span>)
+0078 set(avok.first,<span class="string">'HandleVisibility'</span>,<span class="string">'callback'</span>)
+0079 set(avok.export,<span class="string">'HandleVisibility'</span>,<span class="string">'callback'</span>)
+0080 set(avok.exportvars,<span class="string">'HandleVisibility'</span>,<span class="string">'callback'</span>)
+0081 set(avok.ana(:),<span class="string">'HandleVisibility'</span>,<span class="string">'callback'</span>)
+0082 
+0083 avok.fig_keo = figure;
+0084 set(avok.fig_keo,<span class="string">'pointer'</span>,<span class="string">'crosshair'</span>)
+0085 
+0086 
+0087 <a name="_sub1" href="#_subfunctions" class="code">function avok = avok_exp_data(avok,uic_pos)</a>
+0088 <span class="comment">% AVOK_EXP_DATA - Create the data export button panel</span>
+0089 <span class="comment">%</span>
+0090 avok.export = uicontrol(<span class="string">'Units'</span>,<span class="string">'normalized'</span>,<span class="keyword">...</span>
+0091                         <span class="string">'Style'</span>,<span class="string">'pushbutton'</span>,<span class="keyword">...</span>
+0092                         <span class="string">'Position'</span>,uic_pos(1,:),<span class="keyword">...</span>
+0093                         <span class="string">'string'</span>,<span class="string">'2-&gt;WS'</span>,<span class="keyword">...</span>
+0094                         <span class="string">'tooltipstring'</span>,<span class="string">'&quot;export&quot;/load checked variables to matlab workspace'</span>,<span class="keyword">...</span>
+0095                         <span class="string">'Callback'</span>,<span class="string">'alis_avok_exportvars(AvOk);'</span>);
+0096 
+0097 avok.exportvars(1) = uicontrol(<span class="string">'Units'</span>,<span class="string">'normalized'</span>,<span class="keyword">...</span>
+0098                                <span class="string">'Style'</span>,<span class="string">'checkbox'</span>,<span class="keyword">...</span>
+0099                                <span class="string">'Position'</span>,uic_pos(2,:),<span class="keyword">...</span>
+0100                                <span class="string">'string'</span>,<span class="string">'filenames'</span>);
+0101 avok.exportvars(2) = uicontrol(<span class="string">'Units'</span>,<span class="string">'normalized'</span>,<span class="keyword">...</span>
+0102                                <span class="string">'Style'</span>,<span class="string">'checkbox'</span>,<span class="keyword">...</span>
+0103                                <span class="string">'Position'</span>,uic_pos(3,:),<span class="keyword">...</span>
+0104                                <span class="string">'string'</span>,<span class="string">'t_obs'</span>);
+0105 avok.exportvars(3) = uicontrol(<span class="string">'Units'</span>,<span class="string">'normalized'</span>,<span class="keyword">...</span>
+0106                                <span class="string">'Style'</span>,<span class="string">'checkbox'</span>,<span class="keyword">...</span>
+0107                                <span class="string">'Position'</span>,uic_pos(4,:),<span class="keyword">...</span>
+0108                                <span class="string">'string'</span>,<span class="string">'l_0'</span>,<span class="keyword">...</span>
+0109                                <span class="string">'fontname'</span>,<span class="string">'symbol'</span>);
+0110 avok.exportvars(4) = uicontrol(<span class="string">'Units'</span>,<span class="string">'normalized'</span>,<span class="keyword">...</span>
+0111                                <span class="string">'Style'</span>,<span class="string">'checkbox'</span>,<span class="keyword">...</span>
+0112                                <span class="string">'Position'</span>,uic_pos(5,:),<span class="keyword">...</span>
+0113                                <span class="string">'string'</span>,<span class="string">'optpar'</span>);
+0114 avok.exportvars(5) = uicontrol(<span class="string">'Units'</span>,<span class="string">'normalized'</span>,<span class="keyword">...</span>
+0115                                <span class="string">'Style'</span>,<span class="string">'checkbox'</span>,<span class="keyword">...</span>
+0116                                <span class="string">'Position'</span>,uic_pos(6,:),<span class="keyword">...</span>
+0117                                <span class="string">'string'</span>,<span class="string">'Keo'</span>);
+0118 
+0119 <a name="_sub2" href="#_subfunctions" class="code">function avok = avok_playctrl(avok,uic_pos)</a>
+0120 <span class="comment">% AVOK_PLAYCTRL - Make the play,pause,ff,rew uicontrols</span>
+0121 <span class="comment">%</span>
+0122 avok.first = uicontrol(<span class="string">'Units'</span>,<span class="string">'normalized'</span>,<span class="keyword">...</span>
+0123                        <span class="string">'Style'</span>,<span class="string">'pushbutton'</span>,<span class="keyword">...</span>
+0124                        <span class="string">'Position'</span>,uic_pos(1,:),<span class="keyword">...</span>
+0125                        <span class="string">'string'</span>,<span class="string">'|&lt;-'</span>,<span class="keyword">...</span>
+0126                        <span class="string">'tooltipstring'</span>,<span class="string">'First day of ALIS data'</span>,<span class="keyword">...</span>
+0127                        <span class="string">'Callback'</span>,<span class="string">'AvOk = alis_view_overview_keos([1990 1 1]);'</span>);
+0128 avok.lasty = uicontrol(<span class="string">'Units'</span>,<span class="string">'normalized'</span>,<span class="keyword">...</span>
+0129                        <span class="string">'Style'</span>,<span class="string">'pushbutton'</span>,<span class="keyword">...</span>
+0130                        <span class="string">'Position'</span>,uic_pos(2,:),<span class="keyword">...</span>
+0131                        <span class="string">'string'</span>,<span class="string">'&lt;&lt;&lt;'</span>,<span class="keyword">...</span>
+0132                        <span class="string">'tooltipstring'</span>,<span class="string">'~First day of previous year'</span>,<span class="keyword">...</span>
+0133                        <span class="string">'Callback'</span>,<span class="string">'AvOk = alis_view_overview_keos(AvOk.lastyear);'</span>);
+0134 avok.lastm = uicontrol(<span class="string">'Units'</span>,<span class="string">'normalized'</span>,<span class="keyword">...</span>
+0135                        <span class="string">'Style'</span>,<span class="string">'pushbutton'</span>,<span class="keyword">...</span>
+0136                        <span class="string">'Position'</span>,uic_pos(3,:),<span class="keyword">...</span>
+0137                        <span class="string">'string'</span>,<span class="string">'&lt;&lt;'</span>,<span class="keyword">...</span>
+0138                        <span class="string">'tooltipstring'</span>,<span class="string">'~First day previous month'</span>,<span class="keyword">...</span>
+0139                        <span class="string">'Callback'</span>,<span class="string">'AvOk = alis_view_overview_keos(AvOk.lastmonth);'</span>);
+0140 avok.uiprevday = uicontrol(<span class="string">'Units'</span>,<span class="string">'normalized'</span>,<span class="keyword">...</span>
+0141                            <span class="string">'Style'</span>,<span class="string">'pushbutton'</span>,<span class="keyword">...</span>
+0142                            <span class="string">'Position'</span>,uic_pos(4,:),<span class="keyword">...</span>
+0143                            <span class="string">'string'</span>,<span class="string">'&lt;'</span>,<span class="keyword">...</span>
+0144                            <span class="string">'tooltipstring'</span>,<span class="string">'Previous day with data'</span>,<span class="keyword">...</span>
+0145                            <span class="string">'Callback'</span>,<span class="string">'AvOk = alis_view_overview_keos(-1);'</span>);
+0146 avok.uirefrday = uicontrol(<span class="string">'Units'</span>,<span class="string">'normalized'</span>,<span class="keyword">...</span>
+0147                            <span class="string">'Style'</span>,<span class="string">'pushbutton'</span>,<span class="keyword">...</span>
+0148                            <span class="string">'Position'</span>,uic_pos(5,:),<span class="keyword">...</span>
+0149                            <span class="string">'string'</span>,<span class="string">'@'</span>,<span class="keyword">...</span>
+0150                            <span class="string">'tooltipstring'</span>,<span class="string">'Refresh plot'</span>,<span class="keyword">...</span>
+0151                            <span class="string">'Callback'</span>,<span class="string">'AvOk = alis_view_overview_keos(AvOk.date);'</span>);
+0152 <span class="comment">%&lt;--------&gt;</span>
+0153 avok.uinextday = uicontrol(<span class="string">'Units'</span>,<span class="string">'normalized'</span>,<span class="keyword">...</span>
+0154                            <span class="string">'Style'</span>,<span class="string">'pushbutton'</span>,<span class="keyword">...</span>
+0155                            <span class="string">'Position'</span>,uic_pos(6,:),<span class="keyword">...</span>
+0156                            <span class="string">'string'</span>,<span class="string">'&gt;'</span>,<span class="keyword">...</span>
+0157                            <span class="string">'tooltipstring'</span>,<span class="string">'Next day with data'</span>,<span class="keyword">...</span>
+0158                            <span class="string">'Callback'</span>,<span class="string">'AvOk = alis_view_overview_keos(1);'</span>);
+0159 avok.nextm = uicontrol(<span class="string">'Units'</span>,<span class="string">'normalized'</span>,<span class="keyword">...</span>
+0160                        <span class="string">'Style'</span>,<span class="string">'pushbutton'</span>,<span class="keyword">...</span>
+0161                        <span class="string">'Position'</span>,uic_pos(7,:),<span class="keyword">...</span>
+0162                        <span class="string">'string'</span>,<span class="string">'&gt;&gt;'</span>,<span class="keyword">...</span>
+0163                        <span class="string">'tooltipstring'</span>,<span class="string">'~First day next month'</span>,<span class="keyword">...</span>
+0164                        <span class="string">'Callback'</span>,<span class="string">'AvOk = alis_view_overview_keos(AvOk.netxmonth);'</span>);
+0165 avok.nexty = uicontrol(<span class="string">'Units'</span>,<span class="string">'normalized'</span>,<span class="keyword">...</span>
+0166                        <span class="string">'Style'</span>,<span class="string">'pushbutton'</span>,<span class="keyword">...</span>
+0167                        <span class="string">'Position'</span>,uic_pos(8,:),<span class="keyword">...</span>
+0168                        <span class="string">'string'</span>,<span class="string">'&gt;&gt;&gt;'</span>,<span class="keyword">...</span>
+0169                        <span class="string">'tooltipstring'</span>,<span class="string">'First day next year'</span>,<span class="keyword">...</span>
+0170                        <span class="string">'Callback'</span>,<span class="string">'AvOk = alis_view_overview_keos(AvOk.netxyear);'</span>);
+0171 avok.last = uicontrol(<span class="string">'Units'</span>,<span class="string">'normalized'</span>,<span class="keyword">...</span>
+0172                        <span class="string">'Style'</span>,<span class="string">'pushbutton'</span>,<span class="keyword">...</span>
+0173                        <span class="string">'Position'</span>,uic_pos(9,:),<span class="keyword">...</span>
+0174                        <span class="string">'string'</span>,<span class="string">'-&gt;|'</span>,<span class="keyword">...</span>
+0175                        <span class="string">'tooltipstring'</span>,<span class="string">'Latest day with data'</span>,<span class="keyword">...</span>
+0176                        <span class="string">'Callback'</span>,<span class="string">'AvOk = alis_view_overview_keos([2067 2 14]);'</span>);
+0177 
+0178 
+0179 
+0180 <a name="_sub3" href="#_subfunctions" class="code">function avok = avok_ana_data(avok,uic_pos,styles,labels,callbacks,tt)</a>
+0181 <span class="comment">% AVOK_ANA_DATA - Create the data analysis buttons</span>
+0182 <span class="comment">%</span>
+0183 S = <span class="string">'style'</span>;
+0184 L = <span class="string">'string'</span>;
+0185 C = <span class="string">'callback'</span>;
+0186 P = <span class="string">'position'</span>;
+0187 tts = <span class="string">'tooltipstring'</span>;
+0188 <span class="keyword">for</span> i = 1:length(styles)
+0189   
+0190   avok.ana(i) = uicontrol(<span class="string">'units'</span>,<span class="string">'normalized'</span>,<span class="keyword">...</span>
+0191                           S,styles{i},<span class="keyword">...</span>
+0192                           L,labels{i},<span class="keyword">...</span>
+0193                           P,uic_pos(i,:),<span class="keyword">...</span>
+0194                           C,callbacks{i});
+0195 <span class="keyword">end</span>
+0196 <span class="keyword">if</span> nargin &gt; 5
+0197   <span class="keyword">for</span> i = 1:length(tt)
+0198     
+0199     set(avok.ana(i),tts,tt{i})
+0200     
+0201   <span class="keyword">end</span>
+0202 <span class="keyword">end</span></pre></div>
+<hr><address>Generated on Mon 27-Jan-2014 17:32:33 by <strong>B.&nbsp;Gustavsson</strong> with <strong><a href="http://www.artefact.tk/software/matlab/m2html/" target="_parent">m2html</a></strong> &copy; 2003</address>
+</body>
+</html>

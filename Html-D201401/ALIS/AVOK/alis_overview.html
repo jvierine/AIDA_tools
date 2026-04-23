@@ -1,0 +1,436 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
+                "http://www.w3.org/TR/REC-html40/loose.dtd">
+<html>
+<head>
+  <title>Description of alis_overview</title>
+  <meta name="keywords" content="alis_overview">
+  <meta name="description" content="ALIS_OVERVIEW - Overviews of alis data, movie or image-mosaics">
+  <meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+  <meta name="generator" content="m2html &copy; 2003 Guillaume Flandin">
+  <meta name="robots" content="index, follow">
+  <link type="text/css" rel="stylesheet" href="../../m2html.css">
+</head>
+<body>
+<a name="_top"></a>
+<!-- ../menu.html ALIS --><!-- menu.html AVOK -->
+<h1>alis_overview
+</h1>
+
+<h2><a name="_name"></a>PURPOSE <a href="#_top"><img alt="^" border="0" src="../../up.png"></a></h2>
+<div class="box"><strong>ALIS_OVERVIEW - Overviews of alis data, movie or image-mosaics</strong></div>
+
+<h2><a name="_synopsis"></a>SYNOPSIS <a href="#_top"><img alt="^" border="0" src="../../up.png"></a></h2>
+<div class="box"><strong>function [M,filters,Times,I_minmax] = alis_overview(files,POs,OPS) </strong></div>
+
+<h2><a name="_description"></a>DESCRIPTION <a href="#_top"><img alt="^" border="0" src="../../up.png"></a></h2>
+<div class="fragment"><pre class="comment"> ALIS_OVERVIEW - Overviews of alis data, movie or image-mosaics
+ 
+ Calling:
+ [M,filters,Times,I_minmax] = alis_overview(files,POs,OPS)
+ 
+ Input:
+   FILES - Cell array of image filenames {files_S1,files_S2,files_S0}
+   POS   - Cell array of PRE_PROC_OPS - see TYPICAL_PRE_PROC_OPS
+   OPS   - Options structure where the following optional fields
+   are used:
+   OPS.clear_fig = 0;              clear_fig = 0 leave previous images useful
+                                   when stepping through data with
+                                   one timestep per figure frame
+                                   whith hole in data-stream
+   OPS.subplots = [2 3];           two first argument to subplot calls
+   OPS.subplot_pos = [1 2 3 4 5 6];subplot ordering
+   OPS.rgb_or_pseudo = 'rgb';      [{'rgb'}| 'pseudo'] colour plotting mode
+   OPS.times_until_restart = 1;    number of timesteps to plot on the same figure
+   OPS.overview_sppos = 0;         Position of overviewplot, -1 disables, &gt; 0
+                                   makes that subplotpos the designated subplotpos
+   OPS.out_arg = 0;                outarg-type 0: movie, 1:
+                                   currently displayed images
+   OPS.make_pause = 0;             Waiting before removing plots,
+                                   makes it possible to print save
+                                   figure manually
+   OPS.out_base_filename = '';     Base filename for automatic
+                                   printing of figures to file
+   OPS.printcmd = '';              Automatic print command, ex:
+                                   'print -dpsc2 -Pfiery2'
+   A structure with the default struct is returned when the
+   function is called without arguments</pre></div>
+
+<!-- crossreference -->
+<h2><a name="_cross"></a>CROSS-REFERENCE INFORMATION <a href="#_top"><img alt="^" border="0" src="../../up.png"></a></h2>
+This function calls:
+<ul style="list-style-image:url(../../matlabicon.gif)">
+<li><a href="alis_overviewplot.html" class="code" title="function alis_overviewplot(stn,az,ze,clrs,time_str)">alis_overviewplot</a>	ALIS_OVERVIEWPLOT - graphics of the visible volumes and collour</li><li><a href="../../ALIS/alis_emi2clrs.html" class="code" title="function [clrs] = alis_emi2clrs(filter)">alis_emi2clrs</a>	ALIS_EMI2CLRS - convert ALIS emission  to rgb colour</li><li><a href="../../ALIS/alis_img2rgb.html" class="code" title="function [img,clrs] = alis_img2rgb(img_in,filter,I_lims)">alis_img2rgb</a>	ALIS_IMG2RGB - convert intensity image to rgb image</li><li><a href="../../Camera/project_point.html" class="code" title="function [u,v,l] = project_point(rs,optpar,r,cmtr,imsiz)">project_point</a>	PROJECT_POINT - project a point in space R down onto an image</li><li><a href="../../Fits_tools/inimg.html" class="code" title="function [img_out,img_head,obs] = inimg(filename,PREPRO_OPS)">inimg</a>	INIMG - reads and pre-process an image.</li><li><a href="../../tools/mysubplot.html" class="code" title="function theAxis = mysubplot(nrows, ncols, thisPlot)">mysubplot</a>	MYSUBPLOT Create axes in tiled positions.</li><li><a href="../../tools/scrollsubplot.html" class="code" title="function theAxis = scrollsubplot(nrows, ncols, thisPlot)">scrollsubplot</a>	SCROLLSUBPLOT Create axes in tiled positions.</li></ul>
+This function is called by:
+<ul style="list-style-image:url(../../matlabicon.gif)">
+<li><a href="alis_auto_overview.html" class="code" title="function AvOk = alis_auto_overview(AvOk,t_y)">alis_auto_overview</a>	ALIS_AUTO_OVERVIEW - function for displaying overview data</li><li><a href="alis_overview_demo.html" class="code" title="">alis_overview_demo</a>	Example showing the use of ALIS_OVERVIEW</li><li><a href="alis_zoom_or_auto_overview.html" class="code" title="function AvOk = alis_zoom_or_auto_overview(AvOk,t_y)">alis_zoom_or_auto_overview</a>	ALIS_ZOOM_OR_AUTO_OVERVIEW - GUI-fcn for ALIS keogram overviewing</li><li><a href="../../ALIS/alis_auto_overview.html" class="code" title="function AvOk = alis_auto_overview(AvOk,t_y)">alis_auto_overview</a>	ALIS_AUTO_OVERVIEW - function for displaying overview data</li></ul>
+<!-- crossreference -->
+
+
+<h2><a name="_source"></a>SOURCE CODE <a href="#_top"><img alt="^" border="0" src="../../up.png"></a></h2>
+<div class="fragment"><pre>0001 <a name="_sub0" href="#_subfunctions" class="code">function [M,filters,Times,I_minmax] = alis_overview(files,POs,OPS)</a>
+0002 <span class="comment">% ALIS_OVERVIEW - Overviews of alis data, movie or image-mosaics</span>
+0003 <span class="comment">%</span>
+0004 <span class="comment">% Calling:</span>
+0005 <span class="comment">% [M,filters,Times,I_minmax] = alis_overview(files,POs,OPS)</span>
+0006 <span class="comment">%</span>
+0007 <span class="comment">% Input:</span>
+0008 <span class="comment">%   FILES - Cell array of image filenames {files_S1,files_S2,files_S0}</span>
+0009 <span class="comment">%   POS   - Cell array of PRE_PROC_OPS - see TYPICAL_PRE_PROC_OPS</span>
+0010 <span class="comment">%   OPS   - Options structure where the following optional fields</span>
+0011 <span class="comment">%   are used:</span>
+0012 <span class="comment">%   OPS.clear_fig = 0;              clear_fig = 0 leave previous images useful</span>
+0013 <span class="comment">%                                   when stepping through data with</span>
+0014 <span class="comment">%                                   one timestep per figure frame</span>
+0015 <span class="comment">%                                   whith hole in data-stream</span>
+0016 <span class="comment">%   OPS.subplots = [2 3];           two first argument to subplot calls</span>
+0017 <span class="comment">%   OPS.subplot_pos = [1 2 3 4 5 6];subplot ordering</span>
+0018 <span class="comment">%   OPS.rgb_or_pseudo = 'rgb';      [{'rgb'}| 'pseudo'] colour plotting mode</span>
+0019 <span class="comment">%   OPS.times_until_restart = 1;    number of timesteps to plot on the same figure</span>
+0020 <span class="comment">%   OPS.overview_sppos = 0;         Position of overviewplot, -1 disables, &gt; 0</span>
+0021 <span class="comment">%                                   makes that subplotpos the designated subplotpos</span>
+0022 <span class="comment">%   OPS.out_arg = 0;                outarg-type 0: movie, 1:</span>
+0023 <span class="comment">%                                   currently displayed images</span>
+0024 <span class="comment">%   OPS.make_pause = 0;             Waiting before removing plots,</span>
+0025 <span class="comment">%                                   makes it possible to print save</span>
+0026 <span class="comment">%                                   figure manually</span>
+0027 <span class="comment">%   OPS.out_base_filename = '';     Base filename for automatic</span>
+0028 <span class="comment">%                                   printing of figures to file</span>
+0029 <span class="comment">%   OPS.printcmd = '';              Automatic print command, ex:</span>
+0030 <span class="comment">%                                   'print -dpsc2 -Pfiery2'</span>
+0031 <span class="comment">%   A structure with the default struct is returned when the</span>
+0032 <span class="comment">%   function is called without arguments</span>
+0033 
+0034 <span class="comment">% Copyright Bjorn Gustavsson 20050112</span>
+0035 
+0036 <span class="keyword">global</span> bx by
+0037 
+0038 <span class="keyword">if</span> nargin == 0
+0039   
+0040   M.clear_fig = 0;               <span class="comment">% clear_fig = 0 leave previous images useful</span>
+0041                                  <span class="comment">% when stepping through data with</span>
+0042                                  <span class="comment">% one timestep per figure frame</span>
+0043                                  <span class="comment">% whith hole in data-stream</span>
+0044   M.subplots = [2 3];            <span class="comment">% two first argument to subplot calls</span>
+0045   M.subplot_pos = [1 2 3 4 5 6]; <span class="comment">%  subplot ordering</span>
+0046   M.rgb_or_pseudo = <span class="string">'rgb'</span>;       <span class="comment">% rgb (or pseudo) colour plotting</span>
+0047   M.times_until_restart = 1;     <span class="comment">% number of timesteps to plot on the same figure</span>
+0048   M.overview_sppos = 0;          <span class="comment">% Position of overviewplot, -1 disables, &gt; 0</span>
+0049                                  <span class="comment">% makes that subplotpos the designated subplotpos</span>
+0050   M.out_arg = 0;                 <span class="comment">% outarg-type 0: movie, 1:</span>
+0051                                  <span class="comment">% currently displayed images</span>
+0052   M.make_pause = 0;              <span class="comment">% Waiting before removing plots,</span>
+0053                                  <span class="comment">% makes it possible to print save</span>
+0054                                  <span class="comment">% figure manually</span>
+0055   M.out_base_filename = <span class="string">''</span>;      <span class="comment">% Base filename for automatic</span>
+0056                                  <span class="comment">% printing of figures to file</span>
+0057   M.printcmd = <span class="string">''</span>;               <span class="comment">% Automatic print command, ex:</span>
+0058                                  <span class="comment">% 'print -dpsc2 -Pfiery2'</span>
+0059   M.caxis    = <span class="string">'auto'</span>;           <span class="comment">% default is to use automatic</span>
+0060                                  <span class="comment">% limits for the colour axis,</span>
+0061                                  <span class="comment">% otherwise use [cmin cmax] in</span>
+0062                                  <span class="comment">% either [2 x length(files)] or</span>
+0063                                  <span class="comment">% [2 x length(files) x length(files{i})]</span>
+0064   M.plot_style = <span class="string">'imgsc'</span>;        <span class="comment">% Type of plot to make. [{'imgsc'}|'map_proj']</span>
+0065   M.map_limits = [-100 2 100 -100 2 100];  <span class="comment">% horisontal limits of</span>
+0066                                            <span class="comment">% maping [xmin dx xmax ymin dy ymax]</span>
+0067   M.map_alt = 110;               <span class="comment">% Altitude to map the image onto</span>
+0068   M.timelabel_pos = <span class="string">'y'</span>;         <span class="comment">% position of time label [{'y'}|'x'|'z'|'t'|'i']</span>
+0069   <span class="keyword">return</span>
+0070   
+0071 <span class="keyword">end</span>
+0072 
+0073 <span class="comment">%  Default options</span>
+0074 clear_fig = 0;               <span class="comment">% CL_F = 0 leave previous images when hole in data-stream</span>
+0075 subplots = [2 3];            <span class="comment">% two first argument to subplot calls</span>
+0076 subplot_pos = [1 2 3 4 5 6]; <span class="comment">%  subplot ordering</span>
+0077 rgb_or_pseudo = <span class="string">'rgb'</span>;       <span class="comment">% rgb (or pseudo) colour plotting</span>
+0078 times_until_restart = 1;     <span class="comment">% number of timesteps to plot on the same figure</span>
+0079 overview_sppos = 0;          <span class="comment">% Position of overviewplot, -1 disables, &gt; 0</span>
+0080                              <span class="comment">% makes that subplotpos the designated subplotpos</span>
+0081 out_arg = 0;
+0082 make_pause = 0;
+0083 out_base_filename = <span class="string">''</span>;
+0084 printcmd = <span class="string">''</span>;
+0085 cax = <span class="string">'auto'</span>;
+0086 plot_style = <span class="string">'imgsc'</span>;
+0087 map_limits = [-100 2 100 -100 2 100];
+0088 map_alt = 110;
+0089 time_label_pos = <span class="string">'y'</span>;
+0090 
+0091 <span class="comment">% Handle the user options</span>
+0092 <span class="keyword">if</span> nargin &gt; 2
+0093 
+0094   <span class="keyword">if</span> isfield(OPS,<span class="string">'clear_fig'</span>)
+0095     clear_fig = OPS.clear_fig; <span class="comment">% user suplied CL_F</span>
+0096   <span class="keyword">end</span>
+0097   <span class="keyword">if</span> isfield(OPS,<span class="string">'subplots'</span>)
+0098     subplots = OPS.subplots; <span class="comment">% user supplied two first argument to subplot</span>
+0099   <span class="keyword">end</span>
+0100   <span class="keyword">if</span> isfield(OPS,<span class="string">'subplot_pos'</span>)
+0101     subplot_pos = OPS.subplot_pos; <span class="comment">% user supplied subplot ordering</span>
+0102   <span class="keyword">end</span>
+0103   <span class="keyword">if</span> isfield(OPS,<span class="string">'rgb_or_pseudo'</span>)
+0104     rgb_or_pseudo = OPS.rgb_or_pseudo;
+0105   <span class="keyword">end</span>
+0106   <span class="keyword">if</span> isfield(OPS,<span class="string">'times_until_restart'</span>)
+0107     times_until_restart = OPS.times_until_restart;
+0108   <span class="keyword">end</span>
+0109   <span class="keyword">if</span> isfield(OPS,<span class="string">'overview_sppos'</span>)
+0110     overview_sppos = OPS.overview_sppos;
+0111   <span class="keyword">end</span>
+0112   <span class="keyword">if</span> isfield(OPS,<span class="string">'out_arg'</span>)
+0113     out_arg = OPS.out_arg;
+0114   <span class="keyword">end</span>
+0115   <span class="keyword">if</span> isfield(OPS,<span class="string">'make_pause'</span>)
+0116     make_pause = OPS.make_pause;
+0117   <span class="keyword">end</span>
+0118   <span class="keyword">if</span> isfield(OPS,<span class="string">'out_base_filename'</span>)
+0119     out_base_filename = OPS.out_base_filename;
+0120   <span class="keyword">end</span>
+0121   <span class="keyword">if</span> isfield(OPS,<span class="string">'M.printcmd'</span>)
+0122     printcmd = OPS.M.printcmd;
+0123   <span class="keyword">end</span>
+0124   <span class="keyword">if</span> isfield(OPS,<span class="string">'caxis'</span>)
+0125     cax = OPS.caxis;
+0126   <span class="keyword">end</span>
+0127   <span class="keyword">if</span> isfield(OPS,<span class="string">'plot_style'</span>)
+0128     plot_style = OPS.plot_style;
+0129   <span class="keyword">end</span>
+0130   <span class="keyword">if</span> strcmp(plot_style,<span class="string">'map_proj'</span>)
+0131     map_limits = OPS.map_limits;
+0132     map_alt = OPS.map_alt;
+0133   <span class="keyword">end</span>
+0134   <span class="keyword">if</span> isfield(OPS,<span class="string">'time_label_pos'</span>)
+0135     time_label_pos = OPS.time_label_pos;
+0136   <span class="keyword">end</span>
+0137 <span class="keyword">end</span>
+0138 
+0139 do_print = 0;
+0140 <span class="keyword">if</span> ~isempty(out_base_filename) | ~isempty(printcmd)
+0141   do_print = 1;
+0142 <span class="keyword">end</span>
+0143 <span class="keyword">if</span> do_print &amp; isempty(printcmd)
+0144   printcmd = <span class="string">'print -depsc2 -noui'</span>;
+0145 <span class="keyword">end</span>
+0146 
+0147 <span class="comment">% Set the positions of hte alis stations</span>
+0148 ap = [0   0  0
+0149       64.14218725650279   -31.86799805059328  -0.4021440345184266
+0150       53.13179754255706   21.58681354721001  -0.2578326940640405
+0151       14.80937274138702   -56.36541170065802  -0.2662535704565858
+0152       -65.07707331579783   57.72751986387349  -0.5932546375529117
+0153       -58.9199195880307   2.001795856330272  -0.2724597759225365
+0154       .5   3  0
+0155       0 0 0
+0156       0 0 0
+0157       40 90 -.6
+0158       -40 120 -.6
+0159      ];
+0160 
+0161 
+0162 <span class="comment">% Start with the first items in each group of FILES</span>
+0163 file_indx = ones(size(files));
+0164 
+0165 <span class="comment">% First time allways start wihtout offset</span>
+0166 plot_time_nr = 0;
+0167 tot_indx = 1;
+0168 frame_indx = 1;
+0169 <span class="comment">% First time load an image from each of the Cells in FILES</span>
+0170 plot_indx = 1:length(files);
+0171 
+0172 <span class="keyword">while</span> 1,
+0173   
+0174   <span class="keyword">for</span> i = plot_indx,
+0175     <span class="comment">% Here read a new file from each filelist in FILES _that_ was</span>
+0176     <span class="comment">% just displayed</span>
+0177     <span class="keyword">if</span> file_indx(i) &lt;= size(files{i},1)
+0178       [d{i},h,o{i}] = <a href="../../Fits_tools/inimg.html" class="code" title="function [img_out,img_head,obs] = inimg(filename,PREPRO_OPS)">inimg</a>(files{i}(file_indx(i),:),POs{i});
+0179       [by,bx] = size(d{i});
+0180       <span class="keyword">if</span> nargout &gt; 3
+0181         I_minmax(tot_indx,i,2) = min(d{i}(:));
+0182         I_minmax(tot_indx,i,1) = max(d{i}(:));
+0183       <span class="keyword">end</span>
+0184       <span class="comment">% Get the new times.</span>
+0185       times(i) = sum(o{i}.time(4:6).*[1 1/60 1/3600]);
+0186       <span class="comment">% If requested convert the image to RGB format</span>
+0187       <span class="keyword">if</span> min(size(rgb_or_pseudo)) &gt; 1
+0188         this_rgb = deblank(rgb_or_pseudo(i,:));
+0189       <span class="keyword">else</span>
+0190         this_rgb = rgb_or_pseudo;
+0191       <span class="keyword">end</span>
+0192       <span class="keyword">if</span> strcmp(this_rgb,<span class="string">'rgb'</span>)
+0193         [d{i},clr] = <a href="../../ALIS/alis_img2rgb.html" class="code" title="function [img,clrs] = alis_img2rgb(img_in,filter,I_lims)">alis_img2rgb</a>(d{i},o{i}.filter);
+0194         clrs(i,:) = clr;
+0195       <span class="keyword">else</span>
+0196         clrs(i,:) = <a href="../../ALIS/alis_emi2clrs.html" class="code" title="function [clrs] = alis_emi2clrs(filter)">alis_emi2clrs</a>(o{i}.filter);
+0197       <span class="keyword">end</span>
+0198       <span class="keyword">if</span> strcmp(plot_style,<span class="string">'map_proj'</span>)
+0199         [X,Y] = meshgrid(map_limits(1):map_limits(2):map_limits(3),<span class="keyword">...</span>
+0200                          map_limits(4):map_limits(5):map_limits(6));
+0201         Z = map_alt*ones(size(X));
+0202         U = Z;
+0203         V = Z;
+0204         
+0205         [U(:),V(:)] = <a href="../../Camera/project_point.html" class="code" title="function [u,v,l] = project_point(rs,optpar,r,cmtr,imsiz)">project_point</a>(ap(o{i}.station,:),<span class="keyword">...</span>
+0206                                     o{i}.optpar,<span class="keyword">...</span>
+0207                                     [X(:) Y(:) Z(:)]',[],[bx by]);
+0208         D(:,:,3) = Z;
+0209         D(:,:,3) = interp2(d{i}(:,:,3),U,V);
+0210         D(:,:,2) = interp2(d{i}(:,:,2),U,V);
+0211         D(:,:,1) = interp2(d{i}(:,:,1),U,V);
+0212         d{i} = D;
+0213       <span class="keyword">end</span>
+0214       <span class="comment">% Set &quot;vital&quot; output</span>
+0215       filters(tot_indx,i) = o{i}.filter;
+0216       Times(tot_indx,i) = times(i);
+0217       <span class="comment">% Set variables for alis_overviewplot</span>
+0218       stn(i) = o{i}.station;
+0219       az(i) = o{i}.az;
+0220       ze(i) = o{i}.ze;
+0221     <span class="keyword">else</span>
+0222       <span class="comment">% We are at the end of FILES{i} so no idea to read more files</span>
+0223       <span class="comment">% there...</span>
+0224       times(i) = inf;
+0225     <span class="keyword">end</span>
+0226     <span class="comment">% Increment the indices for the FILES we read</span>
+0227     file_indx(i) = file_indx(i) + 1;
+0228   <span class="keyword">end</span>
+0229   <span class="comment">% Maybe shift this one furter down...</span>
+0230   <span class="keyword">if</span> all(isinf(times))
+0231     <span class="keyword">return</span>
+0232   <span class="keyword">end</span>
+0233   
+0234   <span class="keyword">if</span> clear_fig <span class="comment">% then clear the figure every lap</span>
+0235     clf
+0236   <span class="keyword">end</span>
+0237   <span class="keyword">if</span> plot_time_nr == 0 <span class="comment">% no mixing with older images so clear the</span>
+0238                        <span class="comment">% fig when we start over at the beginning of</span>
+0239                        <span class="comment">% the subplot-pannels</span>
+0240     clf
+0241   <span class="keyword">end</span>
+0242   
+0243   plot_pos_offset = plot_time_nr * subplots(2);
+0244   
+0245   <span class="comment">% Out of all the currently stored data find the ones that are</span>
+0246   <span class="comment">% taken at the earliest time.</span>
+0247   [stime,st_indx] = sort(times);
+0248   plot_indx = st_indx(stime==stime(1));
+0249   time_str = o{plot_indx(1)}.time;
+0250   <span class="comment">% And plot everything for those</span>
+0251   <span class="keyword">for</span> i = plot_indx,
+0252     
+0253     <span class="comment">% Get the correct subplot</span>
+0254     plot_pos = plot_pos_offset + subplot_pos(i);
+0255     <span class="keyword">if</span> ( plot_pos &lt;= subplots(1)*subplots(2) )
+0256       <a href="../../tools/mysubplot.html" class="code" title="function theAxis = mysubplot(nrows, ncols, thisPlot)">mysubplot</a>(subplots(1),subplots(2),plot_pos)
+0257     <span class="keyword">else</span>
+0258       <span class="comment">% If we try to add more subplots than the figure can hold add</span>
+0259       <span class="comment">% them outside and add scrollbar.</span>
+0260       <a href="../../tools/scrollsubplot.html" class="code" title="function theAxis = scrollsubplot(nrows, ncols, thisPlot)">scrollsubplot</a>(subplots(1),subplots(2),plot_pos)
+0261     <span class="keyword">end</span>
+0262     <span class="keyword">if</span> strcmp(plot_style,<span class="string">'map_proj'</span>)
+0263       thimgs = find(subplot_pos(plot_indx) == subplot_pos(i));
+0264       <span class="comment">%%% Haer ska vi in med plotstyle...</span>
+0265       <span class="comment">% for alla med aktuellt subplot_pos skaka fram medelvaerdet</span>
+0266       <span class="comment">% foer alla tre faergskikten och sen aer det vel bara att koera</span>
+0267       <span class="comment">% tcolor</span>
+0268       <span class="comment">% Enkelt att medelvaerda! alla ska ligga 0-1 bara att</span>
+0269       <span class="comment">% normalisera om igen!</span>
+0270       <span class="comment">%% inte saa enkelt problem med nan!</span>
+0271       ii = 1;
+0272       clear r g b
+0273       <span class="keyword">for</span> j = plot_indx(thimgs),
+0274         r(:,:,ii) = d{j}(:,:,1);
+0275         g(:,:,ii) = d{j}(:,:,2);
+0276         b(:,:,ii) = d{j}(:,:,3);
+0277         ii = ii +1;
+0278       <span class="keyword">end</span>
+0279       r = my_nanmean(r,3);
+0280       g = my_nanmean(g,3);
+0281       b = my_nanmean(b,3);
+0282       tsurf(X,Y,Z,cat(3,r,g,b))
+0283       <span class="keyword">if</span> ~isstruct(o{i}.optpar)
+0284         text(-50,-50,sprintf(<span class="string">'%02.3g, %02.3g, %02.3g,'</span>,o{i}.optpar(3:5)),<span class="string">'color'</span>,<span class="string">'w'</span>)
+0285       <span class="keyword">elseif</span> isfield(o{i}.optpar,<span class="string">'rot'</span>)
+0286         text(-50,-50,sprintf(<span class="string">'%02.3g, %02.3g, %02.3g,'</span>,o{i}.optpar.rot),<span class="string">'color'</span>,<span class="string">'w'</span>)
+0287       <span class="keyword">else</span>
+0288         text(-50,-50,sprintf(<span class="string">'%02.3g, %02.3g, %02.3g,'</span>,[0,0,0]),<span class="string">'color'</span>,<span class="string">'w'</span>)
+0289       <span class="keyword">end</span>
+0290     <span class="keyword">else</span>
+0291       imagesc(d{i}),axis xy
+0292     <span class="keyword">end</span>
+0293     <span class="keyword">if</span> time_label_pos == <span class="string">'i'</span>
+0294       text(10,10,sprintf(<span class="string">'%02d-%02d:%02d:%02d'</span>,o{i}.time(3:6)),<span class="string">'color'</span>,<span class="string">'w'</span>)
+0295     <span class="keyword">end</span>
+0296     <span class="keyword">if</span> length(size(cax)) == 3
+0297       caxis(squeeze(cax(:,i,tot_indx)))
+0298     <span class="keyword">elseif</span> all(size(cax) == [2 length(files)])
+0299       caxis(squeeze(cax(:,i,tot_indx)))
+0300     <span class="keyword">else</span>
+0301       caxis(cax)
+0302     <span class="keyword">end</span>
+0303     
+0304     set(gca,<span class="string">'xtick'</span>,[],<span class="string">'ytick'</span>,[])
+0305     <span class="keyword">if</span> plot_time_nr == 0
+0306       thndl = title([<span class="string">'S'</span>,num2str(o{i}.station,<span class="string">'%02d'</span>)]);
+0307       <span class="keyword">if</span> subplots(1) &lt; 4
+0308         set(thndl,<span class="string">'fontsize'</span>,18)
+0309       <span class="keyword">elseif</span> subplots(1) &lt; 6
+0310         set(thndl,<span class="string">'fontsize'</span>,16)
+0311       <span class="keyword">elseif</span> subplots(1) &lt; 7
+0312         set(thndl,<span class="string">'fontsize'</span>,14)
+0313       <span class="keyword">elseif</span> subplots(1) &lt; 8
+0314         set(thndl,<span class="string">'fontsize'</span>,12)
+0315       <span class="keyword">elseif</span> subplots(1) &lt; 10
+0316         set(thndl,<span class="string">'fontsize'</span>,10)
+0317       <span class="keyword">end</span>
+0318     <span class="keyword">end</span>
+0319   <span class="keyword">end</span>
+0320   <span class="keyword">if</span> overview_sppos == 0
+0321     <span class="comment">% Default position of the overviewplot</span>
+0322     curr_ax = axes(<span class="string">'position'</span>,[0.01 0.5-.075 .15 .15]);
+0323     <a href="alis_overviewplot.html" class="code" title="function alis_overviewplot(stn,az,ze,clrs,time_str)">alis_overviewplot</a>(stn(plot_indx),az(plot_indx),ze(plot_indx),clrs(plot_indx,:),time_str)
+0324   <span class="keyword">elseif</span> overview_sppos &gt; 0
+0325     <span class="comment">% Or in a real subplot of its own...</span>
+0326     plot_pos = plot_pos_offset + overview_sppos;
+0327     <span class="keyword">if</span> ( plot_pos &lt;= subplots(1)*subplots(2) )
+0328       <a href="../../tools/mysubplot.html" class="code" title="function theAxis = mysubplot(nrows, ncols, thisPlot)">mysubplot</a>(subplots(1),subplots(2),plot_pos)
+0329     <span class="keyword">else</span>
+0330       <a href="../../tools/scrollsubplot.html" class="code" title="function theAxis = scrollsubplot(nrows, ncols, thisPlot)">scrollsubplot</a>(subplots(1),subplots(2),plot_pos)
+0331     <span class="keyword">end</span>
+0332     <a href="alis_overviewplot.html" class="code" title="function alis_overviewplot(stn,az,ze,clrs,time_str)">alis_overviewplot</a>(stn(plot_indx),az(plot_indx),ze(plot_indx),clrs(plot_indx,:),time_str)
+0333   <span class="keyword">end</span>
+0334   
+0335   <span class="keyword">if</span> plot_time_nr == times_until_restart-1
+0336     
+0337     <span class="keyword">if</span> make_pause
+0338       disp(<span class="string">'push any key to continue'</span>)
+0339       pause
+0340     <span class="keyword">end</span>
+0341     <span class="keyword">if</span> ~isempty(out_base_filename)
+0342       f_name = [out_base_filename,num2str(tot_indx,<span class="string">'%04d'</span>),<span class="string">'.eps'</span>];
+0343     <span class="keyword">end</span>
+0344     <span class="keyword">if</span> do_print
+0345       <span class="keyword">try</span>
+0346         eval([printcmd,<span class="string">' '</span>,f_name])
+0347       <span class="keyword">catch</span>
+0348         disp([<span class="string">'WARNING! Could not write file: '</span>,f_name])
+0349       <span class="keyword">end</span>
+0350     <span class="keyword">end</span>
+0351   <span class="keyword">end</span>
+0352   
+0353   
+0354   <span class="keyword">if</span> out_arg == 0 &amp;&amp; plot_time_nr+1 == times_until_restart
+0355     M(frame_indx) = getframe(gcf);
+0356     frame_indx = frame_indx + 1;
+0357   <span class="keyword">elseif</span> out_arg == 1
+0358     M = d{plot_indx};
+0359   <span class="keyword">end</span>
+0360   tot_indx = tot_indx + 1;
+0361   
+0362   plot_time_nr = rem(plot_time_nr+1,times_until_restart);
+0363   
+0364 <span class="keyword">end</span></pre></div>
+<hr><address>Generated on Mon 27-Jan-2014 17:32:33 by <strong>B.&nbsp;Gustavsson</strong> with <strong><a href="http://www.artefact.tk/software/matlab/m2html/" target="_parent">m2html</a></strong> &copy; 2003</address>
+</body>
+</html>

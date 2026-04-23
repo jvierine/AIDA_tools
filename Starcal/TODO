@@ -1,0 +1,71 @@
+20250930: Refactor updstraut to add starpar to a field of SkMp.
+	  This would include making the functions using starpar from the base work-space 
+
+
+
+TBD:  8. Kolla att stjaernkartan plottas med raett optpar foersta gaangen.
+
+Dropped 1. TRACKEM_DOWN_TEST4: den funkade ju bra foer
+	   smaa avvikelser - och nu har du gjort saa att det 
+	   faktiskt blir laett att aastadkomma sma avvikelser...
+
+Still ODDISH: 1b. Fixa set(gcf,'cursor','clock') i boerjan och 
+	      set(gcf,'cursor','arrow') i slutet.
+	      set(fig4,'pointer','watch')
+	      set(fig4,'pointer','arrow')
+
+TBD: Make searchACC,     
+
+
+TBD: Make a function to find the filter sequence!
+
+Make ART-randorder documentation!
+
+
+9.
+Skriva INSTRUKTIONER.
++ installation
++ beroenden
++ path
+
+______________________________
+BUGS_FIXED_AND_FEATURES_ADDED:
+
+DONE! 10. A function to remove a selected star.
+
+DONE! 13. Se till saa att skmp_close rensar bort det som ska bort.
+
+DONE! 11. Uppdatera saa att _senaste_ versionen av Skymap kan anvaendas!
+
+DONE! AIDA-staionize! 2. Hitta alispos.dat - try_to_be_smart
+
+DONE! 5. -Om man tagit hem en fixad bild från petrydpc eller laddat en bild från
+      annan källa borde man kunna få starcal att begripa att inga
+      korrektioner skall göras eller strippar tas bort utan att redigera
+      starcal.m i ditt hembibliotek (för då kommer både du och jag att bli
+      tokiga till slut... har dock inte provat om det ens går)
+
+DONE! 4. 'Retry| Quit | Accept' kvar i onödan
+
+DONE! 7. Ett kortkommando för att göra  en återställning av typ:
+      SkMp.optpar=guess_alis_optpar(SkMp.obs); 
+      är nog inte så dumt att ha...
+
+
+###  2009-Brussels
+
+DONE! Foga in star_enhancer.m  ## Done
+
+DONE! Make optparFromACC, ## Done
+
+Help for AIDA_tools/./ ## Done version 1
+
+DONE! 7-2009: save away the latest optpar in prev_optpar!
+
+
+DONE! Check start of "startautomat"
+
+
+DONE! Comment alisnask20061212!
+
+DONE? Fixa make_tomo_ops

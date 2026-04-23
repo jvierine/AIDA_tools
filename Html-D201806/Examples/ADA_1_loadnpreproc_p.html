@@ -1,0 +1,140 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
+                "http://www.w3.org/TR/REC-html40/loose.dtd">
+<html>
+<head>
+  <title>Description of ADA_1_loadnpreproc_p</title>
+  <meta name="keywords" content="ADA_1_loadnpreproc_p">
+  <meta name="description" content="% Loading and pre-processing of ALIS data">
+  <meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+  <meta name="generator" content="m2html &copy; 2003 Guillaume Flandin">
+  <meta name="robots" content="index, follow">
+  <link type="text/css" rel="stylesheet" href="../m2html.css">
+</head>
+<body>
+<a name="_top"></a>
+<!-- menu.html Examples -->
+<h1>ADA_1_loadnpreproc_p
+</h1>
+
+<h2><a name="_name"></a>PURPOSE <a href="#_top"><img alt="^" border="0" src="../up.png"></a></h2>
+<div class="box"><strong>% Loading and pre-processing of ALIS data</strong></div>
+
+<h2><a name="_synopsis"></a>SYNOPSIS <a href="#_top"><img alt="^" border="0" src="../up.png"></a></h2>
+<div class="box"><strong>This is a script file. </strong></div>
+
+<h2><a name="_description"></a>DESCRIPTION <a href="#_top"><img alt="^" border="0" src="../up.png"></a></h2>
+<div class="fragment"><pre class="comment">% Loading and pre-processing of ALIS data</pre></div>
+
+<!-- crossreference -->
+<h2><a name="_cross"></a>CROSS-REFERENCE INFORMATION <a href="#_top"><img alt="^" border="0" src="../up.png"></a></h2>
+This function calls:
+<ul style="list-style-image:url(../matlabicon.gif)">
+<li><a href="../Fits_tools/bad_pixel_fix.html" class="code" title="function Img = bad_pixel_fix(Img,bad_p_map)">bad_pixel_fix</a>	BAD_PIXEL_FIX - simple badpixel korrection function works on</li><li><a href="../Fits_tools/fits1.html" class="code" title="function [header,data] = fits1(name)">fits1</a>	FITS1 reads fits files stored in LE</li><li><a href="../Fits_tools/fits2.html" class="code" title="function [header,data] = fits2(name)">fits2</a>	FITS2 reads fits files stored in BE</li><li><a href="../Fits_tools/inimg.html" class="code" title="function [img_out,img_head,obs] = inimg(filename,PREPRO_OPS)">inimg</a>	INIMG - reads and pre-process an image.</li><li><a href="../Fits_tools/quadfix3.html" class="code" title="function [img_out] = quadfix3(img_in,strips,stripsize)">quadfix3</a>	QUADFIX3 quadrant balancing of raw CCD data from overscan-strips</li><li><a href="../Fits_tools/removerscanstrip.html" class="code" title="function img_out = removerscanstrip(in_img,strips,stripsize)">removerscanstrip</a>	REMOVERSCANSTRIP - removes overscan-strips from raw CCD data</li><li><a href="../Fits_tools/replace_border.html" class="code" title="function [Img] = replace_border(Img)">replace_border</a>	REPLACE_BORDER - replaces the outermost border</li><li><a href="../Fits_tools/typical_pre_proc_ops.html" class="code" title="function PO = typical_pre_proc_ops(pp_type,varargin)">typical_pre_proc_ops</a>	TYPICAL_PRE_PROC_OPS - Typical ALIS-fits preprocessing options</li></ul>
+This function is called by:
+<ul style="list-style-image:url(../matlabicon.gif)">
+</ul>
+<!-- crossreference -->
+
+
+<h2><a name="_source"></a>SOURCE CODE <a href="#_top"><img alt="^" border="0" src="../up.png"></a></h2>
+<div class="fragment"><pre>0001 <span class="comment">%% Loading and pre-processing of ALIS data</span>
+0002 
+0003 
+0004 
+0005 <span class="comment">%   Copyright © 2005 Bjorn Gustavsson, &lt;bjorn.gustavsson@irf.se&gt;</span>
+0006 <span class="comment">%   This is free software, licensed under GNU GPL version 2 or later</span>
+0007 
+0008 <span class="comment">%% Typical steps in reading ALIS images</span>
+0009 <span class="comment">% Lets look at a typical image.</span>
+0010 <span class="comment">% First move to a data directory.</span>
+0011 cd /alis/stdnames/1997/02/16/20/
+0012 q = dir(<span class="string">'*N.fits'</span>);
+0013 filename = q(14).name;
+0014 
+0015 <span class="comment">%% Raw image reading</span>
+0016 <span class="comment">%</span>
+0017 <span class="comment">% There are 2 functions for raw reading of images in fits</span>
+0018 <span class="comment">% format. (except the later 'fitsread' provided by mathworks, which</span>
+0019 <span class="comment">% is slower...)</span>
+0020 
+0021 <span class="comment">%% For fits files with LE byte order: fits1</span>
+0022 [h,d] = <a href="../Fits_tools/fits1.html" class="code" title="function [header,data] = fits1(name)">fits1</a>(filename);
+0023 imagesc(d)
+0024 title(<span class="string">'image opened assuming wrong byte order'</span>,<span class="string">'fontsize'</span>,16)
+0025 <span class="comment">%% ...and for files in BE byte order: fits2</span>
+0026 [h,d] = <a href="../Fits_tools/fits2.html" class="code" title="function [header,data] = fits2(name)">fits2</a>(filename);
+0027 imagesc(d)
+0028 title(<span class="string">'...and with the correct guess'</span>,<span class="string">'fontsize'</span>,16)
+0029 caxis([-25066 -23866])
+0030 
+0031 <span class="comment">%% Standard ALIS data reading</span>
+0032 <span class="comment">%</span>
+0033 <span class="comment">% There is a function that automatically chooses the right version:</span>
+0034 <span class="comment">% |inimg|. |inimg| also extracts the image header and even produces</span>
+0035 <span class="comment">% a structure with the relevant information more easily accesible</span>
+0036 [d,h,o] = <a href="../Fits_tools/inimg.html" class="code" title="function [img_out,img_head,obs] = inimg(filename,PREPRO_OPS)">inimg</a>(filename);
+0037 o = o
+0038 
+0039 <span class="comment">%% ALIS image pecularities</span>
+0040 <span class="comment">% Lets go trough the list of pecularities:</span>
+0041 
+0042 <span class="comment">%% Overscan strips</span>
+0043 <span class="comment">% The CCD have a few columns on each edge thatis light insensitive</span>
+0044 <span class="comment">% - to correct for the drift in bias level</span>
+0045 axis([433 565 372 520])
+0046 title(<span class="string">'The left and right-most ~50 unbinned pixels are OS'</span>,<span class="string">'fontsize'</span>,16)
+0047 
+0048 <span class="comment">%%  Bad-border</span>
+0049 <span class="comment">% The top and bottom lines are way off-set</span>
+0050 plot(d(1:4,:)')
+0051 
+0052 <span class="comment">%% &quot;Bad-pixels&quot;</span>
+0053 <span class="comment">% As in all CCDs there are a few bad pixels. That is they are</span>
+0054 <span class="comment">% either black, white, cold or hot.</span>
+0055 imagesc(d)
+0056 caxis([-24566 -23866])
+0057 axis([149 397 226 421])
+0058 
+0059 
+0060 <span class="comment">%% Pre-processing</span>
+0061 <span class="comment">% The normal way of reading ALIS data is to automatically do the</span>
+0062 <span class="comment">% necessary pre-processing steps, and possibly additional filtering.</span>
+0063 <span class="comment">% First get a default options struct</span>
+0064 PO = <a href="../Fits_tools/typical_pre_proc_ops.html" class="code" title="function PO = typical_pre_proc_ops(pp_type,varargin)">typical_pre_proc_ops</a>
+0065 <span class="comment">% And change or set the parameters to accomodate the needs and whishes.</span>
+0066 
+0067 <span class="comment">%% Quadrant balancing</span>
+0068 d = <a href="../Fits_tools/quadfix3.html" class="code" title="function [img_out] = quadfix3(img_in,strips,stripsize)">quadfix3</a>(d,2,abs(diff(size(d)))/2);
+0069 d = <a href="../Fits_tools/removerscanstrip.html" class="code" title="function img_out = removerscanstrip(in_img,strips,stripsize)">removerscanstrip</a>(d,2,abs(diff(size(d)))/2);
+0070 
+0071 imagesc(d),caxis([-25066 -23866]+25066)
+0072 title(<span class="string">'Image after quadrant balancing'</span>,<span class="string">'fontsize'</span>,16)
+0073 
+0074 <span class="comment">%% Adjusting the image borders</span>
+0075 d = <a href="../Fits_tools/replace_border.html" class="code" title="function [Img] = replace_border(Img)">replace_border</a>(d);
+0076 
+0077 imagesc(d),caxis([-25066 -23866]+25066)
+0078 title(<span class="string">'and after correcting the border lines'</span>,<span class="string">'fontsize'</span>,16)
+0079 
+0080 <span class="comment">%% Correcting bad pixels</span>
+0081 <span class="comment">% There is almost always good to correct the bad pixels</span>
+0082 load ccd1/badpix.dat
+0083 bp_tbl = badpix;
+0084 bpm = sparse(ceil(bp_tbl(:,2)/(1024/size(d,1))), <span class="keyword">...</span><span class="comment"> </span>
+0085              ceil(bp_tbl(:,1)/(1024/size(d,2))), <span class="keyword">...</span>
+0086              ones(size(bp_tbl(:,1))), <span class="keyword">...</span>
+0087              size(d,1),size(d,2));
+0088 bpm = spones(bpm);
+0089 d = <a href="../Fits_tools/bad_pixel_fix.html" class="code" title="function Img = bad_pixel_fix(Img,bad_p_map)">bad_pixel_fix</a>(d,bpm);
+0090 
+0091 imagesc(d),caxis([-25066 -23866]+25066)
+0092 title(<span class="string">'and after correcting the bad pixels'</span>,<span class="string">'fontsize'</span>,16)
+0093 
+0094 <span class="comment">%% All in one go.</span>
+0095 [d,h,o] = <a href="../Fits_tools/inimg.html" class="code" title="function [img_out,img_head,obs] = inimg(filename,PREPRO_OPS)">inimg</a>(filename,PO);
+0096 
+0097 imagesc(d),caxis([-25066 -23866]+25066)
+0098 title(<span class="string">'After typical preprocessing'</span>,<span class="string">'fontsize'</span>,16)</pre></div>
+<hr><address>Generated on Thu 21-Jun-2018 22:40:16 by <strong>B.&nbsp;Gustavsson</strong> with <strong><a href="http://www.artefact.tk/software/matlab/m2html/" target="_parent">m2html</a></strong> &copy; 2003</address>
+</body>
+</html>

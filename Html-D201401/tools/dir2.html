@@ -1,0 +1,291 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
+                "http://www.w3.org/TR/REC-html40/loose.dtd">
+<html>
+<head>
+  <title>Description of dir2</title>
+  <meta name="keywords" content="dir2">
+  <meta name="description" content="DIR2 List directory.">
+  <meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+  <meta name="generator" content="m2html &copy; 2003 Guillaume Flandin">
+  <meta name="robots" content="index, follow">
+  <link type="text/css" rel="stylesheet" href="../m2html.css">
+</head>
+<body>
+<a name="_top"></a>
+<!-- menu.html tools -->
+<h1>dir2
+</h1>
+
+<h2><a name="_name"></a>PURPOSE <a href="#_top"><img alt="^" border="0" src="../up.png"></a></h2>
+<div class="box"><strong>DIR2 List directory.</strong></div>
+
+<h2><a name="_synopsis"></a>SYNOPSIS <a href="#_top"><img alt="^" border="0" src="../up.png"></a></h2>
+<div class="box"><strong>function dout = dir2(dn,varargin) </strong></div>
+
+<h2><a name="_description"></a>DESCRIPTION <a href="#_top"><img alt="^" border="0" src="../up.png"></a></h2>
+<div class="fragment"><pre class="comment">DIR2 List directory.
+   DIR2('directory_name') lists the files in a directory. Pathnames and
+   wildcards may be used.  For example, DIR *.m lists all program files
+   in the current directory.
+
+   DIR2('directory_name','-r') Lists the files in a directory, and it's
+   subdirectories.
+
+   DIR2('directory_name',filter1,filter2,...) Applies the filters FILTER1
+   and FILTER2, etc to the directory search. These filters are treated as
+   an OR. Thus a file must only match atleast one filter to be included.
+   Filters may be strings, or cell arrays of strings.
+
+   DIR2('directory_name','-r',filter1,filter2,...) The recursive flag and
+   the filters may be in any order.
+
+   D = DIR2('directory_name') output the results in an M-by-1
+   structure with the fields:
+       name    -- Filename
+       date    -- Modification date
+       bytes   -- Number of bytes allocated to the file
+       isdir   -- 1 if name is a directory and 0 if not
+       datenum -- Modification date as a MATLAB serial date number.
+                  This value is locale-dependent.
+
+   EXAMPLES:
+       Example 1: Recursive directory listing of the current directory
+           d = dir2(pwd,'-r')
+           {d.name}'
+
+       Example 2: Using multiple filters
+           d = dir2(pwd,'*.mat','*.m')
+           {d.name}'
+
+       Example 3: Using multiple filters w/ a recursive search
+           d1 = dir2(pwd,'*.mat','*.m','-r')
+           d2 = dir2(pwd,'-r','*.mat','*.m')
+           % Notice order of the flags doesn't matter
+           isequal(d1,d2)
+
+   See also DIR, WHAT, CD, TYPE, DELETE, LS, RMDIR, MKDIR, DATENUM.
+
+ By: J Sullivan
+ January 2013</pre></div>
+
+<!-- crossreference -->
+<h2><a name="_cross"></a>CROSS-REFERENCE INFORMATION <a href="#_top"><img alt="^" border="0" src="../up.png"></a></h2>
+This function calls:
+<ul style="list-style-image:url(../matlabicon.gif)">
+<li><a href="dir2.html" class="code" title="function dout = dir2(dn,varargin)">dir2</a>	DIR2 List directory.</li></ul>
+This function is called by:
+<ul style="list-style-image:url(../matlabicon.gif)">
+<li><a href="../Imgtools/aida_thumbs.html" class="code" title="function Ops = aida_thumbs(inFiles,PO,spp_layout,ops)">aida_thumbs</a>	AIDA_THUMBS - display thumbnails gallery of list of images</li><li><a href="dir2.html" class="code" title="function dout = dir2(dn,varargin)">dir2</a>	DIR2 List directory.</li></ul>
+<!-- crossreference -->
+
+<h2><a name="_subfunctions"></a>SUBFUNCTIONS <a href="#_top"><img alt="^" border="0" src="../up.png"></a></h2>
+<ul style="list-style-image:url(../matlabicon.gif)">
+<li><a href="#_sub1" class="code">function [dn, recursive, filter] = parseInputs(dn,varargin)</a></li><li><a href="#_sub2" class="code">function out = isRec</a></li><li><a href="#_sub3" class="code">function printAsTable(C)</a></li><li><a href="#_sub4" class="code">function install_dir2_mex</a></li></ul>
+<h2><a name="_source"></a>SOURCE CODE <a href="#_top"><img alt="^" border="0" src="../up.png"></a></h2>
+<div class="fragment"><pre>0001 <a name="_sub0" href="#_subfunctions" class="code">function dout = dir2(dn,varargin)</a>
+0002 <span class="comment">%DIR2 List directory.</span>
+0003 <span class="comment">%   DIR2('directory_name') lists the files in a directory. Pathnames and</span>
+0004 <span class="comment">%   wildcards may be used.  For example, DIR *.m lists all program files</span>
+0005 <span class="comment">%   in the current directory.</span>
+0006 <span class="comment">%</span>
+0007 <span class="comment">%   DIR2('directory_name','-r') Lists the files in a directory, and it's</span>
+0008 <span class="comment">%   subdirectories.</span>
+0009 <span class="comment">%</span>
+0010 <span class="comment">%   DIR2('directory_name',filter1,filter2,...) Applies the filters FILTER1</span>
+0011 <span class="comment">%   and FILTER2, etc to the directory search. These filters are treated as</span>
+0012 <span class="comment">%   an OR. Thus a file must only match atleast one filter to be included.</span>
+0013 <span class="comment">%   Filters may be strings, or cell arrays of strings.</span>
+0014 <span class="comment">%</span>
+0015 <span class="comment">%   DIR2('directory_name','-r',filter1,filter2,...) The recursive flag and</span>
+0016 <span class="comment">%   the filters may be in any order.</span>
+0017 <span class="comment">%</span>
+0018 <span class="comment">%   D = DIR2('directory_name') output the results in an M-by-1</span>
+0019 <span class="comment">%   structure with the fields:</span>
+0020 <span class="comment">%       name    -- Filename</span>
+0021 <span class="comment">%       date    -- Modification date</span>
+0022 <span class="comment">%       bytes   -- Number of bytes allocated to the file</span>
+0023 <span class="comment">%       isdir   -- 1 if name is a directory and 0 if not</span>
+0024 <span class="comment">%       datenum -- Modification date as a MATLAB serial date number.</span>
+0025 <span class="comment">%                  This value is locale-dependent.</span>
+0026 <span class="comment">%</span>
+0027 <span class="comment">%   EXAMPLES:</span>
+0028 <span class="comment">%       Example 1: Recursive directory listing of the current directory</span>
+0029 <span class="comment">%           d = dir2(pwd,'-r')</span>
+0030 <span class="comment">%           {d.name}'</span>
+0031 <span class="comment">%</span>
+0032 <span class="comment">%       Example 2: Using multiple filters</span>
+0033 <span class="comment">%           d = dir2(pwd,'*.mat','*.m')</span>
+0034 <span class="comment">%           {d.name}'</span>
+0035 <span class="comment">%</span>
+0036 <span class="comment">%       Example 3: Using multiple filters w/ a recursive search</span>
+0037 <span class="comment">%           d1 = dir2(pwd,'*.mat','*.m','-r')</span>
+0038 <span class="comment">%           d2 = dir2(pwd,'-r','*.mat','*.m')</span>
+0039 <span class="comment">%           % Notice order of the flags doesn't matter</span>
+0040 <span class="comment">%           isequal(d1,d2)</span>
+0041 <span class="comment">%</span>
+0042 <span class="comment">%   See also DIR, WHAT, CD, TYPE, DELETE, LS, RMDIR, MKDIR, DATENUM.</span>
+0043 <span class="comment">%</span>
+0044 <span class="comment">% By: J Sullivan</span>
+0045 <span class="comment">% January 2013</span>
+0046 
+0047 <span class="keyword">if</span> ispc
+0048     
+0049     <span class="keyword">if</span> isempty(which(<span class="string">'dir2_mex'</span>))
+0050         <a href="#_sub4" class="code" title="subfunction install_dir2_mex">install_dir2_mex</a>;
+0051     <span class="keyword">end</span>
+0052     
+0053     <span class="keyword">if</span> ~isempty(which(<span class="string">'dir2_mex'</span>))
+0054         
+0055         <span class="keyword">if</span> nargin &gt; 0
+0056             dout = dir2_mex(dn,varargin{:});
+0057         <span class="keyword">else</span>
+0058             dout = dir2_mex;
+0059         <span class="keyword">end</span>
+0060         
+0061         <span class="comment">% Only print the results if nargout == 0</span>
+0062         <span class="keyword">if</span> nargout == 0
+0063             <a href="#_sub3" class="code" title="subfunction printAsTable(C)">printAsTable</a>({dout(:).name});
+0064             clear dout
+0065         <span class="keyword">end</span>
+0066         
+0067         <span class="keyword">return</span>;
+0068     <span class="keyword">end</span>
+0069 <span class="keyword">end</span>
+0070 <span class="comment">% Parse the inputs</span>
+0071 <span class="keyword">if</span> nargin == 0; dn = pwd; <span class="keyword">end</span>
+0072 [dn, recursive, filter] = <a href="#_sub1" class="code" title="subfunction [dn, recursive, filter] = parseInputs(dn,varargin)">parseInputs</a>(dn,varargin{:});
+0073 
+0074 <span class="comment">% Loop through the filters in this directory</span>
+0075 dout = [];
+0076 <span class="keyword">for</span> ii = 1:length(filter)
+0077     dout = [dout; dir([dn filesep filter{ii}])];
+0078 <span class="keyword">end</span>
+0079 
+0080 <span class="comment">% Put them in alphabetical order</span>
+0081 <span class="keyword">if</span> ii &gt; 1
+0082     [~,ind] = sort({dout.name});
+0083     dout = dout(ind);
+0084 <span class="keyword">end</span>
+0085 
+0086 <span class="comment">% Remove the self and parent directory listings in recursive calls</span>
+0087 <span class="keyword">if</span> <a href="#_sub2" class="code" title="subfunction out = isRec">isRec</a>
+0088     dout(ismember({dout.name},{<span class="string">'.'</span>,<span class="string">'..'</span>})) = [];
+0089 <span class="keyword">end</span>
+0090 
+0091 
+0092 <span class="comment">% If recursive...</span>
+0093 <span class="keyword">if</span> recursive
+0094     
+0095     <span class="comment">% Find all the directories</span>
+0096     d = dir(dn);
+0097     
+0098     <span class="comment">% Remove the references to itself and its parent</span>
+0099     d(ismember({d.name},{<span class="string">'.'</span>,<span class="string">'..'</span>})) = [];
+0100     d(~[d.isdir]) = [];
+0101     dout_rec = [];
+0102     
+0103     <span class="comment">% Loop over child directories</span>
+0104     <span class="keyword">if</span> ~isempty(d)
+0105         drs = strcat({dn},filesep,{d.name});
+0106         <span class="keyword">for</span> ii = 1:length(drs)
+0107             
+0108             dout_this = <a href="dir2.html" class="code" title="function dout = dir2(dn,varargin)">dir2</a>(drs{ii},varargin{:});
+0109             <span class="keyword">if</span> isempty(dout_this); <span class="keyword">continue</span>; <span class="keyword">end</span>
+0110             
+0111             <span class="comment">% Append the child directory</span>
+0112             C = strcat(d(ii).name,filesep,{dout_this.name});
+0113             [dout_this(:).name] = deal(C{:});
+0114             dout_rec = [dout_rec; dout_this];
+0115         <span class="keyword">end</span>
+0116         
+0117     <span class="keyword">end</span>
+0118     <span class="comment">% Append the two sets</span>
+0119     dout = [dout; dout_rec];
+0120 <span class="keyword">end</span>
+0121 
+0122 <span class="comment">% Only print the results if nargout == 0</span>
+0123 <span class="keyword">if</span> nargout == 0
+0124     <a href="#_sub3" class="code" title="subfunction printAsTable(C)">printAsTable</a>({dout(:).name});
+0125     clear dout
+0126 <span class="keyword">end</span>
+0127 
+0128 <a name="_sub1" href="#_subfunctions" class="code">function [dn, recursive, filter] = parseInputs(dn,varargin)</a>
+0129 
+0130 <span class="comment">% Defaults</span>
+0131 filter = {};
+0132 recursive = false;
+0133 
+0134 <span class="comment">% Loop over inputs</span>
+0135 <span class="keyword">for</span> ii = 1:length(varargin)
+0136     
+0137     
+0138     v = varargin{ii};
+0139     
+0140     <span class="comment">% Is it a recursive flag?</span>
+0141     <span class="keyword">if</span> strcmpi(v,<span class="string">'-r'</span>)
+0142         recursive = true;
+0143     <span class="keyword">else</span>
+0144         <span class="comment">% Must be a filter</span>
+0145         <span class="keyword">if</span> ~iscell(v)
+0146             filter = [filter {v}];
+0147         <span class="keyword">else</span>
+0148             filter = [filter reshape(v,1,[])];
+0149         <span class="keyword">end</span>
+0150     <span class="keyword">end</span>
+0151 <span class="keyword">end</span>
+0152 
+0153 <span class="comment">% If no filter specified, give them all</span>
+0154 <span class="keyword">if</span> isempty(filter)
+0155     filter = {<span class="string">'*'</span>};
+0156 <span class="keyword">end</span>
+0157 
+0158 isStar = dn == <span class="string">'*'</span>;
+0159 <span class="keyword">if</span> any(isStar)
+0160     [dn, add1, add2] = fileparts(dn);
+0161     filter = {strcat(add1,add2)};
+0162 <span class="keyword">end</span>
+0163 
+0164 <a name="_sub2" href="#_subfunctions" class="code">function out = isRec</a>
+0165 a = dbstack;
+0166 out = length(a) &gt; 2 &amp;&amp; strcmpi(a(2).name,a(3).name);
+0167 
+0168 <a name="_sub3" href="#_subfunctions" class="code">function printAsTable(C)</a>
+0169 
+0170 <span class="comment">% Get the screen size (in charecters)</span>
+0171 uOld = get(0,<span class="string">'units'</span>);
+0172 set(0,<span class="string">'units'</span>,<span class="string">'characters'</span>);
+0173 sz = get(0,<span class="string">'CommandWindowSize'</span>);
+0174 set(0,<span class="string">'units'</span>,uOld);
+0175 
+0176 <span class="comment">% What's the widest?</span>
+0177 w = sz(1);
+0178 nl = cellfun(@numel,C);
+0179 nc = numel(C);
+0180 mxl = max(nl);
+0181 mxls = num2str(mxl);
+0182 
+0183 <span class="comment">% Find out home many rows and column to take</span>
+0184 nCol = max(floor(w./(mxl + 2)),1);
+0185 nRow = ceil(nc./nCol);
+0186 
+0187 <span class="comment">% Print it</span>
+0188 <span class="keyword">for</span> ii = 1:nRow
+0189     x = C(ii:nRow:end);
+0190     nThis = numel(x);
+0191     fprintf([repmat([<span class="string">'%-'</span> mxls <span class="string">'s  '</span>],1,nThis) <span class="string">'\n'</span>],x{:});
+0192 <span class="keyword">end</span>
+0193 
+0194 <a name="_sub4" href="#_subfunctions" class="code">function install_dir2_mex</a>
+0195 <span class="keyword">try</span>
+0196     fileloc = which(<span class="string">'dir2_mex.c'</span>);
+0197     curdir = pwd;
+0198     cd(fileparts(fileloc));
+0199     mex dir2_mex.c;
+0200     cd(curdir);
+0201 <span class="keyword">catch</span> err
+0202     printf(<span class="string">'COuld not install the mex file. Switch to the .m version\n'</span>);
+0203     warning(err.getReport);
+0204 <span class="keyword">end</span></pre></div>
+<hr><address>Generated on Mon 27-Jan-2014 17:32:33 by <strong>B.&nbsp;Gustavsson</strong> with <strong><a href="http://www.artefact.tk/software/matlab/m2html/" target="_parent">m2html</a></strong> &copy; 2003</address>
+</body>
+</html>

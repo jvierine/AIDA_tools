@@ -1,0 +1,154 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
+                "http://www.w3.org/TR/REC-html40/loose.dtd">
+<html>
+<head>
+  <title>Description of flamingraysnapshot</title>
+  <meta name="keywords" content="flamingraysnapshot">
+  <meta name="description" content="">
+  <meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+  <meta name="generator" content="m2html &copy; 2003 Guillaume Flandin">
+  <meta name="robots" content="index, follow">
+  <link type="text/css" rel="stylesheet" href="../m2html.css">
+</head>
+<body>
+<a name="_top"></a>
+<!-- menu.html Aurora -->
+<h1>flamingraysnapshot
+</h1>
+
+<h2><a name="_name"></a>PURPOSE <a href="#_top"><img alt="^" border="0" src="../up.png"></a></h2>
+<div class="box"><strong></strong></div>
+
+<h2><a name="_synopsis"></a>SYNOPSIS <a href="#_top"><img alt="^" border="0" src="../up.png"></a></h2>
+<div class="box"><strong>This is a script file. </strong></div>
+
+<h2><a name="_description"></a>DESCRIPTION <a href="#_top"><img alt="^" border="0" src="../up.png"></a></h2>
+<div class="fragment"><pre class="comment"></pre></div>
+
+<!-- crossreference -->
+<h2><a name="_cross"></a>CROSS-REFERENCE INFORMATION <a href="#_top"><img alt="^" border="0" src="../up.png"></a></h2>
+This function calls:
+<ul style="list-style-image:url(../matlabicon.gif)">
+<li><a href="err4FlamingRaysE.html" class="code" title="function res = err4FlamingRaysE(Par,var_pars,par0,stns,ImRois,Z3D,x2D,y2D,Ie2H,E,out_arg_type,z_max,errOps)">err4FlamingRaysE</a>	1        2    3    4      5   6   7   8    9 0           11    12</li><li><a href="../Imgtools/imgs_smart_caxis.html" class="code" title="function cax = imgs_smart_caxis(alpha,varargin)">imgs_smart_caxis</a>	imgs_smart_caxis - alpha-percentile setting of color-axis,</li><li><a href="../tools/colorbar_labeled.html" class="code" title="function handle=colorbar_labeled(label,lg,varargin)">colorbar_labeled</a>	COLORBAR_LABELED - colorbar with label for range linear or log</li><li><a href="../tools/max2D.html" class="code" title="function [Imax,i1,i2] = max2D(Iin)">max2D</a>	max2D - maximum element and its indices in a 2-D array</li></ul>
+This function is called by:
+<ul style="list-style-image:url(../matlabicon.gif)">
+</ul>
+<!-- crossreference -->
+
+
+<h2><a name="_source"></a>SOURCE CODE <a href="#_top"><img alt="^" border="0" src="../up.png"></a></h2>
+<div class="fragment"><pre>0001 ftsz = 15
+0002 
+0003 subplot(4,1,1)
+0004 pcolor([1:20]*1/32,E*1e3,log10(IeRay'*1e6)),shading flat,caxis([-5 0]+max(caxis))
+0005 axIe = axis;
+0006 axis([axIe(1:3),5e3])
+0007 set(gca,<span class="string">'yscale'</span>,<span class="string">'log'</span>)
+0008 hold on
+0009 xlabel(<span class="string">'time (s)'</span>,<span class="string">'fontsize'</span>,ftsz)
+0010 ylabel(<span class="string">'Energy (eV)'</span>,<span class="string">'fontsize'</span>,ftsz)
+0011 title(<span class="string">'Electron spectra'</span>,<span class="string">'fontsize'</span>,ftsz)
+0012 set(gca,<span class="string">'ytick'</span>,[100 1000 10000])
+0013 cbl_h = <a href="../tools/colorbar_labeled.html" class="code" title="function handle=colorbar_labeled(label,lg,varargin)">colorbar_labeled</a>(<span class="string">'/eV/m^2/s'</span>,<span class="string">'log'</span>,<span class="string">'fontsize'</span>,ftsz-2);
+0014 set(cbl_h,<span class="string">'position'</span>,get(cbl_h,<span class="string">'position'</span>)+[-0.01 0 0 0])
+0015 
+0016 xG = [150:25:250,256];
+0017 [xG,yG] = meshgrid(xG,xG);
+0018 
+0019 
+0020 <span class="keyword">for</span> i1 = idxs2plot,
+0021   Iq = ( wiener2(ImStack{1}(:,:,i1),[3,3]) - wiener2(imbg{1}(:,:,i1),[3,3]) ) * 1/C_filter6370;
+0022   stns(1).img = Iq;
+0023   Iq = ( wiener2(ImStack{3}(:,:,i1),[3,3]) - wiener2(imbg{3}(:,:,i1),[3,3]) ) * 1/C_filter7774;
+0024   stns(2).img = Iq;
+0025   res = <a href="err4FlamingRaysE.html" class="code" title="function res = err4FlamingRaysE(Par,var_pars,par0,stns,ImRois,Z3D,x2D,y2D,Ie2H,E,out_arg_type,z_max,errOps)">err4FlamingRaysE</a>(ITC{end}(i1,:),v_p,I0b,stns,{errMask,errMask},ZfI,XfI(:,:,115),YfI(:,:,115),{A1Z,A2Z},E,2,110);
+0026   ErrR{1}(i1) = res.err;
+0027   subplot(4,1,1)
+0028   <span class="comment">%semilogy(E,res.IeOutput{1})</span>
+0029   ph = plot((i1+0.5)/32*[1 1],E([1,end])*1e3,<span class="string">'k'</span>,<span class="string">'linewidth'</span>,2);
+0030   subplot(4,2,5)
+0031   imagesc(res.currImg{1}),<a href="../Imgtools/imgs_smart_caxis.html" class="code" title="function cax = imgs_smart_caxis(alpha,varargin)">imgs_smart_caxis</a>(0.0003,res.currImg{1}),axis([150 256 150 256]) 
+0032   hold on
+0033   [~,hC1] = contour(res.currProj{1},5,<span class="string">'w'</span>);set(hC1,<span class="string">'linecolor'</span>,[1,1,1]*0.99)
+0034   plot(xG,yG,<span class="string">'w:'</span>,<span class="string">'linewidth'</span>,2,<span class="string">'color'</span>,[1 1 1]*0.99)
+0035   plot(xG',yG',<span class="string">'w:'</span>,<span class="string">'linewidth'</span>,2,<span class="string">'color'</span>,[1 1 1]*0.99)
+0036   hold off
+0037   ylabel(<span class="string">'Observations'</span>,<span class="string">'fontsize'</span>,ftsz)
+0038   <a href="../tools/colorbar_labeled.html" class="code" title="function handle=colorbar_labeled(label,lg,varargin)">colorbar_labeled</a>(<span class="string">'R'</span>,<span class="string">'linear'</span>,<span class="string">'fontsize'</span>,ftsz-2)
+0039   title(<span class="string">'ASK #1 (6730 A)'</span>,<span class="string">'fontsize'</span>,ftsz)
+0040   set(gca,<span class="string">'xticklabel'</span>,<span class="string">''</span>)
+0041   set(gca,<span class="string">'xtick'</span>,[150:25:250])
+0042   set(gca,<span class="string">'ytick'</span>,[150:25:250])
+0043   <span class="comment">%grid on</span>
+0044   subplot(4,2,6)
+0045   imagesc(res.currImg{2}),<a href="../Imgtools/imgs_smart_caxis.html" class="code" title="function cax = imgs_smart_caxis(alpha,varargin)">imgs_smart_caxis</a>(0.0003,res.currImg{2}),axis([150 256 150 256]) 
+0046   hold on
+0047   [~,hC2] = contour(res.currProj{2},5,<span class="string">'w'</span>);set(hC2,<span class="string">'linecolor'</span>,[1,1,1]*0.99)
+0048   plot(xG,yG,<span class="string">'w:'</span>,<span class="string">'linewidth'</span>,2,<span class="string">'color'</span>,[1 1 1]*0.99)
+0049   plot(xG',yG',<span class="string">'w:'</span>,<span class="string">'linewidth'</span>,2,<span class="string">'color'</span>,[1 1 1]*0.99)
+0050   hold off
+0051   set(gca,<span class="string">'xtick'</span>,[150:25:250])
+0052   set(gca,<span class="string">'ytick'</span>,[150:25:250])
+0053   <span class="comment">%grid on</span>
+0054   <a href="../tools/colorbar_labeled.html" class="code" title="function handle=colorbar_labeled(label,lg,varargin)">colorbar_labeled</a>(<span class="string">'R'</span>,<span class="string">'linear'</span>,<span class="string">'fontsize'</span>,ftsz-2)
+0055   title(<span class="string">'ASK #3 (7774)'</span>,<span class="string">'fontsize'</span>,ftsz)
+0056   set(gca,<span class="string">'xticklabel'</span>,<span class="string">''</span>)
+0057   set(gca,<span class="string">'yticklabel'</span>,<span class="string">''</span>)
+0058   hold off
+0059   set(gca,<span class="string">'xtick'</span>,[150:25:250])
+0060   set(gca,<span class="string">'ytick'</span>,[150:25:250])
+0061   <span class="comment">%grid on</span>
+0062   subplot(4,2,7)
+0063   imagesc(res.currProj{1}),<a href="../Imgtools/imgs_smart_caxis.html" class="code" title="function cax = imgs_smart_caxis(alpha,varargin)">imgs_smart_caxis</a>(0.0003,res.currImg{1}),axis([150 256 150 256])
+0064   ylabel(<span class="string">'Modeled'</span>,<span class="string">'fontsize'</span>,ftsz)
+0065   <a href="../tools/colorbar_labeled.html" class="code" title="function handle=colorbar_labeled(label,lg,varargin)">colorbar_labeled</a>(<span class="string">'R'</span>,<span class="string">'linear'</span>,<span class="string">'fontsize'</span>,ftsz-2)
+0066   set(gca,<span class="string">'xtick'</span>,[150:25:250])
+0067   set(gca,<span class="string">'ytick'</span>,[150:25:250])
+0068   hold on
+0069   plot(xG,yG,<span class="string">'w:'</span>,<span class="string">'linewidth'</span>,2,<span class="string">'color'</span>,[1 1 1]*0.99)
+0070   plot(xG',yG',<span class="string">'w:'</span>,<span class="string">'linewidth'</span>,2,<span class="string">'color'</span>,[1 1 1]*0.99)
+0071   <span class="comment">%grid on</span>
+0072   plot3(1:256,256-max(res.currProj{1})/6000*25,ones(256,1),<span class="string">'color'</span>,[1,1,1]*0.99)
+0073   plot3(1:256,256-max(res.currImg{1}(150:210,:))/6000*25,ones(256,1),<span class="string">'k'</span>)
+0074   hold off
+0075   subplot(4,2,8)
+0076   imagesc(res.currProj{2}),<a href="../Imgtools/imgs_smart_caxis.html" class="code" title="function cax = imgs_smart_caxis(alpha,varargin)">imgs_smart_caxis</a>(0.0003,res.currImg{2}),axis([150 256 150 256])
+0077   hold on
+0078   plot3(1:256,256-max(res.currProj{2})/6000*25,ones(256,1),<span class="string">'color'</span>,[1,1,1]*0.99)
+0079   plot3(1:256,260-max(res.currImg{2}(150:210,:))/6000*25,ones(256,1),<span class="string">'k'</span>)
+0080   plot(xG,yG,<span class="string">'w:'</span>,<span class="string">'linewidth'</span>,2,<span class="string">'color'</span>,[1 1 1]*0.99)
+0081   plot(xG',yG',<span class="string">'w:'</span>,<span class="string">'linewidth'</span>,2,<span class="string">'color'</span>,[1 1 1]*0.99)
+0082   <span class="comment">%grid on</span>
+0083   <span class="comment">% cImg = medfilt2(res.currImg{2},[3,3]);</span>
+0084   <span class="comment">% cImg = (res.currImg{2}(150:230,:));</span>
+0085   <span class="comment">% plot(256-25/max(res.currProj{2}(:))*max(res.currProj{2}),'w')</span>
+0086   <span class="comment">% plot(256-50*((max(cImg)-1000)/max(cImg(:)-1000)),'k')</span>
+0087   hold off
+0088   set(gca,<span class="string">'yticklabel'</span>,<span class="string">''</span>)
+0089   set(gca,<span class="string">'xtick'</span>,[150:25:250])
+0090   set(gca,<span class="string">'ytick'</span>,[150:25:250])
+0091   <a href="../tools/colorbar_labeled.html" class="code" title="function handle=colorbar_labeled(label,lg,varargin)">colorbar_labeled</a>(<span class="string">'R'</span>,<span class="string">'linear'</span>,<span class="string">'fontsize'</span>,ftsz-2)
+0092   subplot(4,2,3)
+0093   pcolor(XfI(:,:,400),YfI(:,:,400),res.Vem{1}(:,:,400)),shading flat
+0094   xlabel(<span class="string">'East of ESR (km)'</span>,<span class="string">'fontsize'</span>,ftsz)
+0095   ylabel(<span class="string">'North of ESR (km)'</span>,<span class="string">'fontsize'</span>,ftsz)
+0096   title(<span class="string">'Horizontal cut at 180 km (6730)'</span>,<span class="string">'fontsize'</span>,ftsz)
+0097   <span class="comment">%axis equal</span>
+0098   [~,i1_i2(1),i1_i2(2)] = <a href="../tools/max2D.html" class="code" title="function [Imax,i1,i2] = max2D(Iin)">max2D</a>(res.Vem{1}(:,:,400));
+0099   subplot(4,2,4)
+0100   plot(squeeze(res.Vem{1}(i1_i2(1),i1_i2(2),:)),squeeze(ZfI(i1_i2(1),i1_i2(2),:)),<span class="string">'r'</span>,<span class="string">'linewidth'</span>,2)
+0101   hold on
+0102   plot(squeeze(res.Vem{2}(i1_i2(1),i1_i2(2),:)),squeeze(ZfI(i1_i2(1),i1_i2(2),:)),<span class="string">'k'</span>,<span class="string">'linewidth'</span>,2)
+0103   axis([0 4e9 50 400])
+0104   ylabel(<span class="string">'Altitude (km)'</span>,<span class="string">'fontsize'</span>,ftsz)
+0105   xlabel(<span class="string">'(#/m^3/s)'</span>,<span class="string">'fontsize'</span>,ftsz)
+0106   title(<span class="string">'Volume emission rate'</span>,<span class="string">'fontsize'</span>,ftsz)
+0107   hold off
+0108   mRay(i1) = getframe(gcf);
+0109   <span class="keyword">if</span> i1 ~= idxs2plot(end)
+0110     delete(ph)
+0111   <span class="keyword">end</span>
+0112 <span class="keyword">end</span></pre></div>
+<hr><address>Generated on Mon 27-Jan-2014 17:32:33 by <strong>B.&nbsp;Gustavsson</strong> with <strong><a href="http://www.artefact.tk/software/matlab/m2html/" target="_parent">m2html</a></strong> &copy; 2003</address>
+</body>
+</html>

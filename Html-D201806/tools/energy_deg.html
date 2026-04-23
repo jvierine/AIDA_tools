@@ -1,0 +1,115 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
+                "http://www.w3.org/TR/REC-html40/loose.dtd">
+<html>
+<head>
+  <title>Description of energy_deg</title>
+  <meta name="keywords" content="energy_deg">
+  <meta name="description" content="ENERGY_DEG - energy degradation of electrons">
+  <meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+  <meta name="generator" content="m2html &copy; 2003 Guillaume Flandin">
+  <meta name="robots" content="index, follow">
+  <link type="text/css" rel="stylesheet" href="../m2html.css">
+</head>
+<body>
+<a name="_top"></a>
+<!-- menu.html tools -->
+<h1>energy_deg
+</h1>
+
+<h2><a name="_name"></a>PURPOSE <a href="#_top"><img alt="^" border="0" src="../up.png"></a></h2>
+<div class="box"><strong>ENERGY_DEG - energy degradation of electrons</strong></div>
+
+<h2><a name="_synopsis"></a>SYNOPSIS <a href="#_top"><img alt="^" border="0" src="../up.png"></a></h2>
+<div class="box"><strong>function [Am] = energy_deg(Energy,pad,atm) </strong></div>
+
+<h2><a name="_description"></a>DESCRIPTION <a href="#_top"><img alt="^" border="0" src="../up.png"></a></h2>
+<div class="fragment"><pre class="comment"> ENERGY_DEG - energy degradation of electrons
+ Calling:
+  [Am,alt] = energy_deg(Energy,pad);
+ Input:
+   Enrergy - electron energies
+   pad     - pitch angle distribution: 1 field aligned, 2
+             isotropic
+   atm     - atmospheric model [alt,N2,O2,O,density] {km /m^3 kg/m^3}</pre></div>
+
+<!-- crossreference -->
+<h2><a name="_cross"></a>CROSS-REFERENCE INFORMATION <a href="#_top"><img alt="^" border="0" src="../up.png"></a></h2>
+This function calls:
+<ul style="list-style-image:url(../matlabicon.gif)">
+<li><a href="Pat_range.html" class="code" title="function [pr]=Pat_range(Energy,pad)">Pat_range</a>	</li><li><a href="albedo.html" class="code" title="function [alb]=albedo(Energy,pad)">albedo</a>	</li><li><a href="lambda.html" class="code" title="function [lam]=lambda(hi,Energy,pad)">lambda</a>	</li></ul>
+This function is called by:
+<ul style="list-style-image:url(../matlabicon.gif)">
+<li><a href="ionization_profiles_from_flux.html" class="code" title="function q_of_h_n_E = ionization_profiles_from_flux(E_range,I_e_of_E,atmosphere,ipa)">ionization_profiles_from_flux</a>	ionization_profiles_from_flux - simple model for volume emission as function of altitude.</li></ul>
+<!-- crossreference -->
+
+
+<h2><a name="_source"></a>SOURCE CODE <a href="#_top"><img alt="^" border="0" src="../up.png"></a></h2>
+<div class="fragment"><pre>0001 <a name="_sub0" href="#_subfunctions" class="code">function [Am] = energy_deg(Energy,pad,atm)</a>
+0002 <span class="comment">% ENERGY_DEG - energy degradation of electrons</span>
+0003 <span class="comment">% Calling:</span>
+0004 <span class="comment">%  [Am,alt] = energy_deg(Energy,pad);</span>
+0005 <span class="comment">% Input:</span>
+0006 <span class="comment">%   Enrergy - electron energies</span>
+0007 <span class="comment">%   pad     - pitch angle distribution: 1 field aligned, 2</span>
+0008 <span class="comment">%             isotropic</span>
+0009 <span class="comment">%   atm     - atmospheric model [alt,N2,O2,O,density] {km /m^3 kg/m^3}</span>
+0010 
+0011 <span class="keyword">if</span> nargin&lt;3 || isempty(atm)
+0012   <span class="comment">% Make atmp_m an input variable!</span>
+0013   load atmp_m.dat
+0014   atmp = atmp_m;
+0015 <span class="keyword">else</span>
+0016   atmp = atm;
+0017   atmp(:,2:4) = atmp(:,2:4)/1e6;
+0018   atmp(:,5) = atmp(:,5)/1e3;
+0019 <span class="keyword">end</span>
+0020 N_alt0 = length(atmp(:,1));<span class="comment">%find(atmp(:,1) == 700);</span>
+0021 zetm = atmp(:,1)*0;
+0022 zetm(N_alt0) = 0;
+0023 dH = gradient(atmp(:,1));
+0024 <span class="keyword">for</span> ih = (N_alt0-1):-1:1,
+0025   <span class="comment">%disp(ih)</span>
+0026   <span class="comment">%dzetm = (atmp(ih+1,5)+atmp(ih,5))*(atmp(ih+1,1)-atmp(ih,1))*1e5/2;</span>
+0027   dzetm = (atmp(min(length(atmp(:,5)),ih+1),5)+atmp(ih,5))*dH(ih)*1e5/2;
+0028   zetm(ih) = zetm(ih+1)+dzetm;
+0029   
+0030 <span class="keyword">end</span>
+0031 
+0032 N_Energy = length(Energy);
+0033 Am = zeros(N_Energy,N_alt0);
+0034 D_en = Energy(2:end)-Energy(1:end-1);
+0035 
+0036 <span class="keyword">for</span> ih = 1:N_alt0,
+0037   
+0038   <span class="keyword">for</span> ie = 1:N_Energy,
+0039     
+0040     r = <a href="Pat_range.html" class="code" title="function [pr]=Pat_range(Energy,pad)">Pat_range</a>(Energy(ie),pad);
+0041     <span class="comment">%r = Rees_P_range(Energy(ie));</span>
+0042     hi = zetm(ih)/r;
+0043     Am(ie,ih) = atmp(ih,5)*<a href="lambda.html" class="code" title="function [lam]=lambda(hi,Energy,pad)">lambda</a>(hi,Energy(ie),pad)*Energy(ie)*(1-<a href="albedo.html" class="code" title="function [alb]=albedo(Energy,pad)">albedo</a>(Energy(ie),pad))/r;
+0044     <span class="comment">%Am(ie,ih) = atmp(ih,5)*Rees_lambda(hi)*Energy(ie)*(1-albedo(Energy(ie),pad))/r;</span>
+0045     
+0046     <span class="keyword">if</span> N_Energy ~= 1,
+0047       
+0048       <span class="keyword">if</span> ie == 1,
+0049         
+0050         Am(1,ih) = Am(1,ih)*D_en(1)/2.0;
+0051         
+0052       <span class="keyword">elseif</span> (ie == N_Energy),
+0053         
+0054         Am(N_Energy,ih) = Am(N_Energy,ih)*D_en(N_Energy-1)/2.0;
+0055         
+0056       <span class="keyword">else</span>
+0057         
+0058         Am(ie,ih) = Am(ie,ih)*(D_en(ie)+D_en(ie-1))/2.0;
+0059         
+0060       <span class="keyword">end</span>
+0061       
+0062     <span class="keyword">end</span>
+0063     
+0064   <span class="keyword">end</span>
+0065   
+0066 <span class="keyword">end</span></pre></div>
+<hr><address>Generated on Thu 21-Jun-2018 22:40:16 by <strong>B.&nbsp;Gustavsson</strong> with <strong><a href="http://www.artefact.tk/software/matlab/m2html/" target="_parent">m2html</a></strong> &copy; 2003</address>
+</body>
+</html>

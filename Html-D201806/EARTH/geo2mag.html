@@ -1,0 +1,170 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
+                "http://www.w3.org/TR/REC-html40/loose.dtd">
+<html>
+<head>
+  <title>Description of geo2mag</title>
+  <meta name="keywords" content="geo2mag">
+  <meta name="description" content="GEO2MAG - Convert from geographic to geomagnetic coordinates">
+  <meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+  <meta name="generator" content="m2html &copy; 2003 Guillaume Flandin">
+  <meta name="robots" content="index, follow">
+  <link type="text/css" rel="stylesheet" href="../m2html.css">
+</head>
+<body>
+<a name="_top"></a>
+<!-- menu.html EARTH -->
+<h1>geo2mag
+</h1>
+
+<h2><a name="_name"></a>PURPOSE <a href="#_top"><img alt="^" border="0" src="../up.png"></a></h2>
+<div class="box"><strong>GEO2MAG - Convert from geographic to geomagnetic coordinates</strong></div>
+
+<h2><a name="_synopsis"></a>SYNOPSIS <a href="#_top"><img alt="^" border="0" src="../up.png"></a></h2>
+<div class="box"><strong>function [mLong,mLat] = geo2mag(Long,Lat,longMpole,latMpole) </strong></div>
+
+<h2><a name="_description"></a>DESCRIPTION <a href="#_top"><img alt="^" border="0" src="../up.png"></a></h2>
+<div class="fragment"><pre class="comment"> GEO2MAG - Convert from geographic to geomagnetic coordinates
+ EXPLANATION:
+   Converts from GEOGRAPHIC (latitude,longitude) to GEOMAGNETIC (latitude, 
+   longitude).   (Altitude remains the same)
+
+       Latitudes and longitudes are expressed in degrees.
+ 
+ Calling:
+  [mLong,mLat] = geo2mag(Long,Lat)
+ Input:
+  Long - geographic longitude (degrees), double array [n1 x n2 x
+          ... x nJ]
+  Lat  - geographic latitude (degrees), double array [n1 x n2 x... x nI]
+  longMpole - geographic longitude of magnetic pole (degrees),
+              optional defaults to 72.21�W [2010]
+  latMpole  - geographic longitude of magnetic pole (degrees),
+              optional defaults to 80.08� [2010]
+ Output:
+  mLong - magnetic longitude (degrees), double array same size
+          as Long and Lat
+  mLat  - magnetic longitude (degrees), double array same size
+          as Long and Lat
+
+ Example:
+ % from magnetic south pole Geo to Mag coordinates
+  [mLong,mLat] = geo2mag95(288.59,79.2)
+      mLong =  0, mLat = 90
+ 
+ Translated from IDL-function by Pascal Saint-Hilaire
+ (Saint-Hilaire@astro.phys.ethz.ch),</pre></div>
+
+<!-- crossreference -->
+<h2><a name="_cross"></a>CROSS-REFERENCE INFORMATION <a href="#_top"><img alt="^" border="0" src="../up.png"></a></h2>
+This function calls:
+<ul style="list-style-image:url(../matlabicon.gif)">
+</ul>
+This function is called by:
+<ul style="list-style-image:url(../matlabicon.gif)">
+<li><a href="../Examples/mapping_example_Geo_n_mag.html" class="code" title="">mapping_example_Geo_n_mag</a>	% Example script for projecting an All-sky image to lat-long grid</li></ul>
+<!-- crossreference -->
+
+
+<h2><a name="_source"></a>SOURCE CODE <a href="#_top"><img alt="^" border="0" src="../up.png"></a></h2>
+<div class="fragment"><pre>0001 <a name="_sub0" href="#_subfunctions" class="code">function [mLong,mLat] = geo2mag(Long,Lat,longMpole,latMpole)</a>
+0002 <span class="comment">% GEO2MAG - Convert from geographic to geomagnetic coordinates</span>
+0003 <span class="comment">% EXPLANATION:</span>
+0004 <span class="comment">%   Converts from GEOGRAPHIC (latitude,longitude) to GEOMAGNETIC (latitude,</span>
+0005 <span class="comment">%   longitude).   (Altitude remains the same)</span>
+0006 <span class="comment">%</span>
+0007 <span class="comment">%       Latitudes and longitudes are expressed in degrees.</span>
+0008 <span class="comment">%</span>
+0009 <span class="comment">% Calling:</span>
+0010 <span class="comment">%  [mLong,mLat] = geo2mag(Long,Lat)</span>
+0011 <span class="comment">% Input:</span>
+0012 <span class="comment">%  Long - geographic longitude (degrees), double array [n1 x n2 x</span>
+0013 <span class="comment">%          ... x nJ]</span>
+0014 <span class="comment">%  Lat  - geographic latitude (degrees), double array [n1 x n2 x... x nI]</span>
+0015 <span class="comment">%  longMpole - geographic longitude of magnetic pole (degrees),</span>
+0016 <span class="comment">%              optional defaults to 72.21�W [2010]</span>
+0017 <span class="comment">%  latMpole  - geographic longitude of magnetic pole (degrees),</span>
+0018 <span class="comment">%              optional defaults to 80.08� [2010]</span>
+0019 <span class="comment">% Output:</span>
+0020 <span class="comment">%  mLong - magnetic longitude (degrees), double array same size</span>
+0021 <span class="comment">%          as Long and Lat</span>
+0022 <span class="comment">%  mLat  - magnetic longitude (degrees), double array same size</span>
+0023 <span class="comment">%          as Long and Lat</span>
+0024 <span class="comment">%</span>
+0025 <span class="comment">% Example:</span>
+0026 <span class="comment">% % from magnetic south pole Geo to Mag coordinates</span>
+0027 <span class="comment">%  [mLong,mLat] = geo2mag95(288.59,79.2)</span>
+0028 <span class="comment">%      mLong =  0, mLat = 90</span>
+0029 <span class="comment">%</span>
+0030 <span class="comment">% Translated from IDL-function by Pascal Saint-Hilaire</span>
+0031 <span class="comment">% (Saint-Hilaire@astro.phys.ethz.ch),</span>
+0032 
+0033 
+0034 <span class="comment">% If no coordinates for magnetic pole given set it to 2010</span>
+0035 <span class="comment">% 'constants'...</span>
+0036 <span class="comment">% North Magnetic Dipole 2010: 72.21�W longitude and 80.08�</span>
+0037 <span class="keyword">if</span> nargin &lt; 3 || isempty(longMpole)
+0038   Dlong = -72.21;<span class="comment">% longitude (in degrees) of Earth's magnetic south</span>
+0039                  <span class="comment">% pole (2010) which is near the geographic north</span>
+0040                  <span class="comment">% pole...)</span>
+0041 <span class="keyword">else</span>
+0042   Dlong = longMpole;
+0043 <span class="keyword">end</span>
+0044 <span class="keyword">if</span> nargin &lt; 4 || isempty(latMpole)
+0045   Dlat  = 80.08; <span class="comment">% latitude (in degrees) of magnetic pole (2010)</span>
+0046 <span class="keyword">else</span>
+0047   Dlat = latMpole;
+0048 <span class="keyword">end</span>
+0049 
+0050 
+0051 <span class="comment">% first convert to radians</span>
+0052 Dlong = Dlong* pi/180;
+0053 Dlat  = Dlat * pi/180;
+0054 
+0055 glat = Lat(:)'*pi/180;
+0056 glon = Long(:)'*pi/180;
+0057 
+0058 <span class="comment">% convert to rectangular coordinates</span>
+0059 <span class="comment">%  X-axis: defined by the vector going from Earth's center towards</span>
+0060 <span class="comment">%          the intersection of the equator and Greenwitch's meridian.</span>
+0061 <span class="comment">%  Z-axis: axis of the geographic poles</span>
+0062 <span class="comment">%  Y-axis: defined by Y = Z^X</span>
+0063 x = cos(glat).*cos(glon);
+0064 y = cos(glat).*sin(glon);
+0065 z = sin(glat);
+0066 
+0067 
+0068 <span class="comment">% Compute 1st rotation matrix : rotation around plane of the equator,</span>
+0069 <span class="comment">% from the Greenwich meridian to the meridian containing the magnetic</span>
+0070 <span class="comment">% dipole pole.</span>
+0071 geolong2maglong = zeros(3,3);
+0072 geolong2maglong(1,1) =  cos(Dlong);
+0073 geolong2maglong(1,2) =  sin(Dlong);
+0074 geolong2maglong(2,1) = -sin(Dlong);
+0075 geolong2maglong(2,2) =  cos(Dlong);
+0076 geolong2maglong(3,3) =  1;
+0077 
+0078 out = geolong2maglong * [x;y;z];
+0079 
+0080 <span class="comment">% Second rotation : in the plane of the current meridian from geographic</span>
+0081 <span class="comment">% pole to magnetic dipole pole.</span>
+0082 tomaglat = zeros(3,3);
+0083 tomaglat(1,1) =  cos(pi/2-Dlat); <span class="comment">% !DPI/2 ???</span>
+0084 tomaglat(1,3) = -sin(pi/2-Dlat);
+0085 tomaglat(3,1) =  sin(pi/2-Dlat);
+0086 tomaglat(3,3) =  cos(pi/2-Dlat);
+0087 tomaglat(2,2) = 1;
+0088 out =  tomaglat * out;
+0089 
+0090 <span class="comment">% Pre-allocate the outputs</span>
+0091 mLong = Long;
+0092 mLat = Lat;
+0093 <span class="comment">% convert back to latitude, longitude and altitude</span>
+0094 mLat(:) = atan2(out(3,:),sqrt(out(1,:).^2+out(2,:).^2));
+0095 mLat = mLat*180/pi;
+0096 mLong(:) = atan2(out(2,:),out(1,:));
+0097 mLong = mLong*180/pi;
+0098 
+0099 <span class="comment">%==============================================================================</span></pre></div>
+<hr><address>Generated on Thu 21-Jun-2018 22:40:16 by <strong>B.&nbsp;Gustavsson</strong> with <strong><a href="http://www.artefact.tk/software/matlab/m2html/" target="_parent">m2html</a></strong> &copy; 2003</address>
+</body>
+</html>

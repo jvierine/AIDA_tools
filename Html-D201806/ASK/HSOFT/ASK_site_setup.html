@@ -1,0 +1,68 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
+                "http://www.w3.org/TR/REC-html40/loose.dtd">
+<html>
+<head>
+  <title>Description of ASK_site_setup</title>
+  <meta name="keywords" content="ASK_site_setup">
+  <meta name="description" content="at lora.phys.soton.ac.uk: videodir = '/stp/raid2/ask/data'; % Here it is OK to have!">
+  <meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+  <meta name="generator" content="m2html &copy; 2003 Guillaume Flandin">
+  <meta name="robots" content="index, follow">
+  <link type="text/css" rel="stylesheet" href="../../m2html.css">
+</head>
+<body>
+<a name="_top"></a>
+<!-- # ASK --><!-- menu.html HSOFT -->
+<h1>ASK_site_setup
+</h1>
+
+<h2><a name="_name"></a>PURPOSE <a href="#_top"><img alt="^" border="0" src="../../up.png"></a></h2>
+<div class="box"><strong>at lora.phys.soton.ac.uk: videodir = '/stp/raid2/ask/data'; % Here it is OK to have!</strong></div>
+
+<h2><a name="_synopsis"></a>SYNOPSIS <a href="#_top"><img alt="^" border="0" src="../../up.png"></a></h2>
+<div class="box"><strong>This is a script file. </strong></div>
+
+<h2><a name="_description"></a>DESCRIPTION <a href="#_top"><img alt="^" border="0" src="../../up.png"></a></h2>
+<div class="fragment"><pre class="comment"> at lora.phys.soton.ac.uk: videodir = '/stp/raid2/ask/data'; % Here it is OK to have!</pre></div>
+
+<!-- crossreference -->
+<h2><a name="_cross"></a>CROSS-REFERENCE INFORMATION <a href="#_top"><img alt="^" border="0" src="../../up.png"></a></h2>
+This function calls:
+<ul style="list-style-image:url(../../matlabicon.gif)">
+</ul>
+This function is called by:
+<ul style="list-style-image:url(../../matlabicon.gif)">
+<li><a href="ASK_enable_datadir.html" class="code" title="function ASK_enable_datadir(datadir,smartdark,flat_tromso)">ASK_enable_datadir</a>	ASK_ENABLE_DATADIR - short routine to automatically enable</li><li><a href="ASK_overviewmaker.html" class="code" title="function MegaBlocksDone = ASK_overviewmaker(MegaBlocksDone,data_dir)">ASK_overviewmaker</a>	ASK_overviewmaker - Create mega-block overlayed-keogram for overview</li><li><a href="ASK_site_init.html" class="code" title="">ASK_site_init</a>	</li></ul>
+<!-- crossreference -->
+
+
+<h2><a name="_source"></a>SOURCE CODE <a href="#_top"><img alt="^" border="0" src="../../up.png"></a></h2>
+<div class="fragment"><pre>0001 
+0002 <span class="comment">% at lora.phys.soton.ac.uk: videodir = '/stp/raid2/ask/data'; % Here it is OK to have!</span>
+0003 
+0004 <span class="comment">% ASKLUTfile = '/stp/raid2/ask/data/setup/ask.lut'; % at at lora.phys.soton.ac.uk</span>
+0005 <span class="comment">% videodir = '/stp/raid2/ask/data';                 % at lora.phys.soton.ac.uk</span>
+0006 <span class="comment">% HDIR       = '/export/bjg1c10/ASK/';              % at lora.phys.soton.ac.uk</span>
+0007 
+0008 <span class="comment">% data_directory = '/data/ask/data/';</span>
+0009 <span class="comment">% videodir       = '/data/ask/data';</span>
+0010 <span class="comment">% HDIR           = '/data/bjg1c10/ASK/';</span>
+0011 data_directory = <span class="string">'/media/ALIS_USB_2012-2/ASK'</span>;
+0012 videodir       = <span class="string">'/media/ALIS_USB_2012-2/ASK'</span>;
+0013 HDIR           = <span class="string">'/data/bjg1c10/ASK/'</span>;
+0014 
+0015 ASKLUTfile     = <span class="string">'/data/ask/data/setup/ask.lut'</span>;
+0016 <span class="comment">% ASKLUTfile     = '/media/ALIS_USB_2012-2/ASK/setup/ask.lut';</span>
+0017 
+0018 
+0019 <span class="comment">% TODO: move this one out of here, this is an initialization call,</span>
+0020 <span class="comment">% not a set-up, shouldn't be here!</span>
+0021 <span class="comment">% * step 1: find out where it the script is called and change that</span>
+0022 <span class="comment">%   to ASK_site_setup, ASK_site_init or some such</span>
+0023 <span class="comment">% * step 2: then put this line into the ASK_site_init.m</span>
+0024 <span class="comment">% ASK_read_asklut(ASKLUTfile);</span>
+0025 <span class="comment">% * step 3 move the other hard-coded set-ups into this and this</span>
+0026 <span class="comment">%   script into these places.</span></pre></div>
+<hr><address>Generated on Thu 21-Jun-2018 22:40:16 by <strong>B.&nbsp;Gustavsson</strong> with <strong><a href="http://www.artefact.tk/software/matlab/m2html/" target="_parent">m2html</a></strong> &copy; 2003</address>
+</body>
+</html>

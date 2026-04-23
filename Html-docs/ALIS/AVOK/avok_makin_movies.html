@@ -1,0 +1,183 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
+                "http://www.w3.org/TR/REC-html40/loose.dtd">
+<html>
+<head>
+  <title>Description of avok_makin_movies</title>
+  <meta name="keywords" content="avok_makin_movies">
+  <meta name="description" content="AVOK_MAKIN_MOVIES - Makes movies of images from a night">
+  <meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+  <meta name="generator" content="m2html &copy; 2003 Guillaume Flandin">
+  <meta name="robots" content="index, follow">
+  <link type="text/css" rel="stylesheet" href="../../m2html.css">
+</head>
+<body>
+<a name="_top"></a>
+<!-- ../menu.html ALIS --><!-- menu.html AVOK -->
+<h1>avok_makin_movies
+</h1>
+
+<h2><a name="_name"></a>PURPOSE <a href="#_top"><img alt="^" border="0" src="../../up.png"></a></h2>
+<div class="box"><strong>AVOK_MAKIN_MOVIES - Makes movies of images from a night</strong></div>
+
+<h2><a name="_synopsis"></a>SYNOPSIS <a href="#_top"><img alt="^" border="0" src="../../up.png"></a></h2>
+<div class="box"><strong>function AvOk = avok_makin_movies(AvOk) </strong></div>
+
+<h2><a name="_description"></a>DESCRIPTION <a href="#_top"><img alt="^" border="0" src="../../up.png"></a></h2>
+<div class="fragment"><pre class="comment"> AVOK_MAKIN_MOVIES - Makes movies of images from a night</pre></div>
+
+<!-- crossreference -->
+<h2><a name="_cross"></a>CROSS-REFERENCE INFORMATION <a href="#_top"><img alt="^" border="0" src="../../up.png"></a></h2>
+This function calls:
+<ul style="list-style-image:url(../../matlabicon.gif)">
+<li><a href="../../ALIS/alis_imgs_movie_rgb.html" class="code" title="function [M] = alis_imgs_movie_rgb(files,reg,cax,opptp,PREPROC_OPS,rgbFilters)">alis_imgs_movie_rgb</a>	ALIS_IMGS_MOVIE_RGB - produce a matlab movie M from a series of image files.</li><li><a href="../../Fits_tools/inimg.html" class="code" title="function [img_out,img_head,obs] = inimg(filename,PREPRO_OPS)">inimg</a>	INIMG - reads and pre-process an image.</li><li><a href="../../Imgtools/imgs_movie_r.html" class="code" title="function [M,Tstrs,caxout,exptimes,wl] = imgs_movie_r(files,reg,cax,opptp,PREPROC_OPS,movie_ops,avi_ops)">imgs_movie_r</a>	imgs_movie_r - produce a matlab movie M from a series of image files.</li><li><a href="../../Imgtools/imgs_smart_caxis.html" class="code" title="function cax = imgs_smart_caxis(alpha,varargin)">imgs_smart_caxis</a>	imgs_smart_caxis - alpha-percentile setting of color-axis,</li></ul>
+This function is called by:
+<ul style="list-style-image:url(../../matlabicon.gif)">
+</ul>
+<!-- crossreference -->
+
+<h2><a name="_subfunctions"></a>SUBFUNCTIONS <a href="#_top"><img alt="^" border="0" src="../../up.png"></a></h2>
+<ul style="list-style-image:url(../../matlabicon.gif)">
+<li><a href="#_sub1" class="code">function OK = avok_savin_movie(M,moviename,movie_format)</a></li></ul>
+<h2><a name="_source"></a>SOURCE CODE <a href="#_top"><img alt="^" border="0" src="../../up.png"></a></h2>
+<div class="fragment"><pre>0001 <a name="_sub0" href="#_subfunctions" class="code">function AvOk = avok_makin_movies(AvOk)</a>
+0002 <span class="comment">% AVOK_MAKIN_MOVIES - Makes movies of images from a night</span>
+0003 <span class="comment">%</span>
+0004 
+0005 movie_type = get(AvOk.ana(2),<span class="string">'value'</span>); <span class="comment">% 1 mono, 2 r,g,b, 3 ir,g,b</span>
+0006 movie_extn = [<span class="string">'mpg'</span>;
+0007               <span class="string">'avi'</span>;
+0008               <span class="string">'mat'</span>];
+0009 movie_extension = movie_extn(get(AvOk.ana(3),<span class="string">'value'</span>),:); <span class="comment">% 1 mpg, 2 avi, 3 mat</span>
+0010 
+0011 figure(AvOk.fig_keo)
+0012 tax = axis;
+0013 tax = tax(1:2);
+0014 
+0015 <span class="keyword">if</span> ~isfield(AvOk,<span class="string">'movie_fig'</span>)
+0016   AvOk.movie_fig = figure(<span class="string">'name'</span>,<span class="string">'On the &quot;Silver screen&quot; tonight...'</span>);
+0017 <span class="keyword">else</span>
+0018   set(AvOk.movie_fig,<span class="string">'visible'</span>,<span class="string">'on'</span>)
+0019   figure(AvOk.movie_fig)
+0020 <span class="keyword">end</span>
+0021 
+0022 PO <span class="comment">% &lt;- maaste faa en klyftigare loesning.</span>
+0023 
+0024 nrstns = unique(AvOk.Stns);
+0025 ufnr = unique([Wl_emi{:}]);
+0026 
+0027 <span class="keyword">for</span> j = 1:length(nrstns),
+0028   
+0029   optps = Optps{AvOk.Stns(j)};
+0030   filenames = Filenames{AvOk.Stns(j)};<span class="comment">% anvaend bara tider som</span>
+0031                                       <span class="comment">% visas i nuvarande keo-figuren...</span>
+0032   
+0033   [d,h,o(j)] = <a href="../../Fits_tools/inimg.html" class="code" title="function [img_out,img_head,obs] = inimg(filename,PREPRO_OPS)">inimg</a>(filenames(1),PO);
+0034   imagesc(1:size(d,2),1:size(d,1),<a href="../../Imgtools/imgs_smart_caxis.html" class="code" title="function cax = imgs_smart_caxis(alpha,varargin)">imgs_smart_caxis</a>(.005,d)),axis xy
+0035   title(AvOk.STNN2NAME{AvOk.Stns(j)},<span class="string">'fontsize'</span>,16),
+0036   xlstr = sprintf(<span class="string">'%s\n%s'</span>,<span class="keyword">...</span>
+0037                   <span class="string">'zoom in to select close up region in images'</span>,<span class="keyword">...</span>
+0038                   <span class="string">'within ~4 s'</span>)
+0039   xlabel(xlstr)
+0040   zoom on
+0041   pause(4)
+0042   img_regs(j,:) = axis;
+0043   <span class="keyword">end</span>
+0044 <span class="keyword">end</span>
+0045 title(<span class="string">'Adjust figure size, reasonable should be [400x400]'</span>)
+0046 xlabel(<span class="string">'Then push any button'</span>)
+0047 pause
+0048 
+0049 set(AvOk.movie_fig,<span class="string">'visible'</span>,<span class="string">'off'</span>) <span class="comment">% To free the computer screen</span>
+0050                                     <span class="comment">% from being locked by getframe.</span>
+0051 <span class="keyword">for</span> j = 1:length(nrstns),
+0052   
+0053   t_obs = T_obs{AvOk.Stns(j)};
+0054   wl_emi = Wl_emi{AvOk.Stns(j)}(min(tax)&lt;=t_obs&amp;t_obs&lt;=max(tax));
+0055   filenames = Filenames{AvOk.Stns(j)}(min(tax)&lt;=t_obs&amp;t_obs&lt;=max(tax),:);
+0056   
+0057   <span class="keyword">switch</span> movie_type
+0058    <span class="keyword">case</span> 1 <span class="comment">% mono</span>
+0059     <span class="keyword">for</span> i = 1:length(ufnr),
+0060       <span class="keyword">if</span> sum(wl_emi==ufnr(i))&gt;10 <span class="comment">% At least 10 images in at one</span>
+0061                                  <span class="comment">% wavelength to bother making a</span>
+0062                                  <span class="comment">% movie.</span>
+0063         [M] = <a href="../../Imgtools/imgs_movie_r.html" class="code" title="function [M,Tstrs,caxout,exptimes,wl] = imgs_movie_r(files,reg,cax,opptp,PREPROC_OPS,movie_ops,avi_ops)">imgs_movie_r</a>(filenames(wl_emi==ufnr(i),:),reg_img(j,:),.001,o(j).optpar,PO);
+0064         out_name = [AvOk.STNN2NAME{AvOk.Stns(j)},<span class="string">'-'</span>,<span class="keyword">...</span>
+0065                     datestr([AvOk.date(1:3) 0 0 0],29),<span class="string">'-'</span>, <span class="keyword">...</span>
+0066                     num2str(ufnr(i))];
+0067         data_out_dir = <span class="string">'./'</span>;
+0068         moviename = fullfile(data_out_dir,out_name,movie_extension);
+0069         avok_savinn_movie(M,moviename,movie_extension);
+0070       <span class="keyword">end</span>
+0071     <span class="keyword">end</span>
+0072    <span class="keyword">case</span> 2 <span class="comment">% r,g,b</span>
+0073     [M] = <a href="../../ALIS/alis_imgs_movie_rgb.html" class="code" title="function [M] = alis_imgs_movie_rgb(files,reg,cax,opptp,PREPROC_OPS,rgbFilters)">alis_imgs_movie_rgb</a>(filenames,reg_img(j,:),.001,o(j).optpar,PO);
+0074     out_name = [AvOk.STNN2NAME{AvOk.Stns(j)},<span class="string">'-'</span>,<span class="keyword">...</span>
+0075                 datestr([AvOk.date(1:3) 0 0 0],29)];
+0076     data_out_dir = <span class="string">'./'</span>;
+0077     moviename = fullfile(data_out_dir,out_name,movie_extension);
+0078     avok_savinn_movie(M,moviename,movie_extension);
+0079    <span class="keyword">case</span> 3 <span class="comment">% ir,g,b</span>
+0080     [M] = <a href="../../ALIS/alis_imgs_movie_rgb.html" class="code" title="function [M] = alis_imgs_movie_rgb(files,reg,cax,opptp,PREPROC_OPS,rgbFilters)">alis_imgs_movie_rgb</a>(filenames,reg_img(j,:),.001,o(j).optpar,PO,<span class="keyword">...</span>
+0081                               [8446 5577 4278]);
+0082     out_name = [AvOk.STNN2NAME{AvOk.Stns(j)},<span class="string">'-'</span>,<span class="keyword">...</span>
+0083                 datestr([AvOk.date(1:3) 0 0 0],29)];
+0084     data_out_dir = <span class="string">'./'</span>;
+0085     moviename = fullfile(data_out_dir,out_name,movie_extension);
+0086     avok_savinn_movie(M,moviename,movie_extension);
+0087    <span class="keyword">case</span> 4 <span class="comment">% characteristic energy according to Strickland, Hecht,</span>
+0088           <span class="comment">% Meyer Christensen</span>
+0089     [M] = <a href="../../ALIS/alis_imgs_movie_rgb.html" class="code" title="function [M] = alis_imgs_movie_rgb(files,reg,cax,opptp,PREPROC_OPS,rgbFilters)">alis_imgs_movie_rgb</a>(filenames,reg_img(j,:),.001,o(j).optpar,PO,<span class="keyword">...</span>
+0090                               <span class="string">'E0'</span>);
+0091     out_name = [AvOk.STNN2NAME{AvOk.Stns(j)},<span class="string">'-'</span>,<span class="keyword">...</span>
+0092                 datestr([AvOk.date(1:3) 0 0 0],29),<span class="string">'-E0'</span>];
+0093     data_out_dir = <span class="string">'./'</span>;
+0094     moviename = fullfile(data_out_dir,out_name,movie_extension);
+0095     avok_savinn_movie(M,moviename,movie_extension);
+0096     
+0097    <span class="keyword">otherwise</span>
+0098     disp(<span class="string">'Strange choise of image to produce.'</span>)
+0099     disp(<span class="string">'I''m more of a three trick pony. I can produce:'</span>)
+0100     disp(<span class="string">'1: narrow movies focused on a limited band'</span>)
+0101     disp(<span class="string">'2: Bright, Colourful Rich action movies'</span>)
+0102     disp(<span class="string">'3: Technicoulour giving light and vision to previously invisible'</span>)
+0103   <span class="keyword">end</span>
+0104   
+0105 <span class="keyword">end</span>
+0106 
+0107 <span class="keyword">end</span>
+0108 AvOk = avok_update_movie_menu(AvOk);
+0109 
+0110 
+0111 <a name="_sub1" href="#_subfunctions" class="code">function OK = avok_savin_movie(M,moviename,movie_format)</a>
+0112 <span class="comment">% AVOK_SAVINN_MOVIE - saving the movie</span>
+0113 <span class="comment">%</span>
+0114 
+0115 <span class="keyword">switch</span> movie_format
+0116  <span class="keyword">case</span> <span class="string">'mpg'</span>
+0117   <span class="keyword">try</span>
+0118     mpgwrite(M,M.colormap,moviename)
+0119   <span class="keyword">catch</span>
+0120     disp([<span class="string">'Could not write file: '</span>,moviename])
+0121     disp(<span class="string">'Write permissions?'</span>)
+0122   <span class="keyword">end</span>
+0123  <span class="keyword">case</span> <span class="string">'avi'</span>
+0124   <span class="keyword">try</span>
+0125     movie2avi(M,moviename)
+0126   <span class="keyword">catch</span>
+0127     disp([<span class="string">'Could not write file: '</span>,moviename])
+0128     disp(<span class="string">'Write permissions? Enough disk space?'</span>)
+0129   <span class="keyword">end</span>
+0130  <span class="keyword">case</span> <span class="string">'mat'</span>
+0131   <span class="keyword">try</span>
+0132     save(moviename,<span class="string">'M'</span>)
+0133   <span class="keyword">catch</span>
+0134     disp([<span class="string">'Could not save file: '</span>,moviename])
+0135     disp(<span class="string">'Write permissions? Enough disk space?'</span>)
+0136       <span class="keyword">end</span>
+0137  <span class="keyword">otherwise</span>
+0138   disp([<span class="string">'Unknown file format: '</span>,movie_extension])
+0139 <span class="keyword">end</span></pre></div>
+<hr><address>Generated on Sat 09-Feb-2013 12:20:36 by <strong>B.&nbsp;Gustavsson</strong> with <strong><a href="http://www.artefact.tk/software/matlab/m2html/" target="_parent">m2html</a></strong> &copy; 2003</address>
+</body>
+</html>

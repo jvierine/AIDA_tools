@@ -1,0 +1,103 @@
+function [IallF,KSD,KSDI,ph,sph] = spc_cal_2Dplot_star(starID,plotPar,IDSTARS,OPTS)
+% Needs to be redocumented!
+% SPC_CAL_BAD_TIMES - Screen out bad time periods for each star
+% due to clouds or other problems. The function will plot the
+% stellar intensities as a function of time, if there is periods
+% where the intensities are noticeably reduced it is possible to
+% de-select those time-periods, for each individual star.
+% 
+% Calling:
+%  [BadTimes,sis] = spc_cal_bad_times(IDSTARS,time_s,filtnr,optpar,OPTS)
+% Inputs:
+%  IDSTARS - Identified stars, as produced by SPC_SCAN_FOR_STARS
+%  TIME_S  - Times for corresponding stars
+%  FILTNR  - Filter index for corresponding stars
+%  OPTPAR  - Optical parameters of imager (See CAMERA)
+%  OPTS    - Options struct, filed 'clrs', default 'grmmkbcccc'
+% 
+% Output:
+%  BadTimes - bad time periods for each star,
+%  SIS - star index (?) for corresponding stars
+
+%   Copyright © 20030901 Bjorn Gustavsson, <bjorn.gustavsson@irf.se>
+%   This is free software, licensed under GNU GPL version 2 or later
+
+
+
+% If the user supplies a definition of what colours to use for each
+% filter use them:
+%if nargin>=5 & isfield(OPTS,'clrs')
+%  clrs = OPTS.clrs;
+%end
+% Adapt for colours defined as char-array or rgb-array.
+%if ischar(clrs(1))
+%  clrsIDX = 1;
+%else
+%  clrsIDX = 1:3;
+%end
+% get the unique Bright star catalog number we have
+dOPS.szP = 15;
+dOPS.dlMax = 105;
+dOPS.bw4ksd = 1;
+if nargin > 3 && isstruct(OPTS)
+  dOPS = merge_structs(dOPS,OPTS);
+end
+dlMax = dOPS.dlMax;
+szP = dOPS.szP;
+bw4ksd = dOPS.bw4ksd;
+% Get the observations of the requested star
+idx_curr = (IDSTARS(:,9) == starID);
+% idx_curr = (IDSTARS(:,9) == starID & IDSTARS(:,4)>0);
+CurrStar = IDSTARS(idx_curr,:);
+currTime = IDSTARS(idx_curr,end);
+currUobs = IDSTARS(idx_curr,2);
+currVobs = IDSTARS(idx_curr,3);
+currU_0 = IDSTARS(idx_curr,12);
+currV_0 = IDSTARS(idx_curr,13);
+curr_sU = IDSTARS(idx_curr,14);
+curr_sV = IDSTARS(idx_curr,16);
+curr_dl = ((currU_0-currUobs).^2 + (currV_0-currVobs).^2).^.5;
+currFilts = IDSTARS(idx_curr,18);
+
+if dlMax < inf
+  CurrStar = CurrStar(curr_dl<=OPTS.dlMax,:);
+  currTime = currTime(curr_dl<=OPTS.dlMax);
+  currUobs = currUobs(curr_dl<=OPTS.dlMax);
+  currVobs = currVobs(curr_dl<=OPTS.dlMax);
+  currU_0 = currU_0(curr_dl<=OPTS.dlMax);
+  currV_0 = currV_0(curr_dl<=OPTS.dlMax);
+  curr_sU = curr_sU(curr_dl<=OPTS.dlMax);
+  curr_sV = curr_sV(curr_dl<=OPTS.dlMax);
+  curr_dl = curr_dl(curr_dl<=OPTS.dlMax);
+  currFilts = currFilts(curr_dl<=OPTS.dlMax);
+end
+% Get the filters that has been used in those observations
+% work with this star.
+uFilts = unique(currFilts);
+%figure
+for iSF = numel(unique(currFilts)):-1:1
+  sph(iSF) = subplot(ceil(numel(unique(currFilts))^.5),2,iSF);
+  if iSF == 1
+    title([' BSNR = ',num2str(starID)])
+  end
+  i_currF = find(currFilts == uFilts(iSF));
+  plot(currU_0(i_currF),currV_0(i_currF),'k.')
+  hold on
+  IallF{iSF} = CurrStar(i_currF,plotPar);
+  ph(iSF) = scatter(currUobs(i_currF),...
+                    currVobs(i_currF),...
+                    szP,...
+                    CurrStar(i_currF,plotPar),...
+                    'filled');
+  KSDI{iSF} = min(CurrStar(i_currF,plotPar)):max(CurrStar(i_currF,plotPar));
+  KSD{iSF} = ksdensity(CurrStar(i_currF,plotPar),...
+                       KSDI{iSF},...
+                       'Bandwidth',bw4ksd);
+  imgs_smart_caxis(0.01,CurrStar(i_currF,plotPar))
+  colorbar
+  if nargin > 3 && isfield(OPTS,'axis4p')
+    axis(OPTS.axis4p)
+  end
+%                   currTime(i_currF),...
+end
+linkaxes(sph);

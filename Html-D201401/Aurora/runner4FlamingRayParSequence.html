@@ -1,0 +1,294 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
+                "http://www.w3.org/TR/REC-html40/loose.dtd">
+<html>
+<head>
+  <title>Description of runner4FlamingRayParSequence</title>
+  <meta name="keywords" content="runner4FlamingRayParSequence">
+  <meta name="description" content="% Run the core set-up tasks first">
+  <meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+  <meta name="generator" content="m2html &copy; 2003 Guillaume Flandin">
+  <meta name="robots" content="index, follow">
+  <link type="text/css" rel="stylesheet" href="../m2html.css">
+</head>
+<body>
+<a name="_top"></a>
+<!-- menu.html Aurora -->
+<h1>runner4FlamingRayParSequence
+</h1>
+
+<h2><a name="_name"></a>PURPOSE <a href="#_top"><img alt="^" border="0" src="../up.png"></a></h2>
+<div class="box"><strong>% Run the core set-up tasks first</strong></div>
+
+<h2><a name="_synopsis"></a>SYNOPSIS <a href="#_top"><img alt="^" border="0" src="../up.png"></a></h2>
+<div class="box"><strong>This is a script file. </strong></div>
+
+<h2><a name="_description"></a>DESCRIPTION <a href="#_top"><img alt="^" border="0" src="../up.png"></a></h2>
+<div class="fragment"><pre class="comment">% Run the core set-up tasks first</pre></div>
+
+<!-- crossreference -->
+<h2><a name="_cross"></a>CROSS-REFERENCE INFORMATION <a href="#_top"><img alt="^" border="0" src="../up.png"></a></h2>
+This function calls:
+<ul style="list-style-image:url(../matlabicon.gif)">
+<li><a href="err4FlamingRaySequenceP.html" class="code" title="function Err = err4FlamingRaySequenceP(PolyCoeffs,ImStack,stns,X3D,Y3D,Z3D,A2zA1z,E,Imbg,v_p,I0,pmin,pmax,C_filter6730,C_filter7774,errOps)">err4FlamingRaySequenceP</a>	ERR4FLAMINGRAYSEQUENCEP - error function for flaming ray sequence</li><li><a href="err4FlamingRaySequencePPar.html" class="code" title="function Err = err4FlamingRaySequencePPar(PolyCoeffs,ImStack,stns,X3D,Y3D,Z3D,A2zA1z,E,Imbg,v_p,I0,pmin,pmax,C_filter6730,C_filter7774,errOps)">err4FlamingRaySequencePPar</a>	ERR4FLAMINGRAYSEQUENCEP - error function for flaming ray sequence</li><li><a href="err4FlamingRaysE.html" class="code" title="function res = err4FlamingRaysE(Par,var_pars,par0,stns,ImRois,Z3D,x2D,y2D,Ie2H,E,out_arg_type,z_max,errOps)">err4FlamingRaysE</a>	1        2    3    4      5   6   7   8    9 0           11    12</li><li><a href="starter4FlamingRayE.html" class="code" title="">starter4FlamingRayE</a>	% Example script: how to estimate electron energies in flaming rays</li><li><a href="../Imgtools/imgs_smart_caxis.html" class="code" title="function cax = imgs_smart_caxis(alpha,varargin)">imgs_smart_caxis</a>	imgs_smart_caxis - alpha-percentile setting of color-axis,</li><li><a href="../tools/colorbar_labeled.html" class="code" title="function handle=colorbar_labeled(label,lg,varargin)">colorbar_labeled</a>	COLORBAR_LABELED - colorbar with label for range linear or log</li><li><a href="../tools/fminsearchbnd.html" class="code" title="function [x,fval,exitflag,output] = fminsearchbnd(fun,x0,LB,UB,options,varargin)">fminsearchbnd</a>	FMINSEARCHBND: FMINSEARCH, but with bound constraints by transformation</li><li><a href="../tools/max2D.html" class="code" title="function [Imax,i1,i2] = max2D(Iin)">max2D</a>	max2D - maximum element and its indices in a 2-D array</li></ul>
+This function is called by:
+<ul style="list-style-image:url(../matlabicon.gif)">
+</ul>
+<!-- crossreference -->
+
+
+<h2><a name="_source"></a>SOURCE CODE <a href="#_top"><img alt="^" border="0" src="../up.png"></a></h2>
+<div class="fragment"><pre>0001 <span class="comment">%% Run the core set-up tasks first</span>
+0002 <span class="keyword">if</span> ~exist(<span class="string">'started4FlamingRay'</span>)
+0003   <a href="starter4FlamingRayE.html" class="code" title="">starter4FlamingRayE</a>
+0004   started4FlamingRay = 1;
+0005 <span class="keyword">end</span>
+0006 
+0007 
+0008 <span class="comment">%% Initialise 3 parallell &quot;workers&quot;</span>
+0009 matlabpool(3)
+0010 
+0011 errOps = <a href="err4FlamingRaysE.html" class="code" title="function res = err4FlamingRaysE(Par,var_pars,par0,stns,ImRois,Z3D,x2D,y2D,Ie2H,E,out_arg_type,z_max,errOps)">err4FlamingRaysE</a>;
+0012 errOps.bias2cylindrical = 100000000;
+0013 errOps.bias2x0y0 = 100*100000000/3^20;
+0014 
+0015 load Istar It3
+0016 saveFilename = <span class="string">'FlamingRay20120124TOWARDSx0y0Widening.mat'</span>;
+0017 <span class="keyword">try</span>
+0018   load(saveFilename)
+0019   disp(<span class="string">'We are continuing a previous run'</span>)
+0020   first_lap = 0;
+0021   <span class="keyword">if</span> size(It,2) == 15
+0022     It = [It(:,1:10),0*It(:,1),It(:,11:end)];
+0023   <span class="keyword">end</span>
+0024   errOps.x0y0 = It(12,[2 4])
+0025   parTest(:) = It(12,:)
+0026 <span class="keyword">catch</span>
+0027   disp(<span class="string">'We are starting a new run'</span>)
+0028   first_lap = 1;
+0029   errOps.x0y0 = It3(12,[2 4])
+0030   parTest(:) = It3(12,:)
+0031 <span class="keyword">end</span>
+0032 
+0033 C_filter6730 = C_filter6370
+0034 
+0035 iALL = 1:20;
+0036 <span class="comment">%%% (iALL-mean(iALL))*2/max(iALL)</span>
+0037 <span class="keyword">for</span> i1 = 1:size(It,2),
+0038   PP(:,i1) = polyfit((iALL(10:end)' - mean(iALL))*2/max(iALL),It(10:<span class="keyword">end</span>,i1),2);
+0039 <span class="keyword">end</span>
+0040 PP1D = PP(:);
+0041 <span class="keyword">for</span> i1 = 1:size(It,2),
+0042   ppV = polyval(PP1D([1:3]+3*(i1-1)),(iALL-mean(iALL))*2/max(iALL));
+0043   plot(It(:,i1),<span class="string">'r.-'</span>)
+0044   hold on
+0045   plot(ppV,<span class="string">'b.-'</span>)
+0046   pause
+0047   clf
+0048 <span class="keyword">end</span>
+0049 
+0050 errOps.AllTimeSteps = 1:20;
+0051 errOps.timeSteps2do = 8:20;
+0052 errOps.Var_arg_outs = ones(size(errOps.AllTimeSteps));
+0053 errOps.bias2cylindrical = 1e9;
+0054 errOps.Var_arg_outs(i1) = 1;
+0055 errOps.polydegree = 2;
+0056 errOps.AllTimeSteps = 1:20;
+0057 errOps.Var_arg_outs = ones(size(errOps.AllTimeSteps));
+0058 errOps.errMask = errMask;
+0059 
+0060 fmsOPS = optimset(<span class="string">'fminsearch'</span>);
+0061 fmsOPS.MaxFunEvals = 3200;      
+0062 fmsOPS.Display = <span class="string">'iter'</span>;        
+0063 
+0064 pp8to20 = fminsearch(@(PP) <a href="err4FlamingRaySequencePPar.html" class="code" title="function Err = err4FlamingRaySequencePPar(PolyCoeffs,ImStack,stns,X3D,Y3D,Z3D,A2zA1z,E,Imbg,v_p,I0,pmin,pmax,C_filter6730,C_filter7774,errOps)">err4FlamingRaySequencePPar</a>(PP,ImStack,stns,XfI,YfI,ZfI,{A1Z,A2Z},E,imbg,v_p,I0,parMin,parMax,C_filter6730,C_filter7774,errOps),PP1D,fmsOPS);
+0065 ppAll(8,:) = pp8to20;
+0066 fmsOPS.Display = <span class="string">'notify'</span>;
+0067 
+0068 <span class="keyword">for</span> i1 = 5:-1:1,
+0069   errOps.timeSteps2do = i1:20;
+0070   ppAll(i1,:) = fminsearch(@(PP) <a href="err4FlamingRaySequencePPar.html" class="code" title="function Err = err4FlamingRaySequencePPar(PolyCoeffs,ImStack,stns,X3D,Y3D,Z3D,A2zA1z,E,Imbg,v_p,I0,pmin,pmax,C_filter6730,C_filter7774,errOps)">err4FlamingRaySequencePPar</a>(PP,ImStack,stns,XfI,YfI,ZfI,{A1Z,A2Z},E,imbg,v_p,I0,parMin,parMax,C_filter6730,C_filter7774,errOps),ppAll(i1+1,:),fmsOPS);
+0071   save ppAll.mat ppAll
+0072   disp([num2str(12),<span class="string">': '</span>,datestr(clock,<span class="string">'yyyy-mm-dd HH:MM:SS'</span>)])
+0073   fmsOPSDisplay = <span class="string">'final'</span>;
+0074 <span class="keyword">end</span>
+0075 
+0076 PPfinAll = fminsearch(@(PP) <a href="err4FlamingRaySequenceP.html" class="code" title="function Err = err4FlamingRaySequenceP(PolyCoeffs,ImStack,stns,X3D,Y3D,Z3D,A2zA1z,E,Imbg,v_p,I0,pmin,pmax,C_filter6730,C_filter7774,errOps)">err4FlamingRaySequenceP</a>(PP,ImStack,stns,XfI,YfI,ZfI,{A1Z,A2Z},E,imbg,v_p,I0,parMin,parMax,C_filter6730,C_filter7774,errOps),ppAll(1,:));
+0077 save PPfinAll.mat PPfinAll
+0078 PPfinAll = fminsearch(@(PP) <a href="err4FlamingRaySequenceP.html" class="code" title="function Err = err4FlamingRaySequenceP(PolyCoeffs,ImStack,stns,X3D,Y3D,Z3D,A2zA1z,E,Imbg,v_p,I0,pmin,pmax,C_filter6730,C_filter7774,errOps)">err4FlamingRaySequenceP</a>(PP,ImStack,stns,XfI,YfI,ZfI,{A1Z,A2Z},E,imbg,v_p,I0,parMin,parMax,C_filter6730,C_filter7774,errOps),PPfinAll);
+0079 save PPfinAll.mat PPfinAll
+0080 
+0081 
+0082 
+0083 <span class="keyword">for</span> i1 = 8:20,
+0084   errOps.timeSteps2do = i1;
+0085   errOps.Var_arg_outs(i1) = 2;
+0086   res = <a href="err4FlamingRaySequenceP.html" class="code" title="function Err = err4FlamingRaySequenceP(PolyCoeffs,ImStack,stns,X3D,Y3D,Z3D,A2zA1z,E,Imbg,v_p,I0,pmin,pmax,C_filter6730,C_filter7774,errOps)">err4FlamingRaySequenceP</a>(pp8to20,ImStack,stns,XfI,YfI,ZfI,{A1Z,A2Z},E,imbg,v_p,I0,parMin,parMax,C_filter6730,C_filter7774,errOps);
+0087   keyboard
+0088   errOps.Var_arg_outs(i1) = 1;
+0089 <span class="keyword">end</span>
+0090 
+0091 
+0092 <span class="comment">%% Set parameters for the looping:</span>
+0093 not_bored_to_tears = 0;
+0094 bored_to_tears = 200;
+0095 save bored_in_FlamingRay20120124TOWARDSx0y0Widening.mat bored_to_tears
+0096 
+0097 fmsOPS.Display = <span class="string">'iter'</span>;
+0098 
+0099 <span class="comment">%% Run optimisation till patience runs out</span>
+0100 <span class="keyword">while</span> not_bored_to_tears &lt; bored_to_tears
+0101   
+0102   load bored_in_FlamingRay20120124TOWARDSx0y0Widening.mat
+0103   not_bored_to_tears = not_bored_to_tears + 1;
+0104   
+0105   fmsOPS.Display = <span class="string">'iter'</span>;
+0106   <span class="comment">%% Search for all of them (for this time-step):</span>
+0107   <span class="keyword">for</span> i1 = 12<span class="comment">%:size(ImStack{1},3),</span>
+0108     Iq = ( wiener2(ImStack{1}(:,:,i1),[3,3]) - wiener2(imbg{1}(:,:,i1),[3,3]) ) * 1/C_filter6370;
+0109     stns(1).img = Iq;
+0110     Iq = ( wiener2(ImStack{3}(:,:,i1),[3,3]) - wiener2(imbg{3}(:,:,i1),[3,3]) ) * 1/C_filter7774;
+0111     stns(2).img = Iq;
+0112     <span class="comment">%parTest = fminsearch(@(I) err4FlamingRaysE(I,v_p,I0b,stns,{bgMask,bgMask},ZfI,XfI(:,:,115),YfI(:,:,115),{A2Z,A1Z},E,1,110),parTest);</span>
+0113     parTest = <a href="../tools/fminsearchbnd.html" class="code" title="function [x,fval,exitflag,output] = fminsearchbnd(fun,x0,LB,UB,options,varargin)">fminsearchbnd</a>(@(I) <a href="err4FlamingRaysE.html" class="code" title="function res = err4FlamingRaysE(Par,var_pars,par0,stns,ImRois,Z3D,x2D,y2D,Ie2H,E,out_arg_type,z_max,errOps)">err4FlamingRaysE</a>(I,v_p,I0b,stns,{errMask,errMask},ZfI,XfI(:,:,115),YfI(:,:,115),{A1Z,A2Z},E,1,110,errOps),parTest,parMin,parMax,fmsOPS);
+0114     It(i1,:) = parTest;
+0115     <span class="comment">% Here's where we should put saveing of temporary results in!</span>
+0116     save(saveFilename,<span class="string">'It'</span>)
+0117     disp(datestr(now,<span class="string">'yyyy mm dd HH:MM:SS'</span>))
+0118     disp([not_bored_to_tears,i1,parTest])
+0119   <span class="keyword">end</span>
+0120   fmsOPS.Display = <span class="string">'final'</span>;
+0121   <span class="comment">%% Then loop forward in time:</span>
+0122   <span class="comment">% errOps.bias2cylindrical = 0e6;</span>
+0123   parTest = It(12,:);
+0124   <span class="keyword">for</span> i1 = 13:size(ImStack{1},3),
+0125     <span class="keyword">if</span> first_lap == 0
+0126       parTest = It(i1,:);
+0127     <span class="keyword">end</span>
+0128     Iq = ( wiener2(ImStack{1}(:,:,i1),[3,3]) - wiener2(imbg{1}(:,:,i1),[3,3]) ) * 1/C_filter6370;
+0129     stns(1).img = Iq;
+0130     Iq = ( wiener2(ImStack{3}(:,:,i1),[3,3]) - wiener2(imbg{3}(:,:,i1),[3,3]) ) * 1/C_filter7774;
+0131     stns(2).img = Iq;
+0132     <span class="comment">%parTest = fminsearch(@(I) err4FlamingRaysE(I,v_p,I0b,stns,{bgMask,bgMask},ZfI,XfI(:,:,115),YfI(:,:,115),{A2Z,A1Z},E,1,110),parTest);</span>
+0133     parTest = <a href="../tools/fminsearchbnd.html" class="code" title="function [x,fval,exitflag,output] = fminsearchbnd(fun,x0,LB,UB,options,varargin)">fminsearchbnd</a>(@(I) <a href="err4FlamingRaysE.html" class="code" title="function res = err4FlamingRaysE(Par,var_pars,par0,stns,ImRois,Z3D,x2D,y2D,Ie2H,E,out_arg_type,z_max,errOps)">err4FlamingRaysE</a>(I,v_p,I0b,stns,{errMask,errMask},ZfI,XfI(:,:,115),YfI(:,:,115),{A1Z,A2Z},E,1,110,errOps),parTest,parMin,parMax,fmsOPS);
+0134     It(i1,:) = parTest;
+0135     disp(datestr(now,<span class="string">'yyyy mm dd HH:MM:SS'</span>))
+0136     disp([not_bored_to_tears,i1,parTest])
+0137     <span class="comment">% Here's where we should put saveing of temporary results in!</span>
+0138     save(saveFilename,<span class="string">'It'</span>)
+0139   <span class="keyword">end</span>
+0140   <span class="comment">%% ...and back to the beginning:</span>
+0141   <span class="comment">% errOps.bias2cylindrical = 0e6;</span>
+0142   parTest = It(12,:);
+0143   <span class="keyword">for</span> i1 = 11:-1:1,
+0144     <span class="keyword">if</span> first_lap == 0
+0145       parTest = It(i1,:);
+0146     <span class="keyword">end</span>
+0147     Iq = ( wiener2(ImStack{1}(:,:,i1),[3,3]) - wiener2(imbg{1}(:,:,i1),[3,3]) ) * 1/C_filter6370;
+0148     stns(1).img = Iq;
+0149     Iq = ( wiener2(ImStack{3}(:,:,i1),[3,3]) - wiener2(imbg{3}(:,:,i1),[3,3]) ) * 1/C_filter7774;
+0150     stns(2).img = Iq;
+0151     <span class="comment">%parTest = fminsearch(@(I) err4FlamingRaysE(I,v_p,I0b,stns,{bgMask,bgMask},ZfI,XfI(:,:,115),YfI(:,:,115),{A2Z,A1Z},E,1,110),parTest);</span>
+0152     parTest = <a href="../tools/fminsearchbnd.html" class="code" title="function [x,fval,exitflag,output] = fminsearchbnd(fun,x0,LB,UB,options,varargin)">fminsearchbnd</a>(@(I) <a href="err4FlamingRaysE.html" class="code" title="function res = err4FlamingRaysE(Par,var_pars,par0,stns,ImRois,Z3D,x2D,y2D,Ie2H,E,out_arg_type,z_max,errOps)">err4FlamingRaysE</a>(I,v_p,I0b,stns,{errMask,errMask},ZfI,XfI(:,:,115),YfI(:,:,115),{A1Z,A2Z},E,1,110,errOps),parTest,parMin,parMax,fmsOPS);
+0153     It(i1,:) = parTest;
+0154     disp(datestr(now,<span class="string">'yyyy mm dd HH:MM:SS'</span>))
+0155     disp([not_bored_to_tears,i1,parTest])
+0156     <span class="comment">% Here's where we should put saveing of temporary results in!</span>
+0157     save(saveFilename,<span class="string">'It'</span>)
+0158   <span class="keyword">end</span>
+0159   first_lap = 0;
+0160   <span class="comment">% Here's where we should put post-processing in!</span>
+0161   It = filtfilt([.5 1 1 1 .5]/4,1,It);
+0162   It(:,2) = It(:,2)/5 + mean(It(:,2))*4/5;
+0163   It(:,4) = It(:,4)/5 + mean(It(:,4))*4/5;
+0164   parTest = It(12,:);
+0165   errOps.bias2x0y0 = max(100,errOps.bias2x0y0/3);
+0166   errOps.x0y0 = It(12,[2 4]);
+0167   
+0168 <span class="keyword">end</span>
+0169 
+0170 <span class="comment">%%</span>
+0171 ITC = {It};
+0172 <span class="comment">%% Model the results:</span>
+0173 <span class="keyword">for</span> i1 = 1:size(ImStack{1},3),
+0174   Iq = ( wiener2(ImStack{1}(:,:,i1),[3,3]) - wiener2(imbg{1}(:,:,i1),[3,3]) ) * 1/C_filter6370;
+0175   stns(1).img = Iq;
+0176   Iq = ( wiener2(ImStack{3}(:,:,i1),[3,3]) - wiener2(imbg{3}(:,:,i1),[3,3]) ) * 1/C_filter7774;
+0177   stns(2).img = Iq;
+0178   res = <a href="err4FlamingRaysE.html" class="code" title="function res = err4FlamingRaysE(Par,var_pars,par0,stns,ImRois,Z3D,x2D,y2D,Ie2H,E,out_arg_type,z_max,errOps)">err4FlamingRaysE</a>(ITC{end}(i1,:),v_p,I0b,stns,{errMask,errMask},ZfI,XfI(:,:,115),YfI(:,:,115),{A2Z,A1Z},E,2,110,errOps);
+0179   ErrR{1}(i1) = res.err;
+0180   IeRay(i1,:) = res.IeOutput{1};
+0181 <span class="keyword">end</span>
+0182 
+0183 <span class="comment">%% Display the modeling result:</span>
+0184 
+0185 subplot(4,1,1)
+0186 pcolor([1:20]*1/32,E*1e3,log10(IeRay')),shading flat,caxis([-5 0]+max(caxis))
+0187 set(gca,<span class="string">'yscale'</span>,<span class="string">'log'</span>)
+0188 hold on
+0189 xlabel(<span class="string">'time (s)'</span>)
+0190 ylabel(<span class="string">'Energy (eV)'</span>)
+0191 title(<span class="string">'Electron spectra'</span>)
+0192 set(gca,<span class="string">'ytick'</span>,[100 1000 10000])
+0193 cblh = <a href="../tools/colorbar_labeled.html" class="code" title="function handle=colorbar_labeled(label,lg,varargin)">colorbar_labeled</a>(<span class="string">'/eV/m^2/s'</span>,<span class="string">'log'</span>);
+0194 set(cblh,<span class="string">'position'</span>,get(cblh,<span class="string">'position'</span>)+[-0.01 0 0 0])
+0195 
+0196 <span class="keyword">for</span> i1 = 1:size(ImStack{1},3),
+0197   Iq = ( wiener2(ImStack{1}(:,:,i1),[3,3]) - wiener2(imbg{1}(:,:,i1),[3,3]) ) * 1/C_filter6370;
+0198   stns(1).img = Iq;
+0199   Iq = ( wiener2(ImStack{3}(:,:,i1),[3,3]) - wiener2(imbg{3}(:,:,i1),[3,3]) ) * 1/C_filter7774;
+0200   stns(2).img = Iq;
+0201   res = <a href="err4FlamingRaysE.html" class="code" title="function res = err4FlamingRaysE(Par,var_pars,par0,stns,ImRois,Z3D,x2D,y2D,Ie2H,E,out_arg_type,z_max,errOps)">err4FlamingRaysE</a>(ITC{end}(i1,:),v_p,I0b,stns,{errMask,errMask},ZfI,XfI(:,:,115),YfI(:,:,115),{A1Z,A2Z},E,2,110);
+0202   ErrR{1}(i1) = res.err;
+0203   subplot(4,1,1)
+0204   <span class="comment">%semilogy(E,res.IeOutput{1})</span>
+0205   ph = plot((i1+0.5)/32*[1 1],E([1,end])*1e3,<span class="string">'k'</span>);
+0206   subplot(4,2,5)
+0207   imagesc(res.currImg{1}),<a href="../Imgtools/imgs_smart_caxis.html" class="code" title="function cax = imgs_smart_caxis(alpha,varargin)">imgs_smart_caxis</a>(0.0003,res.currImg{1}),axis([150 256 150 256]) 
+0208   hold on
+0209   [~,cH1] = contour(res.currProj{1},7,<span class="string">'w'</span>);
+0210   hold off
+0211   title(<span class="string">'ASK #1 (6730 A)'</span>)
+0212   ylabel(<span class="string">'Observations'</span>)
+0213   <a href="../tools/colorbar_labeled.html" class="code" title="function handle=colorbar_labeled(label,lg,varargin)">colorbar_labeled</a>(<span class="string">'R'</span>)
+0214   set(gca,<span class="string">'xticklabel'</span>,<span class="string">''</span>)
+0215   subplot(4,2,6)
+0216   imagesc(res.currImg{2}),<a href="../Imgtools/imgs_smart_caxis.html" class="code" title="function cax = imgs_smart_caxis(alpha,varargin)">imgs_smart_caxis</a>(0.0003,res.currImg{2}),axis([150 256 150 256]) 
+0217   hold on
+0218   [~,cH2] = contour(res.currProj{2},7,<span class="string">'w'</span>);
+0219   hold off
+0220   <a href="../tools/colorbar_labeled.html" class="code" title="function handle=colorbar_labeled(label,lg,varargin)">colorbar_labeled</a>(<span class="string">'R'</span>)
+0221   title(<span class="string">'ASK #3 (7774 A)'</span>)
+0222   set(gca,<span class="string">'xticklabel'</span>,<span class="string">''</span>)
+0223   set(gca,<span class="string">'yticklabel'</span>,<span class="string">''</span>)
+0224   subplot(4,2,7)
+0225   imagesc(res.currProj{1}),<a href="../Imgtools/imgs_smart_caxis.html" class="code" title="function cax = imgs_smart_caxis(alpha,varargin)">imgs_smart_caxis</a>(0.0003,res.currImg{1}),axis([150 256 150 256])
+0226   ylabel(<span class="string">'Modeled'</span>)
+0227   <a href="../tools/colorbar_labeled.html" class="code" title="function handle=colorbar_labeled(label,lg,varargin)">colorbar_labeled</a>(<span class="string">'R'</span>)
+0228   subplot(4,2,8)
+0229   imagesc(res.currProj{2}),<a href="../Imgtools/imgs_smart_caxis.html" class="code" title="function cax = imgs_smart_caxis(alpha,varargin)">imgs_smart_caxis</a>(0.0003,res.currImg{2}),axis([150 256 150 256])
+0230   set(gca,<span class="string">'yticklabel'</span>,<span class="string">''</span>)
+0231   <a href="../tools/colorbar_labeled.html" class="code" title="function handle=colorbar_labeled(label,lg,varargin)">colorbar_labeled</a>(<span class="string">'R'</span>)
+0232   subplot(4,2,3)
+0233   pcolor(XfI(:,:,400),YfI(:,:,400),res.Vem{1}(:,:,400)),shading flat
+0234   hold on
+0235   xlabel(<span class="string">'East of ESR (km)'</span>)              
+0236   ylabel(<span class="string">'North of ESR (km)'</span>)
+0237   title(<span class="string">'Horizontal slice at 180 km (6730)'</span>)
+0238   <span class="comment">%axis equal</span>
+0239   [~,i1_i2(1),i1_i2(2)] = <a href="../tools/max2D.html" class="code" title="function [Imax,i1,i2] = max2D(Iin)">max2D</a>(res.Vem{1}(:,:,400));
+0240   subplot(4,2,4)
+0241   plot(squeeze(res.Vem{1}(i1_i2(1),i1_i2(2),:)),squeeze(ZfI(i1_i2(1),i1_i2(2),:)),<span class="string">'r'</span>,<span class="string">'linewidth'</span>,2)
+0242   hold on
+0243   plot(squeeze(res.Vem{2}(i1_i2(1),i1_i2(2),:)),squeeze(ZfI(i1_i2(1),i1_i2(2),:)),<span class="string">'k'</span>,<span class="string">'linewidth'</span>,2)
+0244   axis([0 4e9 50 400])
+0245   title(<span class="string">'Volume emission rate'</span>)             
+0246   xlabel(<span class="string">'(#/m^3/s)'</span>)       
+0247   ylabel(<span class="string">'Altitude (km)'</span>)    
+0248   hold off
+0249   mRay(i1) = getframe(gcf);
+0250   delete(ph)
+0251 <span class="keyword">end</span>
+0252</pre></div>
+<hr><address>Generated on Mon 27-Jan-2014 17:32:33 by <strong>B.&nbsp;Gustavsson</strong> with <strong><a href="http://www.artefact.tk/software/matlab/m2html/" target="_parent">m2html</a></strong> &copy; 2003</address>
+</body>
+</html>

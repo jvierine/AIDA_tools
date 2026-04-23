@@ -1,0 +1,161 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
+                "http://www.w3.org/TR/REC-html40/loose.dtd">
+<html>
+<head>
+  <title>Description of alis_auto_overview</title>
+  <meta name="keywords" content="alis_auto_overview">
+  <meta name="description" content="ALIS_AUTO_OVERVIEW - function for displaying overview data">
+  <meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+  <meta name="generator" content="m2html &copy; 2003 Guillaume Flandin">
+  <meta name="robots" content="index, follow">
+  <link type="text/css" rel="stylesheet" href="../m2html.css">
+</head>
+<body>
+<a name="_top"></a>
+<!-- menu.html ALIS -->
+<h1>alis_auto_overview
+</h1>
+
+<h2><a name="_name"></a>PURPOSE <a href="#_top"><img alt="^" border="0" src="../up.png"></a></h2>
+<div class="box"><strong>ALIS_AUTO_OVERVIEW - function for displaying overview data</strong></div>
+
+<h2><a name="_synopsis"></a>SYNOPSIS <a href="#_top"><img alt="^" border="0" src="../up.png"></a></h2>
+<div class="box"><strong>function AvOk = alis_auto_overview(AvOk,t_y) </strong></div>
+
+<h2><a name="_description"></a>DESCRIPTION <a href="#_top"><img alt="^" border="0" src="../up.png"></a></h2>
+<div class="fragment"><pre class="comment"> ALIS_AUTO_OVERVIEW - function for displaying overview data
+ keograms</pre></div>
+
+<!-- crossreference -->
+<h2><a name="_cross"></a>CROSS-REFERENCE INFORMATION <a href="#_top"><img alt="^" border="0" src="../up.png"></a></h2>
+This function calls:
+<ul style="list-style-image:url(../matlabicon.gif)">
+<li><a href="../ALIS/AVOK/alis_overview.html" class="code" title="function [M,filters,Times,I_minmax] = alis_overview(files,POs,OPS)">alis_overview</a>	ALIS_OVERVIEW - Overviews of alis data, movie or image-mosaics</li><li><a href="../Fits_tools/typical_pre_proc_ops.html" class="code" title="function PO = typical_pre_proc_ops(pp_type)">typical_pre_proc_ops</a>	TYPICAL_PRE_PROC_OPS - Typical ALIS-fits preprocessing options</li></ul>
+This function is called by:
+<ul style="list-style-image:url(../matlabicon.gif)">
+</ul>
+<!-- crossreference -->
+
+<h2><a name="_subfunctions"></a>SUBFUNCTIONS <a href="#_top"><img alt="^" border="0" src="../up.png"></a></h2>
+<ul style="list-style-image:url(../matlabicon.gif)">
+<li><a href="#_sub1" class="code">function avok = make_fig_overview(avok)</a></li></ul>
+<h2><a name="_source"></a>SOURCE CODE <a href="#_top"><img alt="^" border="0" src="../up.png"></a></h2>
+<div class="fragment"><pre>0001 <a name="_sub0" href="#_subfunctions" class="code">function AvOk = alis_auto_overview(AvOk,t_y)</a>
+0002 <span class="comment">% ALIS_AUTO_OVERVIEW - function for displaying overview data</span>
+0003 <span class="comment">% keograms</span>
+0004 
+0005 <span class="keyword">persistent</span> time_0 indx_offset
+0006 
+0007 <span class="keyword">if</span> length(t_y) &gt; 1
+0008   indx_offset = 0;
+0009   time_0 = t_y(1)
+0010 <span class="keyword">else</span>
+0011   indx_offset = indx_offset + t_y;
+0012 <span class="keyword">end</span>
+0013 
+0014 PO = <a href="../Fits_tools/typical_pre_proc_ops.html" class="code" title="function PO = typical_pre_proc_ops(pp_type)">typical_pre_proc_ops</a>;
+0015 PO.interference_level = 2.5;
+0016 PO.fix_missalign = 0;
+0017 
+0018 load([<span class="string">'alis_overview'</span>,num2str([AvOk.date(1:3)],<span class="string">'%02d'</span>)])
+0019 
+0020 nrstns = unique(Stns);
+0021 ufnr = unique([Wl_emi{:}]);
+0022 
+0023 <span class="keyword">for</span> j = 1:length(nrstns),
+0024   
+0025   wl_emi = Wl_emi{Stns(j)};
+0026   filenames = Filenames{Stns(j)};
+0027   t_obs = T_obs{Stns(j)};
+0028   
+0029   POs{j} = PO;
+0030   
+0031   fname = <span class="string">''</span>;
+0032   fnindx = 1;
+0033   <span class="keyword">for</span> i = 1:length(ufnr),
+0034     
+0035     <span class="keyword">if</span> any(wl_emi==ufnr(i))
+0036       
+0037       tt = t_obs(wl_emi==ufnr(i));
+0038       fnms = filenames(wl_emi==ufnr(i),:);
+0039       [tmin,indx_tmin] = min(abs(tt-time_0));
+0040       <span class="keyword">if</span> tmin&lt;1/60
+0041         time_best(fnindx) = tt(min(max(indx_tmin+indx_offset,1),size(fnms,1)));
+0042         fname(fnindx,:) = fnms(min(max(indx_tmin+indx_offset,1),size(fnms,1)),:);
+0043         fnindx = fnindx + 1;
+0044         disp(<span class="string">'---------------------'</span>)
+0045         disp([<span class="string">'Stns: '</span>,num2str(Stns(j))])
+0046         disp([<span class="string">'wl = '</span>,num2str(ufnr(i)),[<span class="string">', [t0,t_best,dt] = '</span> <span class="keyword">...</span>
+0047                             <span class="string">''</span>],num2str([time_0,time_best,tmin])])
+0048         disp([tt(indx_tmin+indx_offset+[-1:1])])
+0049         disp(fnms(min(max(indx_tmin+indx_offset,1),size(fnms,1)),:))
+0050         
+0051       <span class="keyword">end</span>
+0052       
+0053     <span class="keyword">end</span>
+0054     
+0055   <span class="keyword">end</span>
+0056   <span class="keyword">if</span> all(size(fname))
+0057     [q,sort_on_time] = sort(time_best);
+0058     Fnames{j} = fname(sort_on_time,:);
+0059   <span class="keyword">end</span>
+0060   
+0061 <span class="keyword">end</span>
+0062 
+0063 
+0064 <span class="keyword">try</span>
+0065   keep_indx = [];
+0066   <span class="keyword">for</span> i = 1:length(Fnames)
+0067     <span class="keyword">if</span> all(size(Fnames{i}))
+0068       keep_indx = [keep_indx i];
+0069     <span class="keyword">end</span>
+0070   <span class="keyword">end</span>
+0071   
+0072   Fnames = Fnames(keep_indx);
+0073   
+0074   <span class="keyword">if</span> ~isfield(AvOk,<span class="string">'fig_overview'</span>)
+0075     
+0076     AvOk = <a href="#_sub1" class="code" title="subfunction avok = make_fig_overview(avok)">make_fig_overview</a>(AvOk);
+0077     ovOPS =                   <a href="../ALIS/AVOK/alis_overview.html" class="code" title="function [M,filters,Times,I_minmax] = alis_overview(files,POs,OPS)">alis_overview</a>;
+0078     ovOPS.subplots =          [length(ufnr) length(nrstns)+1];
+0079     ovOPS.subplot_pos =        1+[1:length(nrstns)];
+0080     ovOPS.overview_sppos =     1;
+0081     ovOPS.rgb_or_pseudo =      <span class="string">'pseudo'</span>;
+0082     ovOPS.times_until_restart = 500;
+0083     AvOk.ovOPS = ovOPS;
+0084     
+0085   <span class="keyword">end</span>
+0086   
+0087   figure(AvOk.fig_overview)
+0088   clf
+0089   <a href="../ALIS/AVOK/alis_overview.html" class="code" title="function [M,filters,Times,I_minmax] = alis_overview(files,POs,OPS)">alis_overview</a>(Fnames,POs,AvOk.ovOPS);
+0090   
+0091   <span class="keyword">for</span> i = 1:length(Fnames)
+0092     disp(Fnames{i})
+0093   <span class="keyword">end</span>
+0094 <span class="keyword">catch</span>
+0095   disp(<span class="string">'nothing there?'</span>)
+0096 <span class="keyword">end</span>
+0097 
+0098 <a name="_sub1" href="#_subfunctions" class="code">function avok = make_fig_overview(avok)</a>
+0099 <span class="comment">% MAKE_FIG_OVERVIEW -</span>
+0100 <span class="comment">%</span>
+0101 
+0102 avok.fig_overview = figure;
+0103 
+0104 avok.nextim = uicontrol(<span class="string">'Units'</span>,<span class="string">'normalized'</span>,<span class="keyword">...</span>
+0105                         <span class="string">'Style'</span>,<span class="string">'pushbutton'</span>,<span class="keyword">...</span>
+0106                         <span class="string">'Position'</span>,[.16,.0,.05,.05],<span class="keyword">...</span>
+0107                         <span class="string">'string'</span>,<span class="string">'&gt;'</span>,<span class="keyword">...</span>
+0108                         <span class="string">'Callback'</span>,<span class="string">'AvOk = alis_auto_overview(AvOk,1)'</span>);
+0109 avok.previm = uicontrol(<span class="string">'Units'</span>,<span class="string">'normalized'</span>,<span class="keyword">...</span>
+0110                         <span class="string">'Style'</span>,<span class="string">'pushbutton'</span>,<span class="keyword">...</span>
+0111                         <span class="string">'Position'</span>,[.11,.0,.05,.05],<span class="keyword">...</span>
+0112                         <span class="string">'string'</span>,<span class="string">'&lt;'</span>,<span class="keyword">...</span>
+0113                         <span class="string">'Callback'</span>,<span class="string">'AvOk = alis_auto_overview(AvOk,-1)'</span>);
+0114 
+0115 hidegui(avok.nextim)
+0116 hidegui(avok.previm)</pre></div>
+<hr><address>Generated on Sat 09-Feb-2013 12:20:36 by <strong>B.&nbsp;Gustavsson</strong> with <strong><a href="http://www.artefact.tk/software/matlab/m2html/" target="_parent">m2html</a></strong> &copy; 2003</address>
+</body>
+</html>

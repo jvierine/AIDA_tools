@@ -1,0 +1,19 @@
+%% MIRACLE station positions
+%% station number, latitude, longitude, (altitude)
+%% 710 = SOD
+%% 720 = MUO
+%% 730 = ABK
+%% 740 = KIL until summer 2009
+%% 741 = KIL from fall 2009 to present
+%% 750 = KEV
+%% 760 = LYR
+%% 770 = NAL
+%% 
+710 26.63 67.37
+720 23.53 68.02
+730 18.82 68.35
+740 20.79 69.02
+741 20.78 69.05
+750 27.01 69.76
+760 15.82 78.20
+770 11.95 78.92

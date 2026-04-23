@@ -1,0 +1,198 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
+                "http://www.w3.org/TR/REC-html40/loose.dtd">
+<html>
+<head>
+  <title>Description of imgs_TimeSeries_bg_red</title>
+  <meta name="keywords" content="imgs_TimeSeries_bg_red">
+  <meta name="description" content="IMGS_TIMESERIES_BG_RED - linear combination timeseries background reduction">
+  <meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+  <meta name="generator" content="m2html &copy; 2003 Guillaume Flandin">
+  <meta name="robots" content="index, follow">
+  <link type="text/css" rel="stylesheet" href="../m2html.css">
+</head>
+<body>
+<a name="_top"></a>
+<!-- menu.html Imgtools -->
+<h1>imgs_TimeSeries_bg_red
+</h1>
+
+<h2><a name="_name"></a>PURPOSE <a href="#_top"><img alt="^" border="0" src="../up.png"></a></h2>
+<div class="box"><strong>IMGS_TIMESERIES_BG_RED - linear combination timeseries background reduction</strong></div>
+
+<h2><a name="_synopsis"></a>SYNOPSIS <a href="#_top"><img alt="^" border="0" src="../up.png"></a></h2>
+<div class="box"><strong>function [I_red,W] = imgs_TimeSeries_bg_red(I_ts,I_bg,idx4bg) </strong></div>
+
+<h2><a name="_description"></a>DESCRIPTION <a href="#_top"><img alt="^" border="0" src="../up.png"></a></h2>
+<div class="fragment"><pre class="comment"> IMGS_TIMESERIES_BG_RED - linear combination timeseries background reduction
+  from back-ground time-series. A typical application is
+  Heating-experiments during twighlight where region of interest
+  is spatially well confined and background intensities can be
+  taken from that region between HF-on periods and in surrounding
+  regions at all times, this makes it possible to take into
+  account the non-trivial variation in sky background intensities
+  by making a lsq weighted linear combination of the background
+  intensities.
+   
+  Consider a sequence of images like this (ASCII-art, _everybody_
+  loves ASCII-art!):
+
+  -------------------------
+  |     -----------       |
+  |     | bg-reg A|       |
+  | -------------------   |
+  | |bg |         |bg |   |
+  | |reg| region  |reg|   |
+  | |B  |   of    |C  |   |
+  | |   | interest|   |   |
+  | -------------------   |
+  |     | bg-reg D|       |
+  |     -----------       |
+  |                       |
+  -------------------------
+ 
+  Intensities in a pixel in the region of interest I_i can be
+  approximated with a linear combination of the average
+  intensities in regions A-D:
+
+    I_iapprox = W_A*I_A + W_B*I_B + W_C*I_C + W_D*I_D
+
+  which we can put on matrix form:
+
+    I_iapprox = [I_A,I_B,I_C,I_D]*W_ABCD
+
+  for which we can use the powers of matlab to easily estimate the
+  weight array:
+
+    W_ABCD = [I_A(t_bg),I_B(t_bg),I_C(t_bg),I_D(t_bg)]\I_i(t_bg)
+
+  Where we have taken intensities (I_i, I_A,...) at times suitable
+  for background conditions (for example exposures close to the
+  end of HF-off periods). For other instances in time the
+  background contribution is then estimated as:
+
+   I_bg(t) = [I_A(t),I_B(t),I_C(t),I_D(t)]*W_ABCD
+
+ Calling:
+   [I_red,W] = imgs_TimeSeries_bg_red(I_ts,I_bg,idx4bg)
+ Input:
+   I_ts   - time-series with data of interest, double array [n_timesteps x N]
+   I_bg   - time-series with background data, double array
+            [n_timesteps x N_bgregs] or cell-array [1 x N_bgregs]
+            or  [N_bgregs x 1] with arrays  [n_timesteps x 1] in
+            each cell
+   idx4bg - 
+ Output:
+   I_red - Intensities after background reduction double array
+           [n_timesteps x N] 
+   W     - least-square fitted weight vectors.
+   
+ Example:
+   regs = {[xRegmin,xRegmax,yRegmin,yRegmax],...
+           [xbg1min,xbg1max,ybg1min,ybg1max],...
+           [xbg2min,xbg2max,ybg2min,ybg2max],...
+           [xbg3min,xbg3max,ybg3min,ybg3max],...
+           [xbg4min,xbg4max,ybg4min,ybg4max]};
+   files = dir('*.*');
+   PO = typical_pre_proc_ops;
+   [~,I_mean] = imgs_regs_mmmm(files,regs,[],PO);
+   idx4Bg = [12:48:523,11:48:523];
+   [I_red,W] = imgs_TimeSeries_bg_red(I_ts(I_mean(:,1)),I_mean(:,2:end),idx4Bg);</pre></div>
+
+<!-- crossreference -->
+<h2><a name="_cross"></a>CROSS-REFERENCE INFORMATION <a href="#_top"><img alt="^" border="0" src="../up.png"></a></h2>
+This function calls:
+<ul style="list-style-image:url(../matlabicon.gif)">
+</ul>
+This function is called by:
+<ul style="list-style-image:url(../matlabicon.gif)">
+</ul>
+<!-- crossreference -->
+
+
+<h2><a name="_source"></a>SOURCE CODE <a href="#_top"><img alt="^" border="0" src="../up.png"></a></h2>
+<div class="fragment"><pre>0001 <a name="_sub0" href="#_subfunctions" class="code">function [I_red,W] = imgs_TimeSeries_bg_red(I_ts,I_bg,idx4bg)</a>
+0002 <span class="comment">% IMGS_TIMESERIES_BG_RED - linear combination timeseries background reduction</span>
+0003 <span class="comment">%  from back-ground time-series. A typical application is</span>
+0004 <span class="comment">%  Heating-experiments during twighlight where region of interest</span>
+0005 <span class="comment">%  is spatially well confined and background intensities can be</span>
+0006 <span class="comment">%  taken from that region between HF-on periods and in surrounding</span>
+0007 <span class="comment">%  regions at all times, this makes it possible to take into</span>
+0008 <span class="comment">%  account the non-trivial variation in sky background intensities</span>
+0009 <span class="comment">%  by making a lsq weighted linear combination of the background</span>
+0010 <span class="comment">%  intensities.</span>
+0011 <span class="comment">%</span>
+0012 <span class="comment">%  Consider a sequence of images like this (ASCII-art, _everybody_</span>
+0013 <span class="comment">%  loves ASCII-art!):</span>
+0014 <span class="comment">%</span>
+0015 <span class="comment">%  -------------------------</span>
+0016 <span class="comment">%  |     -----------       |</span>
+0017 <span class="comment">%  |     | bg-reg A|       |</span>
+0018 <span class="comment">%  | -------------------   |</span>
+0019 <span class="comment">%  | |bg |         |bg |   |</span>
+0020 <span class="comment">%  | |reg| region  |reg|   |</span>
+0021 <span class="comment">%  | |B  |   of    |C  |   |</span>
+0022 <span class="comment">%  | |   | interest|   |   |</span>
+0023 <span class="comment">%  | -------------------   |</span>
+0024 <span class="comment">%  |     | bg-reg D|       |</span>
+0025 <span class="comment">%  |     -----------       |</span>
+0026 <span class="comment">%  |                       |</span>
+0027 <span class="comment">%  -------------------------</span>
+0028 <span class="comment">%</span>
+0029 <span class="comment">%  Intensities in a pixel in the region of interest I_i can be</span>
+0030 <span class="comment">%  approximated with a linear combination of the average</span>
+0031 <span class="comment">%  intensities in regions A-D:</span>
+0032 <span class="comment">%</span>
+0033 <span class="comment">%    I_iapprox = W_A*I_A + W_B*I_B + W_C*I_C + W_D*I_D</span>
+0034 <span class="comment">%</span>
+0035 <span class="comment">%  which we can put on matrix form:</span>
+0036 <span class="comment">%</span>
+0037 <span class="comment">%    I_iapprox = [I_A,I_B,I_C,I_D]*W_ABCD</span>
+0038 <span class="comment">%</span>
+0039 <span class="comment">%  for which we can use the powers of matlab to easily estimate the</span>
+0040 <span class="comment">%  weight array:</span>
+0041 <span class="comment">%</span>
+0042 <span class="comment">%    W_ABCD = [I_A(t_bg),I_B(t_bg),I_C(t_bg),I_D(t_bg)]\I_i(t_bg)</span>
+0043 <span class="comment">%</span>
+0044 <span class="comment">%  Where we have taken intensities (I_i, I_A,...) at times suitable</span>
+0045 <span class="comment">%  for background conditions (for example exposures close to the</span>
+0046 <span class="comment">%  end of HF-off periods). For other instances in time the</span>
+0047 <span class="comment">%  background contribution is then estimated as:</span>
+0048 <span class="comment">%</span>
+0049 <span class="comment">%   I_bg(t) = [I_A(t),I_B(t),I_C(t),I_D(t)]*W_ABCD</span>
+0050 <span class="comment">%</span>
+0051 <span class="comment">% Calling:</span>
+0052 <span class="comment">%   [I_red,W] = imgs_TimeSeries_bg_red(I_ts,I_bg,idx4bg)</span>
+0053 <span class="comment">% Input:</span>
+0054 <span class="comment">%   I_ts   - time-series with data of interest, double array [n_timesteps x N]</span>
+0055 <span class="comment">%   I_bg   - time-series with background data, double array</span>
+0056 <span class="comment">%            [n_timesteps x N_bgregs] or cell-array [1 x N_bgregs]</span>
+0057 <span class="comment">%            or  [N_bgregs x 1] with arrays  [n_timesteps x 1] in</span>
+0058 <span class="comment">%            each cell</span>
+0059 <span class="comment">%   idx4bg -</span>
+0060 <span class="comment">% Output:</span>
+0061 <span class="comment">%   I_red - Intensities after background reduction double array</span>
+0062 <span class="comment">%           [n_timesteps x N]</span>
+0063 <span class="comment">%   W     - least-square fitted weight vectors.</span>
+0064 <span class="comment">%</span>
+0065 <span class="comment">% Example:</span>
+0066 <span class="comment">%   regs = {[xRegmin,xRegmax,yRegmin,yRegmax],...</span>
+0067 <span class="comment">%           [xbg1min,xbg1max,ybg1min,ybg1max],...</span>
+0068 <span class="comment">%           [xbg2min,xbg2max,ybg2min,ybg2max],...</span>
+0069 <span class="comment">%           [xbg3min,xbg3max,ybg3min,ybg3max],...</span>
+0070 <span class="comment">%           [xbg4min,xbg4max,ybg4min,ybg4max]};</span>
+0071 <span class="comment">%   files = dir('*.*');</span>
+0072 <span class="comment">%   PO = typical_pre_proc_ops;</span>
+0073 <span class="comment">%   [~,I_mean] = imgs_regs_mmmm(files,regs,[],PO);</span>
+0074 <span class="comment">%   idx4Bg = [12:48:523,11:48:523];</span>
+0075 <span class="comment">%   [I_red,W] = imgs_TimeSeries_bg_red(I_ts(I_mean(:,1)),I_mean(:,2:end),idx4Bg);</span>
+0076 
+0077 <span class="keyword">if</span> iscell(I_bg)
+0078   I_bg = cell2mat(I_bg(:)');
+0079 <span class="keyword">end</span>
+0080 
+0081 W = I_bg(idx4bg,:)\I_ts(idx4bg,:);
+0082 
+0083 I_red = I_ts - I_bg*W;</pre></div>
+<hr><address>Generated on Thu 21-Jun-2018 22:40:16 by <strong>B.&nbsp;Gustavsson</strong> with <strong><a href="http://www.artefact.tk/software/matlab/m2html/" target="_parent">m2html</a></strong> &copy; 2003</address>
+</body>
+</html>

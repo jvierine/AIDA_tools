@@ -1,0 +1,13 @@
+station: SITENO  =  str2num(strtok(img_head(hindx,11:end),'/')) 0 / ALIS station number. DEPRECIATED!
+site:    SITENAME=  header2site_v5(img_head(hindx,11:end))    'Silkkimuotka'       / name of measurement site
+az:      AZIMUTH =  str2num(strtok(img_head(hindx,11:end),'/')) 270. / [DEG] Azimuth (Deg. east from north)
+ze:      ZENITANG=  str2num(strtok(img_head(hindx,11:end),'/')) 0.025 / [Deg] Zenith angle (Deg. from zenith)
+alpha:   CPSALFA =  str2num(strtok(img_head(hindx,11:end),'/')) -1 / [Counts] CPS angular encoder counts for alfa ax
+beta:    CPSBETA =  str2num(strtok(img_head(hindx,11:end),'/')) -1 / [Counts] CPS angular encoder counts for beta ax
+filter:  FPSEMI  =  10*str2num(strtok(img_head(hindx,11:end),'/'))   427.8 / [nm] observed center wavelength
+camnr:   INSTRUME=  str2num(img_head(hindx,16:19))                 'mima11  '           / name of instrument
+sx:      NAXIS1  =  str2num(strtok(img_head(hindx,11:end),'/'))                132
+sy:      NAXIS2  =  str2num(strtok(img_head(hindx,11:end),'/'))                128
+interval_t: CCDTKIN =  str2num(strtok(img_head(hindx,11:end),'/'))               0.25 / [s] Kinetic cycle time                         '
+time:    DATE-OBS=  datevec(datenum(img_head(hindx,12:37),'yyyy-mm-ddTHH:MM:SS.fff')) '2020-11-21T20:31:25.000000' / UTC at the start of observation        '
+exptime: EXPTIME =  str2num(strtok(img_head(hindx,11:end),'/'))  0.24772 / [s] Exposure time                              '

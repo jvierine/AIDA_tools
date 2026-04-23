@@ -1,0 +1,91 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
+                "http://www.w3.org/TR/REC-html40/loose.dtd">
+<html>
+<head>
+  <title>Description of ALIS_get_right_endian</title>
+  <meta name="keywords" content="ALIS_get_right_endian">
+  <meta name="description" content="ALIS_GET_RIGHT_ENDIAN - get the right endian for ALIS' fits files">
+  <meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+  <meta name="generator" content="m2html &copy; 2003 Guillaume Flandin">
+  <meta name="robots" content="index, follow">
+  <link type="text/css" rel="stylesheet" href="../m2html.css">
+</head>
+<body>
+<a name="_top"></a>
+<!-- menu.html ALIS -->
+<h1>ALIS_get_right_endian
+</h1>
+
+<h2><a name="_name"></a>PURPOSE <a href="#_top"><img alt="^" border="0" src="../up.png"></a></h2>
+<div class="box"><strong>ALIS_GET_RIGHT_ENDIAN - get the right endian for ALIS' fits files</strong></div>
+
+<h2><a name="_synopsis"></a>SYNOPSIS <a href="#_top"><img alt="^" border="0" src="../up.png"></a></h2>
+<div class="box"><strong>function Endian = ALIS_get_right_endian(date_obs) </strong></div>
+
+<h2><a name="_description"></a>DESCRIPTION <a href="#_top"><img alt="^" border="0" src="../up.png"></a></h2>
+<div class="fragment"><pre class="comment"> ALIS_GET_RIGHT_ENDIAN - get the right endian for ALIS' fits files
+   
+ Calling:
+   Endian = ALIS_get_right_endian(date_obs)
+ Input:
+   date_obs - array with date [1 x 3] or time [1 x 6] starting
+              with [yyyy, mm, dd, ...] (will handle any other
+              array format by using date_obs(1:3) as [yyyy mm dd])
+ Output:
+   Endian - string with 'LE' for the preiod when ALIS data was
+            stored in little endian format (1999-10 to 2004-05),
+            'BE' for other time-periods
+ 
+ Example:
+   date_of_interest = [2002 03 07;]
+   Endian = ALIS_get_right_endian(date_of_interest)
+ 
+ See also: <a href="ALIS_fix_endian.html" class="code" title="function PO = ALIS_fix_endian(PO,date_obs)">ALIS_fix_endian</a>, fits1, fits2, inimg</pre></div>
+
+<!-- crossreference -->
+<h2><a name="_cross"></a>CROSS-REFERENCE INFORMATION <a href="#_top"><img alt="^" border="0" src="../up.png"></a></h2>
+This function calls:
+<ul style="list-style-image:url(../matlabicon.gif)">
+<li><a href="../Skymap/date2juldate.html" class="code" title="function [jd] = date2juldate(date)">date2juldate</a>	DATE2JULIANDATE calculates the julian date at 0h UT</li></ul>
+This function is called by:
+<ul style="list-style-image:url(../matlabicon.gif)">
+<li><a href="ALIS_fix_endian.html" class="code" title="function PO = ALIS_fix_endian(PO,date_obs)">ALIS_fix_endian</a>	ALIS_FIX_ENDIAN - set the right endian-field in the preprocessing options struct</li></ul>
+<!-- crossreference -->
+
+
+<h2><a name="_source"></a>SOURCE CODE <a href="#_top"><img alt="^" border="0" src="../up.png"></a></h2>
+<div class="fragment"><pre>0001 <a name="_sub0" href="#_subfunctions" class="code">function Endian = ALIS_get_right_endian(date_obs)</a>
+0002 <span class="comment">% ALIS_GET_RIGHT_ENDIAN - get the right endian for ALIS' fits files</span>
+0003 <span class="comment">%</span>
+0004 <span class="comment">% Calling:</span>
+0005 <span class="comment">%   Endian = ALIS_get_right_endian(date_obs)</span>
+0006 <span class="comment">% Input:</span>
+0007 <span class="comment">%   date_obs - array with date [1 x 3] or time [1 x 6] starting</span>
+0008 <span class="comment">%              with [yyyy, mm, dd, ...] (will handle any other</span>
+0009 <span class="comment">%              array format by using date_obs(1:3) as [yyyy mm dd])</span>
+0010 <span class="comment">% Output:</span>
+0011 <span class="comment">%   Endian - string with 'LE' for the preiod when ALIS data was</span>
+0012 <span class="comment">%            stored in little endian format (1999-10 to 2004-05),</span>
+0013 <span class="comment">%            'BE' for other time-periods</span>
+0014 <span class="comment">%</span>
+0015 <span class="comment">% Example:</span>
+0016 <span class="comment">%   date_of_interest = [2002 03 07;]</span>
+0017 <span class="comment">%   Endian = ALIS_get_right_endian(date_of_interest)</span>
+0018 <span class="comment">%</span>
+0019 <span class="comment">% See also: ALIS_fix_endian, fits1, fits2, inimg</span>
+0020 
+0021 <span class="comment">%   Copyright � 2014 Bjorn Gustavsson, &lt;bjorn.gustavsson@irf.se&gt;</span>
+0022 <span class="comment">%   This is free software, licensed under GNU GPL version 2 or later</span>
+0023 
+0024 LE_starddate = <a href="../Skymap/date2juldate.html" class="code" title="function [jd] = date2juldate(date)">date2juldate</a>([1999,8,1]);
+0025 LE_enddate   = <a href="../Skymap/date2juldate.html" class="code" title="function [jd] = date2juldate(date)">date2juldate</a>([2004,8,1]);
+0026 
+0027 jdate_obs = <a href="../Skymap/date2juldate.html" class="code" title="function [jd] = date2juldate(date)">date2juldate</a>(date_obs(1:3));
+0028 
+0029 Endian = <span class="string">'BE'</span>;
+0030 <span class="keyword">if</span> LE_starddate &lt; jdate_obs &amp;&amp; jdate_obs &lt; LE_enddate
+0031   Endian = <span class="string">'LE'</span>;
+0032 <span class="keyword">end</span></pre></div>
+<hr><address>Generated on Thu 21-Jun-2018 22:40:16 by <strong>B.&nbsp;Gustavsson</strong> with <strong><a href="http://www.artefact.tk/software/matlab/m2html/" target="_parent">m2html</a></strong> &copy; 2003</address>
+</body>
+</html>

@@ -1,0 +1,258 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
+                "http://www.w3.org/TR/REC-html40/loose.dtd">
+<html>
+<head>
+  <title>Description of movingstd3</title>
+  <meta name="keywords" content="movingstd3">
+  <meta name="description" content="movingstd3: efficient windowed standard deviation of a 3-d array">
+  <meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+  <meta name="generator" content="m2html &copy; 2003 Guillaume Flandin">
+  <meta name="robots" content="index, follow">
+  <link type="text/css" rel="stylesheet" href="../m2html.css">
+</head>
+<body>
+<a name="_top"></a>
+<!-- menu.html tools -->
+<h1>movingstd3
+</h1>
+
+<h2><a name="_name"></a>PURPOSE <a href="#_top"><img alt="^" border="0" src="../up.png"></a></h2>
+<div class="box"><strong>movingstd3: efficient windowed standard deviation of a 3-d array</strong></div>
+
+<h2><a name="_synopsis"></a>SYNOPSIS <a href="#_top"><img alt="^" border="0" src="../up.png"></a></h2>
+<div class="box"><strong>function s = movingstd3(A,k) </strong></div>
+
+<h2><a name="_description"></a>DESCRIPTION <a href="#_top"><img alt="^" border="0" src="../up.png"></a></h2>
+<div class="fragment"><pre class="comment"> movingstd3: efficient windowed standard deviation of a 3-d array
+ usage: s = movingstd(x,windowsize)
+
+ Central windows around every element of the array will be employed,
+ so a windowsize of 1 will generate a sliding window of size
+ (2*k(idx)+1)*(2*k(idx)+1) around every element in the array. Thus, when k=1,
+ the sliding window will be a 3x3x3 window. For k=2, this will result in
+ a 5x5x5 sliding window.
+
+ Only central windows are allowed in movingstd2, as opposed to movingstd
+ which allowed several window types.
+
+ Movingstd2 uses conv2 to compute the standard deviation, using
+ the trick of std = sqrt((sum(x.^2) - n*xbar.^2)/(n-1)).
+ Beware that this formula can suffer from numerical problems for
+ data which is large in magnitude. Your data is automatically
+ centered and scaled to alleviate these problems as much as possible.
+
+ Along the edges of the array, the window is truncated to fit as
+ necessary.
+
+ arguments: (input)
+  A   - 3-D Array containing the data. Must be numeric, although A will
+        be internally converted to double if it is not double already.
+
+        A should NOT have any INF or NaN elements in it, as that will
+        corrupt the computation.
+
+  k   - size of the sliding window to use
+        Window width is adjusted near the edges as necessary.
+
+        Where k is so large that the window size is actually larger than
+        the array, the window is truncated as necessary.
+
+        k must be an integer or a [1 x 3] integer array
+
+        default: k=2, so a 5x5x5 window
+
+ arguments: (output)
+  s   - array containing the windowed standard deviation.
+        size(A) will be the same as size(s)
+
+ Example:
+ rng(1)
+ movingstd3(randn([4,5,6]),[1,2,3])
+ ans(:,:,1) =
+       0.88511      0.92007       1.0083       1.0319       1.1168
+       0.90667      0.93273      0.98611      0.99458       1.0707
+       0.95464      0.93196      0.97623      0.94952      0.98589
+       0.88864      0.89865      0.89425      0.86622      0.85712
+ ans(:,:,2) =
+       0.84445      0.90552        1.001       1.0426       1.1119
+       0.9113      0.94155      0.98523      0.98592       1.0454
+       0.97774      0.97126       1.0163       1.0047       1.0446
+       0.92041      0.90721      0.91174      0.88538       0.9086
+ ans(:,:,3) =
+       0.85793      0.90232      0.97827       1.0179       1.0681
+       0.95125      0.96503      0.99394      0.97778       1.0194
+       0.98749      0.97944       1.0038      0.97593       1.0001
+       0.89456      0.91395      0.90275       0.8619      0.89063
+ ans(:,:,4) =
+       0.85793      0.90232      0.97827       1.0179       1.0681
+       0.95125      0.96503      0.99394      0.97778       1.0194
+       0.98749      0.97944       1.0038      0.97593       1.0001
+       0.89456      0.91395      0.90275       0.8619      0.89063
+ ans(:,:,5) =
+       0.86549      0.89892      0.97407       1.0269       1.0561
+       0.99772       1.0015       1.0039      0.98566       1.0104
+         1.022       1.0225       1.0153      0.98648      0.99777
+       0.86773      0.93457      0.88824      0.85248      0.86456
+ ans(:,:,6) =
+       0.86981      0.92111       0.9675       1.0154       1.0715
+       0.95837      0.98777      0.98276      0.96778       1.0029
+       0.99195        1.004       1.0035      0.99701       1.0221
+       0.82019      0.90455      0.86889       0.8661      0.89255</pre></div>
+
+<!-- crossreference -->
+<h2><a name="_cross"></a>CROSS-REFERENCE INFORMATION <a href="#_top"><img alt="^" border="0" src="../up.png"></a></h2>
+This function calls:
+<ul style="list-style-image:url(../matlabicon.gif)">
+</ul>
+This function is called by:
+<ul style="list-style-image:url(../matlabicon.gif)">
+<li><a href="../Imgtools/gen_susan3D.html" class="code" title="function J = gen_susan3D(I,w,OPS)">gen_susan3D</a>	gen_susan - Generalized SUSAN 3-D filtering</li></ul>
+<!-- crossreference -->
+
+
+<h2><a name="_source"></a>SOURCE CODE <a href="#_top"><img alt="^" border="0" src="../up.png"></a></h2>
+<div class="fragment"><pre>0001 <a name="_sub0" href="#_subfunctions" class="code">function s = movingstd3(A,k)</a>
+0002 <span class="comment">% movingstd3: efficient windowed standard deviation of a 3-d array</span>
+0003 <span class="comment">% usage: s = movingstd(x,windowsize)</span>
+0004 <span class="comment">%</span>
+0005 <span class="comment">% Central windows around every element of the array will be employed,</span>
+0006 <span class="comment">% so a windowsize of 1 will generate a sliding window of size</span>
+0007 <span class="comment">% (2*k(idx)+1)*(2*k(idx)+1) around every element in the array. Thus, when k=1,</span>
+0008 <span class="comment">% the sliding window will be a 3x3x3 window. For k=2, this will result in</span>
+0009 <span class="comment">% a 5x5x5 sliding window.</span>
+0010 <span class="comment">%</span>
+0011 <span class="comment">% Only central windows are allowed in movingstd2, as opposed to movingstd</span>
+0012 <span class="comment">% which allowed several window types.</span>
+0013 <span class="comment">%</span>
+0014 <span class="comment">% Movingstd2 uses conv2 to compute the standard deviation, using</span>
+0015 <span class="comment">% the trick of std = sqrt((sum(x.^2) - n*xbar.^2)/(n-1)).</span>
+0016 <span class="comment">% Beware that this formula can suffer from numerical problems for</span>
+0017 <span class="comment">% data which is large in magnitude. Your data is automatically</span>
+0018 <span class="comment">% centered and scaled to alleviate these problems as much as possible.</span>
+0019 <span class="comment">%</span>
+0020 <span class="comment">% Along the edges of the array, the window is truncated to fit as</span>
+0021 <span class="comment">% necessary.</span>
+0022 <span class="comment">%</span>
+0023 <span class="comment">% arguments: (input)</span>
+0024 <span class="comment">%  A   - 3-D Array containing the data. Must be numeric, although A will</span>
+0025 <span class="comment">%        be internally converted to double if it is not double already.</span>
+0026 <span class="comment">%</span>
+0027 <span class="comment">%        A should NOT have any INF or NaN elements in it, as that will</span>
+0028 <span class="comment">%        corrupt the computation.</span>
+0029 <span class="comment">%</span>
+0030 <span class="comment">%  k   - size of the sliding window to use</span>
+0031 <span class="comment">%        Window width is adjusted near the edges as necessary.</span>
+0032 <span class="comment">%</span>
+0033 <span class="comment">%        Where k is so large that the window size is actually larger than</span>
+0034 <span class="comment">%        the array, the window is truncated as necessary.</span>
+0035 <span class="comment">%</span>
+0036 <span class="comment">%        k must be an integer or a [1 x 3] integer array</span>
+0037 <span class="comment">%</span>
+0038 <span class="comment">%        default: k=2, so a 5x5x5 window</span>
+0039 <span class="comment">%</span>
+0040 <span class="comment">% arguments: (output)</span>
+0041 <span class="comment">%  s   - array containing the windowed standard deviation.</span>
+0042 <span class="comment">%        size(A) will be the same as size(s)</span>
+0043 <span class="comment">%</span>
+0044 <span class="comment">% Example:</span>
+0045 <span class="comment">% rng(1)</span>
+0046 <span class="comment">% movingstd3(randn([4,5,6]),[1,2,3])</span>
+0047 <span class="comment">% ans(:,:,1) =</span>
+0048 <span class="comment">%       0.88511      0.92007       1.0083       1.0319       1.1168</span>
+0049 <span class="comment">%       0.90667      0.93273      0.98611      0.99458       1.0707</span>
+0050 <span class="comment">%       0.95464      0.93196      0.97623      0.94952      0.98589</span>
+0051 <span class="comment">%       0.88864      0.89865      0.89425      0.86622      0.85712</span>
+0052 <span class="comment">% ans(:,:,2) =</span>
+0053 <span class="comment">%       0.84445      0.90552        1.001       1.0426       1.1119</span>
+0054 <span class="comment">%       0.9113      0.94155      0.98523      0.98592       1.0454</span>
+0055 <span class="comment">%       0.97774      0.97126       1.0163       1.0047       1.0446</span>
+0056 <span class="comment">%       0.92041      0.90721      0.91174      0.88538       0.9086</span>
+0057 <span class="comment">% ans(:,:,3) =</span>
+0058 <span class="comment">%       0.85793      0.90232      0.97827       1.0179       1.0681</span>
+0059 <span class="comment">%       0.95125      0.96503      0.99394      0.97778       1.0194</span>
+0060 <span class="comment">%       0.98749      0.97944       1.0038      0.97593       1.0001</span>
+0061 <span class="comment">%       0.89456      0.91395      0.90275       0.8619      0.89063</span>
+0062 <span class="comment">% ans(:,:,4) =</span>
+0063 <span class="comment">%       0.85793      0.90232      0.97827       1.0179       1.0681</span>
+0064 <span class="comment">%       0.95125      0.96503      0.99394      0.97778       1.0194</span>
+0065 <span class="comment">%       0.98749      0.97944       1.0038      0.97593       1.0001</span>
+0066 <span class="comment">%       0.89456      0.91395      0.90275       0.8619      0.89063</span>
+0067 <span class="comment">% ans(:,:,5) =</span>
+0068 <span class="comment">%       0.86549      0.89892      0.97407       1.0269       1.0561</span>
+0069 <span class="comment">%       0.99772       1.0015       1.0039      0.98566       1.0104</span>
+0070 <span class="comment">%         1.022       1.0225       1.0153      0.98648      0.99777</span>
+0071 <span class="comment">%       0.86773      0.93457      0.88824      0.85248      0.86456</span>
+0072 <span class="comment">% ans(:,:,6) =</span>
+0073 <span class="comment">%       0.86981      0.92111       0.9675       1.0154       1.0715</span>
+0074 <span class="comment">%       0.95837      0.98777      0.98276      0.96778       1.0029</span>
+0075 <span class="comment">%       0.99195        1.004       1.0035      0.99701       1.0221</span>
+0076 <span class="comment">%       0.82019      0.90455      0.86889       0.8661      0.89255</span>
+0077 
+0078 <span class="comment">% Author: Bjorn Gustavsson</span>
+0079 <span class="comment">% e-mail: bjorn.gustavsson@uit.no</span>
+0080 <span class="comment">%   date: 20160925</span>
+0081 
+0082 <span class="comment">% Modified from movingstd2 by John D'Errico</span>
+0083 <span class="comment">% e-mail: woodchips@rochester.rr.com</span>
+0084 <span class="comment">%   date: 4/8/2016</span>
+0085 
+0086 <span class="comment">% check for k default</span>
+0087 <span class="keyword">if</span> (nargin&lt;2) || isempty(k)
+0088   <span class="comment">% supply the default:</span>
+0089   k = 1;
+0090 <span class="keyword">else</span>
+0091   sz_k = size(k(:)');
+0092   <span class="keyword">if</span> ~isnumeric(k) || ~( isscalar(k) || all(sz_k==[1,3]))|| any(k &lt; 1) || ~all(k==round(k))
+0093     error(<span class="string">'If supplied, k must be positive integer, scalar or a 1x3-array'</span>)
+0094   <span class="keyword">end</span>
+0095 <span class="keyword">end</span>
+0096 
+0097 <span class="comment">% size of the array</span>
+0098 n = size(A);
+0099 <span class="keyword">if</span> numel(n) ~= 3
+0100   error(<span class="string">'A must be a 3-dimensional array'</span>)
+0101 <span class="keyword">end</span>
+0102 
+0103 <span class="comment">% ensure the array is a double precision one.</span>
+0104 <span class="keyword">if</span> ~isa(A,<span class="string">'double'</span>)
+0105   A = double(A);
+0106 <span class="keyword">end</span>
+0107 
+0108 <span class="comment">% Improve the numerical analysis by subtracting off the array mean</span>
+0109 <span class="comment">% this has no effect on the standard deviation, but when the mean</span>
+0110 <span class="comment">% islarge, the formula used will incur numerical issues.</span>
+0111 A = A - mean(A(:));
+0112 
+0113 <span class="comment">% scale the array to have unit variance too. will put that</span>
+0114 <span class="comment">% scale factor back into the result at the end</span>
+0115 Astd = std(A(:));
+0116 A = A./Astd;
+0117 
+0118 <span class="comment">% we will need the squared elements</span>
+0119 A2 = A.^2;
+0120 
+0121 <span class="comment">% we also need an array of ones of the same size as A. This will let us</span>
+0122 <span class="comment">% count the number of elements in each truncated window near the edges.</span>
+0123 wuns = ones(size(A));
+0124 
+0125 <span class="keyword">if</span> numel(k) == 1
+0126   k = k([1,1,1]);
+0127 <span class="keyword">end</span>
+0128 <span class="comment">% convolution kernel</span>
+0129 kernel = ones(2*k(1)+1,2*k(2)+1,2*k(3)+1);
+0130 
+0131 <span class="comment">% compute the std using:</span>
+0132 <span class="comment">%     std = sqrt((sum(x.^2) - (sum(x)).^2/n)/(n-1))</span>
+0133 N = convn(wuns,kernel,<span class="string">'same'</span>);
+0134 s = sqrt((convn(A2,kernel,<span class="string">'same'</span>) - ((convn(A,kernel,<span class="string">'same'</span>)).^2)./N)./(N-1));
+0135 
+0136 <span class="comment">% catch any complex cases that may have fallen through the cracks.</span>
+0137 <span class="comment">% that must be due to a floating point error, so in those cases, the std</span>
+0138 <span class="comment">% would be so small as to be zero.</span>
+0139 s(imag(s) ~= 0) = 0;
+0140 
+0141 <span class="comment">% restore the scale factor that was used before to normalize the data</span>
+0142 s = s.*Astd;</pre></div>
+<hr><address>Generated on Thu 21-Jun-2018 22:40:16 by <strong>B.&nbsp;Gustavsson</strong> with <strong><a href="http://www.artefact.tk/software/matlab/m2html/" target="_parent">m2html</a></strong> &copy; 2003</address>
+</body>
+</html>

@@ -1,0 +1,84 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
+                "http://www.w3.org/TR/REC-html40/loose.dtd">
+<html>
+<head>
+  <title>Description of sotonICems2ProductionProfileMatrix</title>
+  <meta name="keywords" content="sotonICems2ProductionProfileMatrix">
+  <meta name="description" content="% Example showing how to produce a emission-production-profile matrix">
+  <meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+  <meta name="generator" content="m2html &copy; 2003 Guillaume Flandin">
+  <meta name="robots" content="index, follow">
+  <link type="text/css" rel="stylesheet" href="../m2html.css">
+</head>
+<body>
+<a name="_top"></a>
+<!-- menu.html Examples -->
+<h1>sotonICems2ProductionProfileMatrix
+</h1>
+
+<h2><a name="_name"></a>PURPOSE <a href="#_top"><img alt="^" border="0" src="../up.png"></a></h2>
+<div class="box"><strong>% Example showing how to produce a emission-production-profile matrix</strong></div>
+
+<h2><a name="_synopsis"></a>SYNOPSIS <a href="#_top"><img alt="^" border="0" src="../up.png"></a></h2>
+<div class="box"><strong>This is a script file. </strong></div>
+
+<h2><a name="_description"></a>DESCRIPTION <a href="#_top"><img alt="^" border="0" src="../up.png"></a></h2>
+<div class="fragment"><pre class="comment">% Example showing how to produce a emission-production-profile matrix
+
+ ...from an emissions.dat output file produced by the Southampton IC 
+ electron+ion-chemistry code. An obviou requirement is that the
+ code was run with an input spectra where this makes sense (that
+ is a series of monoenergetic input spectra, preferably in sorted
+ order, a series of Maxwellians might also be appropriate)</pre></div>
+
+<!-- crossreference -->
+<h2><a name="_cross"></a>CROSS-REFERENCE INFORMATION <a href="#_top"><img alt="^" border="0" src="../up.png"></a></h2>
+This function calls:
+<ul style="list-style-image:url(../matlabicon.gif)">
+<li><a href="../ASK/IC/soton_ionchem_emissions_parser.html" class="code" title="function [emissions] = soton_ionchem_emissions_parser(filename)">soton_ionchem_emissions_parser</a>	soton_ionchem_emissions_parser - Parses the emission.dat output</li></ul>
+This function is called by:
+<ul style="list-style-image:url(../matlabicon.gif)">
+</ul>
+<!-- crossreference -->
+
+
+<h2><a name="_source"></a>SOURCE CODE <a href="#_top"><img alt="^" border="0" src="../up.png"></a></h2>
+<div class="fragment"><pre>0001 <span class="comment">%% Example showing how to produce a emission-production-profile matrix</span>
+0002 <span class="comment">%</span>
+0003 <span class="comment">% ...from an emissions.dat output file produced by the Southampton IC</span>
+0004 <span class="comment">% electron+ion-chemistry code. An obviou requirement is that the</span>
+0005 <span class="comment">% code was run with an input spectra where this makes sense (that</span>
+0006 <span class="comment">% is a series of monoenergetic input spectra, preferably in sorted</span>
+0007 <span class="comment">% order, a series of Maxwellians might also be appropriate)</span>
+0008 
+0009 <span class="comment">%% 1 load the file with the energy grid:</span>
+0010 load sp_energy_changeBG2.dat <span class="comment">% name of file with the electron</span>
+0011                              <span class="comment">% precipitation parameterised.</span>
+0012 E = sp_energy_changeBG2(:,3); <span class="comment">% In eV</span>
+0013 
+0014 <span class="comment">%% 2 Read the emissions.dat file:</span>
+0015 EmsO1p0 = <a href="../ASK/IC/soton_ionchem_emissions_parser.html" class="code" title="function [emissions] = soton_ionchem_emissions_parser(filename)">soton_ionchem_emissions_parser</a>(<span class="string">'emissions.dat'</span>);
+0016 
+0017 <span class="keyword">try</span>
+0018   <span class="comment">% find the profiles of the first desired emission (6730):</span>
+0019   idxN2_6730 = 1 + find(strcmp(EmsO1p0.reactions_vec{2}(EmsO1p0.profile_vars),<span class="string">'N2_6730'</span>));
+0020   <span class="comment">% and extract those profiles:</span>
+0021   a_N26730 = squeeze(EmsO1p0.data(:,idxN2_6730,2:2:end));
+0022 <span class="keyword">catch</span>
+0023   disp(<span class="string">'Couldn''t find N2_6730 in the emissions.dat output file'</span>)
+0024 <span class="keyword">end</span>
+0025 
+0026 <span class="keyword">try</span>
+0027   <span class="comment">% find the profiles of the first desired emission (6730):</span>
+0028   idxO_7774  = 1 + find(strcmp(EmsO1p0.reactions_vec{2}(EmsO1p0.profile_vars),<span class="string">'OI_7774'</span>));
+0029   idxO_7774D = 1 + find(strcmp(EmsO1p0.reactions_vec{2}(EmsO1p0.profile_vars),<span class="string">'OI_7774_D'</span>));
+0030   <span class="comment">% and extract-n-add those profiles:</span>
+0031   a_O7774 = squeeze( EmsO1p0.data(:,idxO_7774,2:2:end) + <span class="keyword">...</span>
+0032                      EmsO1p0.data(:,idxO_7774D,2:2:end) );
+0033 <span class="keyword">catch</span>
+0034   disp(<span class="string">'Couldn''t find both OI_7774 sources in the emissions.dat output file'</span>)
+0035 <span class="keyword">end</span>
+0036</pre></div>
+<hr><address>Generated on Thu 21-Jun-2018 22:40:16 by <strong>B.&nbsp;Gustavsson</strong> with <strong><a href="http://www.artefact.tk/software/matlab/m2html/" target="_parent">m2html</a></strong> &copy; 2003</address>
+</body>
+</html>

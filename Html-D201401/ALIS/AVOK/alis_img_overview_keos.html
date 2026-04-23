@@ -1,0 +1,238 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
+                "http://www.w3.org/TR/REC-html40/loose.dtd">
+<html>
+<head>
+  <title>Description of alis_img_overview_keos</title>
+  <meta name="keywords" content="alis_img_overview_keos">
+  <meta name="description" content="ALIS_VIEW_OVERVIEW_KEOS - view ALIS overview keograms">
+  <meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+  <meta name="generator" content="m2html &copy; 2003 Guillaume Flandin">
+  <meta name="robots" content="index, follow">
+  <link type="text/css" rel="stylesheet" href="../../m2html.css">
+</head>
+<body>
+<a name="_top"></a>
+<!-- ../menu.html ALIS --><!-- menu.html AVOK -->
+<h1>alis_img_overview_keos
+</h1>
+
+<h2><a name="_name"></a>PURPOSE <a href="#_top"><img alt="^" border="0" src="../../up.png"></a></h2>
+<div class="box"><strong>ALIS_VIEW_OVERVIEW_KEOS - view ALIS overview keograms</strong></div>
+
+<h2><a name="_synopsis"></a>SYNOPSIS <a href="#_top"><img alt="^" border="0" src="../../up.png"></a></h2>
+<div class="box"><strong>function avok = alis_img_overview_keos(date) </strong></div>
+
+<h2><a name="_description"></a>DESCRIPTION <a href="#_top"><img alt="^" border="0" src="../../up.png"></a></h2>
+<div class="fragment"><pre class="comment"> ALIS_VIEW_OVERVIEW_KEOS - view ALIS overview keograms
+ Starts the GUI for viewing ALIS overview keograms
+
+ Calling:
+  AvOk = alis_view_overview_keos(date)</pre></div>
+
+<!-- crossreference -->
+<h2><a name="_cross"></a>CROSS-REFERENCE INFORMATION <a href="#_top"><img alt="^" border="0" src="../../up.png"></a></h2>
+This function calls:
+<ul style="list-style-image:url(../../matlabicon.gif)">
+<li><a href="avok_create.html" class="code" title="function avok = avok_create(avok)">avok_create</a>	AVOK_CREATE - create alis-view-overview-keograms user interface</li><li><a href="../../Imgtools/img_histeq.html" class="code" title="function out_img = img_histeq(in_img,hist_lim)">img_histeq</a>	img_histeq - histogram equalisation.</li><li><a href="../../tools/timetick.html" class="code" title="function timetick(x)">timetick</a>	TIMETICK - change axis-labels to time/date format. Clever choice</li></ul>
+This function is called by:
+<ul style="list-style-image:url(../../matlabicon.gif)">
+</ul>
+<!-- crossreference -->
+
+<h2><a name="_subfunctions"></a>SUBFUNCTIONS <a href="#_top"><img alt="^" border="0" src="../../up.png"></a></h2>
+<ul style="list-style-image:url(../../matlabicon.gif)">
+<li><a href="#_sub1" class="code">function avok = avok_update(avok,date)</a></li></ul>
+<h2><a name="_source"></a>SOURCE CODE <a href="#_top"><img alt="^" border="0" src="../../up.png"></a></h2>
+<div class="fragment"><pre>0001 <a name="_sub0" href="#_subfunctions" class="code">function avok = alis_img_overview_keos(date)</a>
+0002 <span class="comment">% ALIS_VIEW_OVERVIEW_KEOS - view ALIS overview keograms</span>
+0003 <span class="comment">% Starts the GUI for viewing ALIS overview keograms</span>
+0004 <span class="comment">%</span>
+0005 <span class="comment">% Calling:</span>
+0006 <span class="comment">%  AvOk = alis_view_overview_keos(date)</span>
+0007 <span class="comment">%</span>
+0008 
+0009 <span class="comment">% Copyright B. Gustavsson 20050805</span>
+0010 
+0011 <span class="keyword">global</span> AvOk
+0012 evalin(<span class="string">'base'</span>,<span class="string">'global AvOk'</span>)<span class="comment">% UGGGLY</span>
+0013 load alis_overviews_dir.mat <span class="comment">% file with path to all the alis_overview-files</span>
+0014 
+0015 <span class="comment">% Check if we need to create AvOk</span>
+0016 <span class="keyword">if</span> isempty(AvOk)
+0017   AvOk.create = 1;
+0018 <span class="keyword">end</span>
+0019 
+0020 <span class="keyword">if</span> ~isfield(AvOk,<span class="string">'data_inputdir'</span>)
+0021   AvOk.data_inputdir = uigetdir(<span class="string">''</span>, <span class="string">'Select a directory with OverViewKeograms'</span>);
+0022   <span class="keyword">if</span> AvOk.data_inputdir == 0
+0023     AvOk.data_inputdir = alis_overviews_dir;
+0024   <span class="keyword">end</span>
+0025 <span class="keyword">end</span>
+0026 <span class="keyword">if</span> ~isfield(AvOk,<span class="string">'data_outdir'</span>)
+0027   AvOk.data_outdir = uigetdir(<span class="string">''</span>, <span class="string">'Select a directory for saving results'</span>);
+0028   <span class="keyword">if</span> AvOk.data_outdir == 0
+0029     AvOk.data_outdir = pwd;
+0030   <span class="keyword">end</span>
+0031 <span class="keyword">end</span>
+0032 
+0033 AvOk.STNN2NAME = {<span class="string">'Kiruna'</span>,<span class="string">'Merasjarvi'</span>,<span class="string">'Silkimuotka'</span>,<span class="string">'Tjautjas'</span>, <span class="keyword">...</span>
+0034                   <span class="string">'Abisko'</span>,<span class="string">'Nikkaluokta'</span>,<span class="string">'Knutstorp'</span>,<span class="string">'8'</span>,<span class="string">'Optiklab'</span>,<span class="string">'Bus'</span>};
+0035 
+0036 
+0037 
+0038 <span class="comment">% make a list of all alis_overview-files.</span>
+0039 [q,w] = my_unix([<span class="string">'find '</span>,AvOk.data_inputdir,<span class="string">' -name \*[0-9]\*.mat'</span>]);
+0040 AvOk.overview_files = w(1:end-1,:);
+0041 dates = datenum(str2num(AvOk.overview_files(:,end-11:end-8)),<span class="keyword">...</span>
+0042                 str2num(AvOk.overview_files(:,end-7:end-6)),<span class="keyword">...</span>
+0043                 str2num(AvOk.overview_files(:,end-5:end-4)));
+0044 [dates,sortindx] = sort(dates);
+0045 AvOk.overview_files = AvOk.overview_files(sortindx,:);
+0046 
+0047 <span class="keyword">if</span> date == -1              <span class="comment">% step back to previous day with data.</span>
+0048   AvOk.date_indx = AvOk.date_indx-1;
+0049 <span class="keyword">elseif</span> date == 1           <span class="comment">% step forward to next day with data</span>
+0050   AvOk.date_indx = AvOk.date_indx+1;
+0051 <span class="keyword">else</span>                       <span class="comment">% Find the closest day to date.</span>
+0052   [mindiff,date_indx] = min(abs(repmat(datenum(date),[size(dates,1) 1])-dates));
+0053   AvOk.date_indx = date_indx;
+0054 <span class="keyword">end</span>
+0055 <span class="comment">% choose the closest date</span>
+0056 <span class="keyword">if</span> AvOk.date_indx == 0
+0057   
+0058   AvOk.date_indx = 1;
+0059   disp(<span class="string">'Alis_view_overview_keos: already at first day with data'</span>)
+0060   
+0061 <span class="keyword">elseif</span>  AvOk.date_indx &gt; size(AvOk.overview_files,1)
+0062   
+0063   disp(<span class="string">'Alis_view_overview_keos: already at latest day with data'</span>)
+0064   AvOk.date_indx = AvOk.date_indx - 1;
+0065   
+0066 <span class="keyword">end</span>
+0067 AvOk.date = datevec(dates(AvOk.date_indx));
+0068 
+0069 <span class="keyword">if</span> AvOk.create
+0070   
+0071   AvOk = <a href="avok_create.html" class="code" title="function avok = avok_create(avok)">avok_create</a>(AvOk);
+0072   AvOk.create = 0;
+0073   AvOk = <a href="#_sub1" class="code" title="subfunction avok = avok_update(avok,date)">avok_update</a>(AvOk,AvOk.date);
+0074   
+0075 <span class="keyword">else</span>
+0076   AvOk = <a href="#_sub1" class="code" title="subfunction avok = avok_update(avok,date)">avok_update</a>(AvOk,AvOk.date);
+0077 <span class="keyword">end</span>
+0078 
+0079 load([<span class="string">'alis_overview'</span>,num2str([AvOk.date(1:3)],<span class="string">'%02d'</span>)])
+0080 
+0081 AvOk.Keo = Keo;
+0082 AvOk.Files = Filenames;
+0083 AvOk.Wl_emi = Wl_emi;
+0084 AvOk.Optps = Optps;
+0085 AvOk.T_obs = T_obs;
+0086 AvOk.Stns = Stns;
+0087 
+0088 
+0089 nrstns = unique(AvOk.Stns);<span class="comment">% Verkar vara buggigt jaemfoert med vad</span>
+0090                            <span class="comment">% som kommit in i overviewfilerna.</span>
+0091 
+0092 ufnr = unique([Wl_emi{:}]);
+0093 
+0094 figure(AvOk.fig_keo)
+0095 
+0096 t_all = [];
+0097 <span class="keyword">for</span> j = 1:length(nrstns),
+0098   
+0099   keo = Keo{AvOk.Stns(j)};
+0100   <span class="comment">% remove nan&amp;inf...</span>
+0101   keo(~isfinite(keo(:))) = 0;
+0102   wl_emi = Wl_emi{AvOk.Stns(j)};
+0103   t_obs = T_obs{AvOk.Stns(j)};
+0104   t_all = [t_all t_obs'];
+0105   optps = Optps{AvOk.Stns(j)};
+0106   filenames = Filenames{AvOk.Stns(j)};
+0107   
+0108   <span class="keyword">for</span> i = 1:length(ufnr),
+0109     
+0110     subplot(length(ufnr),length(nrstns),j+length(nrstns)*(i-1))
+0111     <span class="keyword">if</span> any(wl_emi==ufnr(i))
+0112       
+0113       <span class="keyword">if</span> sum(wl_emi==ufnr(i))&gt;1
+0114         <span class="keyword">if</span> prod(size(keo(:,wl_emi==ufnr(i)))) &gt; 800
+0115           pcolor(t_obs(wl_emi==ufnr(i)),1:size(keo,1),<a href="../../Imgtools/img_histeq.html" class="code" title="function out_img = img_histeq(in_img,hist_lim)">img_histeq</a>(keo(:,wl_emi==ufnr(i)),200))
+0116         <span class="keyword">else</span>
+0117           pcolor(t_obs(wl_emi==ufnr(i)),1:size(keo,1),keo(:,wl_emi==ufnr(i)))
+0118         <span class="keyword">end</span>
+0119       <span class="keyword">else</span>
+0120         <span class="keyword">if</span> prod(size(keo(:,wl_emi==ufnr(i)))) &gt; 800
+0121           imagesc(t_obs(wl_emi==ufnr(i)),1:size(keo,1),<a href="../../Imgtools/img_histeq.html" class="code" title="function out_img = img_histeq(in_img,hist_lim)">img_histeq</a>(keo(:,wl_emi==ufnr(i)),200))
+0122         <span class="keyword">else</span>
+0123           imagesc(t_obs(wl_emi==ufnr(i)),1:size(keo,1),keo(:,wl_emi==ufnr(i)))
+0124         <span class="keyword">end</span>
+0125       <span class="keyword">end</span>
+0126       shading flat,
+0127       ax(i,j,:) = axis;
+0128       
+0129     <span class="keyword">end</span>
+0130     <span class="keyword">if</span> j == 1
+0131       ylabel(num2str(ufnr(i))),
+0132     <span class="keyword">end</span>
+0133     <span class="keyword">if</span> i == 1
+0134       title(AvOk.STNN2NAME{AvOk.Stns(j)},<span class="string">'fontsize'</span>,16),
+0135     <span class="keyword">end</span>
+0136     <span class="comment">%keyboard</span>
+0137   <span class="keyword">end</span>
+0138 <span class="keyword">end</span>
+0139 
+0140 AvOk.all_tobs = unique(t_all);
+0141 ax1 = min(min(ax(:,:,1)));
+0142 ax2 = max(max(ax(:,:,2)));
+0143 
+0144 AvOk.subplots = [length(ufnr),length(nrstns)];
+0145 AvOk.subppos = 1:prod(AvOk.subplots);
+0146 <span class="keyword">for</span> j = 1:length(nrstns),
+0147   
+0148   wl_emi = Wl_emi{AvOk.Stns(j)};
+0149   <span class="keyword">for</span> i = 1:length(ufnr),
+0150     
+0151     <span class="keyword">if</span> diff(squeeze(ax(i,j,3:4))) == 0
+0152       ax(i,j,3:4) = [1 128];
+0153     <span class="keyword">end</span>
+0154     subplot(length(ufnr),length(nrstns),j+length(nrstns)*(i-1))
+0155     axis([ax1 ax2 ax(i,j,3) ax(i,j,4)])
+0156     <a href="../../tools/timetick.html" class="code" title="function timetick(x)">timetick</a>
+0157     set(gca,<span class="string">'yticklabel'</span>,<span class="string">''</span>)
+0158     <span class="keyword">if</span> (i &lt; length(ufnr))
+0159       set(gca,<span class="string">'xticklabel'</span>,<span class="string">''</span>)
+0160     <span class="keyword">else</span>
+0161       xlabel(<span class="string">'time (UT)'</span>)
+0162     <span class="keyword">end</span>
+0163     
+0164   <span class="keyword">end</span>
+0165   
+0166 <span class="keyword">end</span>
+0167 set(gcf,<span class="string">'name'</span>,[<span class="string">'Overview keograms from: '</span>,sprintf(<span class="string">'%02d-%02d-%02d'</span>,AvOk.date(1:3))])
+0168 AvOk.ax0 = axis;
+0169 
+0170 avok = AvOk;
+0171 
+0172 
+0173 set(gcf,<span class="string">'windowbuttondownfcn'</span>,<span class="string">'AvOk = alis_zoom_or_auto_overview(AvOk,[]);'</span>);
+0174 
+0175 
+0176 
+0177 <a name="_sub1" href="#_subfunctions" class="code">function avok = avok_update(avok,date)</a>
+0178 <span class="comment">% avok = avok_update(avok,date)</span>
+0179 <span class="comment">%</span>
+0180 <span class="comment">% AVOK_UPDATE - update alis-view-overview-keograms user interface</span>
+0181 <span class="comment">%</span>
+0182 
+0183 today = avok.date;
+0184 
+0185 avok.tomorrow = datevec(datenum(today)+1);
+0186 avok.yesterday = datevec(datenum(today)-1);
+0187 avok.netxmonth = datevec(datenum([today(1:2)+[0, 1], 1]));
+0188 avok.lastmonth = datevec(datenum([today(1:2)+[0, -1], 1]));
+0189 avok.netxyear = datevec(datenum([today(1)+1, 1, 1]));
+0190 avok.lastyear = datevec(datenum([today(1)-1, 1, 1]));</pre></div>
+<hr><address>Generated on Mon 27-Jan-2014 17:32:33 by <strong>B.&nbsp;Gustavsson</strong> with <strong><a href="http://www.artefact.tk/software/matlab/m2html/" target="_parent">m2html</a></strong> &copy; 2003</address>
+</body>
+</html>

@@ -1,0 +1,123 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
+                "http://www.w3.org/TR/REC-html40/loose.dtd">
+<html>
+<head>
+  <title>Description of alis_overviewmovie</title>
+  <meta name="keywords" content="alis_overviewmovie">
+  <meta name="description" content="ALIS_OVERVIEWMOVIE - Makes movies of images in files">
+  <meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+  <meta name="generator" content="m2html &copy; 2003 Guillaume Flandin">
+  <meta name="robots" content="index, follow">
+  <link type="text/css" rel="stylesheet" href="../../m2html.css">
+</head>
+<body>
+<a name="_top"></a>
+<!-- ../menu.html ALIS --><!-- menu.html AVOK -->
+<h1>alis_overviewmovie
+</h1>
+
+<h2><a name="_name"></a>PURPOSE <a href="#_top"><img alt="^" border="0" src="../../up.png"></a></h2>
+<div class="box"><strong>ALIS_OVERVIEWMOVIE - Makes movies of images in files</strong></div>
+
+<h2><a name="_synopsis"></a>SYNOPSIS <a href="#_top"><img alt="^" border="0" src="../../up.png"></a></h2>
+<div class="box"><strong>function OK = alis_overviewmovie(moviename,Filenames,POs,mOpts) </strong></div>
+
+<h2><a name="_description"></a>DESCRIPTION <a href="#_top"><img alt="^" border="0" src="../../up.png"></a></h2>
+<div class="fragment"><pre class="comment"> ALIS_OVERVIEWMOVIE - Makes movies of images in files
+   
+ Calling:
+   OK = alis_overviewmovie(Filenames)
+ Input:
+   Filenames - cell array of string-matrices with filenames from
+               stations 
+   POs       - struct array with pre-processing options</pre></div>
+
+<!-- crossreference -->
+<h2><a name="_cross"></a>CROSS-REFERENCE INFORMATION <a href="#_top"><img alt="^" border="0" src="../../up.png"></a></h2>
+This function calls:
+<ul style="list-style-image:url(../../matlabicon.gif)">
+<li><a href="../../ALIS/alis_filter_fix.html" class="code" title="function [emi] = alis_filter_fix(filter)">alis_filter_fix</a>	ALIS_FILTER_FIX - convert ALIS filter to emission wavelength (A)</li><li><a href="../../Fits_tools/inimg.html" class="code" title="function [img_out,img_head,obs] = inimg(filename,PREPRO_OPS)">inimg</a>	INIMG - reads and pre-process an image.</li><li><a href="../../Imgtools/imgs_smart_caxis.html" class="code" title="function cax = imgs_smart_caxis(alpha,varargin)">imgs_smart_caxis</a>	imgs_smart_caxis - alpha-percentile setting of color-axis,</li><li><a href="../../tools/catstruct.html" class="code" title="function A = catstruct(varargin)">catstruct</a>	CATSTRUCT   Concatenate or merge structures with different fieldnames</li><li><a href="../../tools/mysubplot.html" class="code" title="function theAxis = mysubplot(nrows, ncols, thisPlot)">mysubplot</a>	MYSUBPLOT Create axes in tiled positions.</li></ul>
+This function is called by:
+<ul style="list-style-image:url(../../matlabicon.gif)">
+</ul>
+<!-- crossreference -->
+
+
+<h2><a name="_source"></a>SOURCE CODE <a href="#_top"><img alt="^" border="0" src="../../up.png"></a></h2>
+<div class="fragment"><pre>0001 <a name="_sub0" href="#_subfunctions" class="code">function OK = alis_overviewmovie(moviename,Filenames,POs,mOpts)</a>
+0002 <span class="comment">% ALIS_OVERVIEWMOVIE - Makes movies of images in files</span>
+0003 <span class="comment">%</span>
+0004 <span class="comment">% Calling:</span>
+0005 <span class="comment">%   OK = alis_overviewmovie(Filenames)</span>
+0006 <span class="comment">% Input:</span>
+0007 <span class="comment">%   Filenames - cell array of string-matrices with filenames from</span>
+0008 <span class="comment">%               stations</span>
+0009 <span class="comment">%   POs       - struct array with pre-processing options</span>
+0010 
+0011 dOPTS.filters = [4278,5577,6300,8446];
+0012 dOPTS.imregs = [];
+0013 <span class="keyword">if</span> nargin == 0
+0014   OK = dOPTS;
+0015   <span class="keyword">return</span>
+0016 <span class="keyword">end</span>
+0017 OK = 0;
+0018 
+0019 <span class="keyword">if</span> nargin &gt; 3 &amp; ~isempty(mOpts)
+0020   dOPTS = <a href="../../tools/catstruct.html" class="code" title="function A = catstruct(varargin)">catstruct</a>(dOPTS,mOpts);
+0021 <span class="keyword">end</span>
+0022 
+0023 set(gcf,<span class="string">'visible'</span>,<span class="string">'off'</span>) <span class="comment">% To free the computer screen</span>
+0024 
+0025 mov = avifile(moviename);
+0026 set(gcf,<span class="string">'name'</span>,<span class="string">'On the &quot;Silver screen&quot; tonight...'</span>);
+0027 pause(2)
+0028 nrstns = length(Filenames);
+0029 fnr = length(dOPTS.filters);
+0030 
+0031 
+0032 <span class="comment">% TODO fix this so that it works &quot;properly&quot; even for asyncronous</span>
+0033 <span class="comment">%      exposure sequences...</span>
+0034 <span class="keyword">for</span> i2 = 1:max([size(Filenames{1},1),size(Filenames{2},1)]),
+0035   
+0036   <span class="keyword">for</span> j1 = 1:nrstns,
+0037     
+0038     [d,h,o] = <a href="../../Fits_tools/inimg.html" class="code" title="function [img_out,img_head,obs] = inimg(filename,PREPRO_OPS)">inimg</a>(Filenames{j1}(i2,:),POs(j1));
+0039     [emi] = <a href="../../ALIS/alis_filter_fix.html" class="code" title="function [emi] = alis_filter_fix(filter)">alis_filter_fix</a>(o.filter);
+0040     <span class="keyword">switch</span> emi
+0041      <span class="keyword">case</span> 4278
+0042       sp_r = 1;
+0043      <span class="keyword">case</span> 5577
+0044       sp_r = 2;
+0045      <span class="keyword">case</span> 6300
+0046       sp_r = 3;
+0047      <span class="keyword">case</span> 8446
+0048       sp_r = 4;
+0049      <span class="keyword">otherwise</span>
+0050       sp_r = [];
+0051     <span class="keyword">end</span>
+0052     <span class="keyword">if</span> ~isempty(sp_r) <span class="comment">%subplot(fnr,snr,(i2-1)*(snr)+i1)</span>
+0053       <a href="../../tools/mysubplot.html" class="code" title="function theAxis = mysubplot(nrows, ncols, thisPlot)">mysubplot</a>(fnr,nrstns,nrstns*(sp_r-1)+j1)
+0054       <span class="keyword">if</span> isempty(dOPTS.imregs)
+0055         imagesc(d),axis xy,<a href="../../Imgtools/imgs_smart_caxis.html" class="code" title="function cax = imgs_smart_caxis(alpha,varargin)">imgs_smart_caxis</a>(0.005,d(:));
+0056       <span class="keyword">else</span>
+0057         reg = dOPTS.imregs(min(j1,size(dOPTS.imregs,1)),:);
+0058         imagesc(d(reg(3:4),reg(1:2))),axis xy,<a href="../../Imgtools/imgs_smart_caxis.html" class="code" title="function cax = imgs_smart_caxis(alpha,varargin)">imgs_smart_caxis</a>(0.005,d(:));
+0059       <span class="keyword">end</span>
+0060       <span class="keyword">if</span> j1 == 1
+0061         ylabel(sprintf(<span class="string">'%d A'</span>,emi),<span class="string">'fontsize'</span>,14)
+0062       <span class="keyword">end</span>
+0063       set(gca,<span class="string">'xticklabel'</span>,<span class="string">''</span>,<span class="string">'yticklabel'</span>,<span class="string">''</span>)
+0064       t_str = sprintf(<span class="string">'%d %02d:%02d:%02d'</span>,o.station,o.time(4:6));
+0065       text(10,20,t_str,<span class="string">'fontsize'</span>,10,<span class="string">'color'</span>,0.97*[1 1 1])
+0066     <span class="keyword">end</span>
+0067   <span class="keyword">end</span>
+0068   <span class="comment">%F = getframe(gcf);</span>
+0069   mov = addframe(mov,gcf);
+0070   
+0071 <span class="keyword">end</span>
+0072 mov = close(mov);
+0073 OK = 1;
+0074 set(gcf,<span class="string">'visible'</span>,<span class="string">'on'</span>) <span class="comment">% To free the computer screen</span></pre></div>
+<hr><address>Generated on Thu 21-Jun-2018 22:40:16 by <strong>B.&nbsp;Gustavsson</strong> with <strong><a href="http://www.artefact.tk/software/matlab/m2html/" target="_parent">m2html</a></strong> &copy; 2003</address>
+</body>
+</html>

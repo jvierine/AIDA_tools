@@ -1,0 +1,95 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
+                "http://www.w3.org/TR/REC-html40/loose.dtd">
+<html>
+<head>
+  <title>Description of dasi2toObs</title>
+  <meta name="keywords" content="dasi2toObs">
+  <meta name="description" content="KOSCH_IN_RAMFJORD - make Observation struct from filename">
+  <meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+  <meta name="generator" content="m2html &copy; 2003 Guillaume Flandin">
+  <meta name="robots" content="index, follow">
+  <link type="text/css" rel="stylesheet" href="../../m2html.css">
+</head>
+<body>
+<a name="_top"></a>
+<!-- ../menu.html Fits_tools --><!-- menu.html File2obs -->
+<h1>dasi2toObs
+</h1>
+
+<h2><a name="_name"></a>PURPOSE <a href="#_top"><img alt="^" border="0" src="../../up.png"></a></h2>
+<div class="box"><strong>KOSCH_IN_RAMFJORD - make Observation struct from filename</strong></div>
+
+<h2><a name="_synopsis"></a>SYNOPSIS <a href="#_top"><img alt="^" border="0" src="../../up.png"></a></h2>
+<div class="box"><strong>function obs = dasi2toObs(img_head) </strong></div>
+
+<h2><a name="_description"></a>DESCRIPTION <a href="#_top"><img alt="^" border="0" src="../../up.png"></a></h2>
+<div class="fragment"><pre class="comment"> KOSCH_IN_RAMFJORD - make Observation struct from filename
+   
+ WARNING Outdated! should be fixed before usage...</pre></div>
+
+<!-- crossreference -->
+<h2><a name="_cross"></a>CROSS-REFERENCE INFORMATION <a href="#_top"><img alt="^" border="0" src="../../up.png"></a></h2>
+This function calls:
+<ul style="list-style-image:url(../../matlabicon.gif)">
+<li><a href="../../Fits_tools/fitsfindinheader.html" class="code" title="function [j_out] = fitsfindinheader(H,s)">fitsfindinheader</a>	FITSFINDINHEADER finds string S in fitsheader H</li></ul>
+This function is called by:
+<ul style="list-style-image:url(../../matlabicon.gif)">
+<li><a href="../../Fits_tools/typical_pre_proc_ops.html" class="code" title="function PO = typical_pre_proc_ops(pp_type,varargin)">typical_pre_proc_ops</a>	TYPICAL_PRE_PROC_OPS - Typical ALIS-fits preprocessing options</li></ul>
+<!-- crossreference -->
+
+
+<h2><a name="_source"></a>SOURCE CODE <a href="#_top"><img alt="^" border="0" src="../../up.png"></a></h2>
+<div class="fragment"><pre>0001 <a name="_sub0" href="#_subfunctions" class="code">function obs = dasi2toObs(img_head)</a>
+0002 <span class="comment">% KOSCH_IN_RAMFJORD - make Observation struct from filename</span>
+0003 <span class="comment">%</span>
+0004 <span class="comment">% WARNING Outdated! should be fixed before usage...</span>
+0005 
+0006 <span class="keyword">persistent</span> Station_names
+0007 <span class="keyword">persistent</span> stationpos
+0008 
+0009 delimiters = [9:13 32];
+0010 delimiters = [delimiters,<span class="string">'~=+*/^()[]{}&lt;&gt;,;:'''</span>];
+0011 
+0012 <span class="keyword">if</span> isempty(stationpos)
+0013   load stationpos.dat
+0014 <span class="keyword">end</span>
+0015 
+0016 station = 11;
+0017 
+0018 obs.longlat = [sum(stationpos(station,5:7).*[1 1/60 1/3600]), <span class="keyword">...</span>
+0019                sum(stationpos(station,1:3).*[1 1/60 1/3600])* <span class="keyword">...</span>
+0020                stationpos(station,4)];
+0021 obs.pos = obs.longlat;
+0022 obs.station = 11;
+0023 obs.alpha = [];
+0024 obs.beta = [];
+0025 obs.az = [180];
+0026 obs.ze = [0];
+0027 obs.camnr = [37];
+0028 obs.cmtr = eye(3);
+0029 
+0030 hindx = <a href="../../Fits_tools/fitsfindinheader.html" class="code" title="function [j_out] = fitsfindinheader(H,s)">fitsfindinheader</a>(img_head,<span class="string">'DATE-OBS'</span>);
+0031 
+0032 <span class="keyword">if</span> ~isempty(hindx)
+0033   delimiters = [delimiters,<span class="string">'-T'</span>];
+0034   timestr = img_head(hindx,11:end);
+0035   [year,timestr] = strtok(timestr,delimiters);
+0036   [month,timestr] = strtok(timestr,delimiters);
+0037   [day,timestr] = strtok(timestr,delimiters);
+0038   [hour,timestr] = strtok(timestr,delimiters);
+0039   [minute,timestr] = strtok(timestr,delimiters);
+0040   [sec] = strtok(timestr,delimiters);
+0041   obs.time = [str2num(year) str2num(month) str2num(day) str2num(hour) str2num(minute) str2num(sec)];
+0042   <span class="keyword">if</span> length(obs.time) &lt; 6
+0043     hindx = <a href="../../Fits_tools/fitsfindinheader.html" class="code" title="function [j_out] = fitsfindinheader(H,s)">fitsfindinheader</a>(img_head,<span class="string">'TIME-OBS'</span>);
+0044     timestr = img_head(hindx,11:end);
+0045     [hour,timestr] = strtok(timestr,delimiters);
+0046     [minute,timestr] = strtok(timestr,delimiters);
+0047     [sec] = strtok(timestr,delimiters);
+0048     obs.time = [obs.time str2num(hour) str2num(minute) str2num(sec)];
+0049   <span class="keyword">end</span>
+0050   
+0051 <span class="keyword">end</span></pre></div>
+<hr><address>Generated on Thu 21-Jun-2018 22:40:16 by <strong>B.&nbsp;Gustavsson</strong> with <strong><a href="http://www.artefact.tk/software/matlab/m2html/" target="_parent">m2html</a></strong> &copy; 2003</address>
+</body>
+</html>

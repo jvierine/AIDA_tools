@@ -1,0 +1,218 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
+                "http://www.w3.org/TR/REC-html40/loose.dtd">
+<html>
+<head>
+  <title>Description of ada_ex_img_mmmm</title>
+  <meta name="keywords" content="ada_ex_img_mmmm">
+  <meta name="description" content="% Example of imgs_reg_mmmm">
+  <meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+  <meta name="generator" content="m2html &copy; 2003 Guillaume Flandin">
+  <meta name="robots" content="index, follow">
+  <link type="text/css" rel="stylesheet" href="../m2html.css">
+</head>
+<body>
+<a name="_top"></a>
+<!-- menu.html Examples -->
+<h1>ada_ex_img_mmmm
+</h1>
+
+<h2><a name="_name"></a>PURPOSE <a href="#_top"><img alt="^" border="0" src="../up.png"></a></h2>
+<div class="box"><strong>% Example of imgs_reg_mmmm</strong></div>
+
+<h2><a name="_synopsis"></a>SYNOPSIS <a href="#_top"><img alt="^" border="0" src="../up.png"></a></h2>
+<div class="box"><strong>This is a script file. </strong></div>
+
+<h2><a name="_description"></a>DESCRIPTION <a href="#_top"><img alt="^" border="0" src="../up.png"></a></h2>
+<div class="fragment"><pre class="comment">% Example of imgs_reg_mmmm
+ This function processes a series of images and calculates max,
+ mean, median and min in one or several regions on the image. This
+ is useful to get quantitative oveviews of for example HF-pump
+ experiments on radio induced optical emissions.</pre></div>
+
+<!-- crossreference -->
+<h2><a name="_cross"></a>CROSS-REFERENCE INFORMATION <a href="#_top"><img alt="^" border="0" src="../up.png"></a></h2>
+This function calls:
+<ul style="list-style-image:url(../matlabicon.gif)">
+<li><a href="../Fits_tools/typical_pre_proc_ops.html" class="code" title="function PO = typical_pre_proc_ops(pp_type,varargin)">typical_pre_proc_ops</a>	TYPICAL_PRE_PROC_OPS - Typical ALIS-fits preprocessing options</li><li><a href="../Imgtools/imgs_regs_mmmm.html" class="code" title="function [I_max,I_mean,I_median,I_min,Tr_time,expt,filters] = imgs_regs_mmmm(files,regs,OPS,PO)">imgs_regs_mmmm</a>	imgs_regs_mmmm - max, mean, median and min from regions in an image-serie</li><li><a href="../tools/timetick.html" class="code" title="function timetick(x)">timetick</a>	TIMETICK - change axis-labels to time/date format. Clever choice</li></ul>
+This function is called by:
+<ul style="list-style-image:url(../matlabicon.gif)">
+</ul>
+<!-- crossreference -->
+
+
+<h2><a name="_source"></a>SOURCE CODE <a href="#_top"><img alt="^" border="0" src="../up.png"></a></h2>
+<div class="fragment"><pre>0001 <span class="comment">%% Example of imgs_reg_mmmm</span>
+0002 <span class="comment">% This function processes a series of images and calculates max,</span>
+0003 <span class="comment">% mean, median and min in one or several regions on the image. This</span>
+0004 <span class="comment">% is useful to get quantitative oveviews of for example HF-pump</span>
+0005 <span class="comment">% experiments on radio induced optical emissions.</span>
+0006 
+0007 
+0008 <span class="comment">%% Preparatory steps</span>
+0009 <span class="comment">% The first thing to do is to get full filenames of the image</span>
+0010 <span class="comment">% sequence to analyse. Either absolute or relative paths will do.</span>
+0011 <span class="comment">% Here one can also choose to move to the directory where the data</span>
+0012 <span class="comment">% resides. However, it is a bad idea to write directly to that</span>
+0013 <span class="comment">% directory.</span>
+0014 
+0015 <span class="comment">% Move to the data directory</span>
+0016 <span class="comment">% data_dir = '/alis/stdnames/1999/02/21/';</span>
+0017 <span class="comment">% But on my PC I have the ALIS data stored in a more arcane order...</span>
+0018 
+0019 <span class="comment">% $$$ data_dir = '/home/DATA/ALIS/19990221/s05';</span>
+0020 <span class="comment">% $$$ cd(data_dir)</span>
+0021 
+0022 data_dir = <span class="string">'/alis/stdnames/1999/02/21/'</span>;
+0023 cd(data_dir)
+0024 
+0025 
+0026 <span class="comment">% Fixing the filenames for images from between 1700-1900 into a</span>
+0027 <span class="comment">% char array:</span>
+0028 q = dir(<span class="string">'17/*A.fits'</span>);
+0029 F5 = ([repmat(<span class="string">'17/'</span>,[size(q,1) 1]),str2mat(q(:).name)]);
+0030 q = dir(<span class="string">'18/*A.fits'</span>);
+0031 F5 = [F5;[repmat(<span class="string">'18/'</span>,[size(q,1) 1]),str2mat(q(:).name)]];
+0032 
+0033 <span class="comment">% Put the filenames into one string-array.</span>
+0034 
+0035 <span class="comment">% For this example file to work all images from 19990221 17:00:00</span>
+0036 <span class="comment">% to 18:30:00 UT should be put in a string array.</span>
+0037 
+0038 
+0039 <span class="comment">%% Set up for image corrections</span>
+0040 <span class="comment">% Here we use very basic image pre-processing options - no</span>
+0041 <span class="comment">% filtering. But when processing a large series of images it might</span>
+0042 <span class="comment">% be clever to set PO.outimgsize to the typical of the experiment</span>
+0043 <span class="comment">% that was running. Then the odd images taken with other binning</span>
+0044 <span class="comment">% factors before and after the run for calibration purposes will be</span>
+0045 <span class="comment">% resampled to the same resolution. Then they will not crash the</span>
+0046 <span class="comment">% analysis.</span>
+0047 
+0048 PO = <a href="../Fits_tools/typical_pre_proc_ops.html" class="code" title="function PO = typical_pre_proc_ops(pp_type,varargin)">typical_pre_proc_ops</a>;
+0049 PO.medianfilter = 0;
+0050 PO.find_optpar = 0;
+0051 PO.outimgsize = 256;
+0052 
+0053 <span class="comment">%% Selecting regions</span>
+0054 <span class="comment">%</span>
+0055 <span class="comment">% A region are defined |[Xmin Xmax Ymin Ymax]| and several regions</span>
+0056 <span class="comment">% (possibly overlapping) can be used, it is just to ad each region</span>
+0057 <span class="comment">% line by line. Here for this example of heating the first and</span>
+0058 <span class="comment">% fourth lines cover the enhanced region and the other the</span>
+0059 <span class="comment">% surroounding unenhanced background region.</span>
+0060 regs(1,:) = [82   154   111   191];
+0061 regs(2,:) = [164   192   122   184];
+0062 regs(3,:) = [98   148    66    94];
+0063 regs(4,:) = [104   133   134   172];
+0064 regs(5,:) = [98   148   203   229];
+0065 regs(6,:) = [43    77   106   202];
+0066 
+0067 <span class="comment">%% The Region statistics</span>
+0068 
+0069 <span class="comment">% With waitbar while calculating the time-series</span>
+0070 OPS.wb = 1;
+0071 <span class="comment">% Or without</span>
+0072 OPS.wb = 0;
+0073 <span class="comment">% Calculating the time series</span>
+0074 [I_max,I_mean,I_median,I_min,Tr_t_b1,expt,filters] = <a href="../Imgtools/imgs_regs_mmmm.html" class="code" title="function [I_max,I_mean,I_median,I_min,Tr_time,expt,filters] = imgs_regs_mmmm(files,regs,OPS,PO)">imgs_regs_mmmm</a>(F5,regs,OPS,PO);
+0075 <span class="comment">% If the number of files is large this might take some time to</span>
+0076 <span class="comment">% process. Then it could be worthwhile to store that data:</span>
+0077 <span class="comment">% save Immm.mat I_max I_mean I_median I_min Tr_t_b1 expt filters</span>
+0078 
+0079 <span class="comment">%% Post processing</span>
+0080 <span class="comment">%</span>
+0081 <span class="comment">% For some reason the intensities returned is in counts - not counts</span>
+0082 <span class="comment">% per second so we have to divide the intensities with the</span>
+0083 <span class="comment">% corresponding exposure times. To go from average to total</span>
+0084 <span class="comment">% intensity we just multiply with region area:</span>
+0085 
+0086 I_m = I_mean./repmat(expt',[1 6])*diff(regs(1:2))*diff(regs(3:4));
+0087 <span class="comment">%%</span>
+0088 <span class="comment">% There are ways to separate images taken with different filters,</span>
+0089 <span class="comment">% either we could do the call to |imgs_regs_mmmm| several times with</span>
+0090 <span class="comment">% only the files for images in each filter, or as here, separate</span>
+0091 <span class="comment">% them after one function call.</span>
+0092 redindx = filters==6300;
+0093 greenindx = find(filters==5577);
+0094 
+0095 t_red = rem(Tr_t_b1(filters==6300),24);
+0096 t_green = rem(Tr_t_b1(filters==5577),24);
+0097 Ir = I_m(redindx,:);
+0098 
+0099 <span class="comment">%% Plotting, raw</span>
+0100 plot(t_red,(I_mean(filters==6300,4)-I_m(filters==6300,5)/2+I_mean(filters==6300,6)/2),<span class="string">'r.'</span>)
+0101 hold on
+0102 plot(t_green,(I_mean(filters==5577,4)-I_m(filters==5577,5)/2+I_mean(filters==5577,6)/2),<span class="string">'g.'</span>)
+0103 <a href="../tools/timetick.html" class="code" title="function timetick(x)">timetick</a>
+0104 title(<span class="string">'Approximate enhancements'</span>,<span class="string">'fontsize'</span>,18)
+0105 
+0106 
+0107 <span class="comment">%% Plotting, background reduced and fine</span>
+0108 <span class="comment">%</span>
+0109 <span class="comment">% For Heating experiments we are mainly interersted in the HF</span>
+0110 <span class="comment">% induced enhancement above the background. Thus there is a need to</span>
+0111 <span class="comment">% reduce the background. Here &quot;friend of order&quot; might interupt by</span>
+0112 <span class="comment">% noting that we took some data from background regions - surely it</span>
+0113 <span class="comment">% should only be to subtrackt those. That was what we tried above,</span>
+0114 <span class="comment">% and apparently there is a need to do a little better as the</span>
+0115 <span class="comment">% average intensities in the different regions not necessarily are</span>
+0116 <span class="comment">% equal even at times when the HF-pump is off.</span>
+0117 i_r_off = [4 12 29 40 48 70 87 99]-3;
+0118 i_r_off = [1 11 28 38 47 68 86 101];
+0119 <span class="comment">% LSQ-optimal background coefficients</span>
+0120 bgcoeffs1 = [Ir(i_r_off,2) Ir(i_r_off,3) Ir(i_r_off,5) Ir(i_r_off,6)]\Ir(i_r_off,1);
+0121 bgcoeffs4 = [Ir(i_r_off,2) Ir(i_r_off,3) Ir(i_r_off,5) Ir(i_r_off,6)]\Ir(i_r_off,4);
+0122 
+0123 <span class="comment">% Pure red line enhancements</span>
+0124 enh4_r = Ir(:,4)-[Ir(:,2) Ir(:,3) Ir(:,5) Ir(:,6)]*bgcoeffs4;
+0125 
+0126 
+0127 clf
+0128 plot(t_red(3:end-6),enh4_r(3:end-6),<span class="string">'r-'</span>,<span class="string">'markersize'</span>,4) 
+0129 hold on
+0130 plot(t_red(3:end-6),enh4_r(3:end-6),<span class="string">'k.'</span>,<span class="string">'markersize'</span>,18)
+0131 grid
+0132 <a href="../tools/timetick.html" class="code" title="function timetick(x)">timetick</a>
+0133 
+0134 <span class="comment">%% Additional overlays</span>
+0135 <span class="comment">%</span>
+0136 <span class="comment">% For red line observations it is vital to estimate the effective</span>
+0137 <span class="comment">% $$O(^1D)$$ lifetime. Here we simply overlay an exponential decay</span>
+0138 <span class="comment">% with a 40 s time constant.</span>
+0139 
+0140 <span class="comment">% Set up for guesstimate-plot of red line decay</span>
+0141 dtime = 0:5:120;
+0142 I20 = exp(-dtime/20);
+0143 I40 = exp(-dtime/40);
+0144 
+0145 I_5 =  [24 0];<span class="comment">%[217.88 -19.166]/10.00;</span>
+0146 I_8 =  [23.875 0];<span class="comment">%[219.66 -4.8566]/10.00;</span>
+0147 I_9 =  [21.14 0];;<span class="comment">%[210.07 -6.7482]/10.00;</span>
+0148 I_10 = [19.475 0];<span class="comment">%[171.21 0.65148]/10.00;</span>
+0149 
+0150 H_off = 17+[-8:8:80]/60;
+0151 
+0152 plot(H_off(5)+dtime/3600,(I_5(1)-I_5(2))*I40+I_5(2),<span class="string">'k--'</span>,<span class="string">'linewidth'</span>,2)
+0153 plot(H_off(8)+dtime/3600,(I_8(1)-I_8(2))*I40+I_8(2),<span class="string">'k--'</span>,<span class="string">'linewidth'</span>,2)
+0154 plot(H_off(9)+dtime/3600,(I_9(1)-I_9(2))*I40+I_9(2),<span class="string">'k--'</span>,<span class="string">'linewidth'</span>,2)
+0155 plot(H_off(10)+dtime/3600,(I_10(1)-I_10(2))*I40+I_10(2),<span class="string">'k--'</span>,<span class="string">'linewidth'</span>,2)
+0156 
+0157 axis([17+1/6 18.2 -20 40])
+0158 set(gca,<span class="string">'fontsize'</span>,18)
+0159 title(<span class="string">'Average enhancement of 6300 A'</span>,<span class="string">'fontsize'</span>,font_size)
+0160 xlabel(<span class="string">'time (UT)'</span>,<span class="string">'fontsize'</span>,font_size)
+0161 ylabel(<span class="string">'Counts/s'</span>,<span class="string">'fontsize'</span>,font_size)
+0162 
+0163 <span class="comment">% Plot the time instances where 5577 images were made</span>
+0164 pdh = plot(rem(Tr_t_b1(greenindx),24),[32],<span class="string">'kd'</span>,<span class="string">'markersize'</span>,10);
+0165 
+0166 <span class="comment">%%</span>
+0167 <span class="comment">% * This is pretty much the same figure as published in Gustavsson</span>
+0168 <span class="comment">% et al. [2002]</span>
+0169 
+0170 
+0171 <span class="comment">%   Copyright © 2005 Bjorn Gustavsson, &lt;bjorn.gustavsson@irf.se&gt;</span>
+0172 <span class="comment">%   This is free software, licensed under GNU GPL version 2 or later</span></pre></div>
+<hr><address>Generated on Mon 27-Jan-2014 17:32:33 by <strong>B.&nbsp;Gustavsson</strong> with <strong><a href="http://www.artefact.tk/software/matlab/m2html/" target="_parent">m2html</a></strong> &copy; 2003</address>
+</body>
+</html>

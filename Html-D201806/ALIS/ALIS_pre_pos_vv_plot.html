@@ -1,0 +1,215 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
+                "http://www.w3.org/TR/REC-html40/loose.dtd">
+<html>
+<head>
+  <title>Description of ALIS_pre_pos_vv_plot</title>
+  <meta name="keywords" content="ALIS_pre_pos_vv_plot">
+  <meta name="description" content="ALIS_pre_pos_vv_plot - plot the visible volume of ALIS">
+  <meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+  <meta name="generator" content="m2html &copy; 2003 Guillaume Flandin">
+  <meta name="robots" content="index, follow">
+  <link type="text/css" rel="stylesheet" href="../m2html.css">
+</head>
+<body>
+<a name="_top"></a>
+<!-- menu.html ALIS -->
+<h1>ALIS_pre_pos_vv_plot
+</h1>
+
+<h2><a name="_name"></a>PURPOSE <a href="#_top"><img alt="^" border="0" src="../up.png"></a></h2>
+<div class="box"><strong>ALIS_pre_pos_vv_plot - plot the visible volume of ALIS</strong></div>
+
+<h2><a name="_synopsis"></a>SYNOPSIS <a href="#_top"><img alt="^" border="0" src="../up.png"></a></h2>
+<div class="box"><strong>function hndl = ALIS_pre_pos_vv_plot(configNR) </strong></div>
+
+<h2><a name="_description"></a>DESCRIPTION <a href="#_top"><img alt="^" border="0" src="../up.png"></a></h2>
+<div class="fragment"><pre class="comment"> ALIS_pre_pos_vv_plot - plot the visible volume of ALIS
+  pre-defined camera rotations. 
+
+ Calling:
+   hndl = ALIS_pre_pos_vv_plot(configNR)
+ Input:
+   configNR - ALIS configuration number for pre-defined:
+               1 - Surveilance
+               2 - Magnetic zenith
+               3 - South
+               4 - Core
+               5 - EAST-West
+               6 - North
+               7 - EISCAT
+               8 - Heating
+               9 - EISCAT-2
+ Output:
+   hndl - handle to the lines of the plotted visible-volume
+   borders 
+ 
+ Example:  
+   H = ALIS_pre_pos_vv_plot(8);
+ 
+ See also: <a href="ALISstdpos_visvol.html" class="code" title="function hndl = ALISstdpos_visvol(stnNRs,AZstn,ZEstn,ALTstn,FOVstn,OPS)">ALISstdpos_visvol</a></pre></div>
+
+<!-- crossreference -->
+<h2><a name="_cross"></a>CROSS-REFERENCE INFORMATION <a href="#_top"><img alt="^" border="0" src="../up.png"></a></h2>
+This function calls:
+<ul style="list-style-image:url(../matlabicon.gif)">
+<li><a href="ALISstdpos_visvol.html" class="code" title="function hndl = ALISstdpos_visvol(stnNRs,AZstn,ZEstn,ALTstn,FOVstn,OPS)">ALISstdpos_visvol</a>	ALISSTDPOS_VISVOL - Display ALIS f-o-v ontop of topographic map</li></ul>
+This function is called by:
+<ul style="list-style-image:url(../matlabicon.gif)">
+</ul>
+<!-- crossreference -->
+
+
+<h2><a name="_source"></a>SOURCE CODE <a href="#_top"><img alt="^" border="0" src="../up.png"></a></h2>
+<div class="fragment"><pre>0001 <a name="_sub0" href="#_subfunctions" class="code">function hndl = ALIS_pre_pos_vv_plot(configNR)</a>
+0002 <span class="comment">% ALIS_pre_pos_vv_plot - plot the visible volume of ALIS</span>
+0003 <span class="comment">%  pre-defined camera rotations.</span>
+0004 <span class="comment">%</span>
+0005 <span class="comment">% Calling:</span>
+0006 <span class="comment">%   hndl = ALIS_pre_pos_vv_plot(configNR)</span>
+0007 <span class="comment">% Input:</span>
+0008 <span class="comment">%   configNR - ALIS configuration number for pre-defined:</span>
+0009 <span class="comment">%               1 - Surveilance</span>
+0010 <span class="comment">%               2 - Magnetic zenith</span>
+0011 <span class="comment">%               3 - South</span>
+0012 <span class="comment">%               4 - Core</span>
+0013 <span class="comment">%               5 - EAST-West</span>
+0014 <span class="comment">%               6 - North</span>
+0015 <span class="comment">%               7 - EISCAT</span>
+0016 <span class="comment">%               8 - Heating</span>
+0017 <span class="comment">%               9 - EISCAT-2</span>
+0018 <span class="comment">% Output:</span>
+0019 <span class="comment">%   hndl - handle to the lines of the plotted visible-volume</span>
+0020 <span class="comment">%   borders</span>
+0021 <span class="comment">%</span>
+0022 <span class="comment">% Example:</span>
+0023 <span class="comment">%   H = ALIS_pre_pos_vv_plot(8);</span>
+0024 <span class="comment">%</span>
+0025 <span class="comment">% See also: ALISstdpos_visvol</span>
+0026 
+0027 <span class="comment">%   Copyright � 20121203 Bjorn Gustavsson, &lt;bjorn.gustavsson@irf.se&gt;</span>
+0028 <span class="comment">%   This is free software, licensed under GNU GPL version 2 or later</span>
+0029 
+0030 
+0031 ops = <a href="ALISstdpos_visvol.html" class="code" title="function hndl = ALISstdpos_visvol(stnNRs,AZstn,ZEstn,ALTstn,FOVstn,OPS)">ALISstdpos_visvol</a>;
+0032 ops.clrs = {[0 0 1],<span class="keyword">...</span>
+0033             [0,1,0],<span class="keyword">...</span>
+0034             [1,0,0],<span class="keyword">...</span>
+0035             0.7*[1 1 0],<span class="keyword">...</span>
+0036             0.7*[1 0 1],<span class="keyword">...</span>
+0037             1*[1 1 0],<span class="keyword">...</span>
+0038             0.5*[1,0.5,0],<span class="keyword">...</span>
+0039             0.5*[0.5,0,1],<span class="keyword">...</span>
+0040             0.5*[0,1,0.5],<span class="keyword">...</span>
+0041             0.5*[0.5,1,0],<span class="keyword">...</span>
+0042             0.5*[1,0,0.5],<span class="keyword">...</span>
+0043             0.5*[0,0.5,1]};
+0044 
+0045 stnNrs = 1:6;
+0046 alt = 110*ones(size(stnNrs));
+0047 fov = 60*ones(size(stnNrs));
+0048 
+0049 <span class="keyword">switch</span> configNR
+0050  <span class="keyword">case</span> 1
+0051   az = [225,100, 45,115, 30,270];
+0052   ze = [ 20, 14, 12, 15, 14, 20];
+0053  <span class="keyword">case</span> 2
+0054   az = 180*ones(size(stnNrs));
+0055   ze =  12*ones(size(stnNrs));
+0056  <span class="keyword">case</span> 3
+0057   az = [180,250,215,260,148,135];
+0058   ze = [ 30, 23, 28,  7, 31, 23];
+0059  <span class="keyword">case</span> 4
+0060   az = [ 0,298,249,346,130,90];
+0061   ze = [ 0, 24, 28, 20, 24,20];
+0062  <span class="keyword">case</span> 5
+0063   az = [ 0, 0, 0, 0, 0, 0];
+0064   ze = [39,15,32,42,35,15];
+0065  <span class="keyword">case</span> 6
+0066   <span class="comment">% STN 1    2   3   4   5   6</span>
+0067   <span class="comment">%     K    M   S   T   A   N</span>
+0068   az = [0, 330,311,355, 85, 44];
+0069   ze = [30, 33, 25, 33, 22, 26];
+0070   <span class="comment">% K: set s north 0,30</span>
+0071   <span class="comment">% S: set s north 311,25</span>
+0072   <span class="comment">% T: set s north 355,33</span>
+0073   <span class="comment">% A: set s north 85,22</span>
+0074  <span class="keyword">case</span> 7
+0075   stnNrs = [  7,  2,  3,  4,  5, 6,   11];
+0076   az     = [  0,348,350,  0, 20, 15, 183];
+0077   ze     = [ 39, 42, 32, 42, 35, 42,  12];
+0078   fov    = [ 60, 60, 60, 60, 60  60   ,1];
+0079   alt = 110*ones(size(stnNrs));
+0080  <span class="keyword">case</span> 8
+0081   stnNrs = [  7,  2,  3,  4,  5,  6,   11];
+0082   az     = [346,340,330,345,  5,  5,  183];
+0083   ze     = [ 37, 40, 37, 44, 25, 40,   12];
+0084   fov    = [ 60, 60, 60, 60, 60  60   ,1];
+0085   alt = 200*ones(size(stnNrs));
+0086  <span class="keyword">case</span> 9
+0087   stnNrs = [ 7,   3,  4,  5, 10, 11];
+0088   az     = [ 0, 340,  0, 20,180,183];
+0089   ze     = [39,  40, 45, 35,  0, 12];
+0090   fov    = [60,  60, 60, 60, 60,  1];
+0091   alt = 110*ones(size(stnNrs));
+0092  <span class="keyword">case</span> 10
+0093   stnNrs = [ 7,   3,  4,  5,  10,  11,  11,  11,  11, 11];
+0094   az     = [-10, 330, -5, 20, 180, 183, 183, 183, 183,   0]; 
+0095   ze     = [ 35,  40, 42, 30,   0,  12,  20,  28,  36,   0];
+0096   fov    = [ 60,  60, 60, 60, 150,   2,   2,   2,   2, 160];
+0097   alt = 110*ones(size(stnNrs));
+0098   <span class="comment">% K: set s EISCATsouth 350,35</span>
+0099   <span class="comment">% S: set s EISCATsouth 330,40</span>
+0100   <span class="comment">% T: set s EISCATsouth 355,42</span>
+0101   <span class="comment">% A: set s EISCATsouth  20,30</span>
+0102  <span class="keyword">case</span> 11
+0103   stnNrs = [ 7,   3,  4,  5,  10,  11,  11,  11,  11, 11];
+0104   az     = [-10, 330, -5, 20, 180, 183, 183, 183, 183,   0]; 
+0105   ze     = [ 35,  40, 42, 30,   0,  12,  20,  28,  36,   0];
+0106   fov    = [ 60,  60, 60, 60, 150,   2,   2,   2,   2, 160];
+0107   alt = 240*ones(size(stnNrs));
+0108 
+0109  <span class="keyword">otherwise</span>
+0110 <span class="keyword">end</span>
+0111 
+0112 hndl = <a href="ALISstdpos_visvol.html" class="code" title="function hndl = ALISstdpos_visvol(stnNRs,AZstn,ZEstn,ALTstn,FOVstn,OPS)">ALISstdpos_visvol</a>(stnNrs,az,ze,alt,fov,ops);
+0113 
+0114 <span class="keyword">switch</span> configNR
+0115  <span class="keyword">case</span> 1
+0116   axis([-230 250 -150 375 -10 120])
+0117   title(<span class="string">'surveilance'</span>)
+0118  <span class="keyword">case</span> 2
+0119   axis([-230 250 -150 275 -10 120])
+0120   title(<span class="string">'mag\_zen'</span>)    
+0121  <span class="keyword">case</span> 3
+0122   axis([-230 250 -150 275 -10 120])
+0123   title(<span class="string">'south'</span>)
+0124  <span class="keyword">case</span> 4
+0125   title(<span class="string">'core'</span>)
+0126   <span class="comment">%axis([-200 200 -125 275 -10 120])</span>
+0127   axis( [-230 250 -150 275 -10 120])
+0128  <span class="keyword">case</span> 5
+0129   axis([-230 250 -150 375 -10 120])
+0130   title(<span class="string">'east-west'</span>)
+0131  <span class="keyword">case</span> 6
+0132   axis([-230 250 -125 275 -10 120])
+0133   title(<span class="string">'north'</span>)
+0134  <span class="keyword">case</span> 7
+0135   axis([-230 250 -125 375 -10 120])
+0136   title(<span class="string">'eiscat'</span>)
+0137  <span class="keyword">case</span> 8
+0138   axis([-230 250 -125 375 -10 220])
+0139   title(<span class="string">'Heating'</span>)
+0140  <span class="keyword">case</span> 9
+0141   axis([-230 250 -125 375 -10 120])
+0142   title(<span class="string">'eiscat-2'</span>)
+0143  <span class="keyword">case</span> 10
+0144   axis([-250 350 -100 450])
+0145   title(<span class="string">'eiscat-south 110 km'</span>)
+0146  <span class="keyword">case</span> 11
+0147   axis([-250 350 -100 450])
+0148   title(<span class="string">'eiscat-south 240 km'</span>)
+0149  <span class="keyword">otherwise</span>
+0150 <span class="keyword">end</span></pre></div>
+<hr><address>Generated on Thu 21-Jun-2018 22:40:16 by <strong>B.&nbsp;Gustavsson</strong> with <strong><a href="http://www.artefact.tk/software/matlab/m2html/" target="_parent">m2html</a></strong> &copy; 2003</address>
+</body>
+</html>

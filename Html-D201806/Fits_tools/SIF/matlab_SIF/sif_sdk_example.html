@@ -1,0 +1,103 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
+                "http://www.w3.org/TR/REC-html40/loose.dtd">
+<html>
+<head>
+  <title>Description of sif_sdk_example</title>
+  <meta name="keywords" content="sif_sdk_example">
+  <meta name="description" content="Set file access mode to read all">
+  <meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+  <meta name="generator" content="m2html &copy; 2003 Guillaume Flandin">
+  <meta name="robots" content="index, follow">
+  <link type="text/css" rel="stylesheet" href="../../../m2html.css">
+</head>
+<body>
+<a name="_top"></a>
+<!-- ../../menu.html Fits_tools --><!-- ../menu.html SIF --><!-- menu.html matlab_SIF -->
+<h1>sif_sdk_example
+</h1>
+
+<h2><a name="_name"></a>PURPOSE <a href="#_top"><img alt="^" border="0" src="../../../up.png"></a></h2>
+<div class="box"><strong>Set file access mode to read all</strong></div>
+
+<h2><a name="_synopsis"></a>SYNOPSIS <a href="#_top"><img alt="^" border="0" src="../../../up.png"></a></h2>
+<div class="box"><strong>This is a script file. </strong></div>
+
+<h2><a name="_description"></a>DESCRIPTION <a href="#_top"><img alt="^" border="0" src="../../../up.png"></a></h2>
+<div class="fragment"><pre class="comment"> Set file access mode to read all</pre></div>
+
+<!-- crossreference -->
+<h2><a name="_cross"></a>CROSS-REFERENCE INFORMATION <a href="#_top"><img alt="^" border="0" src="../../../up.png"></a></h2>
+This function calls:
+<ul style="list-style-image:url(../../../matlabicon.gif)">
+</ul>
+This function is called by:
+<ul style="list-style-image:url(../../../matlabicon.gif)">
+</ul>
+<!-- crossreference -->
+
+
+<h2><a name="_source"></a>SOURCE CODE <a href="#_top"><img alt="^" border="0" src="../../../up.png"></a></h2>
+<div class="fragment"><pre>0001 <span class="comment">% Set file access mode to read all</span>
+0002 access_mode = 0;
+0003 rc=AndorSifSetAccessMode(access_mode);
+0004 
+0005 <span class="comment">% read the file from specific location ** cHANGE THIS **</span>
+0006 
+0007 rc=AndorSifReadFromFile(<span class="string">'C:\last_test.sif'</span>);
+0008 
+0009 <span class="comment">% check it is loaded</span>
+0010 [rc,loaded]=AndorSifIsLoaded;
+0011 
+0012 signal=0;
+0013 <span class="comment">% check that signal is present</span>
+0014 [rc,present]=AndorSifIsDataSourcePresent(signal);
+0015 
+0016 <span class="comment">% Get the number of signal frames in the sif</span>
+0017 [rc,no_frames]=AndorSifGetNumberFrames(signal);
+0018 
+0019 <span class="comment">% Determine how many sub images make up 1 frame</span>
+0020 [rc,no_subImgs]=AndorSifGetNumberSubImages(signal);
+0021 
+0022 <span class="comment">% get the sub image info (zero based index);</span>
+0023 [rc,left,bottom,right,top,vBin,hBin]=AndorSifGetSubImageInfo(signal,0);
+0024 
+0025 <span class="comment">%  Determine the size of 1 frame</span>
+0026 [rc,frameSize]=AndorSifGetFrameSize(signal);
+0027 
+0028 <span class="comment">% Retrieve a frame (zero based index);</span>
+0029 [rc,data]=AndorSifGetFrame(signal,0,frameSize);
+0030 
+0031 <span class="comment">% remap the data</span>
+0032 width=(right-left)+1;
+0033 disp(width);
+0034 height=(top-bottom)+1;
+0035 disp(height);
+0036 
+0037 colormap(gray);
+0038 newdata=reshape(data,width,height);
+0039 imagesc(newdata);
+0040 
+0041 <span class="comment">% retrieve all frames</span>
+0042 [rc,data]=AndorSifGetAllFrames(signal,frameSize*no_frames);
+0043 
+0044 colormap(hot);
+0045 newdata=reshape(data,width,height);
+0046 imagesc(newdata);
+0047 
+0048 <span class="comment">% Demonstrate retrieving properties</span>
+0049 
+0050 disp(<span class="string">'Head Model'</span>);
+0051 [rc,propValue]=AndorSifGetProperty(signal,<span class="string">'HeadModel'</span>);
+0052 disp(propValue);
+0053 disp(<span class="string">'Formatted Time :'</span>);
+0054 [rc,propValue]=AndorSifGetProperty(signal,<span class="string">'FormattedTime'</span>);
+0055 disp(propValue);
+0056 
+0057 <span class="comment">% Close the file</span>
+0058 rc=AndorSifCloseFile;
+0059 disp(<span class="string">'!!DONE!!'</span>);
+0060 
+0061</pre></div>
+<hr><address>Generated on Thu 21-Jun-2018 22:40:16 by <strong>B.&nbsp;Gustavsson</strong> with <strong><a href="http://www.artefact.tk/software/matlab/m2html/" target="_parent">m2html</a></strong> &copy; 2003</address>
+</body>
+</html>

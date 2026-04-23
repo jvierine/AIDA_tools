@@ -1,0 +1,21 @@
+%% MIRACLE station positions
+%% station number, name latitude, longitude, (altitude)
+%% 710 = Sodankyla, SGO ICCD
+%% 711 = Sodankyla, SGO EMCCD until spring 2012
+%% 720 = Muonio
+%% 730 = Abisko, SGO EMCCD from fall 2012
+%% 740 = KIL until summer 2009
+%% 741 = KIL from fall 2009 to present
+%% 750 = KEV
+%% 760 = LYR
+%% 770 = NAL
+%%
+710 SOD   26.39 0 0  1  67.42 0 0 .1
+711 SGO   26.39 0 0  1  67.42 0 0 .1
+720 MUO   23.53 0 0  1  68.02 0 0 .1
+730 ABK   18.82 0 0  1  68.35 0 0 .4
+740 KIL1  20.79 0 0  1  69.02 0 0 .1
+741 KIL2  20.78 0 0  1  69.05 0 0 .1
+750 KEV   27.01 0 0  1  69.76 0 0 .1
+760 LYR   15.82 0 0  1  78.20 0 0 .1
+770 NYA   11.95 0 0  1  78.92 0 0 .1
