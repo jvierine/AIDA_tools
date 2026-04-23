@@ -2,6 +2,8 @@
 
 `AIDA_tools` is a MATLAB toolbox for auroral and night-sky image analysis. It includes camera and geometry utilities, star-based calibration tools, image preprocessing, skymap support, tomography utilities, spectral calibration, and related analysis helpers.
 
+Painstakingly written over the course of 28+ years, starting in 1998 and mostly by Bjorn Gustavsson, this codebase has had far more time to think about geometric calibration than most of us have had to think about anything. It provides scientific-grade geometric camera calibration together with a broad set of supporting analysis tools.
+
 This repository is a git-based copy of the toolbox with the most common temporary editor files excluded.
 
 ## What Is Included
@@ -117,3 +119,7 @@ edit Examples/AIDA_starcal_example.m
 ```
 
 Run the example section by section, replace the example image path with your own data, and then launch `starcal` on a representative frame.
+
+## Copyright
+
+Copyright (c) 1998-present, primarily Bjorn Gustavsson and contributors.

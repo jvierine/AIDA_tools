@@ -30,7 +30,8 @@ PO_Skibotn = typical_pre_proc_ops('none');
 % Pick one frame for a quick visual check before stacking images or
 % starting the calibration.
 iFile = min(12, numel(dSkibotn));
-[dSki,~,oSki] = inimg(fullfile(dSkibotn(iFile).folder, dSkibotn(iFile).name), PO_Skibotn);
+exampleFile = fullfile(dSkibotn(iFile).folder, dSkibotn(iFile).name);
+[dSki,~,~] = inimg(exampleFile, PO_Skibotn);
 
 figure
 colormap(bone)
@@ -45,8 +46,7 @@ title(sprintf('Example frame: %s', dSkibotn(iFile).name), 'interpreter', 'none')
 %% 5. Adjust the displayed intensity range
 % Bright outliers can hide faint stars. imgs_smart_caxis suggests a useful
 % display range from the image histogram.
-cx = imgs_smart_caxis(0.2, dSki(:));
-disp(cx)
+disp(imgs_smart_caxis(0.2, dSki(:)))
 
 % You can still override the suggested limits manually if needed.
 caxis([0 20])
@@ -55,13 +55,15 @@ caxis([0 20])
 % Summing multiple nearby images increases the visibility of stars. The
 % second stack (Dw) also applies a local background-removal + Wiener filter
 % to suppress slow-varying background structure.
-D = 0;
-Dw = 0;
 iStart = max(1, 9);
 iStop = min(148, numel(dSkibotn));
+[dSki,~,~] = inimg(exampleFile, PO_Skibotn);
+D = zeros(size(dSki));
+Dw = zeros(size(dSki));
 
 for i1 = iStart:iStop
-  [dSki,~,oSki] = inimg(fullfile(dSkibotn(i1).folder, dSkibotn(i1).name), PO_Skibotn);
+  stackFile = fullfile(dSkibotn(i1).folder, dSkibotn(i1).name);
+  [dSki,~,~] = inimg(stackFile, PO_Skibotn);
   D = D + dSki;
   Dw = Dw + wiener2(dSki - medfilt2(dSki, [9 9], 'symmetric'), [5 5]);
 end
@@ -110,5 +112,5 @@ PO_Skibotn.try_to_be_smart_fnc = @(filename) anything2obs(filename,...
 % Launch the interactive geometric calibration on one image from the
 % sequence. After STARCAL returns, replace the displayed image with the
 % star-enhanced stack to make the fit easier to inspect visually.
-SkMp = starcal(fullfile(dSkibotn(iFile).folder, dSkibotn(iFile).name), PO_Skibotn);
+SkMp = starcal(exampleFile, PO_Skibotn);
 SkMp.img = Dw;
