@@ -1,0 +1,359 @@
+* {
+    box-sizing: border-box;
+}
+
+body {
+    margin: 0;
+    width: 100vw;
+    height: 100vh;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    color: #111827;
+    background: #f3f4f6;
+}
+
+.topbar {
+    flex: 0 0 auto;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 16px;
+    padding: 12px 16px;
+    background: #ffffff;
+    border-bottom: 1px solid #d1d5db;
+}
+
+.topbar > div {
+    min-width: 0;
+}
+
+h1 {
+    margin: 0;
+    font-size: 20px;
+}
+
+h2 {
+    margin: 0 0 10px;
+    font-size: 15px;
+}
+
+.subtle {
+    color: #6b7280;
+    font-size: 13px;
+}
+
+.layout {
+    flex: 1 1 auto;
+    min-height: 0;
+    min-width: 0;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 340px;
+    gap: 14px;
+    padding: 14px;
+    overflow: hidden;
+}
+
+.viewer-panel {
+    position: relative;
+    min-width: 0;
+    min-height: 0;
+    background: #000000;
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 4px 18px rgba(0, 0, 0, 0.22);
+}
+
+#glCanvas {
+    display: block;
+    width: 100%;
+    height: 100%;
+    cursor: grab;
+}
+
+#glCanvas:active {
+    cursor: grabbing;
+}
+
+#glCanvas.match-mode,
+#glCanvas.match-mode:active,
+#glCanvas.probe-mode,
+#glCanvas.probe-mode:active,
+#glCanvas.delete-mode,
+#glCanvas.delete-mode:active,
+#glCanvas.mask-mode,
+#glCanvas.mask-mode:active {
+    cursor: crosshair;
+}
+
+.cardinal-layer {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+}
+
+.zoom-canvas {
+    position: absolute;
+    z-index: 20;
+    width: 300px;
+    height: 300px;
+    display: none;
+    border: 2px solid #facc15;
+    border-radius: 6px;
+    background: #000000;
+    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.55);
+    image-rendering: pixelated;
+    pointer-events: none;
+}
+
+.zoom-canvas.visible {
+    display: block;
+}
+
+.cardinal-label {
+    position: absolute;
+    min-width: 28px;
+    padding: 3px 6px;
+    transform: translate(-50%, -50%);
+    border: 1px solid rgba(255, 255, 255, 0.5);
+    border-radius: 999px;
+    background: rgba(0, 0, 0, 0.45);
+    color: #ffffff;
+    font-size: 13px;
+    font-weight: 800;
+    line-height: 1;
+    text-align: center;
+    text-shadow: 0 1px 3px #000000;
+}
+
+.grid-label {
+    min-width: 0;
+    padding: 2px 5px;
+    border-radius: 5px;
+    font-size: 11px;
+    font-weight: 700;
+}
+
+.azel-label {
+    border-color: rgba(255, 210, 70, 0.55);
+    color: #ffe08a;
+}
+
+.radec-label {
+    border-color: rgba(95, 230, 255, 0.55);
+    color: #9ff4ff;
+}
+
+.match-marker {
+    position: absolute;
+    width: 22px;
+    height: 22px;
+    transform: translate(-50%, -50%);
+    border: 2px solid #33ff77;
+    border-radius: 50%;
+    background: transparent;
+    box-shadow: 0 0 5px rgba(51, 255, 119, 0.75);
+    pointer-events: none;
+}
+
+.paired-marker {
+    width: 30px;
+    height: 30px;
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
+}
+
+.paired-marker::before,
+.paired-marker::after {
+    content: "";
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    background: #33ff77;
+    box-shadow: 0 0 4px rgba(51, 255, 119, 0.9);
+    transform: translate(-50%, -50%);
+}
+
+.paired-marker::before {
+    width: 30px;
+    height: 2px;
+    background: linear-gradient(
+        to right,
+        #33ff77 0 38%,
+        transparent 38% 62%,
+        #33ff77 62% 100%
+    );
+}
+
+.paired-marker::after {
+    width: 2px;
+    height: 30px;
+    background: linear-gradient(
+        to bottom,
+        #33ff77 0 38%,
+        transparent 38% 62%,
+        #33ff77 62% 100%
+    );
+}
+
+.match-label {
+    min-width: 0;
+    padding: 1px 4px;
+    border-color: rgba(51, 255, 119, 0.65);
+    border-radius: 5px;
+    color: #74ff9a;
+    font-size: 11px;
+    font-weight: 800;
+}
+
+.match-pending {
+    border-color: #33ff77;
+    box-shadow: 0 0 5px rgba(51, 255, 119, 0.85);
+}
+
+.probe-marker {
+    border-color: #33ff77;
+    box-shadow: 0 0 6px rgba(51, 255, 119, 0.95);
+}
+
+.detected-marker {
+    width: 12px;
+    height: 12px;
+    border-color: rgba(255, 70, 70, 0.95);
+    box-shadow: 0 0 5px rgba(255, 70, 70, 0.65);
+}
+
+.auto-match-marker {
+    width: 16px;
+    height: 16px;
+    border-color: rgba(255, 170, 45, 0.95);
+    box-shadow: 0 0 5px rgba(255, 170, 45, 0.7);
+}
+
+.match-instructions {
+    min-height: 48px;
+    margin-bottom: 10px;
+    padding: 8px;
+    border: 1px solid #86efac;
+    border-radius: 6px;
+    background: #f0fdf4;
+    color: #14532d;
+    font-size: 12px;
+    font-weight: 700;
+    line-height: 1.35;
+}
+
+.hint {
+    position: absolute;
+    inset: 0;
+    display: grid;
+    place-items: center;
+    color: #e5e7eb;
+    pointer-events: none;
+    font-size: 18px;
+}
+
+.controls {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    min-height: 0;
+    overflow: auto;
+    padding-right: 2px;
+}
+
+.controls section {
+    padding: 12px;
+    background: #ffffff;
+    border: 1px solid #d1d5db;
+    border-radius: 8px;
+}
+
+label {
+    display: block;
+    margin: 8px 0;
+    font-size: 13px;
+    font-weight: 600;
+}
+
+input,
+select,
+button {
+    width: 100%;
+    margin-top: 4px;
+    padding: 6px 8px;
+    border: 1px solid #cbd5e1;
+    border-radius: 6px;
+    font: inherit;
+}
+
+input[type="range"] {
+    padding: 0;
+}
+
+button,
+.file-button {
+    background: #111827;
+    color: white;
+    border: 0;
+    cursor: pointer;
+    font-weight: 700;
+}
+
+button {
+    min-height: 34px;
+}
+
+.file-button {
+    display: inline-block;
+    width: auto;
+    margin: 0;
+    padding: 8px 12px;
+    border-radius: 7px;
+}
+
+.file-button input {
+    display: none;
+}
+
+.button-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 8px;
+}
+
+.button-row-2 {
+    grid-template-columns: 1fr 1fr;
+    margin-top: 4px;
+}
+
+.grid2 {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+}
+
+pre {
+    min-height: 130px;
+    margin: 0;
+    white-space: pre-wrap;
+    font-size: 12px;
+    line-height: 1.4;
+}
+
+@media (max-width: 950px) {
+    .layout {
+        grid-template-columns: 1fr;
+        grid-template-rows: minmax(0, 1fr) minmax(0, 45vh);
+    }
+
+    .topbar {
+        align-items: flex-start;
+    }
+
+    .viewer-panel {
+        min-height: 0;
+    }
+}
