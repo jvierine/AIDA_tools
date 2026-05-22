@@ -44,6 +44,19 @@ h2 {
     font-size: 13px;
 }
 
+.subtle kbd {
+    display: inline-block;
+    padding: 1px 6px;
+    border: 1px solid #cbd5e1;
+    border-bottom-width: 2px;
+    border-radius: 5px;
+    background: #f8fafc;
+    color: #0f172a;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 12px;
+    line-height: 1.2;
+}
+
 .layout {
     flex: 1 1 auto;
     min-height: 0;
