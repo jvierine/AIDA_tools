@@ -15,10 +15,10 @@ from PIL import Image
 import scipy.io as sio
 
 
-ROOT = Path(__file__).resolve().parents[2]
+ROOT = Path(__file__).resolve().parents[1]
 ALLSKY = ROOT / "allsky7"
-OUT = ROOT / "aida_js_calibrator" / "js" / "calibration_cases.js"
-IMAGE_OUT = ROOT / "aida_js_calibrator" / "calibration_images"
+OUT = ROOT / "js" / "calibration_cases.js"
+IMAGE_OUT = ROOT / "calibration_images"
 SKIP_IMAGES = {
     # This frame is inconsistent with the rest of the calibration set. The
     # remaining allsky7 cases align well enough to use for lens-model tuning.

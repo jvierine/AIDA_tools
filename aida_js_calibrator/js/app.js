@@ -2393,7 +2393,7 @@
             if (loadId !== state.imageLoadId) {
                 return;
             }
-            state.fitMessage = `image load failed: ${name}. If using a web server, serve python/examples/ rather than only aida_js_calibrator/.`;
+            state.fitMessage = `image load failed: ${name}. If using a web server, serve the AIDA_tools directory rather than only aida_js_calibrator/.`;
             hideLoadingProgress();
             render();
         };

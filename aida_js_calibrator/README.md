@@ -29,7 +29,7 @@ The prototype:
 - provides limiting magnitude, X/Y flip, site latitude/longitude/altitude, and
   basic AIDA optical model controls.
 - includes bundled allsky7/Falcon9 lens-model test cases generated from
-  `../allsky7/*_first1s.h5` and the corresponding `ams*.mat` azimuth/zenith
+  `allsky7/*_first1s.h5` and the corresponding `ams*.mat` azimuth/zenith
   grids.
 
 The browser uses true 0-based image pixel coordinates. The AIDA/Matlab optical
@@ -46,7 +46,7 @@ itself is normally selected with the `Load image` button; if the selected image
 filename matches a bundled allsky7 case, its known lens model, site, and UTC
 timestamp are applied automatically. The generated PNG copies live in
 `calibration_images/`, while the HDF5/Matlab references remain under the local
-`allsky7 -> ../allsky7` symlink.
+`allsky7 -> ../python/examples/allsky7` symlink.
 
 The `2025_02_19_03_44_00_000_010760_first1s.png` frame is intentionally
 excluded from the browser test cases because its image/star alignment is
@@ -57,6 +57,16 @@ Regenerate the bundled calibration cases with:
 ```bash
 python tools/generate_calibration_cases.py
 ```
+
+Run the JavaScript unit tests with:
+
+```bash
+npm test
+```
+
+The camera-model cross-check starts Python and imports `aida_tools_py`; set
+`PYTHON=/path/to/python` if the default `/opt/miniconda3/bin/python` is not the
+right environment.
 
 This is intentionally not a full calibration solver yet. It is the front-end
 scaffold for manual alignment and later matching/refinement against detected
