@@ -9,6 +9,9 @@
     const statusEl = document.getElementById("status");
     const matchInstructions = document.getElementById("matchInstructions");
     const residualHistogram = document.getElementById("residualHistogram");
+    const loadingOverlay = document.getElementById("loadingOverlay");
+    const loadingBar = document.getElementById("loadingBar");
+    const loadingText = document.getElementById("loadingText");
     const controls = {
         file: document.getElementById("imageFile"),
         timestampUtc: document.getElementById("timestampUtc"),
@@ -73,9 +76,9 @@
         imageFlipX: false,
         imageFlipY: false,
         showRaDecGrid: false,
-        showAzElGrid: false,
+        showAzElGrid: true,
         showDetectionCircles: true,
-        showStarNames: false,
+        showStarNames: true,
         dragging: false,
         lensDragMode: "none",
         lastMouse: [0, 0],
@@ -1318,6 +1321,56 @@
         return sorted.length % 2 ? sorted[mid] : 0.5 * (sorted[mid - 1] + sorted[mid]);
     }
 
+    function percentile(sortedValues, fraction) {
+        if (sortedValues.length === 0) {
+            return 0;
+        }
+        const idx = Math.max(0, Math.min(sortedValues.length - 1,
+            Math.round(fraction * (sortedValues.length - 1))));
+        return sortedValues[idx];
+    }
+
+    function autoAdjustDisplayStretch() {
+        if (!state.imagePixels || !state.image) {
+            controls.brightness.value = "0.00";
+            controls.contrast.value = "1.00";
+            return;
+        }
+        const values = [];
+        const data = state.imagePixels.data;
+        const width = state.image.width;
+        const height = state.image.height;
+        const step = Math.max(1, Math.floor(Math.sqrt((width * height) / 90000)));
+        for (let y = 0; y < height; y += step) {
+            for (let x = 0; x < width; x += step) {
+                const k = 4 * (y * width + x);
+                values.push(0.2126 * data[k] + 0.7152 * data[k + 1] + 0.0722 * data[k + 2]);
+            }
+        }
+        values.sort((a, b) => a - b);
+        const lo = percentile(values, 0.08);
+        const hi = percentile(values, 0.997);
+        const span = Math.max(8, hi - lo);
+        const contrast = Math.max(0.25, Math.min(4.0, 0.9 * 255 / span));
+        const mid = 0.5 * (lo + hi) / 255;
+        const brightness = Math.max(-1.0, Math.min(1.0, -(mid - 0.5) * contrast));
+        controls.contrast.value = contrast.toFixed(2);
+        controls.brightness.value = brightness.toFixed(2);
+    }
+
+    function setLoadingProgress(percent, text) {
+        loadingOverlay.classList.add("visible");
+        loadingBar.style.width = `${Math.max(0, Math.min(100, percent))}%`;
+        loadingText.textContent = text;
+    }
+
+    function hideLoadingProgress() {
+        loadingBar.style.width = "100%";
+        window.setTimeout(() => {
+            loadingOverlay.classList.remove("visible");
+        }, 180);
+    }
+
     function detectImageStars() {
         state.detectedStars = [];
         state.deletedDetectionIds = new Set();
@@ -2271,6 +2324,7 @@
     function loadImageSource(url, name, onLoaded = null, revokeWhenLoaded = false) {
         const loadId = ++state.imageLoadId;
         const img = new Image();
+        setLoadingProgress(8, `Loading ${name}...`);
         img.onload = () => {
             if (loadId !== state.imageLoadId) {
                 if (revokeWhenLoaded) {
@@ -2278,54 +2332,69 @@
                 }
                 return;
             }
-            if (state.texture) {
-                gl.deleteTexture(state.texture);
-            }
-            state.image = img;
-            state.imageName = name;
-            state.maskRegions = [];
-            hideZoomCanvas();
-            const imageCanvas = document.createElement("canvas");
-            imageCanvas.width = img.width;
-            imageCanvas.height = img.height;
-            const imageContext = imageCanvas.getContext("2d", {willReadFrequently: true});
-            imageContext.drawImage(img, 0, 0);
-            try {
-                state.imagePixels = imageContext.getImageData(0, 0, img.width, img.height);
-            } catch (error) {
-                state.imagePixels = null;
-                state.fitMessage = `image pixel readback unavailable for ${name}; display still works, centroid picking disabled`;
-            }
-            detectImageStars();
-            state.texture = gl.createTexture();
-            gl.bindTexture(gl.TEXTURE_2D, state.texture);
-            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
-            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
-            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
-            // Keep WebGL texture rows in the same top-left-origin convention
-            // used by the image pixel buffer and the AIDA calibration model.
-            gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, false);
-            gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, img);
-            hint.style.display = "none";
-            const guessed = AidaTools.guessTimestampFromAllsky7Name(name);
-            if (guessed) {
-                controls.timestampUtc.value = AidaTools.dateToDatetimeLocal(guessed);
-            }
-            state.pendingMatch = null;
-            if (onLoaded) {
-                onLoaded(img);
-            }
-            if (revokeWhenLoaded) {
-                URL.revokeObjectURL(url);
-            }
-            recomputeAndRender();
+            setLoadingProgress(30, "Reading image pixels...");
+            window.setTimeout(() => {
+                if (loadId !== state.imageLoadId) {
+                    return;
+                }
+                if (state.texture) {
+                    gl.deleteTexture(state.texture);
+                }
+                state.image = img;
+                state.imageName = name;
+                state.maskRegions = [];
+                hideZoomCanvas();
+                const imageCanvas = document.createElement("canvas");
+                imageCanvas.width = img.width;
+                imageCanvas.height = img.height;
+                const imageContext = imageCanvas.getContext("2d", {willReadFrequently: true});
+                imageContext.drawImage(img, 0, 0);
+                try {
+                    state.imagePixels = imageContext.getImageData(0, 0, img.width, img.height);
+                    setLoadingProgress(50, "Adjusting brightness and contrast...");
+                    autoAdjustDisplayStretch();
+                } catch (error) {
+                    state.imagePixels = null;
+                    controls.brightness.value = "0.00";
+                    controls.contrast.value = "1.00";
+                    state.fitMessage = `image pixel readback unavailable for ${name}; display still works, centroid picking disabled`;
+                }
+                setLoadingProgress(68, "Detecting stars...");
+                detectImageStars();
+                setLoadingProgress(84, "Uploading image texture...");
+                state.texture = gl.createTexture();
+                gl.bindTexture(gl.TEXTURE_2D, state.texture);
+                gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+                gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+                gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+                gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+                // Keep WebGL texture rows in the same top-left-origin convention
+                // used by the image pixel buffer and the AIDA calibration model.
+                gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, false);
+                gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, img);
+                hint.style.display = "none";
+                const guessed = AidaTools.guessTimestampFromAllsky7Name(name);
+                if (guessed) {
+                    controls.timestampUtc.value = AidaTools.dateToDatetimeLocal(guessed);
+                }
+                state.pendingMatch = null;
+                if (onLoaded) {
+                    onLoaded(img);
+                }
+                if (revokeWhenLoaded) {
+                    URL.revokeObjectURL(url);
+                }
+                setLoadingProgress(96, "Rendering calibration view...");
+                recomputeAndRender();
+                hideLoadingProgress();
+            }, 0);
         };
         img.onerror = () => {
             if (loadId !== state.imageLoadId) {
                 return;
             }
             state.fitMessage = `image load failed: ${name}. If using a web server, serve python/examples/ rather than only aida_js_calibrator/.`;
+            hideLoadingProgress();
             render();
         };
         img.src = url;
