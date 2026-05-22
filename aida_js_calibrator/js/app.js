@@ -79,6 +79,7 @@
         imageFlipY: false,
         displayMode: "image",
         maxMagByMode: {image: 4.0, stellarium: 6.0, pairing: 4.0},
+        starNamesByMode: {image: true, stellarium: false, pairing: true},
         showRaDecGrid: false,
         showAzElGrid: true,
         showStarNames: true,
@@ -578,6 +579,11 @@
         return state.matches.some(match => match.catalog.key === key);
     }
 
+    function fittingMatches() {
+        const maxMag = Number(controls.maxMag.value) || 4;
+        return state.matches.filter(match => match.catalog.mag <= maxMag);
+    }
+
     function updateProjection() {
         if (!state.image) {
             state.projected = [];
@@ -911,7 +917,8 @@
     }
 
     function matchResidualRows() {
-        if (!state.image || state.matches.length === 0) {
+        const matches = fittingMatches();
+        if (!state.image || matches.length === 0) {
             return [];
         }
         const date = AidaTools.datetimeLocalToDate(controls.timestampUtc.value);
@@ -920,7 +927,7 @@
         const optmod = Number(controls.optmod.value);
         const optpar = currentOptpar();
         const rows = [];
-        for (const match of state.matches) {
+        for (const match of matches) {
             const azze = AidaTools.radecToAzZe(match.catalog.raHours, match.catalog.decDeg, date, lat, lon);
             const xy = AidaTools.cameraModel(azze.az, azze.ze, optpar, optmod, state.image.width, state.image.height);
             if (!Number.isFinite(xy.x) || !Number.isFinite(xy.y)) {
@@ -966,10 +973,16 @@
     }
 
     function drawWorstResidualMarker(rows) {
+        if (rows.length === 0) {
+            return;
+        }
+        const medianDx = median(rows.map(row => row.dx));
+        const medianDy = median(rows.map(row => row.dy));
         let worst = null;
         for (const row of rows) {
-            if (!worst || row.r > worst.r) {
-                worst = row;
+            const modeDistance = Math.hypot(row.dx - medianDx, row.dy - medianDy);
+            if (!worst || modeDistance > worst.modeDistance) {
+                worst = {...row, modeDistance};
             }
         }
         if (!worst) {
@@ -980,7 +993,7 @@
             return;
         }
         const offset = 20 * (window.devicePixelRatio || 1);
-        addOverlayLabel(`residual ${worst.r.toFixed(1)} px`,
+        addOverlayLabel(`outlier ${worst.modeDistance.toFixed(1)} px from median residual`,
             [imagePoint[0] + offset, imagePoint[1] - offset],
             "worst-residual-label");
     }
@@ -1181,11 +1194,6 @@
         if (state.centroidPreview && Date.now() < state.centroidPreview.expiresAt) {
             const point = imageMarkerCanvasPixel(state.centroidPreview.x, state.centroidPreview.y);
             addOverlayCircle(point, "centroid-preview-marker");
-            addOverlayLabel(
-                `KDE ${state.centroidPreview.method}, sigma ${state.centroidPreview.sigma.toFixed(2)} px`,
-                [point[0] + labelOffset, point[1] + labelOffset],
-                "centroid-preview-label"
-            );
         }
 
     }
@@ -1300,8 +1308,11 @@
             return;
         }
         state.maxMagByMode[state.displayMode] = Number(controls.maxMag.value) || 4.0;
+        state.starNamesByMode[state.displayMode] = state.showStarNames;
         state.displayMode = mode;
         controls.maxMag.value = state.maxMagByMode[mode].toFixed(1);
+        state.showStarNames = state.starNamesByMode[mode];
+        updateStarNameButton();
     }
 
     function matchInstructionText() {
@@ -1364,8 +1375,11 @@
         const sortedR = rows.map(row => row.r).sort((a, b) => a - b);
         const medianR = sortedR[Math.floor(sortedR.length / 2)];
         const maxR = sortedR[sortedR.length - 1];
+        const medianDx = median(rows.map(row => row.dx));
+        const medianDy = median(rows.map(row => row.dy));
         return `fit residual scatter: ${rows.length} stars, RMS ${rms.toFixed(2)} px, ` +
             `median ${medianR.toFixed(2)} px, max ${maxR.toFixed(2)} px, ` +
+            `median dx/dy ${medianDx.toFixed(2)}/${medianDy.toFixed(2)} px, ` +
             `mean dx/dy ${meanDx.toFixed(2)}/${meanDy.toFixed(2)} px, ` +
             `sigma dx/dy ${sigmaDx.toFixed(2)}/${sigmaDy.toFixed(2)} px`;
     }
@@ -1726,9 +1740,16 @@
 
         const size = 100;
         const half = size / 2;
-        const source = state.imagePixels.data;
+        const displayPixels = displayImagePixels();
+        const source = displayPixels.data;
         const width = state.image.width;
         const height = state.image.height;
+        const brightness = Number(controls.brightness.value) || 0;
+        const contrast = Number(controls.contrast.value) || 1;
+        const displayChannel = value => {
+            const adjusted = ((value / 255) - 0.5) * contrast + 0.5 + brightness;
+            return Math.round(Math.max(0, Math.min(1, adjusted)) * 255);
+        };
         const patch = zoomContext.createImageData(size, size);
         for (let py = 0; py < size; py++) {
             const sy = Math.round(point.y - half + py);
@@ -1743,9 +1764,9 @@
                     continue;
                 }
                 const src = 4 * (sy * width + sx);
-                patch.data[dst] = source[src];
-                patch.data[dst + 1] = source[src + 1];
-                patch.data[dst + 2] = source[src + 2];
+                patch.data[dst] = displayChannel(source[src]);
+                patch.data[dst + 1] = displayChannel(source[src + 1]);
+                patch.data[dst + 2] = displayChannel(source[src + 2]);
                 patch.data[dst + 3] = 255;
             }
         }
@@ -1753,10 +1774,14 @@
         zoomContext.strokeStyle = "rgba(250, 204, 21, 0.95)";
         zoomContext.lineWidth = 1;
         zoomContext.beginPath();
-        zoomContext.moveTo(50, 42);
-        zoomContext.lineTo(50, 58);
-        zoomContext.moveTo(42, 50);
-        zoomContext.lineTo(58, 50);
+        zoomContext.moveTo(50, 36);
+        zoomContext.lineTo(50, 46);
+        zoomContext.moveTo(50, 54);
+        zoomContext.lineTo(50, 64);
+        zoomContext.moveTo(36, 50);
+        zoomContext.lineTo(46, 50);
+        zoomContext.moveTo(54, 50);
+        zoomContext.lineTo(64, 50);
         zoomContext.stroke();
         drawKdeContoursOnZoom(point, size, half);
 
@@ -2639,7 +2664,7 @@
         const lat = Number(controls.latDeg.value) || 0;
         const lon = Number(controls.lonDeg.value) || 0;
         const optmod = Number(controls.optmod.value);
-        const rows = state.matches.map(match => {
+        const rows = fittingMatches().map(match => {
             const azze = AidaTools.radecToAzZe(match.catalog.raHours, match.catalog.decDeg, date, lat, lon);
             return {az: azze.az, ze: azze.ze, image: match.image};
         });
@@ -2671,7 +2696,58 @@
         return residuals.reduce((acc, value) => acc + value * value, 0);
     }
 
+    function robustResidualScale(residuals) {
+        if (!residuals || residuals.length < 2) {
+            return 8;
+        }
+        const radii = [];
+        for (let i = 0; i < residuals.length; i += 2) {
+            radii.push(Math.hypot(residuals[i], residuals[i + 1]));
+        }
+        return Math.max(4, 1.4826 * median(radii));
+    }
+
+    function robustLoss(residuals) {
+        if (!residuals) {
+            return 1e12;
+        }
+        const c = 1.345 * robustResidualScale(residuals);
+        let loss = 0;
+        for (let i = 0; i < residuals.length; i += 2) {
+            const r = Math.hypot(residuals[i], residuals[i + 1]);
+            loss += r <= c ? r * r : 2 * c * r - c * c;
+        }
+        return loss;
+    }
+
+    function robustWeightedResiduals(residuals) {
+        if (!residuals) {
+            return null;
+        }
+        const c = 1.345 * robustResidualScale(residuals);
+        const weighted = residuals.slice();
+        for (let i = 0; i < weighted.length; i += 2) {
+            const r = Math.hypot(weighted[i], weighted[i + 1]);
+            if (r > c && r > 1e-9) {
+                const scale = Math.sqrt(c / r);
+                weighted[i] *= scale;
+                weighted[i + 1] *= scale;
+            }
+        }
+        return weighted;
+    }
+
     function matchObjectiveFactory(residualFn = matchResidualFactory()) {
+        return x => {
+            const penalty = fitPenalty(x);
+            if (penalty > 0) {
+                return penalty;
+            }
+            return robustLoss(residualFn(x));
+        };
+    }
+
+    function leastSquaresObjectiveFactory(residualFn = matchResidualFactory()) {
         return x => {
             const penalty = fitPenalty(x);
             if (penalty > 0) {
@@ -2905,9 +2981,11 @@
         return {x, fx, iterations, accepted};
     }
 
-    function acceptFitResult(result, startFx, methodLabel, detail) {
-        const rmsBefore = Math.sqrt(startFx / state.matches.length);
-        const rmsAfter = Math.sqrt(result.fx / state.matches.length);
+    function acceptFitResult(result, start, residualFn, methodLabel, detail, fitCount, objectiveLabel) {
+        const startSse = residualSumSquares(residualFn(start));
+        const resultSse = residualSumSquares(residualFn(result.x));
+        const rmsBefore = Math.sqrt(startSse / fitCount);
+        const rmsAfter = Math.sqrt(resultSse / fitCount);
         if (!Number.isFinite(rmsAfter) || rmsAfter > Math.max(50, rmsBefore * 1.25)) {
             state.fitMessage = `${methodLabel} rejected: RMS ${rmsBefore.toFixed(2)} -> ${rmsAfter.toFixed(2)} px`;
             render();
@@ -2918,14 +2996,17 @@
         state.pendingMatch = null;
         state.showPickedMatchMarkers = false;
         state.fitMessage = `${methodLabel}: RMS ${rmsBefore.toFixed(2)} -> ${rmsAfter.toFixed(2)} px, ` +
-            `${detail}; fitted all 8 optpar values`;
+            `${detail}; ${objectiveLabel}; fitted all 8 optpar values using ${fitCount}/${state.matches.length} pairs ` +
+            `with mag <= ${Number(controls.maxMag.value).toFixed(1)}`;
         recomputeAndRender();
         return true;
     }
 
     function fitLensFromMatches() {
-        if (!state.image || state.matches.length < 4) {
-            state.fitMessage = "lens fit: need at least 4 matched star pairs";
+        const fitCount = fittingMatches().length;
+        if (!state.image || fitCount < 4) {
+            state.fitMessage = `lens fit: need at least 4 matched star pairs with mag <= ` +
+                `${Number(controls.maxMag.value).toFixed(1)} (${fitCount}/${state.matches.length} available)`;
             render();
             return;
         }
@@ -2933,7 +3014,6 @@
         const residualFn = matchResidualFactory();
         const objective = matchObjectiveFactory(residualFn);
         const start = currentFitVector();
-        const startFx = objective(start);
         const steps = [0.05, 0.05, 1.5, 1.5, 2.0, 0.006, 0.006, 0.03];
         const starts = fitStartCandidates(objective, start);
         let result = null;
@@ -2952,22 +3032,26 @@
         }
         acceptFitResult(
             result,
-            startFx,
+            start,
+            residualFn,
             "Nelder-Mead lens fit",
-            `${starts.length} starts including random perturbations, ${totalIterations} iterations`
+            `${starts.length} starts including random perturbations, ${totalIterations} iterations`,
+            fitCount,
+            "robust Huber objective"
         );
     }
 
     function fitLensLevenbergMarquardt() {
-        if (!state.image || state.matches.length < 4) {
-            state.fitMessage = "LM lens fit: need at least 4 matched star pairs";
+        const fitCount = fittingMatches().length;
+        if (!state.image || fitCount < 4) {
+            state.fitMessage = `LM lens fit: need at least 4 matched star pairs with mag <= ` +
+                `${Number(controls.maxMag.value).toFixed(1)} (${fitCount}/${state.matches.length} available)`;
             render();
             return;
         }
         const residualFn = matchResidualFactory();
-        const objective = matchObjectiveFactory(residualFn);
+        const objective = leastSquaresObjectiveFactory(residualFn);
         const start = currentFitVector();
-        const startFx = objective(start);
         const starts = fitStartCandidates(objective, start).slice(0, 12);
         let result = null;
         let totalIterations = 0;
@@ -2987,9 +3071,12 @@
         }
         acceptFitResult(
             result,
-            startFx,
+            start,
+            residualFn,
             "Levenberg-Marquardt lens fit",
-            `${starts.length} starts, ${totalIterations} iterations, ${accepted} accepted steps`
+            `${starts.length} starts, ${totalIterations} iterations, ${accepted} accepted steps`,
+            fitCount,
+            "ordinary least-squares objective"
         );
     }
 
@@ -3169,6 +3256,7 @@
 
     function toggleStarNames() {
         state.showStarNames = !state.showStarNames;
+        state.starNamesByMode[state.displayMode] = state.showStarNames;
         updateStarNameButton();
         render();
     }
