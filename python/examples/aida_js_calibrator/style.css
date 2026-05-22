@@ -127,6 +127,60 @@ h2 {
     text-shadow: 0 1px 3px #000000;
 }
 
+.residual-histogram {
+    display: none;
+    position: absolute;
+    right: 12px;
+    top: 12px;
+    width: 260px;
+    padding: 10px;
+    border: 1px solid rgba(255, 90, 90, 0.75);
+    border-radius: 6px;
+    background: rgba(20, 0, 0, 0.78);
+    color: #ffe1dd;
+    font-size: 11px;
+    font-weight: 700;
+    line-height: 1.25;
+    pointer-events: none;
+}
+
+.residual-histogram.visible {
+    display: block;
+}
+
+.residual-histogram-title {
+    margin-bottom: 6px;
+    color: #ffb3ad;
+}
+
+.residual-scatter-svg {
+    width: 240px;
+    height: 180px;
+    display: block;
+}
+
+.residual-scatter-axis {
+    stroke: rgba(255, 225, 221, 0.8);
+    stroke-width: 1;
+}
+
+.residual-scatter-grid {
+    stroke: rgba(255, 225, 221, 0.2);
+    stroke-width: 1;
+}
+
+.residual-scatter-point {
+    fill: #ff3030;
+    stroke: #ffffff;
+    stroke-width: 0.7;
+}
+
+.residual-scatter-label {
+    fill: #ffe1dd;
+    font-size: 10px;
+    font-weight: 700;
+}
+
 .grid-label {
     min-width: 0;
     padding: 2px 5px;
@@ -143,6 +197,18 @@ h2 {
 .radec-label {
     border-color: rgba(95, 230, 255, 0.55);
     color: #9ff4ff;
+}
+
+.star-name-label {
+    min-width: 0;
+    padding: 2px 5px;
+    transform: translate(0, -50%);
+    border-color: rgba(255, 80, 80, 0.8);
+    border-radius: 5px;
+    background: rgba(40, 0, 0, 0.62);
+    color: #ffb3ad;
+    font-size: 11px;
+    font-weight: 800;
 }
 
 .match-marker {
@@ -304,6 +370,10 @@ button,
 
 button {
     min-height: 34px;
+}
+
+button.toggle-on {
+    background: #065f46;
 }
 
 .file-button {

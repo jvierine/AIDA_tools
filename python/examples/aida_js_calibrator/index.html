@@ -10,7 +10,7 @@
 <header class="topbar">
     <div>
         <h1>AIDA Browser Star Calibration</h1>
-        <div class="subtle">Prototype: load an allsky image, drag the star overlay, and tune the camera model.</div>
+        <div class="subtle">Shortcuts: s match stars, f fit, p probe, d delete detection, m mask, z zoom, c detection circles, n star names, r residuals, Esc cancel.</div>
     </div>
     <label class="file-button">
         Load image
@@ -22,6 +22,7 @@
     <section class="viewer-panel">
         <canvas id="glCanvas"></canvas>
         <div class="cardinal-layer" id="cardinalLayer" aria-hidden="true"></div>
+        <div class="residual-histogram" id="residualHistogram" aria-hidden="true"></div>
         <canvas id="zoomCanvas" class="zoom-canvas" width="100" height="100" aria-hidden="true"></canvas>
         <div class="hint" id="canvasHint">Drop or load a PNG/JPEG calibration frame.</div>
     </section>
@@ -73,6 +74,9 @@
             <label>Starfinder max detections <span id="detectorMaxStarsValue">250</span>
                 <input id="detectorMaxStars" type="range" min="50" max="700" value="250" step="25">
             </label>
+            <label>Starfinder star radius <span id="detectorStarRadiusValue">5</span> px
+                <input id="detectorStarRadius" type="range" min="3" max="14" value="5" step="1">
+            </label>
             <div class="button-row">
                 <button id="flipX" type="button">Flip X</button>
                 <button id="flipY" type="button">Flip Y</button>
@@ -84,6 +88,8 @@
             </div>
             <button id="toggleRaDecGrid" type="button">Show RA/Dec grid</button>
             <button id="toggleAzElGrid" type="button">Show az/el grid</button>
+            <button id="toggleDetectionCircles" type="button">Hide detection circles (C)</button>
+            <button id="toggleStarNames" type="button">Show star names (N)</button>
         </section>
 
         <section>
@@ -95,8 +101,11 @@
                         <option value="3">optmod 3</option>
                     </select>
                 </label>
-                <label>Focal multiplier
-                    <input id="fScale" type="number" value="1.05" step="0.01">
+                <label>Horizontal focal multiplier
+                    <input id="fScaleX" type="number" value="1.05" step="0.01">
+                </label>
+                <label>Vertical focal multiplier
+                    <input id="fScaleY" type="number" value="1.05" step="0.01">
                 </label>
             </div>
             <label>Alpha deg
@@ -119,7 +128,9 @@
             <label>Radial alpha
                 <input id="radialAlpha" type="number" value="0.35" step="0.01">
             </label>
-            <button id="fitLens" type="button">Fit lens from matches</button>
+            <button id="fitLens" type="button">Fit lens from matches (F)</button>
+            <button id="toggleFitResiduals" type="button">Show fit residual view (R)</button>
+            <button id="clearMatches" type="button">Remove identified stars</button>
         </section>
 
         <section>
@@ -135,6 +146,6 @@
 <script src="js/star_catalog.js?v=20260521o"></script>
 <script src="js/calibration_cases.js?v=20260521o"></script>
 <script src="js/aidatools.js?v=20260521o"></script>
-<script src="js/app.js?v=20260521o"></script>
+<script src="js/app.js?v=20260522h"></script>
 </body>
 </html>

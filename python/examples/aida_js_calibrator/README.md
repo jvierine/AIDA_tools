@@ -37,9 +37,9 @@ model values are converted from Matlab's 1-based pixel convention inside
 `js/aidatools.js`.
 
 For bundled test cases, the HDF5 `optpar[0]` and `optpar[1]` values are the
-actual AIDA focal parameters. The UI's focal control is a multiplier relative
-to those calibrated values, so `1.0` means "use the file's focal parameters
-unchanged", not "unit focal length".
+actual AIDA focal parameters. The UI's horizontal and vertical focal controls
+are multipliers relative to those calibrated values, so `1.0` means "use the
+file's focal parameters unchanged", not "unit focal length".
 
 The known-model selector applies the calibration parameters only. The image
 itself is normally selected with the `Load image` button; if the selected image

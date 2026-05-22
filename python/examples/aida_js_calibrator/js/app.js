@@ -8,6 +8,7 @@
     const cardinalLayer = document.getElementById("cardinalLayer");
     const statusEl = document.getElementById("status");
     const matchInstructions = document.getElementById("matchInstructions");
+    const residualHistogram = document.getElementById("residualHistogram");
     const controls = {
         file: document.getElementById("imageFile"),
         timestampUtc: document.getElementById("timestampUtc"),
@@ -24,6 +25,8 @@
         detectorThresholdValue: document.getElementById("detectorThresholdValue"),
         detectorMaxStars: document.getElementById("detectorMaxStars"),
         detectorMaxStarsValue: document.getElementById("detectorMaxStarsValue"),
+        detectorStarRadius: document.getElementById("detectorStarRadius"),
+        detectorStarRadiusValue: document.getElementById("detectorStarRadiusValue"),
         testCase: document.getElementById("testCase"),
         prevCase: document.getElementById("prevCase"),
         nextCase: document.getElementById("nextCase"),
@@ -33,9 +36,12 @@
         flipImageY: document.getElementById("flipImageY"),
         toggleRaDecGrid: document.getElementById("toggleRaDecGrid"),
         toggleAzElGrid: document.getElementById("toggleAzElGrid"),
+        toggleDetectionCircles: document.getElementById("toggleDetectionCircles"),
+        toggleStarNames: document.getElementById("toggleStarNames"),
         resetOffset: document.getElementById("resetOffset"),
         optmod: document.getElementById("optmod"),
-        fScale: document.getElementById("fScale"),
+        fScaleX: document.getElementById("fScaleX"),
+        fScaleY: document.getElementById("fScaleY"),
         rotAlpha: document.getElementById("rotAlpha"),
         rotBeta: document.getElementById("rotBeta"),
         rotGamma: document.getElementById("rotGamma"),
@@ -43,6 +49,8 @@
         dv: document.getElementById("dv"),
         radialAlpha: document.getElementById("radialAlpha"),
         fitLens: document.getElementById("fitLens"),
+        toggleFitResiduals: document.getElementById("toggleFitResiduals"),
+        clearMatches: document.getElementById("clearMatches"),
     };
 
     const gl = canvas.getContext("webgl", {antialias: true, preserveDrawingBuffer: true});
@@ -66,6 +74,8 @@
         imageFlipY: false,
         showRaDecGrid: false,
         showAzElGrid: false,
+        showDetectionCircles: true,
+        showStarNames: false,
         dragging: false,
         lensDragMode: "none",
         lastMouse: [0, 0],
@@ -84,6 +94,7 @@
         pendingMatch: null,
         matches: [],
         showPickedMatchMarkers: true,
+        showFitResiduals: false,
         fitMessage: "lens fit: not run",
         lastFitVector: null,
     };
@@ -155,7 +166,7 @@
             float r = length(d);
             if (r > 0.5) discard;
             float alpha = smoothstep(0.5, 0.05, r);
-            vec3 color = mix(vec3(0.1, 0.8, 1.0), vec3(1.0, 0.95, 0.2), clamp((6.0 - v_mag) / 4.0, 0.0, 1.0));
+            vec3 color = mix(vec3(0.75, 0.02, 0.02), vec3(1.0, 0.18, 0.12), clamp((6.0 - v_mag) / 4.0, 0.0, 1.0));
             gl_FragColor = vec4(color, alpha);
         }
     `);
@@ -327,11 +338,12 @@
     }
 
     function currentOptpar() {
-        const scale = Math.abs(Number(controls.fScale.value) || 1.0);
+        const scaleX = Math.abs(Number(controls.fScaleX.value) || 1.0);
+        const scaleY = Math.abs(Number(controls.fScaleY.value) || 1.0);
         const base = state.baseOptpar || [-1, 1, 0, 0, 0, 0, 0, 0.35];
         return [
-            base[0] * scale,
-            base[1] * scale,
+            base[0] * scaleX,
+            base[1] * scaleY,
             Number(controls.rotAlpha.value) || 0,
             Number(controls.rotBeta.value) || 0,
             Number(controls.rotGamma.value) || 0,
@@ -342,23 +354,25 @@
     }
 
     function optparFromFitVector(x) {
-        const scale = Math.exp(x[0]);
+        const scaleX = Math.exp(x[0]);
+        const scaleY = Math.exp(x[1]);
         const base = state.baseOptpar || [-1, 1, 0, 0, 0, 0, 0, 0.35];
         return [
-            base[0] * scale,
-            base[1] * scale,
+            base[0] * scaleX,
+            base[1] * scaleY,
             Number(controls.rotAlpha.value) || 0,
             Number(controls.rotBeta.value) || 0,
-            x[1],
             x[2],
             x[3],
+            x[4],
             Number(controls.radialAlpha.value) || 0.35,
         ];
     }
 
     function currentFitVector() {
         return [
-            Math.log(Math.max(0.01, Math.abs(Number(controls.fScale.value) || 1.0))),
+            Math.log(Math.max(0.01, Math.abs(Number(controls.fScaleX.value) || 1.0))),
+            Math.log(Math.max(0.01, Math.abs(Number(controls.fScaleY.value) || 1.0))),
             Number(controls.rotGamma.value) || 0,
             Number(controls.du.value) || 0,
             Number(controls.dv.value) || 0,
@@ -366,21 +380,25 @@
     }
 
     function applyFitVector(x) {
-        const scale = Math.exp(x[0]);
-        controls.fScale.value = Math.max(0.01, Math.min(10, scale)).toFixed(5);
-        controls.rotGamma.value = wrapDegrees180(x[1]).toFixed(3);
-        controls.du.value = Math.max(-0.5, Math.min(0.5, x[2])).toFixed(6);
-        controls.dv.value = Math.max(-0.5, Math.min(0.5, x[3])).toFixed(6);
+        const scaleX = Math.exp(x[0]);
+        const scaleY = Math.exp(x[1]);
+        controls.fScaleX.value = Math.max(0.01, Math.min(10, scaleX)).toFixed(5);
+        controls.fScaleY.value = Math.max(0.01, Math.min(10, scaleY)).toFixed(5);
+        controls.rotGamma.value = wrapDegrees180(x[2]).toFixed(3);
+        controls.du.value = Math.max(-0.5, Math.min(0.5, x[3])).toFixed(6);
+        controls.dv.value = Math.max(-0.5, Math.min(0.5, x[4])).toFixed(6);
     }
 
     function applyOptpar(optpar) {
         if (!optpar || optpar.length < 8) {
             state.baseOptpar = null;
-            controls.fScale.value = "1.0000";
+            controls.fScaleX.value = "1.0000";
+            controls.fScaleY.value = "1.0000";
             return;
         }
         state.baseOptpar = optpar.slice();
-        controls.fScale.value = "1.0000";
+        controls.fScaleX.value = "1.0000";
+        controls.fScaleY.value = "1.0000";
         controls.rotAlpha.value = optpar[2].toFixed(3);
         controls.rotBeta.value = optpar[3].toFixed(3);
         controls.rotGamma.value = wrapDegrees180(optpar[4]).toFixed(3);
@@ -833,6 +851,139 @@
         gl.disable(gl.BLEND);
     }
 
+    function matchResidualRows() {
+        if (!state.image || state.matches.length === 0) {
+            return [];
+        }
+        const date = AidaTools.datetimeLocalToDate(controls.timestampUtc.value);
+        const lat = Number(controls.latDeg.value) || 0;
+        const lon = Number(controls.lonDeg.value) || 0;
+        const optmod = Number(controls.optmod.value);
+        const optpar = currentOptpar();
+        const rows = [];
+        for (const match of state.matches) {
+            const azze = AidaTools.radecToAzZe(match.catalog.raHours, match.catalog.decDeg, date, lat, lon);
+            const xy = AidaTools.cameraModel(azze.az, azze.ze, optpar, optmod, state.image.width, state.image.height);
+            if (!Number.isFinite(xy.x) || !Number.isFinite(xy.y)) {
+                continue;
+            }
+            const [rawX, rawY] = rawImagePixelFromModelImagePixel(xy.x, xy.y);
+            const dx = rawX - match.image.x;
+            const dy = rawY - match.image.y;
+            rows.push({
+                match,
+                model: {x: rawX, y: rawY},
+                dx,
+                dy,
+                r: Math.hypot(dx, dy),
+            });
+        }
+        return rows;
+    }
+
+    function drawFitResiduals(rows = matchResidualRows()) {
+        if (rows.length === 0) {
+            return;
+        }
+        const segments = [];
+        for (const row of rows) {
+            const detected = imageMarkerCanvasPixel(row.match.image.x, row.match.image.y);
+            const model = imageMarkerCanvasPixel(row.model.x, row.model.y);
+            segments.push(detected[0], detected[1], model[0], model[1]);
+        }
+        gl.useProgram(lineProgram);
+        gl.bindBuffer(gl.ARRAY_BUFFER, lineBuffer);
+        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(segments), gl.DYNAMIC_DRAW);
+        const aPixel = gl.getAttribLocation(lineProgram, "a_pixel");
+        gl.enableVertexAttribArray(aPixel);
+        gl.vertexAttribPointer(aPixel, 2, gl.FLOAT, false, 0, 0);
+        gl.uniform2f(gl.getUniformLocation(lineProgram, "u_canvas_size"), canvas.width, canvas.height);
+        gl.uniform4f(gl.getUniformLocation(lineProgram, "u_color"), 1.0, 0.0, 0.0, 0.9);
+        gl.enable(gl.BLEND);
+        gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+        gl.drawArrays(gl.LINES, 0, segments.length / 2);
+        gl.disable(gl.BLEND);
+    }
+
+    function svgEl(tag) {
+        return document.createElementNS("http://www.w3.org/2000/svg", tag);
+    }
+
+    function updateResidualHistogram(rows) {
+        residualHistogram.replaceChildren();
+        residualHistogram.classList.toggle("visible", state.showFitResiduals);
+        if (!state.showFitResiduals) {
+            return;
+        }
+
+        const title = document.createElement("div");
+        title.className = "residual-histogram-title";
+        if (rows.length === 0) {
+            title.textContent = "Fit residuals: no paired stars";
+            residualHistogram.appendChild(title);
+            return;
+        }
+
+        const rms = Math.sqrt(rows.reduce((acc, row) => acc + row.r * row.r, 0) / rows.length);
+        const maxAbs = Math.max(1, ...rows.map(row => Math.max(Math.abs(row.dx), Math.abs(row.dy))));
+        const span = Math.ceil(maxAbs * 1.15);
+        title.textContent = `Fit residuals: ${rows.length} stars, RMS ${rms.toFixed(2)} px, axis +/-${span} px`;
+        residualHistogram.appendChild(title);
+
+        const svg = svgEl("svg");
+        svg.setAttribute("viewBox", "0 0 240 180");
+        svg.classList.add("residual-scatter-svg");
+        const plot = {x0: 34, y0: 12, w: 184, h: 136};
+        const sx = value => plot.x0 + (value + span) / (2 * span) * plot.w;
+        const sy = value => plot.y0 + plot.h - (value + span) / (2 * span) * plot.h;
+        const addLine = (x1, y1, x2, y2, className) => {
+            const line = svgEl("line");
+            line.setAttribute("x1", x1.toFixed(2));
+            line.setAttribute("y1", y1.toFixed(2));
+            line.setAttribute("x2", x2.toFixed(2));
+            line.setAttribute("y2", y2.toFixed(2));
+            line.classList.add(className);
+            svg.appendChild(line);
+        };
+        addLine(plot.x0, sy(-span), plot.x0 + plot.w, sy(-span), "residual-scatter-grid");
+        addLine(plot.x0, sy(span), plot.x0 + plot.w, sy(span), "residual-scatter-grid");
+        addLine(sx(-span), plot.y0, sx(-span), plot.y0 + plot.h, "residual-scatter-grid");
+        addLine(sx(span), plot.y0, sx(span), plot.y0 + plot.h, "residual-scatter-grid");
+        addLine(plot.x0, sy(0), plot.x0 + plot.w, sy(0), "residual-scatter-axis");
+        addLine(sx(0), plot.y0, sx(0), plot.y0 + plot.h, "residual-scatter-axis");
+
+        for (const row of rows) {
+            const point = svgEl("circle");
+            point.setAttribute("cx", sx(row.dx).toFixed(2));
+            point.setAttribute("cy", sy(row.dy).toFixed(2));
+            point.setAttribute("r", "3.4");
+            point.classList.add("residual-scatter-point");
+            svg.appendChild(point);
+        }
+
+        const labels = [
+            [`x residual (px)`, plot.x0 + plot.w / 2, 174, "middle"],
+            [`y residual (px)`, 10, plot.y0 + plot.h / 2, "middle", -90],
+            [`-${span}`, plot.x0, 164, "middle"],
+            [`+${span}`, plot.x0 + plot.w, 164, "middle"],
+            [`+${span}`, 22, plot.y0 + 3, "end"],
+            [`-${span}`, 22, plot.y0 + plot.h + 3, "end"],
+        ];
+        for (const [text, x, y, anchor, rotate] of labels) {
+            const label = svgEl("text");
+            label.textContent = text;
+            label.setAttribute("x", x.toFixed(2));
+            label.setAttribute("y", y.toFixed(2));
+            label.setAttribute("text-anchor", anchor);
+            if (rotate) {
+                label.setAttribute("transform", `rotate(${rotate} ${x.toFixed(2)} ${y.toFixed(2)})`);
+            }
+            label.classList.add("residual-scatter-label");
+            svg.appendChild(label);
+        }
+        residualHistogram.appendChild(svg);
+    }
+
     function drawAzElGridLabels(optpar, optmod) {
         if (!state.showAzElGrid) {
             return;
@@ -873,6 +1024,30 @@
                 const sign = dec > 0 ? "+" : "";
                 addOverlayLabel(`${sign}${dec}° dec`, point, "grid-label radec-label", true);
             }
+        }
+    }
+
+    function drawStarNameLabels() {
+        if (!state.showStarNames) {
+            return;
+        }
+        const maxMag = Number(controls.maxMag.value) || 4;
+        const margin = 20 * (window.devicePixelRatio || 1);
+        const offset = 12 * (window.devicePixelRatio || 1);
+        for (const star of state.projected) {
+            if (star.mag > maxMag || isMatchedCatalogStar(star)) {
+                continue;
+            }
+            const [x, y] = canvasPixelFromImagePixel(star.x, star.y);
+            if (!Number.isFinite(x) || !Number.isFinite(y) ||
+                    x < -margin || x > canvas.width + margin ||
+                    y < -margin || y > canvas.height + margin) {
+                continue;
+            }
+            const label = star.name && star.name.trim()
+                ? star.name.trim()
+                : `mag ${star.mag.toFixed(1)}`;
+            addOverlayLabel(label, [x + offset, y - offset], "star-name-label");
         }
     }
 
@@ -918,7 +1093,7 @@
     }
 
     function drawAutoDetectionMarkers() {
-        if (!state.image) {
+        if (!state.image || !state.showDetectionCircles) {
             return;
         }
         const matchedIds = new Set(state.autoMatches.map(match => match.detection.id));
@@ -961,6 +1136,7 @@
 
         drawAzElGridLabels(optpar, optmod);
         drawRaDecGridLabels(optpar, optmod);
+        drawStarNameLabels();
         drawMatchMarkers(optpar, optmod);
     }
 
@@ -973,16 +1149,24 @@
         gl.clearColor(0, 0, 0, 1);
         gl.clear(gl.COLOR_BUFFER_BIT);
         drawImage();
-        drawAzElGrid();
-        drawRaDecGrid();
-        drawAutoMatchResiduals();
-        drawStars();
-        drawOverlayLabels();
+        if (state.showFitResiduals) {
+            const rows = matchResidualRows();
+            cardinalLayer.replaceChildren();
+            drawFitResiduals(rows);
+            updateResidualHistogram(rows);
+        } else {
+            updateResidualHistogram([]);
+            drawAzElGrid();
+            drawRaDecGrid();
+            drawStars();
+            drawOverlayLabels();
+        }
         controls.brightnessValue.textContent = Number(controls.brightness.value).toFixed(2);
         controls.contrastValue.textContent = Number(controls.contrast.value).toFixed(2);
         controls.magValue.textContent = Number(controls.maxMag.value).toFixed(1);
         controls.detectorThresholdValue.textContent = Number(controls.detectorThreshold.value).toFixed(1);
         controls.detectorMaxStarsValue.textContent = Number(controls.detectorMaxStars.value).toFixed(0);
+        controls.detectorStarRadiusValue.textContent = Number(controls.detectorStarRadius.value).toFixed(0);
         matchInstructions.textContent = matchInstructionText();
         const date = AidaTools.datetimeLocalToDate(controls.timestampUtc.value);
         const optpar = currentOptpar();
@@ -994,7 +1178,7 @@
             `catalog stars <= mag ${controls.maxMag.value}: ` +
             `${state.projected.filter(star => star.mag <= Number(controls.maxMag.value)).length}\n` +
             `f1/f2: ${optpar[0].toFixed(6)}, ${optpar[1].toFixed(6)} ` +
-            `(multiplier ${Number(controls.fScale.value).toFixed(4)})\n` +
+            `(multipliers x/y ${Number(controls.fScaleX.value).toFixed(4)}, ${Number(controls.fScaleY.value).toFixed(4)})\n` +
             `boresight az/el: ${boresightAzElFromCameraAngles(Number(controls.rotAlpha.value) || 0, Number(controls.rotBeta.value) || 0).az.toFixed(2)}, ` +
             `${boresightAzElFromCameraAngles(Number(controls.rotAlpha.value) || 0, Number(controls.rotBeta.value) || 0).el.toFixed(2)} deg\n` +
             `du/dv: ${controls.du.value}, ${controls.dv.value}\n` +
@@ -1004,8 +1188,12 @@
             `image masks: ${state.maskRegions.length}\n` +
             `RA/Dec grid: ${state.showRaDecGrid ? "on" : "off"}\n` +
             `az/el grid: ${state.showAzElGrid ? "on" : "off"}\n` +
+            `detection circles: ${state.showDetectionCircles ? "on" : "off"}\n` +
+            `star names: ${state.showStarNames ? "on" : "off"}\n` +
+            `fit residuals: ${state.showFitResiduals ? "on" : "off"}\n` +
             `star match mode: ${state.starMatchMode ? "on" : "off"}${state.pendingMatch ? " (select catalog star)" : ""}\n` +
             `matched star pairs: ${state.matches.length}\n` +
+            `${fitResidualStatusText()}\n` +
             `${autoDetectionStatusText()}\n` +
             `${pixelProbeText()}\n` +
             state.fitMessage;
@@ -1020,6 +1208,9 @@
         if (!state.image) {
             return "Load an image first. Then hold s to select matched image/catalog stars.";
         }
+        if (state.showFitResiduals) {
+            return "Fit residual mode: normal markings are hidden. Red lines connect each identified image star to its fitted catalog position; press r to return.";
+        }
         if (state.deleteDetectionMode) {
             return "Detection delete mode: click an automatically detected star to remove it from proximity matching.";
         }
@@ -1030,7 +1221,7 @@
             return "Zoom mode: move the mouse over the image to inspect a 100 x 100 raw-pixel region.";
         }
         if (!state.starMatchMode) {
-            return "Left-drag moves the 90 deg elevation point in x/y. Right-drag rotates the azimuth grid around that point. Wheel edits the focal multiplier. Hold s to match stars, p to probe pixels, d to delete an auto detection, m to mask image regions, or z to zoom.";
+            return "Left-drag moves the 90 deg elevation point in x/y. Right-drag rotates the azimuth grid around that point. Wheel edits the focal multiplier. Press c to show/hide detection circles, n to show/hide star names. Hold s to match stars, p to probe pixels, d to delete an auto detection, m to mask image regions, or z to zoom.";
         }
         if (!state.pendingMatch) {
             return "Star matching: click a visible starfinder detection first. Orange detections are auto-paired; red detections are unpaired.";
@@ -1052,6 +1243,39 @@
             text += `; RMS ${rms.toFixed(2)} px, median ${med.toFixed(2)} px`;
         }
         return `${text}; ${state.detectorStatus}`;
+    }
+
+    function fitResidualStatusText() {
+        const rows = matchResidualRows();
+        if (rows.length === 0) {
+            return "fit residual scatter: no identified stars";
+        }
+        let sumDx = 0;
+        let sumDy = 0;
+        let sumR2 = 0;
+        for (const row of rows) {
+            sumDx += row.dx;
+            sumDy += row.dy;
+            sumR2 += row.r * row.r;
+        }
+        const meanDx = sumDx / rows.length;
+        const meanDy = sumDy / rows.length;
+        let varDx = 0;
+        let varDy = 0;
+        for (const row of rows) {
+            varDx += (row.dx - meanDx) * (row.dx - meanDx);
+            varDy += (row.dy - meanDy) * (row.dy - meanDy);
+        }
+        const sigmaDx = Math.sqrt(varDx / rows.length);
+        const sigmaDy = Math.sqrt(varDy / rows.length);
+        const rms = Math.sqrt(sumR2 / rows.length);
+        const sortedR = rows.map(row => row.r).sort((a, b) => a - b);
+        const medianR = sortedR[Math.floor(sortedR.length / 2)];
+        const maxR = sortedR[sortedR.length - 1];
+        return `fit residual scatter: ${rows.length} stars, RMS ${rms.toFixed(2)} px, ` +
+            `median ${medianR.toFixed(2)} px, max ${maxR.toFixed(2)} px, ` +
+            `mean dx/dy ${meanDx.toFixed(2)}/${meanDy.toFixed(2)} px, ` +
+            `sigma dx/dy ${sigmaDx.toFixed(2)}/${sigmaDy.toFixed(2)} px`;
     }
 
     function wrapDegrees180(value) {
@@ -1122,12 +1346,18 @@
         const absDev = samples.map(value => Math.abs(value - bg));
         const sigma = Math.max(1, 1.4826 * median(absDev));
         const thresholdSigma = Number(controls.detectorThreshold.value) || 2.0;
+        const starRadius = Math.max(3, Math.min(14, Math.round(Number(controls.detectorStarRadius.value) || 5)));
+        const centroidRadius = starRadius;
+        const wideCentroidRadius = Math.max(centroidRadius + 1, Math.round(1.6 * starRadius));
+        const annulusInner = Math.max(4, 1.3 * starRadius);
+        const annulusOuter = Math.max(annulusInner + 2, 2.2 * starRadius);
+        const maxRadius2 = Math.max(28.0, Math.pow(1.45 * starRadius, 2));
         const preThreshold = bg + Math.max(2, 0.35 * thresholdSigma * sigma);
         const candidates = [];
 
         for (let y = 2; y < height - 2; y++) {
             for (let x = 2; x < width - 2; x++) {
-                if (isMaskedImagePixel(x, y, 12)) {
+                if (isMaskedImagePixel(x, y, annulusOuter + 2)) {
                     continue;
                 }
                 const value = imageGrayAtIndex(x, y);
@@ -1137,7 +1367,7 @@
                 let isPeak = true;
                 for (let dy = -1; dy <= 1 && isPeak; dy++) {
                     for (let dx = -1; dx <= 1; dx++) {
-                        if ((dx !== 0 || dy !== 0) && imageGrayAtIndex(x + dx, y + dy) >= value) {
+                        if ((dx !== 0 || dy !== 0) && imageGrayAtIndex(x + dx, y + dy) > value) {
                             isPeak = false;
                             break;
                         }
@@ -1148,10 +1378,11 @@
                 }
 
                 const bgSamples = [];
-                for (let dy = -10; dy <= 10; dy++) {
-                    for (let dx = -10; dx <= 10; dx++) {
+                const bgRadius = Math.ceil(annulusOuter);
+                for (let dy = -bgRadius; dy <= bgRadius; dy++) {
+                    for (let dx = -bgRadius; dx <= bgRadius; dx++) {
                         const r = Math.hypot(dx, dy);
-                        if (r >= 6.5 && r <= 10.0 &&
+                        if (r >= annulusInner && r <= annulusOuter &&
                                 x + dx >= 0 && x + dx < width &&
                                 y + dy >= 0 && y + dy < height) {
                             bgSamples.push(imageGrayAtIndex(x + dx, y + dy));
@@ -1166,7 +1397,7 @@
                 if (peakContrast < localContrastThreshold) {
                     continue;
                 }
-                let centroid = weightedCentroid(x, y, 5, localBg);
+                let centroid = weightedCentroid(x, y, centroidRadius, localBg);
                 if (!Number.isFinite(centroid.x) || !Number.isFinite(centroid.y)) {
                     continue;
                 }
@@ -1179,7 +1410,7 @@
                 let saturated = 0;
                 let radius2 = Infinity;
                 let elongation = Infinity;
-                for (const apertureRadius of [5, 8]) {
+                for (const apertureRadius of [centroidRadius, wideCentroidRadius]) {
                     flux = 0;
                     moment = 0;
                     mxx = 0;
@@ -1211,18 +1442,19 @@
                     const minor = Math.max(1e-6, 0.5 * (trace - delta));
                     const major = Math.max(minor, 0.5 * (trace + delta));
                     elongation = Math.sqrt(major / minor);
-                    if (radius2 > 7.5 && apertureRadius === 5) {
-                        centroid = weightedCentroid(x, y, 8, localBg);
+                    if (radius2 > 0.3 * starRadius * starRadius && apertureRadius === centroidRadius) {
+                        centroid = weightedCentroid(x, y, wideCentroidRadius, localBg);
                         peak = imageGray(centroid.x, centroid.y);
                         continue;
                     }
                     break;
                 }
+                const saturatedLimit = Math.max(18, 0.55 * Math.PI * wideCentroidRadius * wideCentroidRadius);
                 if (flux <= 0 || !Number.isFinite(centroid.x) || !Number.isFinite(centroid.y) ||
-                        saturated > 18) {
+                        saturated > saturatedLimit) {
                     continue;
                 }
-                if (radius2 < 0.25 || radius2 > 28.0 || elongation > 3.4) {
+                if (radius2 < 0.25 || radius2 > maxRadius2 || elongation > 3.4) {
                     continue;
                 }
                 const compactness = peakContrast / Math.max(1, Math.sqrt(radius2));
@@ -1264,13 +1496,14 @@
         state.detectedStars = selected.map((det, i) => ({...det, rank: i + 1}));
         state.detectorStatus = `DAO-style detector: bg ${bg.toFixed(1)}, sigma ${sigma.toFixed(1)}, ` +
             `prefilter ${preThreshold.toFixed(1)}, threshold ${thresholdSigma.toFixed(1)} local sigma, ` +
-            `${candidates.length} candidates, max ${maxDetections}`;
+            `radius ${starRadius} px, ${candidates.length} candidates, max ${maxDetections}`;
         updateAutoMatches();
     }
 
     function scheduleDetectImageStars() {
         controls.detectorThresholdValue.textContent = Number(controls.detectorThreshold.value).toFixed(1);
         controls.detectorMaxStarsValue.textContent = Number(controls.detectorMaxStars.value).toFixed(0);
+        controls.detectorStarRadiusValue.textContent = Number(controls.detectorStarRadius.value).toFixed(0);
         if (detectorUpdateTimer) {
             window.clearTimeout(detectorUpdateTimer);
         }
@@ -1600,7 +1833,60 @@
         return best && bestD2 <= maxDist * maxDist ? {...best, distancePx: Math.sqrt(bestD2) / (window.devicePixelRatio || 1)} : null;
     }
 
+    function removeNearestMatchedStar(event) {
+        if (state.matches.length === 0) {
+            return false;
+        }
+        const [cx, cy] = eventToCanvasPixel(event);
+        const date = AidaTools.datetimeLocalToDate(controls.timestampUtc.value);
+        const lat = Number(controls.latDeg.value) || 0;
+        const lon = Number(controls.lonDeg.value) || 0;
+        const optmod = Number(controls.optmod.value);
+        const optpar = currentOptpar();
+        let bestIndex = -1;
+        let bestD2 = Infinity;
+        for (let i = 0; i < state.matches.length; i++) {
+            const match = state.matches[i];
+            const imagePoint = imageMarkerCanvasPixel(match.image.x, match.image.y);
+            const imageD2 = (imagePoint[0] - cx) * (imagePoint[0] - cx) +
+                (imagePoint[1] - cy) * (imagePoint[1] - cy);
+            if (imageD2 < bestD2) {
+                bestD2 = imageD2;
+                bestIndex = i;
+            }
+
+            const azze = AidaTools.radecToAzZe(match.catalog.raHours, match.catalog.decDeg, date, lat, lon);
+            const xy = AidaTools.cameraModel(azze.az, azze.ze, optpar, optmod, state.image.width, state.image.height);
+            if (Number.isFinite(xy.x) && Number.isFinite(xy.y)) {
+                const catalogPoint = canvasPixelFromImagePixel(xy.x, xy.y);
+                const catalogD2 = (catalogPoint[0] - cx) * (catalogPoint[0] - cx) +
+                    (catalogPoint[1] - cy) * (catalogPoint[1] - cy);
+                if (catalogD2 < bestD2) {
+                    bestD2 = catalogD2;
+                    bestIndex = i;
+                }
+            }
+        }
+        const maxDist = 20 * (window.devicePixelRatio || 1);
+        if (bestIndex < 0 || bestD2 > maxDist * maxDist) {
+            return false;
+        }
+        const [removed] = state.matches.splice(bestIndex, 1);
+        state.matches.forEach((match, i) => {
+            match.id = i + 1;
+        });
+        state.pendingMatch = null;
+        state.lastFitVector = null;
+        updateAutoMatches();
+        state.fitMessage = `removed paired star ${removed.id}: ${removed.catalog.name || "(unnamed)"}`;
+        render();
+        return true;
+    }
+
     function handleStarMatchClick(event) {
+        if (removeNearestMatchedStar(event)) {
+            return;
+        }
         if (!state.pendingMatch) {
             const detection = nearestDetectedStar(event);
             if (!detection) {
@@ -1711,9 +1997,11 @@
     }
 
     function fitPenalty(x) {
-        if (x[0] < Math.log(0.05) || x[0] > Math.log(5) ||
-                Math.abs(x[1]) > 720 || Math.abs(x[2]) > 0.5 ||
-                Math.abs(x[3]) > 0.5) {
+        if (x.length < 5 ||
+                x[0] < Math.log(0.05) || x[0] > Math.log(5) ||
+                x[1] < Math.log(0.05) || x[1] > Math.log(5) ||
+                Math.abs(x[2]) > 720 || Math.abs(x[3]) > 0.5 ||
+                Math.abs(x[4]) > 0.5) {
             return 1e12;
         }
         return 0;
@@ -1809,6 +2097,56 @@
         return {x: simplex[0].x, fx: simplex[0].fx, iterations};
     }
 
+    function fitStartCandidates(objective, start) {
+        const starts = [];
+        const seen = new Set();
+        const addStart = x => {
+            if (fitPenalty(x) > 0) {
+                return;
+            }
+            const key = x.map(value => value.toFixed(5)).join(",");
+            if (seen.has(key)) {
+                return;
+            }
+            seen.add(key);
+            const fx = objective(x);
+            if (Number.isFinite(fx)) {
+                starts.push({x: x.slice(), fx});
+            }
+        };
+
+        addStart(start);
+        if (state.lastFitVector && state.lastFitVector.length === start.length) {
+            addStart(state.lastFitVector);
+        }
+
+        const logFocalOffsets = [-0.08, 0, 0.08];
+        const gammaOffsets = [-5, 0, 5];
+        const duOffsets = [-0.015, 0, 0.015];
+        const dvOffsets = [-0.015, 0, 0.015];
+
+        for (const dFx of logFocalOffsets) {
+            for (const dFy of logFocalOffsets) {
+                for (const dGamma of gammaOffsets) {
+                    for (const dDu of duOffsets) {
+                        for (const dDv of dvOffsets) {
+                            addStart([
+                                start[0] + dFx,
+                                start[1] + dFy,
+                                start[2] + dGamma,
+                                start[3] + dDu,
+                                start[4] + dDv,
+                            ]);
+                        }
+                    }
+                }
+            }
+        }
+
+        starts.sort((a, b) => a.fx - b.fx);
+        return starts.slice(0, Math.min(10, starts.length));
+    }
+
     function fitLensFromMatches() {
         if (!state.image || state.matches.length < 4) {
             state.fitMessage = "lens fit: need at least 4 matched star pairs";
@@ -1819,8 +2157,22 @@
         const objective = matchObjectiveFactory();
         const start = currentFitVector();
         const startFx = objective(start);
-        const steps = [0.02, 0.5, 0.002, 0.002];
-        const result = nelderMead(objective, start, steps, 400);
+        const steps = [0.02, 0.02, 0.5, 0.002, 0.002];
+        const starts = fitStartCandidates(objective, start);
+        let result = null;
+        let totalIterations = 0;
+        for (const candidate of starts) {
+            const candidateResult = nelderMead(objective, candidate.x, steps, 300);
+            totalIterations += candidateResult.iterations;
+            if (!result || candidateResult.fx < result.fx) {
+                result = candidateResult;
+            }
+        }
+        if (!result) {
+            state.fitMessage = "lens fit rejected: no valid grid-search start points";
+            render();
+            return;
+        }
         const rmsBefore = Math.sqrt(startFx / state.matches.length);
         const rmsAfter = Math.sqrt(result.fx / state.matches.length);
         if (!Number.isFinite(rmsAfter) || rmsAfter > Math.max(50, rmsBefore * 1.25)) {
@@ -1834,8 +2186,33 @@
         state.pixelProbe = null;
         state.showPickedMatchMarkers = false;
         state.fitMessage = `lens fit: RMS ${rmsBefore.toFixed(2)} -> ${rmsAfter.toFixed(2)} px, ` +
-            `${result.iterations} Nelder-Mead iterations; fitted f, gamma, du, dv only`;
+            `${starts.length} starts, ${totalIterations} Nelder-Mead iterations; fitted fx, fy, gamma, du, dv only`;
         recomputeAndRender();
+    }
+
+    function clearIdentifiedStars() {
+        const count = state.matches.length;
+        state.matches = [];
+        state.pendingMatch = null;
+        state.lastFitVector = null;
+        state.showPickedMatchMarkers = true;
+        updateAutoMatches();
+        state.fitMessage = count > 0
+            ? `removed ${count} identified star${count === 1 ? "" : "s"}`
+            : "no identified stars to remove";
+        render();
+    }
+
+    function updateFitResidualButton() {
+        controls.toggleFitResiduals.textContent =
+            state.showFitResiduals ? "Hide fit residual view (R)" : "Show fit residual view (R)";
+        controls.toggleFitResiduals.classList.toggle("toggle-on", state.showFitResiduals);
+    }
+
+    function toggleFitResiduals() {
+        state.showFitResiduals = !state.showFitResiduals;
+        updateFitResidualButton();
+        render();
     }
 
     function calibrationCaseBasename(testCase) {
@@ -1997,6 +2374,30 @@
         }
     }
 
+    function updateDetectionCircleButton() {
+        controls.toggleDetectionCircles.textContent =
+            state.showDetectionCircles ? "Hide detection circles (C)" : "Show detection circles (C)";
+        controls.toggleDetectionCircles.classList.toggle("toggle-on", state.showDetectionCircles);
+    }
+
+    function toggleDetectionCircles() {
+        state.showDetectionCircles = !state.showDetectionCircles;
+        updateDetectionCircleButton();
+        render();
+    }
+
+    function updateStarNameButton() {
+        controls.toggleStarNames.textContent =
+            state.showStarNames ? "Hide star names (N)" : "Show star names (N)";
+        controls.toggleStarNames.classList.toggle("toggle-on", state.showStarNames);
+    }
+
+    function toggleStarNames() {
+        state.showStarNames = !state.showStarNames;
+        updateStarNameButton();
+        render();
+    }
+
     function handleMaskClick(event) {
         const imagePoint = eventToImagePixel(event);
         if (!imagePoint) {
@@ -2036,12 +2437,14 @@
     });
     for (const el of document.querySelectorAll(".controls input, .controls select")) {
         if (el !== controls.file && el !== controls.testCase &&
-                el !== controls.detectorThreshold && el !== controls.detectorMaxStars) {
+                el !== controls.detectorThreshold && el !== controls.detectorMaxStars &&
+                el !== controls.detectorStarRadius) {
             el.addEventListener("input", recomputeAndRender);
         }
     }
     controls.detectorThreshold.addEventListener("input", scheduleDetectImageStars);
     controls.detectorMaxStars.addEventListener("input", scheduleDetectImageStars);
+    controls.detectorStarRadius.addEventListener("input", scheduleDetectImageStars);
 
     controls.flipX.addEventListener("click", () => {
         state.flipX = !state.flipX;
@@ -2073,11 +2476,15 @@
         controls.toggleAzElGrid.textContent = state.showAzElGrid ? "Hide az/el grid" : "Show az/el grid";
         render();
     });
+    controls.toggleDetectionCircles.addEventListener("click", toggleDetectionCircles);
+    controls.toggleStarNames.addEventListener("click", toggleStarNames);
+    controls.toggleFitResiduals.addEventListener("click", toggleFitResiduals);
     controls.resetOffset.addEventListener("click", () => {
         setCameraAnglesFromBoresightAzEl(0, 90);
         recomputeAndRender();
     });
     controls.fitLens.addEventListener("click", fitLensFromMatches);
+    controls.clearMatches.addEventListener("click", clearIdentifiedStars);
 
     canvas.addEventListener("pointerdown", event => {
         if (state.maskMode && event.button === 0) {
@@ -2124,7 +2531,7 @@
                 return;
             }
             solveCameraAnglesForZenithPixel(
-                [zenith[0] + dxCss * dpr, zenith[1] + dyCss * dpr],
+                [zenith[0] + dxCss * dpr * 0.45, zenith[1] + dyCss * dpr * 0.45],
                 alpha,
                 beta,
                 gamma
@@ -2135,7 +2542,7 @@
             if (!zenith) {
                 return;
             }
-            const newGamma = wrapDegrees180(gamma + dxCss * 0.15);
+            const newGamma = wrapDegrees180(gamma + dxCss * 0.06);
             controls.rotGamma.value = newGamma.toFixed(2);
             solveCameraAnglesForZenithPixel(zenith, alpha, beta, newGamma);
             recomputeAndRender();
@@ -2155,9 +2562,11 @@
     });
     canvas.addEventListener("wheel", event => {
         event.preventDefault();
-        const current = Math.max(0.05, Number(controls.fScale.value) || 1.0);
-        const factor = Math.exp(-event.deltaY * 0.001);
-        controls.fScale.value = Math.max(0.05, Math.min(10.0, current * factor)).toFixed(4);
+        const currentX = Math.max(0.05, Number(controls.fScaleX.value) || 1.0);
+        const currentY = Math.max(0.05, Number(controls.fScaleY.value) || 1.0);
+        const factor = Math.exp(-event.deltaY * 0.00045);
+        controls.fScaleX.value = Math.max(0.05, Math.min(10.0, currentX * factor)).toFixed(4);
+        controls.fScaleY.value = Math.max(0.05, Math.min(10.0, currentY * factor)).toFixed(4);
         recomputeAndRender();
     }, {passive: false});
 
@@ -2214,6 +2623,18 @@
             state.starMatchMode = false;
             state.pendingMatch = null;
             render();
+        } else if ((event.key === "c" || event.key === "C") && !event.repeat) {
+            event.preventDefault();
+            toggleDetectionCircles();
+        } else if ((event.key === "n" || event.key === "N") && !event.repeat) {
+            event.preventDefault();
+            toggleStarNames();
+        } else if ((event.key === "r" || event.key === "R") && !event.repeat) {
+            event.preventDefault();
+            toggleFitResiduals();
+        } else if ((event.key === "f" || event.key === "F") && !event.repeat) {
+            event.preventDefault();
+            fitLensFromMatches();
         } else if (event.key === "Escape" && state.pendingMatch) {
             event.preventDefault();
             state.pendingMatch = null;
@@ -2249,5 +2670,8 @@
 
     window.addEventListener("resize", render);
     populateCalibrationCases();
+    updateDetectionCircleButton();
+    updateStarNameButton();
+    updateFitResidualButton();
     render();
 })();
