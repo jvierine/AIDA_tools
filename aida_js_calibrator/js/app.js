@@ -9,6 +9,12 @@
     const statusEl = document.getElementById("status");
     const matchInstructions = document.getElementById("matchInstructions");
     const residualHistogram = document.getElementById("residualHistogram");
+    const lensEquation = document.getElementById("lensEquation");
+    const densityPopup = document.getElementById("densityPopup");
+    const densityPopupSubtitle = document.getElementById("densityPopupSubtitle");
+    const densityPopupClose = document.getElementById("densityPopupClose");
+    const densityCanvas = document.getElementById("densityCanvas");
+    const densityContext = densityCanvas.getContext("2d");
     const loadingOverlay = document.getElementById("loadingOverlay");
     const loadingBar = document.getElementById("loadingBar");
     const loadingText = document.getElementById("loadingText");
@@ -22,17 +28,11 @@
         brightnessValue: document.getElementById("brightnessValue"),
         contrast: document.getElementById("contrast"),
         contrastValue: document.getElementById("contrastValue"),
+        highPassImage: document.getElementById("highPassImage"),
+        highPassWidth: document.getElementById("highPassWidth"),
+        highPassWidthValue: document.getElementById("highPassWidthValue"),
         maxMag: document.getElementById("maxMag"),
         magValue: document.getElementById("magValue"),
-        detectorThreshold: document.getElementById("detectorThreshold"),
-        detectorThresholdValue: document.getElementById("detectorThresholdValue"),
-        detectorMaxStars: document.getElementById("detectorMaxStars"),
-        detectorMaxStarsValue: document.getElementById("detectorMaxStarsValue"),
-        detectorStarRadius: document.getElementById("detectorStarRadius"),
-        detectorStarRadiusValue: document.getElementById("detectorStarRadiusValue"),
-        testCase: document.getElementById("testCase"),
-        prevCase: document.getElementById("prevCase"),
-        nextCase: document.getElementById("nextCase"),
         flipX: document.getElementById("flipX"),
         flipY: document.getElementById("flipY"),
         flipImageX: document.getElementById("flipImageX"),
@@ -52,6 +52,7 @@
         dv: document.getElementById("dv"),
         radialAlpha: document.getElementById("radialAlpha"),
         fitLens: document.getElementById("fitLens"),
+        fitLensLm: document.getElementById("fitLensLm"),
         toggleFitResiduals: document.getElementById("toggleFitResiduals"),
         clearMatches: document.getElementById("clearMatches"),
     };
@@ -66,40 +67,44 @@
         image: null,
         texture: null,
         imagePixels: null,
+        displayPixels: null,
+        highPassCacheKey: "",
         imageName: "",
         localImageUrl: null,
-        activeCase: null,
         baseOptpar: null,
         imageLoadId: 0,
         flipX: false,
         flipY: false,
         imageFlipX: false,
         imageFlipY: false,
+        displayMode: "image",
+        maxMagByMode: {image: 4.0, stellarium: 6.0, pairing: 4.0},
         showRaDecGrid: false,
         showAzElGrid: true,
-        showDetectionCircles: true,
         showStarNames: true,
         dragging: false,
         lensDragMode: "none",
         lastMouse: [0, 0],
         projected: [],
         starMatchMode: false,
-        pixelProbeMode: false,
         deleteDetectionMode: false,
         maskMode: false,
         zoomMode: false,
-        pixelProbe: null,
         maskRegions: [],
         detectedStars: [],
         deletedDetectionIds: new Set(),
         autoMatches: [],
+        detectorCache: null,
         detectorStatus: "detector: no image",
         pendingMatch: null,
+        centroidPreview: null,
+        centroidDensity: null,
         matches: [],
         showPickedMatchMarkers: true,
         showFitResiduals: false,
         fitMessage: "lens fit: not run",
         lastFitVector: null,
+        lastLensEquation: "",
     };
     let detectorUpdateTimer = null;
 
@@ -151,26 +156,36 @@
         attribute float a_mag;
         uniform vec2 u_canvas_size;
         uniform float u_point_scale;
+        uniform float u_max_mag;
         varying float v_mag;
+        varying float v_alpha;
         void main() {
             vec2 clip = vec2(
                 (a_pixel.x / u_canvas_size.x) * 2.0 - 1.0,
                 1.0 - (a_pixel.y / u_canvas_size.y) * 2.0
             );
             gl_Position = vec4(clip, 0.0, 1.0);
-            gl_PointSize = max(2.0, (7.0 - a_mag) * u_point_scale);
+            float size = 2.4 + 12.5 * pow(10.0, -0.13 * (a_mag + 1.0));
+            gl_PointSize = clamp(size * u_point_scale, 2.5, 26.0 * u_point_scale);
             v_mag = a_mag;
+            v_alpha = clamp(0.18 + 0.82 * (u_max_mag - a_mag + 0.5) / max(1.0, u_max_mag + 1.0), 0.16, 1.0);
         }
     `, `
         precision mediump float;
         varying float v_mag;
+        varying float v_alpha;
         void main() {
             vec2 d = gl_PointCoord - vec2(0.5);
             float r = length(d);
             if (r > 0.5) discard;
-            float alpha = smoothstep(0.5, 0.05, r);
-            vec3 color = mix(vec3(0.75, 0.02, 0.02), vec3(1.0, 0.18, 0.12), clamp((6.0 - v_mag) / 4.0, 0.0, 1.0));
-            gl_FragColor = vec4(color, alpha);
+            float core = exp(-r * r / 0.010);
+            float halo = exp(-r * r / 0.085);
+            float edge = smoothstep(0.5, 0.42, r);
+            float alpha = clamp(2.30 * core + 0.84 * halo, 0.0, 1.0) * edge * v_alpha;
+            vec3 coolWhite = vec3(0.78, 0.88, 1.0);
+            vec3 warmWhite = vec3(1.0, 0.96, 0.84);
+            vec3 color = mix(warmWhite, coolWhite, clamp((2.5 - v_mag) / 4.0, 0.0, 1.0));
+            gl_FragColor = vec4(min(color * 2.0, vec3(1.0)), alpha);
         }
     `);
 
@@ -341,12 +356,9 @@
     }
 
     function currentOptpar() {
-        const scaleX = Math.abs(Number(controls.fScaleX.value) || 1.0);
-        const scaleY = Math.abs(Number(controls.fScaleY.value) || 1.0);
-        const base = state.baseOptpar || [-1, 1, 0, 0, 0, 0, 0, 0.35];
         return [
-            base[0] * scaleX,
-            base[1] * scaleY,
+            Number(controls.fScaleX.value) || 1.0,
+            Number(controls.fScaleY.value) || 1.0,
             Number(controls.rotAlpha.value) || 0,
             Number(controls.rotBeta.value) || 0,
             Number(controls.rotGamma.value) || 0,
@@ -357,57 +369,89 @@
     }
 
     function optparFromFitVector(x) {
-        const scaleX = Math.exp(x[0]);
-        const scaleY = Math.exp(x[1]);
-        const base = state.baseOptpar || [-1, 1, 0, 0, 0, 0, 0, 0.35];
         return [
-            base[0] * scaleX,
-            base[1] * scaleY,
-            Number(controls.rotAlpha.value) || 0,
-            Number(controls.rotBeta.value) || 0,
+            x[0],
+            x[1],
             x[2],
             x[3],
             x[4],
-            Number(controls.radialAlpha.value) || 0.35,
+            x[5],
+            x[6],
+            x[7],
         ];
     }
 
     function currentFitVector() {
-        return [
-            Math.log(Math.max(0.01, Math.abs(Number(controls.fScaleX.value) || 1.0))),
-            Math.log(Math.max(0.01, Math.abs(Number(controls.fScaleY.value) || 1.0))),
-            Number(controls.rotGamma.value) || 0,
-            Number(controls.du.value) || 0,
-            Number(controls.dv.value) || 0,
-        ];
+        return currentOptpar();
     }
 
     function applyFitVector(x) {
-        const scaleX = Math.exp(x[0]);
-        const scaleY = Math.exp(x[1]);
-        controls.fScaleX.value = Math.max(0.01, Math.min(10, scaleX)).toFixed(5);
-        controls.fScaleY.value = Math.max(0.01, Math.min(10, scaleY)).toFixed(5);
-        controls.rotGamma.value = wrapDegrees180(x[2]).toFixed(3);
-        controls.du.value = Math.max(-0.5, Math.min(0.5, x[3])).toFixed(6);
-        controls.dv.value = Math.max(-0.5, Math.min(0.5, x[4])).toFixed(6);
+        controls.fScaleX.value = x[0].toFixed(6);
+        controls.fScaleY.value = x[1].toFixed(6);
+        controls.rotAlpha.value = Math.max(-90, Math.min(90, x[2])).toFixed(3);
+        controls.rotBeta.value = Math.max(-90, Math.min(90, x[3])).toFixed(3);
+        controls.rotGamma.value = wrapDegrees180(x[4]).toFixed(3);
+        controls.du.value = Math.max(-0.5, Math.min(0.5, x[5])).toFixed(6);
+        controls.dv.value = Math.max(-0.5, Math.min(0.5, x[6])).toFixed(6);
+        controls.radialAlpha.value = Math.max(0.05, Math.min(2.5, x[7])).toFixed(6);
     }
 
     function applyOptpar(optpar) {
         if (!optpar || optpar.length < 8) {
             state.baseOptpar = null;
             controls.fScaleX.value = "1.0000";
-            controls.fScaleY.value = "1.0000";
+            controls.fScaleY.value = "1.7700";
             return;
         }
         state.baseOptpar = optpar.slice();
-        controls.fScaleX.value = "1.0000";
-        controls.fScaleY.value = "1.0000";
+        controls.fScaleX.value = optpar[0].toFixed(6);
+        controls.fScaleY.value = optpar[1].toFixed(6);
         controls.rotAlpha.value = optpar[2].toFixed(3);
         controls.rotBeta.value = optpar[3].toFixed(3);
         controls.rotGamma.value = wrapDegrees180(optpar[4]).toFixed(3);
         controls.du.value = optpar[5].toFixed(6);
         controls.dv.value = optpar[6].toFixed(6);
         controls.radialAlpha.value = optpar[7].toFixed(6);
+    }
+
+    function latexNumber(value, digits = 4) {
+        if (!Number.isFinite(value)) {
+            return "0";
+        }
+        const text = Number(value).toFixed(digits);
+        return text.replace(/\.?0+$/, "") || "0";
+    }
+
+    function lensEquationLatex(optpar, optmod) {
+        const radial = optmod === 2
+            ? "q(\\theta)=\\sin(a_r\\theta)"
+            : "q(\\theta)=a_r\\theta+(1-a_r)\\tan\\theta";
+        return "\\[" +
+            "\\begin{aligned}" +
+            "\\mathbf{o}&=[f_1,f_2,\\alpha,\\beta,\\gamma,d_u,d_v,a_r]\\\\" +
+            `&=[${optpar.map((value, idx) => latexNumber(value, idx >= 2 && idx <= 4 ? 3 : 5)).join(", ")}]` +
+            "\\\\" +
+            "\\theta&=\\tan^{-1}\\!\\left(\\frac{\\sqrt{s_1^2+s_2^2}}{s_3}\\right),\\quad " +
+            radial + "\\\\" +
+            "x&=W\\left(f_1\\frac{s_1}{\\sqrt{s_1^2+s_2^2}}q(\\theta)+\\frac{1}{2}+d_u\\right)-1\\\\" +
+            "y&=H\\left(f_2\\frac{s_2}{\\sqrt{s_1^2+s_2^2}}q(\\theta)+\\frac{1}{2}+d_v\\right)-1" +
+            "\\end{aligned}" +
+            "\\]";
+    }
+
+    function updateLensEquation(optpar, optmod) {
+        if (!lensEquation) {
+            return;
+        }
+        const latex = lensEquationLatex(optpar, optmod);
+        if (latex === state.lastLensEquation) {
+            return;
+        }
+        state.lastLensEquation = latex;
+        lensEquation.textContent = latex;
+        if (window.MathJax && MathJax.typesetPromise) {
+            MathJax.typesetPromise([lensEquation]).catch(() => {});
+        }
     }
 
     function clamp(value, lo, hi) {
@@ -647,9 +691,6 @@
             if (star.mag > maxMag) {
                 continue;
             }
-            if (isMatchedCatalogStar(star)) {
-                continue;
-            }
             const [x, y] = canvasPixelFromImagePixel(star.x, star.y);
             if (Number.isFinite(x) && Number.isFinite(y) &&
                     x >= -margin && x <= canvas.width + margin &&
@@ -671,11 +712,26 @@
         gl.vertexAttribPointer(aPixel, 2, gl.FLOAT, false, 12, 0);
         gl.vertexAttribPointer(aMag, 1, gl.FLOAT, false, 12, 8);
         gl.uniform2f(gl.getUniformLocation(pointProgram, "u_canvas_size"), canvas.width, canvas.height);
-        gl.uniform1f(gl.getUniformLocation(pointProgram, "u_point_scale"), window.devicePixelRatio ? 1.7 * window.devicePixelRatio : 1.7);
+        gl.uniform1f(gl.getUniformLocation(pointProgram, "u_point_scale"),
+            window.devicePixelRatio ? 1.15 * window.devicePixelRatio : 1.15);
+        gl.uniform1f(gl.getUniformLocation(pointProgram, "u_max_mag"), maxMag);
         gl.enable(gl.BLEND);
-        gl.blendFunc(gl.SRC_ALPHA, gl.ONE);
+        gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
         gl.drawArrays(gl.POINTS, 0, data.length / 3);
         gl.disable(gl.BLEND);
+    }
+
+    function visibleCatalogStars(maxMag = Number(controls.maxMag.value) || 4) {
+        const margin = 20 * (window.devicePixelRatio || 1);
+        return state.projected.filter(star => {
+            if (star.mag > maxMag) {
+                return false;
+            }
+            const [x, y] = canvasPixelFromImagePixel(star.x, star.y);
+            return Number.isFinite(x) && Number.isFinite(y) &&
+                x >= -margin && x <= canvas.width + margin &&
+                y >= -margin && y <= canvas.height + margin;
+        });
     }
 
     function projectRaDec(raHours, decDeg, date, lat, lon, optpar, optmod, clipToCanvas = true) {
@@ -906,6 +962,27 @@
         gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
         gl.drawArrays(gl.LINES, 0, segments.length / 2);
         gl.disable(gl.BLEND);
+        drawWorstResidualMarker(rows);
+    }
+
+    function drawWorstResidualMarker(rows) {
+        let worst = null;
+        for (const row of rows) {
+            if (!worst || row.r > worst.r) {
+                worst = row;
+            }
+        }
+        if (!worst) {
+            return;
+        }
+        const imagePoint = imageMarkerCanvasPixel(worst.match.image.x, worst.match.image.y);
+        if (!addOverlayCircle(imagePoint, "worst-residual-marker")) {
+            return;
+        }
+        const offset = 20 * (window.devicePixelRatio || 1);
+        addOverlayLabel(`residual ${worst.r.toFixed(1)} px`,
+            [imagePoint[0] + offset, imagePoint[1] - offset],
+            "worst-residual-label");
     }
 
     function svgEl(tag) {
@@ -1034,19 +1111,9 @@
         if (!state.showStarNames) {
             return;
         }
-        const maxMag = Number(controls.maxMag.value) || 4;
-        const margin = 20 * (window.devicePixelRatio || 1);
         const offset = 12 * (window.devicePixelRatio || 1);
-        for (const star of state.projected) {
-            if (star.mag > maxMag || isMatchedCatalogStar(star)) {
-                continue;
-            }
+        for (const star of visibleCatalogStars()) {
             const [x, y] = canvasPixelFromImagePixel(star.x, star.y);
-            if (!Number.isFinite(x) || !Number.isFinite(y) ||
-                    x < -margin || x > canvas.width + margin ||
-                    y < -margin || y > canvas.height + margin) {
-                continue;
-            }
             const label = star.name && star.name.trim()
                 ? star.name.trim()
                 : `mag ${star.mag.toFixed(1)}`;
@@ -1054,17 +1121,38 @@
         }
     }
 
+    function drawCatalogPairingMarkers() {
+        const offset = 12 * (window.devicePixelRatio || 1);
+        for (const star of visibleCatalogStars()) {
+            if (isMatchedCatalogStar(star)) {
+                continue;
+            }
+            const [x, y] = canvasPixelFromImagePixel(star.x, star.y);
+            addOverlayCircle([x, y], "catalog-pairing-marker");
+            if (state.showStarNames) {
+                const label = star.name && star.name.trim()
+                    ? star.name.trim()
+                    : `mag ${star.mag.toFixed(1)}`;
+                addOverlayLabel(label, [x + offset, y - offset], "catalog-pairing-label");
+            }
+        }
+    }
+
     function drawMatchMarkers(optpar, optmod) {
-        drawAutoDetectionMarkers();
         const date = AidaTools.datetimeLocalToDate(controls.timestampUtc.value);
         const lat = Number(controls.latDeg.value) || 0;
         const lon = Number(controls.lonDeg.value) || 0;
+        const labelOffset = 16 * (window.devicePixelRatio || 1);
         for (const match of state.matches) {
+            const matchLabel = match.catalog.name && match.catalog.name.trim()
+                ? match.catalog.name.trim()
+                : `mag ${match.catalog.mag.toFixed(1)}`;
             if (state.showPickedMatchMarkers) {
                 const imagePoint = imageMarkerCanvasPixel(match.image.x, match.image.y);
-                if (addOverlayCircle(imagePoint, "paired-marker")) {
-                    addOverlayLabel(String(match.id), [imagePoint[0] + 16 * (window.devicePixelRatio || 1),
-                        imagePoint[1] - 16 * (window.devicePixelRatio || 1)], "match-label");
+                const visible = addOverlayCircle(imagePoint, "paired-marker");
+                if (visible && state.showStarNames) {
+                    addOverlayLabel(matchLabel, [imagePoint[0] + labelOffset, imagePoint[1] - labelOffset],
+                        "match-label");
                 }
             }
 
@@ -1079,8 +1167,10 @@
                 false
             );
             if (catalogPoint && addOverlayCircle(catalogPoint, "paired-marker")) {
-                addOverlayLabel(String(match.id), [catalogPoint[0] + 16 * (window.devicePixelRatio || 1),
-                    catalogPoint[1] - 16 * (window.devicePixelRatio || 1)], "match-label");
+                if (state.showStarNames) {
+                    addOverlayLabel(matchLabel, [catalogPoint[0] + labelOffset, catalogPoint[1] - labelOffset],
+                        "match-label");
+                }
             }
         }
 
@@ -1088,30 +1178,24 @@
             addOverlayCircle(imageMarkerCanvasPixel(state.pendingMatch.image.x, state.pendingMatch.image.y),
                 "paired-marker match-pending");
         }
-
-        if (state.pixelProbe && state.pixelProbe.star) {
-            const starPoint = canvasPixelFromImagePixel(state.pixelProbe.star.x, state.pixelProbe.star.y);
-            addOverlayCircle(starPoint, "probe-marker");
+        if (state.centroidPreview && Date.now() < state.centroidPreview.expiresAt) {
+            const point = imageMarkerCanvasPixel(state.centroidPreview.x, state.centroidPreview.y);
+            addOverlayCircle(point, "centroid-preview-marker");
+            addOverlayLabel(
+                `KDE ${state.centroidPreview.method}, sigma ${state.centroidPreview.sigma.toFixed(2)} px`,
+                [point[0] + labelOffset, point[1] + labelOffset],
+                "centroid-preview-label"
+            );
         }
+
     }
 
     function drawAutoDetectionMarkers() {
-        if (!state.image || !state.showDetectionCircles) {
+        if (!state.image || state.displayMode !== "pairing") {
             return;
         }
-        const matchedIds = new Set(state.autoMatches.map(match => match.detection.id));
-        const fittingIds = new Set(state.matches
-            .map(match => match.detectionId)
-            .filter(id => id !== undefined && id !== null));
         for (const detection of state.detectedStars) {
             if (state.deletedDetectionIds.has(detection.id)) {
-                continue;
-            }
-            if (fittingIds.has(detection.id)) {
-                continue;
-            }
-            if (matchedIds.has(detection.id)) {
-                addOverlayCircle(imageMarkerCanvasPixel(detection.x, detection.y), "auto-match-marker");
                 continue;
             }
             addOverlayCircle(imageMarkerCanvasPixel(detection.x, detection.y), "detected-marker");
@@ -1139,19 +1223,25 @@
 
         drawAzElGridLabels(optpar, optmod);
         drawRaDecGridLabels(optpar, optmod);
-        drawStarNameLabels();
-        drawMatchMarkers(optpar, optmod);
+        if (state.displayMode === "pairing") {
+            drawCatalogPairingMarkers();
+            drawMatchMarkers(optpar, optmod);
+        } else {
+            drawStarNameLabels();
+        }
     }
 
     function render() {
         resizeCanvas();
         canvas.classList.toggle("match-mode", state.starMatchMode);
-        canvas.classList.toggle("probe-mode", state.pixelProbeMode);
+        canvas.classList.toggle("probe-mode", false);
         canvas.classList.toggle("delete-mode", state.deleteDetectionMode);
         canvas.classList.toggle("mask-mode", state.maskMode);
         gl.clearColor(0, 0, 0, 1);
         gl.clear(gl.COLOR_BUFFER_BIT);
-        drawImage();
+        if (state.showFitResiduals || state.displayMode === "image" || state.displayMode === "pairing") {
+            drawImage();
+        }
         if (state.showFitResiduals) {
             const rows = matchResidualRows();
             cardinalLayer.replaceChildren();
@@ -1161,27 +1251,27 @@
             updateResidualHistogram([]);
             drawAzElGrid();
             drawRaDecGrid();
-            drawStars();
+            if (state.displayMode === "stellarium") {
+                drawStars();
+            }
             drawOverlayLabels();
         }
         controls.brightnessValue.textContent = Number(controls.brightness.value).toFixed(2);
         controls.contrastValue.textContent = Number(controls.contrast.value).toFixed(2);
+        controls.highPassWidthValue.textContent = Number(controls.highPassWidth.value).toFixed(0);
         controls.magValue.textContent = Number(controls.maxMag.value).toFixed(1);
-        controls.detectorThresholdValue.textContent = Number(controls.detectorThreshold.value).toFixed(1);
-        controls.detectorMaxStarsValue.textContent = Number(controls.detectorMaxStars.value).toFixed(0);
-        controls.detectorStarRadiusValue.textContent = Number(controls.detectorStarRadius.value).toFixed(0);
         matchInstructions.textContent = matchInstructionText();
         const date = AidaTools.datetimeLocalToDate(controls.timestampUtc.value);
         const optpar = currentOptpar();
+        updateLensEquation(optpar, Number(controls.optmod.value));
         statusEl.textContent =
             `image: ${state.imageName || "none"}\n` +
-            `test case: ${state.activeCase ? state.activeCase.label : "none"}\n` +
             `timestamp: ${date.toISOString()}\n` +
             `site: lat ${controls.latDeg.value} deg, lon ${controls.lonDeg.value} deg, alt ${controls.altM.value} m\n` +
+            `image high-pass: ${controls.highPassImage.checked ? `${controls.highPassWidth.value} px Gaussian` : "off"}\n` +
             `catalog stars <= mag ${controls.maxMag.value}: ` +
             `${state.projected.filter(star => star.mag <= Number(controls.maxMag.value)).length}\n` +
-            `f1/f2: ${optpar[0].toFixed(6)}, ${optpar[1].toFixed(6)} ` +
-            `(multipliers x/y ${Number(controls.fScaleX.value).toFixed(4)}, ${Number(controls.fScaleY.value).toFixed(4)})\n` +
+            `f1/f2: ${optpar[0].toFixed(6)}, ${optpar[1].toFixed(6)}\n` +
             `boresight az/el: ${boresightAzElFromCameraAngles(Number(controls.rotAlpha.value) || 0, Number(controls.rotBeta.value) || 0).az.toFixed(2)}, ` +
             `${boresightAzElFromCameraAngles(Number(controls.rotAlpha.value) || 0, Number(controls.rotBeta.value) || 0).el.toFixed(2)} deg\n` +
             `du/dv: ${controls.du.value}, ${controls.dv.value}\n` +
@@ -1191,14 +1281,12 @@
             `image masks: ${state.maskRegions.length}\n` +
             `RA/Dec grid: ${state.showRaDecGrid ? "on" : "off"}\n` +
             `az/el grid: ${state.showAzElGrid ? "on" : "off"}\n` +
-            `detection circles: ${state.showDetectionCircles ? "on" : "off"}\n` +
+            `display mode: ${state.displayMode}\n` +
             `star names: ${state.showStarNames ? "on" : "off"}\n` +
             `fit residuals: ${state.showFitResiduals ? "on" : "off"}\n` +
-            `star match mode: ${state.starMatchMode ? "on" : "off"}${state.pendingMatch ? " (select catalog star)" : ""}\n` +
+            `star pairing armed: ${state.starMatchMode ? "on" : "off"}${state.pendingMatch ? " (select catalog star)" : ""}\n` +
             `matched star pairs: ${state.matches.length}\n` +
             `${fitResidualStatusText()}\n` +
-            `${autoDetectionStatusText()}\n` +
-            `${pixelProbeText()}\n` +
             state.fitMessage;
     }
 
@@ -1207,9 +1295,18 @@
         render();
     }
 
+    function setDisplayMode(mode) {
+        if (!state.maxMagByMode[mode]) {
+            return;
+        }
+        state.maxMagByMode[state.displayMode] = Number(controls.maxMag.value) || 4.0;
+        state.displayMode = mode;
+        controls.maxMag.value = state.maxMagByMode[mode].toFixed(1);
+    }
+
     function matchInstructionText() {
         if (!state.image) {
-            return "Load an image first. Then hold s to select matched image/catalog stars.";
+            return "Load an image first. Press s or p for star pairing, or c to switch between image and Stellarium views.";
         }
         if (state.showFitResiduals) {
             return "Fit residual mode: normal markings are hidden. Red lines connect each identified image star to its fitted catalog position; press r to return.";
@@ -1224,12 +1321,12 @@
             return "Zoom mode: move the mouse over the image to inspect a 100 x 100 raw-pixel region.";
         }
         if (!state.starMatchMode) {
-            return "Left-drag moves the 90 deg elevation point in x/y. Right-drag rotates the azimuth grid around that point. Wheel edits the focal multiplier. Press c to show/hide detection circles, n to show/hide star names. Hold s to match stars, p to probe pixels, d to delete an auto detection, m to mask image regions, or z to zoom.";
+            return "Left-drag moves the 90 deg elevation point in x/y. Right-drag rotates the azimuth grid around that point. Wheel edits f1/f2 together. Press c to switch image/Stellarium view, s or p for star pairing, n to show/hide star names, d to delete an auto detection, m to mask image regions, or z to zoom.";
         }
         if (!state.pendingMatch) {
-            return "Star matching: click a visible starfinder detection first. Orange detections are auto-paired; red detections are unpaired.";
+            return "Star pairing: hold s and click the image star. A KDE centroid fit will select the sub-pixel star position.";
         }
-        return "Starfinder detection selected. Keep holding s and click the matching visible catalog star below the current magnitude limit.";
+        return "Image star selected. Release s, then click the matching red catalog star below the current magnitude limit.";
     }
 
     function autoDetectionStatusText() {
@@ -1237,15 +1334,7 @@
             return "auto detections: no image";
         }
         const active = state.detectedStars.length - state.deletedDetectionIds.size;
-        let text = `auto detections: ${active}/${state.detectedStars.length} active; ` +
-            `${state.autoMatches.length} centroid/catalog matches within 28 px`;
-        if (state.autoMatches.length > 0) {
-            const rms = Math.sqrt(state.autoMatches.reduce((acc, match) => acc + match.distance * match.distance, 0) /
-                state.autoMatches.length);
-            const med = median(state.autoMatches.map(match => match.distance));
-            text += `; RMS ${rms.toFixed(2)} px, median ${med.toFixed(2)} px`;
-        }
-        return `${text}; ${state.detectorStatus}`;
+        return `auto detections: ${active}/${state.detectedStars.length} active; ${state.detectorStatus}`;
     }
 
     function fitResidualStatusText() {
@@ -1371,42 +1460,51 @@
         }, 180);
     }
 
-    function detectImageStars() {
-        state.detectedStars = [];
-        state.deletedDetectionIds = new Set();
-        state.autoMatches = [];
-        if (!state.imagePixels || !state.image) {
-            state.detectorStatus = "detector: image readback unavailable";
-            return;
-        }
+    function detectorStarRadius() {
+        return 5;
+    }
 
+    function detectorCacheKey(starRadius) {
+        const maskKey = state.maskRegions
+            .map(region => `${region.x},${region.y},${region.radius}`)
+            .join(";");
+        return `${state.imageName}:${state.image.width}x${state.image.height}:r${starRadius}:m${maskKey}`;
+    }
+
+    function buildDetectorCandidateCache(starRadius) {
         const width = state.image.width;
         const height = state.image.height;
         const samples = [];
         for (let y = 4; y < height; y += 8) {
             for (let x = 4; x < width; x += 8) {
-                if (isMaskedImagePixel(x, y)) {
-                    continue;
+                if (!isMaskedImagePixel(x, y)) {
+                    samples.push(imageGrayAtIndex(x, y));
                 }
-                samples.push(imageGrayAtIndex(x, y));
             }
         }
         if (samples.length === 0) {
-            state.detectorStatus = "detector: image fully masked";
-            return;
+            return {
+                key: detectorCacheKey(starRadius),
+                starRadius,
+                bg: 0,
+                sigma: 1,
+                candidates: [],
+                rawCandidateCount: 0,
+                status: "detector: image fully masked",
+            };
         }
         const bg = median(samples);
         const absDev = samples.map(value => Math.abs(value - bg));
         const sigma = Math.max(1, 1.4826 * median(absDev));
-        const thresholdSigma = Number(controls.detectorThreshold.value) || 2.0;
-        const starRadius = Math.max(3, Math.min(14, Math.round(Number(controls.detectorStarRadius.value) || 5)));
+        const minThresholdSigma = 1.0;
         const centroidRadius = starRadius;
         const wideCentroidRadius = Math.max(centroidRadius + 1, Math.round(1.6 * starRadius));
         const annulusInner = Math.max(4, 1.3 * starRadius);
         const annulusOuter = Math.max(annulusInner + 2, 2.2 * starRadius);
         const maxRadius2 = Math.max(28.0, Math.pow(1.45 * starRadius, 2));
-        const preThreshold = bg + Math.max(2, 0.35 * thresholdSigma * sigma);
+        const preThreshold = bg + Math.max(2, 0.35 * minThresholdSigma * sigma);
         const candidates = [];
+        let rawCandidateCount = 0;
 
         for (let y = 2; y < height - 2; y++) {
             for (let x = 2; x < width - 2; x++) {
@@ -1446,10 +1544,14 @@
                 const localDev = bgSamples.map(sample => Math.abs(sample - localBg));
                 const localSigma = Math.max(1, 1.4826 * median(localDev));
                 const peakContrast = value - localBg;
-                const localContrastThreshold = Math.max(thresholdSigma * localSigma, 3 + 2 * thresholdSigma);
+                const localContrastThreshold = Math.max(
+                    minThresholdSigma * localSigma,
+                    3 + 2 * minThresholdSigma
+                );
                 if (peakContrast < localContrastThreshold) {
                     continue;
                 }
+                rawCandidateCount += 1;
                 let centroid = weightedCentroid(x, y, centroidRadius, localBg);
                 if (!Number.isFinite(centroid.x) || !Number.isFinite(centroid.y)) {
                     continue;
@@ -1515,6 +1617,9 @@
                 candidates.push({
                     x: centroid.x,
                     y: centroid.y,
+                    peakValue: value,
+                    peakContrast,
+                    localSigma,
                     peak,
                     flux,
                     background: localBg,
@@ -1526,9 +1631,31 @@
         }
 
         candidates.sort((a, b) => b.score - a.score);
+        return {
+            key: detectorCacheKey(starRadius),
+            starRadius,
+            bg,
+            sigma,
+            candidates,
+            rawCandidateCount,
+            status: `DAO-style detector: bg ${bg.toFixed(1)}, sigma ${sigma.toFixed(1)}, ` +
+                `cached ${candidates.length}/${rawCandidateCount} candidates at radius ${starRadius} px`,
+        };
+    }
+
+    function applyDetectorThreshold(cache) {
+        const thresholdSigma = 2.0;
+        const preThreshold = cache.bg + Math.max(2, 0.35 * thresholdSigma * cache.sigma);
+        const candidates = cache.candidates.filter(candidate =>
+            candidate.peakValue >= preThreshold &&
+            candidate.peakContrast >= Math.max(
+                thresholdSigma * candidate.localSigma,
+                3 + 2 * thresholdSigma
+            )
+        );
         const selected = [];
         const suppression2 = 8 * 8;
-        const maxDetections = Math.max(1, Number(controls.detectorMaxStars.value) || 250);
+        const maxDetections = 250;
         for (const candidate of candidates) {
             if (selected.length >= maxDetections) {
                 break;
@@ -1547,16 +1674,31 @@
             }
         }
         state.detectedStars = selected.map((det, i) => ({...det, rank: i + 1}));
-        state.detectorStatus = `DAO-style detector: bg ${bg.toFixed(1)}, sigma ${sigma.toFixed(1)}, ` +
+        state.detectorStatus = `${cache.status}; ` +
             `prefilter ${preThreshold.toFixed(1)}, threshold ${thresholdSigma.toFixed(1)} local sigma, ` +
-            `radius ${starRadius} px, ${candidates.length} candidates, max ${maxDetections}`;
+            `${candidates.length} thresholded candidates, max ${maxDetections}`;
         updateAutoMatches();
     }
 
+    function detectImageStars() {
+        state.detectedStars = [];
+        state.autoMatches = [];
+        if (!state.imagePixels || !state.image) {
+            state.detectorCache = null;
+            state.detectorStatus = "detector: image readback unavailable";
+            return;
+        }
+
+        const starRadius = detectorStarRadius();
+        const key = detectorCacheKey(starRadius);
+        if (!state.detectorCache || state.detectorCache.key !== key) {
+            state.deletedDetectionIds = new Set();
+            state.detectorCache = buildDetectorCandidateCache(starRadius);
+        }
+        applyDetectorThreshold(state.detectorCache);
+    }
+
     function scheduleDetectImageStars() {
-        controls.detectorThresholdValue.textContent = Number(controls.detectorThreshold.value).toFixed(1);
-        controls.detectorMaxStarsValue.textContent = Number(controls.detectorMaxStars.value).toFixed(0);
-        controls.detectorStarRadiusValue.textContent = Number(controls.detectorStarRadius.value).toFixed(0);
         if (detectorUpdateTimer) {
             window.clearTimeout(detectorUpdateTimer);
         }
@@ -1572,7 +1714,7 @@
     }
 
     function updateZoomCanvas(event) {
-        if (!state.zoomMode || !state.imagePixels || !state.image) {
+        if ((!state.zoomMode && !state.starMatchMode) || !state.imagePixels || !state.image) {
             hideZoomCanvas();
             return;
         }
@@ -1616,6 +1758,7 @@
         zoomContext.moveTo(42, 50);
         zoomContext.lineTo(58, 50);
         zoomContext.stroke();
+        drawKdeContoursOnZoom(point, size, half);
 
         const panelRect = canvas.parentElement.getBoundingClientRect();
         const cssX = event.clientX - panelRect.left;
@@ -1634,13 +1777,388 @@
         zoomCanvas.classList.add("visible");
     }
 
+    function drawKdeContoursOnZoom(point, size, half) {
+        if (!state.centroidPreview || !state.centroidDensity ||
+                Date.now() >= state.centroidPreview.expiresAt) {
+            return;
+        }
+        const cx = state.centroidPreview.x - point.x + half;
+        const cy = state.centroidPreview.y - point.y + half;
+        if (cx < -20 || cx > size + 20 || cy < -20 || cy > size + 20) {
+            return;
+        }
+        zoomContext.save();
+        drawDensityContoursOnZoom(point);
+        zoomContext.strokeStyle = "rgba(255, 255, 255, 0.9)";
+        zoomContext.beginPath();
+        zoomContext.moveTo(cx - 4, cy);
+        zoomContext.lineTo(cx + 4, cy);
+        zoomContext.moveTo(cx, cy - 4);
+        zoomContext.lineTo(cx, cy + 4);
+        zoomContext.stroke();
+        zoomContext.restore();
+    }
+
+    function drawDensityContoursOnZoom(point) {
+        const density = state.centroidDensity;
+        const thresholds = [0.72, 0.5, 0.32];
+        const colors = ["rgba(94, 234, 212, 0.95)", "rgba(94, 234, 212, 0.68)", "rgba(94, 234, 212, 0.42)"];
+        zoomContext.lineWidth = 1.1;
+        for (let level = 0; level < thresholds.length; level++) {
+            zoomContext.strokeStyle = colors[level];
+            const threshold = density.maxValue * thresholds[level];
+            zoomContext.beginPath();
+            for (let y = 0; y < density.height - 1; y++) {
+                for (let x = 0; x < density.width - 1; x++) {
+                    const v00 = density.values[y * density.width + x];
+                    const v10 = density.values[y * density.width + x + 1];
+                    const v01 = density.values[(y + 1) * density.width + x];
+                    const v11 = density.values[(y + 1) * density.width + x + 1];
+                    addMarchingSquareContour(density, point, x, y, v00, v10, v11, v01, threshold);
+                }
+            }
+            zoomContext.stroke();
+        }
+    }
+
+    function addMarchingSquareContour(density, point, x, y, v00, v10, v11, v01, threshold) {
+        const points = [];
+        const addEdgePoint = (edge, a, b) => {
+            const denom = b.value - a.value;
+            const t = Math.abs(denom) > 1e-12 ? (threshold - a.value) / denom : 0.5;
+            const fx = a.x + Math.max(0, Math.min(1, t)) * (b.x - a.x);
+            const fy = a.y + Math.max(0, Math.min(1, t)) * (b.y - a.y);
+            points[edge] = {
+                x: density.originX + fx / density.upsample - point.x + 50,
+                y: density.originY + fy / density.upsample - point.y + 50,
+            };
+        };
+        const p00 = {x, y, value: v00};
+        const p10 = {x: x + 1, y, value: v10};
+        const p11 = {x: x + 1, y: y + 1, value: v11};
+        const p01 = {x, y: y + 1, value: v01};
+        if ((v00 >= threshold) !== (v10 >= threshold)) addEdgePoint(0, p00, p10);
+        if ((v10 >= threshold) !== (v11 >= threshold)) addEdgePoint(1, p10, p11);
+        if ((v11 >= threshold) !== (v01 >= threshold)) addEdgePoint(2, p11, p01);
+        if ((v01 >= threshold) !== (v00 >= threshold)) addEdgePoint(3, p01, p00);
+        const present = points.filter(Boolean);
+        if (present.length === 2) {
+            zoomContext.moveTo(present[0].x, present[0].y);
+            zoomContext.lineTo(present[1].x, present[1].y);
+        } else if (present.length === 4) {
+            zoomContext.moveTo(points[0].x, points[0].y);
+            zoomContext.lineTo(points[1].x, points[1].y);
+            zoomContext.moveTo(points[2].x, points[2].y);
+            zoomContext.lineTo(points[3].x, points[3].y);
+        }
+    }
+
+    function closeDensityPopup() {
+        densityPopup.classList.remove("visible");
+        densityPopup.setAttribute("aria-hidden", "true");
+    }
+
+    function clearDensityEstimate() {
+        state.centroidPreview = null;
+        state.centroidDensity = null;
+        closeDensityPopup();
+        hideZoomCanvas();
+    }
+
+    function showDensityPopup(event = null) {
+        if (!state.centroidPreview || !state.centroidDensity) {
+            return;
+        }
+        positionDensityPopupAwayFromEvent(event);
+        densityPopup.classList.add("visible");
+        densityPopup.setAttribute("aria-hidden", "false");
+        densityPopupSubtitle.textContent =
+            `selected x/y ${state.centroidPreview.x.toFixed(4)}, ${state.centroidPreview.y.toFixed(4)} px; ` +
+            `fine-grid value ${state.centroidDensity.selectedValue.toFixed(3)}`;
+        drawDensityPopup();
+    }
+
+    function positionDensityPopupAwayFromEvent(event) {
+        const panel = canvas.parentElement.getBoundingClientRect();
+        const popupWidth = Math.min(620, Math.max(280, panel.width - 36));
+        const popupHeight = Math.min(560, Math.max(360, panel.height - 36));
+        let clickX = panel.width / 2;
+        let clickY = panel.height / 2;
+        if (event) {
+            clickX = event.clientX - panel.left;
+            clickY = event.clientY - panel.top;
+        }
+        const margin = 18;
+        const candidates = [
+            {left: margin, top: margin},
+            {left: panel.width - popupWidth - margin, top: margin},
+            {left: margin, top: panel.height - popupHeight - margin},
+            {left: panel.width - popupWidth - margin, top: panel.height - popupHeight - margin},
+        ].map(candidate => ({
+            left: Math.max(margin, Math.min(panel.width - popupWidth - margin, candidate.left)),
+            top: Math.max(margin, Math.min(panel.height - popupHeight - margin, candidate.top)),
+        }));
+        candidates.sort((a, b) => {
+            const acx = a.left + popupWidth / 2;
+            const acy = a.top + popupHeight / 2;
+            const bcx = b.left + popupWidth / 2;
+            const bcy = b.top + popupHeight / 2;
+            return Math.hypot(bcx - clickX, bcy - clickY) - Math.hypot(acx - clickX, acy - clickY);
+        });
+        densityPopup.style.width = `${popupWidth}px`;
+        densityPopup.style.left = `${candidates[0].left}px`;
+        densityPopup.style.top = `${candidates[0].top}px`;
+        densityPopup.style.right = "auto";
+        densityPopup.style.bottom = "auto";
+    }
+
+    function drawDensityPopup() {
+        const density = state.centroidDensity;
+        const selected = state.centroidPreview;
+        if (!density || !selected) {
+            return;
+        }
+        const w = densityCanvas.width;
+        const h = densityCanvas.height;
+        const plot = {x0: 58, y0: 24, w: w - 86, h: h - 78};
+        densityContext.clearRect(0, 0, w, h);
+        densityContext.fillStyle = "#020617";
+        densityContext.fillRect(0, 0, w, h);
+        densityContext.fillStyle = "#dbeafe";
+        densityContext.font = "12px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace";
+        densityContext.fillText("Gaussian-smoothed density contours from 40x interpolated image patch", plot.x0, 16);
+
+        const sx = fineX => plot.x0 + (fineX / (density.width - 1)) * plot.w;
+        const sy = fineY => plot.y0 + plot.h - (fineY / (density.height - 1)) * plot.h;
+        densityContext.strokeStyle = "rgba(148, 163, 184, 0.42)";
+        densityContext.lineWidth = 1;
+        densityContext.strokeRect(plot.x0, plot.y0, plot.w, plot.h);
+        for (let i = 0; i <= 4; i++) {
+            const x = plot.x0 + (i / 4) * plot.w;
+            const y = plot.y0 + (i / 4) * plot.h;
+            densityContext.beginPath();
+            densityContext.moveTo(x, plot.y0);
+            densityContext.lineTo(x, plot.y0 + plot.h);
+            densityContext.moveTo(plot.x0, y);
+            densityContext.lineTo(plot.x0 + plot.w, y);
+            densityContext.strokeStyle = "rgba(51, 65, 85, 0.62)";
+            densityContext.stroke();
+        }
+
+        const levels = [0.9, 0.78, 0.64, 0.5, 0.38, 0.28, 0.18, 0.1];
+        for (let i = 0; i < levels.length; i++) {
+            densityContext.beginPath();
+            densityContext.strokeStyle = `hsla(${170 + i * 9}, 86%, ${68 - i * 3}%, ${0.95 - i * 0.055})`;
+            densityContext.lineWidth = i < 2 ? 1.8 : 1.2;
+            const threshold = density.maxValue * levels[i];
+            for (let y = 0; y < density.height - 1; y++) {
+                for (let x = 0; x < density.width - 1; x++) {
+                    const v00 = density.values[y * density.width + x];
+                    const v10 = density.values[y * density.width + x + 1];
+                    const v01 = density.values[(y + 1) * density.width + x];
+                    const v11 = density.values[(y + 1) * density.width + x + 1];
+                    addPopupContourSegment(x, y, v00, v10, v11, v01, threshold, sx, sy);
+                }
+            }
+            densityContext.stroke();
+        }
+
+        const px = sx(density.selectedFineX);
+        const py = sy(density.selectedFineY);
+        densityContext.strokeStyle = "#fef08a";
+        densityContext.fillStyle = "#fef08a";
+        densityContext.lineWidth = 1.5;
+        densityContext.beginPath();
+        densityContext.arc(px, py, 5, 0, 2 * Math.PI);
+        densityContext.stroke();
+        densityContext.beginPath();
+        densityContext.moveTo(px - 10, py);
+        densityContext.lineTo(px + 10, py);
+        densityContext.moveTo(px, py - 10);
+        densityContext.lineTo(px, py + 10);
+        densityContext.stroke();
+
+        densityContext.fillStyle = "rgba(15, 23, 42, 0.88)";
+        densityContext.fillRect(plot.x0, h - 46, plot.w, 30);
+        densityContext.fillStyle = "#e5e7eb";
+        densityContext.font = "12px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace";
+        densityContext.fillText(
+            `selected interpolated pixel: (${density.selectedFineX}, ${density.selectedFineY}), value ${density.selectedValue.toFixed(3)}`,
+            plot.x0 + 8,
+            h - 27
+        );
+        densityContext.fillStyle = "#a7f3d0";
+        densityContext.fillText(
+            `image x/y ${selected.x.toFixed(4)}, ${selected.y.toFixed(4)}; background ${density.background.toFixed(2)}; Gaussian support ${density.gaussianSupportPx} fine px`,
+            plot.x0 + 8,
+            h - 12
+        );
+    }
+
+    function addPopupContourSegment(x, y, v00, v10, v11, v01, threshold, sx, sy) {
+        const points = [];
+        const addEdgePoint = (edge, a, b) => {
+            const denom = b.value - a.value;
+            const t = Math.abs(denom) > 1e-12 ? (threshold - a.value) / denom : 0.5;
+            const fx = a.x + Math.max(0, Math.min(1, t)) * (b.x - a.x);
+            const fy = a.y + Math.max(0, Math.min(1, t)) * (b.y - a.y);
+            points[edge] = {x: sx(fx), y: sy(fy)};
+        };
+        const p00 = {x, y, value: v00};
+        const p10 = {x: x + 1, y, value: v10};
+        const p11 = {x: x + 1, y: y + 1, value: v11};
+        const p01 = {x, y: y + 1, value: v01};
+        if ((v00 >= threshold) !== (v10 >= threshold)) addEdgePoint(0, p00, p10);
+        if ((v10 >= threshold) !== (v11 >= threshold)) addEdgePoint(1, p10, p11);
+        if ((v11 >= threshold) !== (v01 >= threshold)) addEdgePoint(2, p11, p01);
+        if ((v01 >= threshold) !== (v00 >= threshold)) addEdgePoint(3, p01, p00);
+        const present = points.filter(Boolean);
+        if (present.length === 2) {
+            densityContext.moveTo(present[0].x, present[0].y);
+            densityContext.lineTo(present[1].x, present[1].y);
+        } else if (present.length === 4) {
+            densityContext.moveTo(points[0].x, points[0].y);
+            densityContext.lineTo(points[1].x, points[1].y);
+            densityContext.moveTo(points[2].x, points[2].y);
+            densityContext.lineTo(points[3].x, points[3].y);
+        }
+    }
+
     function uploadImagePixelsToTexture() {
         if (!state.texture || !state.imagePixels) {
             return;
         }
         gl.bindTexture(gl.TEXTURE_2D, state.texture);
         gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, false);
-        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, state.imagePixels);
+        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, displayImagePixels());
+    }
+
+    function gaussianKernel(sigma) {
+        const radius = Math.max(1, Math.ceil(3 * sigma));
+        const kernel = [];
+        let sum = 0;
+        for (let i = -radius; i <= radius; i++) {
+            const value = Math.exp(-0.5 * (i / sigma) * (i / sigma));
+            kernel.push(value);
+            sum += value;
+        }
+        return kernel.map(value => value / sum);
+    }
+
+    function downsampleGrayImage(imageData, factor) {
+        const width = imageData.width;
+        const height = imageData.height;
+        const smallWidth = Math.ceil(width / factor);
+        const smallHeight = Math.ceil(height / factor);
+        const sums = new Float32Array(smallWidth * smallHeight);
+        const counts = new Uint16Array(smallWidth * smallHeight);
+        const data = imageData.data;
+        for (let y = 0; y < height; y++) {
+            const sy = Math.floor(y / factor);
+            for (let x = 0; x < width; x++) {
+                const sx = Math.floor(x / factor);
+                const src = 4 * (y * width + x);
+                const dst = sy * smallWidth + sx;
+                sums[dst] += 0.2126 * data[src] + 0.7152 * data[src + 1] + 0.0722 * data[src + 2];
+                counts[dst] += 1;
+            }
+        }
+        for (let i = 0; i < sums.length; i++) {
+            sums[i] /= Math.max(1, counts[i]);
+        }
+        return {width: smallWidth, height: smallHeight, gray: sums};
+    }
+
+    function convolveHorizontal(src, width, height, kernel) {
+        const radius = Math.floor(kernel.length / 2);
+        const dst = new Float32Array(src.length);
+        for (let y = 0; y < height; y++) {
+            const row = y * width;
+            for (let x = 0; x < width; x++) {
+                let sum = 0;
+                for (let k = -radius; k <= radius; k++) {
+                    const ix = Math.max(0, Math.min(width - 1, x + k));
+                    sum += src[row + ix] * kernel[k + radius];
+                }
+                dst[row + x] = sum;
+            }
+        }
+        return dst;
+    }
+
+    function convolveVertical(src, width, height, kernel) {
+        const radius = Math.floor(kernel.length / 2);
+        const dst = new Float32Array(src.length);
+        for (let y = 0; y < height; y++) {
+            for (let x = 0; x < width; x++) {
+                let sum = 0;
+                for (let k = -radius; k <= radius; k++) {
+                    const iy = Math.max(0, Math.min(height - 1, y + k));
+                    sum += src[iy * width + x] * kernel[k + radius];
+                }
+                dst[y * width + x] = sum;
+            }
+        }
+        return dst;
+    }
+
+    function blurredGrayBackground(imageData, widthPx) {
+        const factor = Math.max(1, Math.min(12, Math.round(widthPx / 16)));
+        const small = downsampleGrayImage(imageData, factor);
+        const sigma = Math.max(1, widthPx / factor);
+        const kernel = gaussianKernel(sigma);
+        const horizontal = convolveHorizontal(small.gray, small.width, small.height, kernel);
+        const blurred = convolveVertical(horizontal, small.width, small.height, kernel);
+        return {factor, width: small.width, height: small.height, blurred};
+    }
+
+    function sampledBackground(bg, x, y) {
+        const gx = Math.max(0, Math.min(bg.width - 1, x / bg.factor));
+        const gy = Math.max(0, Math.min(bg.height - 1, y / bg.factor));
+        const x0 = Math.floor(gx);
+        const y0 = Math.floor(gy);
+        const x1 = Math.min(bg.width - 1, x0 + 1);
+        const y1 = Math.min(bg.height - 1, y0 + 1);
+        const tx = gx - x0;
+        const ty = gy - y0;
+        const a = bg.blurred[y0 * bg.width + x0] * (1 - tx) + bg.blurred[y0 * bg.width + x1] * tx;
+        const b = bg.blurred[y1 * bg.width + x0] * (1 - tx) + bg.blurred[y1 * bg.width + x1] * tx;
+        return a * (1 - ty) + b * ty;
+    }
+
+    function highPassImageData(imageData, widthPx) {
+        const bg = blurredGrayBackground(imageData, widthPx);
+        const out = new ImageData(imageData.width, imageData.height);
+        const src = imageData.data;
+        const dst = out.data;
+        for (let y = 0; y < imageData.height; y++) {
+            for (let x = 0; x < imageData.width; x++) {
+                const k = 4 * (y * imageData.width + x);
+                const gray = 0.2126 * src[k] + 0.7152 * src[k + 1] + 0.0722 * src[k + 2];
+                const value = Math.max(0, Math.min(255, 128 + 1.6 * (gray - sampledBackground(bg, x, y))));
+                dst[k] = value;
+                dst[k + 1] = value;
+                dst[k + 2] = value;
+                dst[k + 3] = src[k + 3];
+            }
+        }
+        return out;
+    }
+
+    function displayImagePixels() {
+        if (!controls.highPassImage.checked || !state.imagePixels) {
+            state.displayPixels = null;
+            state.highPassCacheKey = "";
+            return state.imagePixels;
+        }
+        const widthPx = Math.max(10, Math.min(300, Number(controls.highPassWidth.value) || 100));
+        const cacheKey = `${state.imageName}:${state.maskRegions.length}:${widthPx}`;
+        if (state.displayPixels && state.highPassCacheKey === cacheKey) {
+            return state.displayPixels;
+        }
+        state.displayPixels = highPassImageData(state.imagePixels, widthPx);
+        state.highPassCacheKey = cacheKey;
+        return state.displayPixels;
     }
 
     function maskImageRegion(rawX, rawY, radius = 100) {
@@ -1827,6 +2345,87 @@
         return {x: fitX, y: fitY, method: "gaussian"};
     }
 
+    function kdeCentroid(clickX, clickY) {
+        if (!state.imagePixels) {
+            return {x: clickX, y: clickY, sigma: 0, method: "click"};
+        }
+        const upsample = 40;
+        const patchRadius = 8;
+        const size = 2 * patchRadius + 1;
+        const fineWidth = size * upsample;
+        const fineHeight = size * upsample;
+        const originX = clickX - patchRadius;
+        const originY = clickY - patchRadius;
+        const raw = new Float32Array(fineWidth * fineHeight);
+        const bgSamples = [];
+        for (let y = 0; y < fineHeight; y++) {
+            const iy = originY + y / upsample;
+            for (let x = 0; x < fineWidth; x++) {
+                const ix = originX + x / upsample;
+                const value = imageGray(ix, iy);
+                raw[y * fineWidth + x] = value;
+                if (x < upsample || x >= fineWidth - upsample ||
+                        y < upsample || y >= fineHeight - upsample) {
+                    bgSamples.push(value);
+                }
+            }
+        }
+        const background = bgSamples.length ? median(bgSamples) : 0;
+        for (let i = 0; i < raw.length; i++) {
+            raw[i] = Math.max(0, raw[i] - background);
+        }
+
+        // 80x80 interpolated-pixel Gaussian support. Sigma=13.3 fine pixels
+        // gives a practical +/-40 fine-pixel smoothing footprint.
+        const kernel = gaussianKernel(13.3);
+        const horizontal = convolveHorizontal(raw, fineWidth, fineHeight, kernel);
+        const smooth = convolveVertical(horizontal, fineWidth, fineHeight, kernel);
+        let bestIndex = 0;
+        let bestValue = -Infinity;
+        for (let i = 0; i < smooth.length; i++) {
+            if (smooth[i] > bestValue) {
+                bestValue = smooth[i];
+                bestIndex = i;
+            }
+        }
+        const bestFineX = bestIndex % fineWidth;
+        const bestFineY = Math.floor(bestIndex / fineWidth);
+        let cx = originX + bestFineX / upsample;
+        let cy = originY + bestFineY / upsample;
+
+        // A local quadratic interpolation of the smoothed upsampled peak gives
+        // a small additional sub-fine-pixel correction when the peak is not on
+        // the edge of the patch.
+        if (bestFineX > 0 && bestFineX < fineWidth - 1 && bestFineY > 0 && bestFineY < fineHeight - 1) {
+            const c = smooth[bestFineY * fineWidth + bestFineX];
+            const l = smooth[bestFineY * fineWidth + bestFineX - 1];
+            const r = smooth[bestFineY * fineWidth + bestFineX + 1];
+            const u = smooth[(bestFineY - 1) * fineWidth + bestFineX];
+            const d = smooth[(bestFineY + 1) * fineWidth + bestFineX];
+            const denomX = l - 2 * c + r;
+            const denomY = u - 2 * c + d;
+            const dx = Math.abs(denomX) > 1e-9 ? 0.5 * (l - r) / denomX : 0;
+            const dy = Math.abs(denomY) > 1e-9 ? 0.5 * (u - d) / denomY : 0;
+            cx += Math.max(-0.5, Math.min(0.5, dx)) / upsample;
+            cy += Math.max(-0.5, Math.min(0.5, dy)) / upsample;
+        }
+        state.centroidDensity = {
+            values: smooth,
+            width: fineWidth,
+            height: fineHeight,
+            originX,
+            originY,
+            upsample,
+            maxValue: Math.max(bestValue, 1e-9),
+            selectedFineX: bestFineX,
+            selectedFineY: bestFineY,
+            selectedValue: bestValue,
+            background,
+            gaussianSupportPx: 80,
+        };
+        return {x: cx, y: cy, sigma: 13.3 / upsample, method: "upsampled KDE"};
+    }
+
     function nearestProjectedStar(event) {
         const [cx, cy] = eventToCanvasPixel(event);
         return nearestProjectedStarFromCanvasPixel(cx, cy);
@@ -1940,29 +2539,43 @@
         if (removeNearestMatchedStar(event)) {
             return;
         }
-        if (!state.pendingMatch) {
-            const detection = nearestDetectedStar(event);
-            if (!detection) {
-                state.fitMessage = "star match: click a visible starfinder detection first";
-                render();
-                return;
-            }
-            state.pendingMatch = {
-                image: {x: detection.x, y: detection.y, method: "starfinder"},
-                detectionId: detection.id,
-            };
+        const imagePoint = eventToImagePixel(event);
+        if (!imagePoint) {
+            state.fitMessage = "star match: click on an image star while holding s";
             render();
             return;
         }
+        const centroid = kdeCentroid(imagePoint.x, imagePoint.y);
+        state.pendingMatch = {
+            image: {x: centroid.x, y: centroid.y, method: centroid.method},
+            detectionId: null,
+        };
+        state.centroidPreview = {
+            x: centroid.x,
+            y: centroid.y,
+            sigma: centroid.sigma,
+            method: centroid.method,
+            expiresAt: Infinity,
+        };
+        hideZoomCanvas();
+        showDensityPopup(event);
+        state.fitMessage = `image star selected with ${centroid.method}: x/y ` +
+            `${centroid.x.toFixed(3)}, ${centroid.y.toFixed(3)}, sigma ${centroid.sigma.toFixed(2)} px; ` +
+            "release s and click the matching catalog star";
+        render();
+    }
 
+    function handleCatalogPairClick(event) {
         const star = nearestProjectedStar(event);
         if (!star) {
+            state.fitMessage = "star match: click the matching red catalog star";
+            render();
             return;
         }
         state.matches.push({
             id: state.matches.length + 1,
             image: state.pendingMatch.image,
-            detectionId: state.pendingMatch.detectionId,
+            detectionId: null,
             catalog: {
                 key: catalogKey(star),
                 raHours: star.raHours,
@@ -1974,28 +2587,8 @@
             },
         });
         state.pendingMatch = null;
+        clearDensityEstimate();
         state.showPickedMatchMarkers = true;
-        render();
-    }
-
-    function handlePixelProbeClick(event) {
-        const imagePoint = eventToImagePixel(event);
-        const [cx, cy] = eventToCanvasPixel(event);
-        const star = nearestProjectedStarFromCanvasPixel(cx, cy);
-        if (!imagePoint) {
-            state.pixelProbe = {
-                message: "pixel probe: click was outside the displayed image",
-                star,
-            };
-            render();
-            return;
-        }
-        state.pixelProbe = {
-            image: imagePoint,
-            gray: imageGray(imagePoint.x, imagePoint.y),
-            star,
-            message: "",
-        };
         render();
     }
 
@@ -2029,38 +2622,19 @@
         render();
     }
 
-    function pixelProbeText() {
-        if (!state.pixelProbe) {
-            return "pixel probe: hold p and click to inspect image/catalog pixel coordinates";
-        }
-        if (state.pixelProbe.message) {
-            return state.pixelProbe.message;
-        }
-        const image = state.pixelProbe.image;
-        const star = state.pixelProbe.star;
-        let text = `pixel probe image raw x/y: ${image.x.toFixed(2)}, ${image.y.toFixed(2)}; gray ${state.pixelProbe.gray.toFixed(1)}`;
-        if (star) {
-            text += `\nnearest shown catalog star: ${star.name || "(unnamed)"} mag ${star.mag.toFixed(2)}` +
-                `\nmodel raw image x/y: ${star.rawX.toFixed(2)}, ${star.rawY.toFixed(2)}` +
-                `\nmodel internal x/y: ${star.x.toFixed(2)}, ${star.y.toFixed(2)}; screen distance ${star.distancePx.toFixed(1)} px`;
-        } else {
-            text += "\nnearest shown catalog star: none within picker radius";
-        }
-        return text;
-    }
-
     function fitPenalty(x) {
-        if (x.length < 5 ||
-                x[0] < Math.log(0.05) || x[0] > Math.log(5) ||
-                x[1] < Math.log(0.05) || x[1] > Math.log(5) ||
-                Math.abs(x[2]) > 720 || Math.abs(x[3]) > 0.5 ||
-                Math.abs(x[4]) > 0.5) {
+        if (x.length < 8 ||
+                Math.abs(x[0]) < 0.05 || Math.abs(x[0]) > 10 ||
+                Math.abs(x[1]) < 0.05 || Math.abs(x[1]) > 10 ||
+                Math.abs(x[2]) > 90 || Math.abs(x[3]) > 90 ||
+                Math.abs(x[4]) > 720 || Math.abs(x[5]) > 0.5 ||
+                Math.abs(x[6]) > 0.5 || x[7] < 0.05 || x[7] > 2.5) {
             return 1e12;
         }
         return 0;
     }
 
-    function matchObjectiveFactory() {
+    function matchResidualFactory() {
         const date = AidaTools.datetimeLocalToDate(controls.timestampUtc.value);
         const lat = Number(controls.latDeg.value) || 0;
         const lon = Number(controls.lonDeg.value) || 0;
@@ -2070,26 +2644,40 @@
             return {az: azze.az, ze: azze.ze, image: match.image};
         });
         return x => {
-            const penalty = fitPenalty(x);
-            if (penalty > 0 || rows.length === 0) {
-                return penalty;
+            if (fitPenalty(x) > 0 || rows.length === 0) {
+                return null;
             }
             const optpar = optparFromFitVector(x);
-            let sumSquaredResiduals = 0;
+            const residuals = [];
             for (const row of rows) {
                 const xy = AidaTools.cameraModel(row.az, row.ze, optpar, optmod, state.image.width, state.image.height);
                 if (!Number.isFinite(xy.x) || !Number.isFinite(xy.y)) {
-                    return 1e12;
+                    return null;
                 }
                 const [rawX, rawY] = rawImagePixelFromModelImagePixel(xy.x, xy.y);
                 // Least-squares objective: after applying the same overlay and
                 // image flips used on screen, model-projected catalog stars
                 // should match the picked centroids in raw image pixels.
-                const dx = rawX - row.image.x;
-                const dy = rawY - row.image.y;
-                sumSquaredResiduals += dx * dx + dy * dy;
+                residuals.push(rawX - row.image.x, rawY - row.image.y);
             }
-            return sumSquaredResiduals;
+            return residuals;
+        };
+    }
+
+    function residualSumSquares(residuals) {
+        if (!residuals) {
+            return 1e12;
+        }
+        return residuals.reduce((acc, value) => acc + value * value, 0);
+    }
+
+    function matchObjectiveFactory(residualFn = matchResidualFactory()) {
+        return x => {
+            const penalty = fitPenalty(x);
+            if (penalty > 0) {
+                return penalty;
+            }
+            return residualSumSquares(residualFn(x));
         };
     }
 
@@ -2173,31 +2761,166 @@
             addStart(state.lastFitVector);
         }
 
-        const logFocalOffsets = [-0.08, 0, 0.08];
-        const gammaOffsets = [-5, 0, 5];
-        const duOffsets = [-0.015, 0, 0.015];
-        const dvOffsets = [-0.015, 0, 0.015];
-
-        for (const dFx of logFocalOffsets) {
-            for (const dFy of logFocalOffsets) {
-                for (const dGamma of gammaOffsets) {
-                    for (const dDu of duOffsets) {
-                        for (const dDv of dvOffsets) {
-                            addStart([
-                                start[0] + dFx,
-                                start[1] + dFy,
-                                start[2] + dGamma,
-                                start[3] + dDu,
-                                start[4] + dDv,
-                            ]);
-                        }
-                    }
-                }
+        const axisOffsets = [0.08, 0.08, 3, 3, 8, 0.02, 0.02, 0.08];
+        for (let i = 0; i < start.length; i++) {
+            for (const sign of [-1, 1]) {
+                const x = start.slice();
+                x[i] += sign * axisOffsets[i];
+                addStart(x);
             }
+        }
+        addStart([-start[0], start[1], ...start.slice(2)]);
+        addStart([start[0], -start[1], ...start.slice(2)]);
+        addStart([-start[0], -start[1], ...start.slice(2)]);
+
+        for (let i = 0; i < 120; i++) {
+            const f1Factor = Math.exp((Math.random() * 2 - 1) * 0.25);
+            const f2Factor = Math.exp((Math.random() * 2 - 1) * 0.25);
+            addStart([
+                start[0] * f1Factor * (Math.random() < 0.06 ? -1 : 1),
+                start[1] * f2Factor * (Math.random() < 0.06 ? -1 : 1),
+                start[2] + (Math.random() * 2 - 1) * 12,
+                start[3] + (Math.random() * 2 - 1) * 12,
+                start[4] + (Math.random() * 2 - 1) * 25,
+                start[5] + (Math.random() * 2 - 1) * 0.06,
+                start[6] + (Math.random() * 2 - 1) * 0.06,
+                start[7] + (Math.random() * 2 - 1) * 0.18,
+            ]);
         }
 
         starts.sort((a, b) => a.fx - b.fx);
-        return starts.slice(0, Math.min(10, starts.length));
+        return starts.slice(0, Math.min(32, starts.length));
+    }
+
+    function solveLinearSystem(a, b) {
+        const n = b.length;
+        const m = a.map((row, i) => row.slice().concat([b[i]]));
+        for (let col = 0; col < n; col++) {
+            let pivot = col;
+            for (let row = col + 1; row < n; row++) {
+                if (Math.abs(m[row][col]) > Math.abs(m[pivot][col])) {
+                    pivot = row;
+                }
+            }
+            if (Math.abs(m[pivot][col]) < 1e-12) {
+                return null;
+            }
+            if (pivot !== col) {
+                const tmp = m[col];
+                m[col] = m[pivot];
+                m[pivot] = tmp;
+            }
+            const pivotValue = m[col][col];
+            for (let j = col; j <= n; j++) {
+                m[col][j] /= pivotValue;
+            }
+            for (let row = 0; row < n; row++) {
+                if (row === col) {
+                    continue;
+                }
+                const factor = m[row][col];
+                for (let j = col; j <= n; j++) {
+                    m[row][j] -= factor * m[col][j];
+                }
+            }
+        }
+        return m.map(row => row[n]);
+    }
+
+    function levenbergMarquardt(residualFn, start, maxIter = 80) {
+        const n = start.length;
+        const diffSteps = [1e-4, 1e-4, 1e-3, 1e-3, 1e-3, 1e-5, 1e-5, 1e-4];
+        let x = start.slice();
+        let residuals = residualFn(x);
+        let fx = residualSumSquares(residuals);
+        let lambda = 1e-3;
+        let iterations = 0;
+        let accepted = 0;
+        for (; iterations < maxIter; iterations++) {
+            if (!residuals || !Number.isFinite(fx)) {
+                break;
+            }
+            const m = residuals.length;
+            const jac = Array.from({length: m}, () => Array(n).fill(0));
+            for (let col = 0; col < n; col++) {
+                const h = diffSteps[col];
+                const xp = x.slice();
+                xp[col] += h;
+                const rp = residualFn(xp);
+                if (!rp) {
+                    continue;
+                }
+                for (let row = 0; row < m; row++) {
+                    jac[row][col] = (rp[row] - residuals[row]) / h;
+                }
+            }
+            const jtj = Array.from({length: n}, () => Array(n).fill(0));
+            const jtr = Array(n).fill(0);
+            for (let row = 0; row < m; row++) {
+                for (let i = 0; i < n; i++) {
+                    jtr[i] += jac[row][i] * residuals[row];
+                    for (let j = 0; j < n; j++) {
+                        jtj[i][j] += jac[row][i] * jac[row][j];
+                    }
+                }
+            }
+            let improved = false;
+            for (let attempt = 0; attempt < 8; attempt++) {
+                const a = jtj.map((row, i) => row.map((value, j) => {
+                    if (i !== j) {
+                        return value;
+                    }
+                    return value + lambda * Math.max(1, Math.abs(value));
+                }));
+                const step = solveLinearSystem(a, jtr.map(value => -value));
+                if (!step) {
+                    lambda *= 10;
+                    continue;
+                }
+                const xCandidate = x.map((value, i) => value + step[i]);
+                if (fitPenalty(xCandidate) > 0) {
+                    lambda *= 10;
+                    continue;
+                }
+                const candidateResiduals = residualFn(xCandidate);
+                const candidateFx = residualSumSquares(candidateResiduals);
+                if (candidateResiduals && candidateFx < fx) {
+                    x = xCandidate;
+                    residuals = candidateResiduals;
+                    fx = candidateFx;
+                    lambda = Math.max(lambda / 3, 1e-9);
+                    accepted += 1;
+                    improved = true;
+                    if (Math.sqrt(step.reduce((acc, value) => acc + value * value, 0)) < 1e-7) {
+                        return {x, fx, iterations: iterations + 1, accepted};
+                    }
+                    break;
+                }
+                lambda *= 10;
+            }
+            if (!improved) {
+                break;
+            }
+        }
+        return {x, fx, iterations, accepted};
+    }
+
+    function acceptFitResult(result, startFx, methodLabel, detail) {
+        const rmsBefore = Math.sqrt(startFx / state.matches.length);
+        const rmsAfter = Math.sqrt(result.fx / state.matches.length);
+        if (!Number.isFinite(rmsAfter) || rmsAfter > Math.max(50, rmsBefore * 1.25)) {
+            state.fitMessage = `${methodLabel} rejected: RMS ${rmsBefore.toFixed(2)} -> ${rmsAfter.toFixed(2)} px`;
+            render();
+            return false;
+        }
+        applyFitVector(result.x);
+        state.lastFitVector = result.x.slice();
+        state.pendingMatch = null;
+        state.showPickedMatchMarkers = false;
+        state.fitMessage = `${methodLabel}: RMS ${rmsBefore.toFixed(2)} -> ${rmsAfter.toFixed(2)} px, ` +
+            `${detail}; fitted all 8 optpar values`;
+        recomputeAndRender();
+        return true;
     }
 
     function fitLensFromMatches() {
@@ -2207,15 +2930,16 @@
             return;
         }
 
-        const objective = matchObjectiveFactory();
+        const residualFn = matchResidualFactory();
+        const objective = matchObjectiveFactory(residualFn);
         const start = currentFitVector();
         const startFx = objective(start);
-        const steps = [0.02, 0.02, 0.5, 0.002, 0.002];
+        const steps = [0.05, 0.05, 1.5, 1.5, 2.0, 0.006, 0.006, 0.03];
         const starts = fitStartCandidates(objective, start);
         let result = null;
         let totalIterations = 0;
         for (const candidate of starts) {
-            const candidateResult = nelderMead(objective, candidate.x, steps, 300);
+            const candidateResult = nelderMead(objective, candidate.x, steps, 800);
             totalIterations += candidateResult.iterations;
             if (!result || candidateResult.fx < result.fx) {
                 result = candidateResult;
@@ -2226,21 +2950,47 @@
             render();
             return;
         }
-        const rmsBefore = Math.sqrt(startFx / state.matches.length);
-        const rmsAfter = Math.sqrt(result.fx / state.matches.length);
-        if (!Number.isFinite(rmsAfter) || rmsAfter > Math.max(50, rmsBefore * 1.25)) {
-            state.fitMessage = `lens fit rejected: RMS ${rmsBefore.toFixed(2)} -> ${rmsAfter.toFixed(2)} px`;
+        acceptFitResult(
+            result,
+            startFx,
+            "Nelder-Mead lens fit",
+            `${starts.length} starts including random perturbations, ${totalIterations} iterations`
+        );
+    }
+
+    function fitLensLevenbergMarquardt() {
+        if (!state.image || state.matches.length < 4) {
+            state.fitMessage = "LM lens fit: need at least 4 matched star pairs";
             render();
             return;
         }
-        applyFitVector(result.x);
-        state.lastFitVector = result.x.slice();
-        state.pendingMatch = null;
-        state.pixelProbe = null;
-        state.showPickedMatchMarkers = false;
-        state.fitMessage = `lens fit: RMS ${rmsBefore.toFixed(2)} -> ${rmsAfter.toFixed(2)} px, ` +
-            `${starts.length} starts, ${totalIterations} Nelder-Mead iterations; fitted fx, fy, gamma, du, dv only`;
-        recomputeAndRender();
+        const residualFn = matchResidualFactory();
+        const objective = matchObjectiveFactory(residualFn);
+        const start = currentFitVector();
+        const startFx = objective(start);
+        const starts = fitStartCandidates(objective, start).slice(0, 12);
+        let result = null;
+        let totalIterations = 0;
+        let accepted = 0;
+        for (const candidate of starts) {
+            const candidateResult = levenbergMarquardt(residualFn, candidate.x, 80);
+            totalIterations += candidateResult.iterations;
+            accepted += candidateResult.accepted;
+            if (!result || candidateResult.fx < result.fx) {
+                result = candidateResult;
+            }
+        }
+        if (!result) {
+            state.fitMessage = "LM lens fit rejected: no valid start points";
+            render();
+            return;
+        }
+        acceptFitResult(
+            result,
+            startFx,
+            "Levenberg-Marquardt lens fit",
+            `${starts.length} starts, ${totalIterations} iterations, ${accepted} accepted steps`
+        );
     }
 
     function clearIdentifiedStars() {
@@ -2251,8 +3001,8 @@
         state.showPickedMatchMarkers = true;
         updateAutoMatches();
         state.fitMessage = count > 0
-            ? `removed ${count} identified star${count === 1 ? "" : "s"}`
-            : "no identified stars to remove";
+            ? `removed ${count} star pairing${count === 1 ? "" : "s"}`
+            : "no star pairings to remove";
         render();
     }
 
@@ -2268,57 +3018,19 @@
         render();
     }
 
-    function calibrationCaseBasename(testCase) {
-        if (!testCase || !testCase.image) {
-            return "";
-        }
-        return testCase.image.split("/").pop();
-    }
-
-    function findCalibrationCaseForImageName(name) {
-        const filename = name.split(/[\\/]/).pop();
-        const cases = window.AIDA_CALIBRATION_CASES || [];
-        return cases.find(testCase => calibrationCaseBasename(testCase) === filename) || null;
+    function refreshDisplayImage() {
+        state.displayPixels = null;
+        state.highPassCacheKey = "";
+        uploadImagePixelsToTexture();
+        render();
     }
 
     function resetInteractiveState() {
         state.matches = [];
         state.pendingMatch = null;
-        state.pixelProbe = null;
         state.showPickedMatchMarkers = true;
         state.lastFitVector = null;
         state.fitMessage = "lens fit: not run";
-    }
-
-    function applyCalibrationCaseDefaults(testCase) {
-        state.activeCase = testCase;
-        if (!testCase) {
-            state.baseOptpar = null;
-            state.fitMessage = "lens fit: not run";
-            return;
-        }
-
-        const cases = window.AIDA_CALIBRATION_CASES || [];
-        const index = cases.indexOf(testCase);
-        if (index >= 0) {
-            controls.testCase.value = String(index);
-        }
-        if (testCase.timestampUtc) {
-            controls.timestampUtc.value = testCase.timestampUtc;
-        }
-        if (Number.isFinite(testCase.latDeg)) {
-            controls.latDeg.value = Number(testCase.latDeg).toFixed(6);
-        }
-        if (Number.isFinite(testCase.lonDeg)) {
-            controls.lonDeg.value = Number(testCase.lonDeg).toFixed(6);
-        }
-        applyOptpar(testCase.optpar);
-        controls.optmod.value = "2";
-        state.flipX = false;
-        state.flipY = false;
-        state.imageFlipX = false;
-        state.imageFlipY = false;
-        state.fitMessage = `known lens model loaded from ${testCase.label}`;
     }
 
     function loadImageSource(url, name, onLoaded = null, revokeWhenLoaded = false) {
@@ -2359,8 +3071,7 @@
                     controls.contrast.value = "1.00";
                     state.fitMessage = `image pixel readback unavailable for ${name}; display still works, centroid picking disabled`;
                 }
-                setLoadingProgress(68, "Detecting stars...");
-                detectImageStars();
+                setLoadingProgress(68, "Preparing calibration view...");
                 setLoadingProgress(84, "Uploading image texture...");
                 state.texture = gl.createTexture();
                 gl.bindTexture(gl.TEXTURE_2D, state.texture);
@@ -2371,11 +3082,22 @@
                 // Keep WebGL texture rows in the same top-left-origin convention
                 // used by the image pixel buffer and the AIDA calibration model.
                 gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, false);
-                gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, img);
+                if (state.imagePixels) {
+                    state.displayPixels = null;
+                    state.highPassCacheKey = "";
+                    uploadImagePixelsToTexture();
+                } else {
+                    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, img);
+                }
                 hint.style.display = "none";
                 const guessed = AidaTools.guessTimestampFromAllsky7Name(name);
                 if (guessed) {
                     controls.timestampUtc.value = AidaTools.dateToDatetimeLocal(guessed);
+                }
+                const station = AidaTools.guessAllsky7StationMetadata(name);
+                if (station) {
+                    controls.latDeg.value = station.latDeg.toFixed(6);
+                    controls.lonDeg.value = station.lonDeg.toFixed(6);
                 }
                 state.pendingMatch = null;
                 if (onLoaded) {
@@ -2402,11 +3124,9 @@
 
     function loadImageFile(file) {
         resetInteractiveState();
-        const knownCase = findCalibrationCaseForImageName(file.name);
-        applyCalibrationCaseDefaults(knownCase);
-        if (!knownCase) {
-            state.fitMessage = `no bundled lens model matched ${file.name}`;
-        }
+        state.baseOptpar = null;
+        applyOptpar(null);
+        state.fitMessage = "lens fit: not run";
         if (state.localImageUrl) {
             URL.revokeObjectURL(state.localImageUrl);
         }
@@ -2414,45 +3134,31 @@
         loadImageSource(state.localImageUrl, file.name, null, false);
     }
 
-    function loadCalibrationCase(index) {
-        const cases = window.AIDA_CALIBRATION_CASES || [];
-        if (index < 0 || index >= cases.length) {
-            return;
-        }
-        controls.testCase.value = String(index);
-        const testCase = cases[index];
-        resetInteractiveState();
-        applyCalibrationCaseDefaults(testCase);
-        recomputeAndRender();
-    }
-
-    function populateCalibrationCases() {
-        const cases = window.AIDA_CALIBRATION_CASES || [];
-        controls.testCase.replaceChildren();
-        for (let i = 0; i < cases.length; i++) {
-            const option = document.createElement("option");
-            option.value = String(i);
-            option.textContent = cases[i].label;
-            controls.testCase.appendChild(option);
-        }
-        if (cases.length > 0) {
-            controls.testCase.value = "0";
-            resetInteractiveState();
-            applyCalibrationCaseDefaults(cases[0]);
-            render();
-        }
-    }
-
     function updateDetectionCircleButton() {
         controls.toggleDetectionCircles.textContent =
-            state.showDetectionCircles ? "Hide detection circles (C)" : "Show detection circles (C)";
-        controls.toggleDetectionCircles.classList.toggle("toggle-on", state.showDetectionCircles);
+            state.displayMode === "stellarium" ? "Image view (C)" : "Stellarium view (C)";
+        controls.toggleDetectionCircles.classList.toggle("toggle-on", state.displayMode === "stellarium");
     }
 
     function toggleDetectionCircles() {
-        state.showDetectionCircles = !state.showDetectionCircles;
+        setDisplayMode(state.displayMode === "stellarium" ? "image" : "stellarium");
+        state.starMatchMode = false;
+        state.pendingMatch = null;
         updateDetectionCircleButton();
-        render();
+        recomputeAndRender();
+    }
+
+    function enableStarPairingMode(armed = false) {
+        setDisplayMode("pairing");
+        state.starMatchMode = armed;
+        state.deleteDetectionMode = false;
+        state.maskMode = false;
+        state.zoomMode = false;
+        if (!armed) {
+            hideZoomCanvas();
+        }
+        updateDetectionCircleButton();
+        recomputeAndRender();
     }
 
     function updateStarNameButton() {
@@ -2485,35 +3191,19 @@
         }
     });
 
-    controls.testCase.addEventListener("change", () => {
-        loadCalibrationCase(Number(controls.testCase.value) || 0);
-    });
-    controls.prevCase.addEventListener("click", () => {
-        const cases = window.AIDA_CALIBRATION_CASES || [];
-        if (cases.length === 0) {
-            return;
-        }
-        const idx = Number(controls.testCase.value) || 0;
-        loadCalibrationCase((idx - 1 + cases.length) % cases.length);
-    });
-    controls.nextCase.addEventListener("click", () => {
-        const cases = window.AIDA_CALIBRATION_CASES || [];
-        if (cases.length === 0) {
-            return;
-        }
-        const idx = Number(controls.testCase.value) || 0;
-        loadCalibrationCase((idx + 1) % cases.length);
-    });
     for (const el of document.querySelectorAll(".controls input, .controls select")) {
-        if (el !== controls.file && el !== controls.testCase &&
-                el !== controls.detectorThreshold && el !== controls.detectorMaxStars &&
-                el !== controls.detectorStarRadius) {
+        if (el !== controls.file &&
+                el !== controls.highPassImage && el !== controls.highPassWidth &&
+                el !== controls.maxMag) {
             el.addEventListener("input", recomputeAndRender);
         }
     }
-    controls.detectorThreshold.addEventListener("input", scheduleDetectImageStars);
-    controls.detectorMaxStars.addEventListener("input", scheduleDetectImageStars);
-    controls.detectorStarRadius.addEventListener("input", scheduleDetectImageStars);
+    controls.highPassImage.addEventListener("change", refreshDisplayImage);
+    controls.highPassWidth.addEventListener("input", refreshDisplayImage);
+    controls.maxMag.addEventListener("input", () => {
+        state.maxMagByMode[state.displayMode] = Number(controls.maxMag.value) || 4.0;
+        recomputeAndRender();
+    });
 
     controls.flipX.addEventListener("click", () => {
         state.flipX = !state.flipX;
@@ -2548,11 +3238,16 @@
     controls.toggleDetectionCircles.addEventListener("click", toggleDetectionCircles);
     controls.toggleStarNames.addEventListener("click", toggleStarNames);
     controls.toggleFitResiduals.addEventListener("click", toggleFitResiduals);
+    densityPopupClose.addEventListener("click", () => {
+        clearDensityEstimate();
+        render();
+    });
     controls.resetOffset.addEventListener("click", () => {
         setCameraAnglesFromBoresightAzEl(0, 90);
         recomputeAndRender();
     });
     controls.fitLens.addEventListener("click", fitLensFromMatches);
+    controls.fitLensLm.addEventListener("click", fitLensLevenbergMarquardt);
     controls.clearMatches.addEventListener("click", clearIdentifiedStars);
 
     canvas.addEventListener("pointerdown", event => {
@@ -2566,14 +3261,14 @@
             handleDeleteDetectionClick(event);
             return;
         }
-        if (state.pixelProbeMode && event.button === 0) {
-            event.preventDefault();
-            handlePixelProbeClick(event);
-            return;
-        }
-        if (state.starMatchMode && event.button === 0) {
+        if (state.displayMode === "pairing" && state.starMatchMode && event.button === 0) {
             event.preventDefault();
             handleStarMatchClick(event);
+            return;
+        }
+        if (state.displayMode === "pairing" && state.pendingMatch && event.button === 0) {
+            event.preventDefault();
+            handleCatalogPairClick(event);
             return;
         }
         state.dragging = true;
@@ -2582,7 +3277,7 @@
         canvas.setPointerCapture(event.pointerId);
     });
     canvas.addEventListener("pointermove", event => {
-        if (state.zoomMode) {
+        if (state.zoomMode || state.starMatchMode) {
             updateZoomCanvas(event);
         }
         if (!state.dragging || !state.image) {
@@ -2631,11 +3326,15 @@
     });
     canvas.addEventListener("wheel", event => {
         event.preventDefault();
-        const currentX = Math.max(0.05, Number(controls.fScaleX.value) || 1.0);
-        const currentY = Math.max(0.05, Number(controls.fScaleY.value) || 1.0);
+        const currentX = Number(controls.fScaleX.value) || 1.0;
+        const currentY = Number(controls.fScaleY.value) || 1.0;
         const factor = Math.exp(-event.deltaY * 0.00045);
-        controls.fScaleX.value = Math.max(0.05, Math.min(10.0, currentX * factor)).toFixed(4);
-        controls.fScaleY.value = Math.max(0.05, Math.min(10.0, currentY * factor)).toFixed(4);
+        const scaleFocal = value => {
+            const sign = value < 0 ? -1 : 1;
+            return sign * Math.max(0.05, Math.min(10.0, Math.abs(value) * factor));
+        };
+        controls.fScaleX.value = scaleFocal(currentX).toFixed(4);
+        controls.fScaleY.value = scaleFocal(currentY).toFixed(4);
         recomputeAndRender();
     }, {passive: false});
 
@@ -2646,27 +3345,13 @@
         }
         if ((event.key === "s" || event.key === "S") && !event.repeat) {
             event.preventDefault();
-            state.starMatchMode = true;
-            state.pixelProbeMode = false;
-            state.deleteDetectionMode = false;
-            state.maskMode = false;
-            state.zoomMode = false;
-            hideZoomCanvas();
-            render();
+            enableStarPairingMode(true);
         } else if ((event.key === "p" || event.key === "P") && !event.repeat) {
             event.preventDefault();
-            state.pixelProbeMode = true;
-            state.starMatchMode = false;
-            state.deleteDetectionMode = false;
-            state.maskMode = false;
-            state.zoomMode = false;
-            hideZoomCanvas();
-            state.pendingMatch = null;
-            render();
+            enableStarPairingMode(false);
         } else if ((event.key === "d" || event.key === "D") && !event.repeat) {
             event.preventDefault();
             state.deleteDetectionMode = true;
-            state.pixelProbeMode = false;
             state.starMatchMode = false;
             state.maskMode = false;
             state.zoomMode = false;
@@ -2677,7 +3362,6 @@
             event.preventDefault();
             state.maskMode = true;
             state.deleteDetectionMode = false;
-            state.pixelProbeMode = false;
             state.starMatchMode = false;
             state.zoomMode = false;
             hideZoomCanvas();
@@ -2688,7 +3372,6 @@
             state.zoomMode = true;
             state.maskMode = false;
             state.deleteDetectionMode = false;
-            state.pixelProbeMode = false;
             state.starMatchMode = false;
             state.pendingMatch = null;
             render();
@@ -2704,24 +3387,39 @@
         } else if ((event.key === "f" || event.key === "F") && !event.repeat) {
             event.preventDefault();
             fitLensFromMatches();
+        } else if ((event.key === "g" || event.key === "G") && !event.repeat) {
+            event.preventDefault();
+            fitLensLevenbergMarquardt();
         } else if (event.key === "Escape" && state.pendingMatch) {
             event.preventDefault();
+            clearDensityEstimate();
             state.pendingMatch = null;
             render();
+        } else if (event.key === "Escape" && densityPopup.classList.contains("visible")) {
+            event.preventDefault();
+            clearDensityEstimate();
+            render();
+        } else if (event.key === "Escape" && state.starMatchMode) {
+            event.preventDefault();
+            state.starMatchMode = false;
+            setDisplayMode("image");
+            state.pendingMatch = null;
+            clearDensityEstimate();
+            updateDetectionCircleButton();
+            recomputeAndRender();
         }
     });
     document.addEventListener("keyup", event => {
         if (event.key === "s" || event.key === "S") {
             event.preventDefault();
             state.starMatchMode = false;
-            state.pendingMatch = null;
+            if (!state.centroidPreview || Date.now() >= state.centroidPreview.expiresAt) {
+                hideZoomCanvas();
+            }
             render();
-        } else if (event.key === "p" || event.key === "P") {
-            event.preventDefault();
-            state.pixelProbeMode = false;
-            state.pixelProbe = null;
-            render();
-        } else if (event.key === "d" || event.key === "D") {
+            return;
+        }
+        if (event.key === "d" || event.key === "D") {
             event.preventDefault();
             state.deleteDetectionMode = false;
             render();
@@ -2738,7 +3436,10 @@
     });
 
     window.addEventListener("resize", render);
-    populateCalibrationCases();
+    window.addEventListener("load", () => {
+        state.lastLensEquation = "";
+        updateLensEquation(currentOptpar(), Number(controls.optmod.value));
+    });
     updateDetectionCircleButton();
     updateStarNameButton();
     updateFitResidualButton();

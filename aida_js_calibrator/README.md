@@ -36,17 +36,10 @@ The browser uses true 0-based image pixel coordinates. The AIDA/Matlab optical
 model values are converted from Matlab's 1-based pixel convention inside
 `js/aidatools.js`.
 
-For bundled test cases, the HDF5 `optpar[0]` and `optpar[1]` values are the
-actual AIDA focal parameters. The UI's horizontal and vertical focal controls
-are multipliers relative to those calibrated values, so `1.0` means "use the
-file's focal parameters unchanged", not "unit focal length".
-
-The known-model selector applies the calibration parameters only. The image
-itself is normally selected with the `Load image` button; if the selected image
-filename matches a bundled allsky7 case, its known lens model, site, and UTC
-timestamp are applied automatically. The generated PNG copies live in
-`calibration_images/`, while the HDF5/Matlab references remain under the local
-`allsky7 -> ../python/examples/allsky7` symlink.
+The generated PNG copies live in `calibration_images/`, while the HDF5/Matlab
+references remain under the local `allsky7 -> ../python/examples/allsky7`
+symlink. These generated cases are used for development and tests; the web GUI
+does not load known lens models automatically.
 
 The `2025_02_19_03_44_00_000_010760_first1s.png` frame is intentionally
 excluded from the browser test cases because its image/star alignment is
@@ -75,6 +68,10 @@ star centroids.
 Keyboard helpers:
 
 - hold `s` and click to manually pair an image star with a catalog star,
+- press `f` to fit all eight `optpar` values with randomized Nelder-Mead
+  multi-start least squares,
+- press `g` to fit all eight `optpar` values with a finite-difference
+  Levenberg-Marquardt least-squares solver,
 - hold `p` and click to inspect image/model pixel coordinates,
 - hold `d` and click to delete an automatically detected star from proximity
   matching.

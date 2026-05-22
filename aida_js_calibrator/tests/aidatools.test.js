@@ -161,6 +161,19 @@ test("allsky7 filename timestamp parser handles underscores and milliseconds", (
     assert.equal(shortMs.toISOString(), "2025-02-19T03:44:00.700Z");
 });
 
+test("allsky7 station metadata parser handles known camera ids and aliases", () => {
+    const station = AidaTools.guessAllsky7StationMetadata("2025_02_19_03_46_00_000_010095_first1s.png");
+    assert.equal(station.latDeg, 52.49509);
+    assert.equal(station.lonDeg, 12.63085);
+
+    const aliasStation = AidaTools.guessAllsky7StationMetadata(
+        "2025_02_19_03_46_00_000_010880_ams0881_first1s.png",
+    );
+    assert.equal(aliasStation.latDeg, 51.4492);
+    assert.equal(aliasStation.lonDeg, 14.2794);
+    assert.equal(AidaTools.guessAllsky7StationMetadata("unknown_first1s.png"), null);
+});
+
 test("optmod 2 projects zenith to the calibrated image center", () => {
     const optpar = [0.75, 0.75, 0, 0, 0, 0, 0, 1.0];
     const projected = AidaTools.cameraModel(0, 0, optpar, 2, 1024, 768);
