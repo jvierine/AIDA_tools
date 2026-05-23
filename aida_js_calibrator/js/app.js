@@ -2537,10 +2537,10 @@ def image_to_az_el(x, y, optpar=optpar, optmod=optmod,
             raw[i] = Math.max(0, raw[i] - background);
         }
 
-        // 160x160 interpolated-pixel Gaussian support. Sigma=26.6 fine pixels
-        // gives a practical +/-80 fine-pixel smoothing footprint.
-        const gaussianSigmaFinePx = 26.6;
-        const gaussianSupportFinePx = 160;
+        // 320x320 interpolated-pixel Gaussian support. Sigma=53.2 fine pixels
+        // gives a practical +/-160 fine-pixel smoothing footprint.
+        const gaussianSigmaFinePx = 53.2;
+        const gaussianSupportFinePx = 320;
         const kernel = gaussianKernel(gaussianSigmaFinePx);
         const horizontal = convolveHorizontal(raw, fineWidth, fineHeight, kernel);
         const smooth = convolveVertical(horizontal, fineWidth, fineHeight, kernel);
