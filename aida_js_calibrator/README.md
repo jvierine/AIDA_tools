@@ -72,6 +72,5 @@ Keyboard helpers:
   multi-start least squares,
 - press `g` to fit all eight `optpar` values with a finite-difference
   Levenberg-Marquardt least-squares solver,
-- hold `p` and click to inspect image/model pixel coordinates,
 - hold `d` and click to delete an automatically detected star from proximity
   matching.

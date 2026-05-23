@@ -1,0 +1,146 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AIDA Browser Star Calibration Help</title>
+<style>
+    body {
+        margin: 0;
+        font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        color: #111827;
+        background: #f8fafc;
+        line-height: 1.55;
+    }
+
+    main {
+        max-width: 900px;
+        margin: 0 auto;
+        padding: 28px 18px 42px;
+    }
+
+    h1 {
+        margin: 0 0 8px;
+        font-size: 28px;
+    }
+
+    h2 {
+        margin: 28px 0 8px;
+        font-size: 18px;
+    }
+
+    p {
+        margin: 0 0 12px;
+    }
+
+    ol,
+    ul {
+        padding-left: 24px;
+    }
+
+    li {
+        margin: 8px 0;
+    }
+
+    kbd {
+        display: inline-block;
+        padding: 1px 6px;
+        border: 1px solid #cbd5e1;
+        border-bottom-width: 2px;
+        border-radius: 5px;
+        background: #ffffff;
+        color: #0f172a;
+        font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+        font-size: 13px;
+        line-height: 1.2;
+    }
+
+    code {
+        font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+        font-size: 0.95em;
+    }
+
+    a {
+        color: #1d4ed8;
+    }
+</style>
+</head>
+<body>
+<main>
+    <h1>AIDA browser star calibration workflow</h1>
+    <p>
+        This page is a compact checklist for using the browser calibrator to
+        identify stars, fit the AIDA optical parameters, and export the result.
+    </p>
+
+    <h2>Basic workflow</h2>
+    <ol>
+        <li>
+            Load an all-sky PNG/JPEG image. The bundled example image is loaded
+            automatically when the page opens.
+        </li>
+        <li>
+            Check the UTC timestamp, latitude, and longitude. For known allsky7
+            filenames, the browser fills these from the filename and station id.
+        </li>
+        <li>
+            Use brightness, contrast, and the high-pass filter so stars are easy
+            to see. The high-pass filter is on by default.
+        </li>
+        <li>
+            Press <kbd>C</kbd> to switch between image view and Stellarium-style
+            catalog view. Press <kbd>N</kbd> to toggle star names.
+        </li>
+        <li>
+            Hold <kbd>S</kbd> and click an image star. The local star position is
+            refined with an interpolated Gaussian-smoothed density estimate.
+            Release <kbd>S</kbd>, then click the matching red catalog star.
+        </li>
+        <li>
+            Repeat until at least four reliable star pairs are available. More
+            well-spread pairs usually gives a more stable lens fit.
+        </li>
+        <li>
+            Press <kbd>F</kbd> for the robust randomized Nelder-Mead fit, or
+            <kbd>G</kbd> for the ordinary least-squares Levenberg-Marquardt fit.
+        </li>
+        <li>
+            Press <kbd>R</kbd> to inspect fit residuals. The suggested red marker
+            identifies the star pair furthest from the median residual pattern.
+        </li>
+        <li>
+            Use the export buttons to copy either the fitted
+            <code>optpar = [...]</code> Python array or a Python
+            <code>image_to_az_el(x, y)</code> helper function.
+        </li>
+    </ol>
+
+    <h2>Useful controls</h2>
+    <ul>
+        <li><kbd>S</kbd>: enter star picking and select an image star while held.</li>
+        <li><kbd>C</kbd>: toggle image view and Stellarium-style catalog view.</li>
+        <li><kbd>N</kbd>: show or hide catalog star names in the current view.</li>
+        <li><kbd>F</kbd>: fit all eight optical parameters with robust Nelder-Mead.</li>
+        <li><kbd>G</kbd>: fit all eight optical parameters with Levenberg-Marquardt.</li>
+        <li><kbd>R</kbd>: show or hide residual view.</li>
+        <li><kbd>Esc</kbd>: cancel the current star selection or close the density popup.</li>
+    </ul>
+
+    <h2>Export notes</h2>
+    <p>
+        The copied <code>optpar</code> array contains
+        <code>[f1, f2, alpha, beta, gamma, du, dv, radial_alpha]</code>.
+        The copied Python mapper uses the same forward model and numerically
+        searches for the azimuth and elevation whose projected image coordinate
+        matches the supplied pixel.
+    </p>
+    <p>
+        The inverse mapping is most meaningful for pixels inside the calibrated
+        field of view and above the horizon. If the lens model is poorly
+        constrained, add or remove star pairs and refit before exporting.
+    </p>
+
+    <p><a href="index.html">Back to the calibrator</a></p>
+</main>
+</body>
+</html>

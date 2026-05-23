@@ -57,6 +57,8 @@
         radialAlpha: document.getElementById("radialAlpha"),
         fitLens: document.getElementById("fitLens"),
         fitLensLm: document.getElementById("fitLensLm"),
+        copyOptpar: document.getElementById("copyOptpar"),
+        copyPythonMapper: document.getElementById("copyPythonMapper"),
         toggleFitResiduals: document.getElementById("toggleFitResiduals"),
         clearMatches: document.getElementById("clearMatches"),
     };
@@ -457,6 +459,137 @@
         if (window.MathJax && MathJax.typesetPromise) {
             MathJax.typesetPromise([lensEquation]).catch(() => {});
         }
+    }
+
+    function pythonFloat(value) {
+        if (!Number.isFinite(value)) {
+            return "0.0";
+        }
+        return Number(value).toPrecision(12);
+    }
+
+    function optparPythonArrayText() {
+        const optpar = currentOptpar();
+        return `optpar = [${optpar.map(pythonFloat).join(", ")}]`;
+    }
+
+    function pythonImageToAzElFunctionText() {
+        const optpar = currentOptpar();
+        const optmod = Number(controls.optmod.value) || 2;
+        const width = state.image ? state.image.width : 1920;
+        const height = state.image ? state.image.height : 1080;
+        return `import numpy as np
+from scipy.optimize import least_squares
+
+optpar = np.array([${optpar.map(pythonFloat).join(", ")}], dtype=float)
+optmod = ${optmod}
+image_width = ${width}
+image_height = ${height}
+
+def _camera_rot(alpha_deg, beta_deg, gamma_deg):
+    a = np.deg2rad(alpha_deg)
+    b = np.deg2rad(beta_deg)
+    g = np.deg2rad(gamma_deg)
+    rot1 = np.array([[np.cos(g), -np.sin(g), 0.0],
+                     [np.sin(g),  np.cos(g), 0.0],
+                     [0.0,        0.0,       1.0]])
+    rot2 = np.array([[ np.cos(a), 0.0, np.sin(a)],
+                     [0.0,        1.0, 0.0],
+                     [-np.sin(a), 0.0, np.cos(a)]])
+    rot3 = np.array([[1.0, 0.0,       0.0],
+                     [0.0, np.cos(b), np.sin(b)],
+                     [0.0, -np.sin(b), np.cos(b)]])
+    return rot2 @ rot3 @ rot1
+
+def az_el_to_image(az_deg, el_deg, optpar=optpar, optmod=optmod,
+                   width=image_width, height=image_height):
+    az = np.deg2rad(az_deg)
+    ze = np.deg2rad(90.0 - el_deg)
+    rot = _camera_rot(optpar[2], optpar[3], optpar[4])
+    sinze = np.sin(ze)
+    es = np.array([sinze * np.sin(az), sinze * np.cos(az), np.cos(ze)])
+    s1, s2, s3 = es @ rot
+    radial = np.hypot(s1, s2)
+    f1, f2, du, dv, radial_alpha = optpar[0], optpar[1], optpar[5], optpar[6], optpar[7]
+    if radial <= 1e-12:
+        u_norm = 0.5 + du
+        v_norm = 0.5 + dv
+    elif optmod == 2:
+        theta = np.arctan2(radial, s3)
+        r = np.sin(radial_alpha * theta)
+        u_norm = f1 * s1 / radial * r + 0.5 + du
+        v_norm = f2 * s2 / radial * r + 0.5 + dv
+    else:
+        theta = np.arctan2(radial, s3)
+        safe_s3 = max(s3, 1e-12)
+        u_norm = f1 * (1.0 - radial_alpha) * s1 / safe_s3 + f1 * radial_alpha * s1 / radial * theta + 0.5 + du
+        v_norm = f2 * (1.0 - radial_alpha) * s2 / safe_s3 + f2 * radial_alpha * s2 / radial * theta + 0.5 + dv
+    return np.array([u_norm * width - 1.0, v_norm * height - 1.0])
+
+def image_to_az_el(x, y, optpar=optpar, optmod=optmod,
+                   width=image_width, height=image_height):
+    """Invert the fitted AIDA camera model for one image pixel.
+
+    Returns (azimuth_deg, elevation_deg). Azimuth is wrapped to 0..360 deg.
+    This numerical inverse is intended for calibrated all-sky pixels above
+    the horizon; outside the fitted field of view the result can be ambiguous.
+    """
+    target = np.array([x, y], dtype=float)
+
+    def residual(q):
+        az_deg = q[0] % 360.0
+        el_deg = q[1]
+        return az_el_to_image(az_deg, el_deg, optpar, optmod, width, height) - target
+
+    starts = [
+        np.array([0.0, 90.0]),
+        np.array([0.0, 60.0]),
+        np.array([90.0, 60.0]),
+        np.array([180.0, 60.0]),
+        np.array([270.0, 60.0]),
+        np.array([0.0, 25.0]),
+        np.array([90.0, 25.0]),
+        np.array([180.0, 25.0]),
+        np.array([270.0, 25.0]),
+    ]
+    best = None
+    for start in starts:
+        result = least_squares(residual, start, bounds=([-720.0, 0.0], [720.0, 90.0]))
+        err = np.linalg.norm(result.fun)
+        if best is None or err < best[0]:
+            best = (err, result.x)
+    az_deg = best[1][0] % 360.0
+    el_deg = best[1][1]
+    return az_deg, el_deg
+`;
+    }
+
+    function copyTextToClipboard(text, label) {
+        const done = () => {
+            state.fitMessage = `${label} copied to clipboard`;
+            render();
+        };
+        if (navigator.clipboard && window.isSecureContext) {
+            navigator.clipboard.writeText(text).then(done).catch(() => {
+                fallbackCopyText(text);
+                done();
+            });
+            return;
+        }
+        fallbackCopyText(text);
+        done();
+    }
+
+    function fallbackCopyText(text) {
+        const area = document.createElement("textarea");
+        area.value = text;
+        area.setAttribute("readonly", "");
+        area.style.position = "fixed";
+        area.style.left = "-9999px";
+        document.body.appendChild(area);
+        area.select();
+        document.execCommand("copy");
+        document.body.removeChild(area);
     }
 
     function clamp(value, lo, hi) {
@@ -1321,7 +1454,7 @@
 
     function matchInstructionText() {
         if (!state.image) {
-            return "Load an image first. Press s or p for star pairing, or c to switch between image and Stellarium views.";
+            return "Load an image first. Press s for star picking, or c to switch between image and Stellarium views.";
         }
         if (state.showFitResiduals) {
             return "Fit residual mode: normal markings are hidden. Red lines connect each identified image star to its fitted catalog position; press r to return.";
@@ -1336,7 +1469,7 @@
             return "Zoom mode: move the mouse over the image to inspect a 100 x 100 raw-pixel region.";
         }
         if (!state.starMatchMode) {
-            return "Left-drag moves the 90 deg elevation point in x/y. Right-drag rotates the azimuth grid around that point. Wheel edits f1/f2 together. Press c to switch image/Stellarium view, s or p for star pairing, n to show/hide star names, d to delete an auto detection, m to mask image regions, or z to zoom.";
+            return "Left-drag moves the 90 deg elevation point in x/y. Right-drag rotates the azimuth grid around that point. Wheel edits f1/f2 together. Press c to switch image/Stellarium view, s for star picking, n to show/hide star names, d to delete an auto detection, m to mask image regions, or z to zoom.";
         }
         if (!state.pendingMatch) {
             return "Star pairing: hold s and click the image star. A KDE centroid fit will select the sub-pixel star position.";
@@ -3340,6 +3473,12 @@
     });
     controls.fitLens.addEventListener("click", fitLensFromMatches);
     controls.fitLensLm.addEventListener("click", fitLensLevenbergMarquardt);
+    controls.copyOptpar.addEventListener("click", () => {
+        copyTextToClipboard(optparPythonArrayText(), "optpar Python array");
+    });
+    controls.copyPythonMapper.addEventListener("click", () => {
+        copyTextToClipboard(pythonImageToAzElFunctionText(), "image-to-az/el Python function");
+    });
     controls.clearMatches.addEventListener("click", clearIdentifiedStars);
 
     canvas.addEventListener("pointerdown", event => {
@@ -3438,9 +3577,6 @@
         if ((event.key === "s" || event.key === "S") && !event.repeat) {
             event.preventDefault();
             enableStarPairingMode(true);
-        } else if ((event.key === "p" || event.key === "P") && !event.repeat) {
-            event.preventDefault();
-            enableStarPairingMode(false);
         } else if ((event.key === "d" || event.key === "D") && !event.repeat) {
             event.preventDefault();
             state.deleteDetectionMode = true;
