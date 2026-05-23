@@ -2092,6 +2092,7 @@ def image_to_az_el(x, y, optpar=optpar, optmod=optmod,
 
         const sx = fineX => plot.x0 + (fineX / (density.width - 1)) * plot.w;
         const sy = fineY => plot.y0 + plot.h - (fineY / (density.height - 1)) * plot.h;
+        drawDensityBitmapUnderlay(density, plot);
         densityContext.strokeStyle = "rgba(148, 163, 184, 0.42)";
         densityContext.lineWidth = 1;
         densityContext.strokeRect(plot.x0, plot.y0, plot.w, plot.h);
@@ -2155,6 +2156,47 @@ def image_to_az_el(x, y, optpar=optpar, optmod=optmod,
             plot.x0 + 8,
             h - 12
         );
+    }
+
+    function drawDensityBitmapUnderlay(density, plot) {
+        if (!state.imagePixels) {
+            return;
+        }
+        const patchWidth = Math.max(1, Math.round(density.width / density.upsample));
+        const patchHeight = Math.max(1, Math.round(density.height / density.upsample));
+        const patchCanvas = document.createElement("canvas");
+        patchCanvas.width = patchWidth;
+        patchCanvas.height = patchHeight;
+        const patchContext = patchCanvas.getContext("2d");
+        const patchData = patchContext.createImageData(patchWidth, patchHeight);
+        const values = [];
+        for (let y = 0; y < patchHeight; y++) {
+            for (let x = 0; x < patchWidth; x++) {
+                values.push(imageGray(density.originX + x, density.originY + y));
+            }
+        }
+        const sorted = values.slice().sort((a, b) => a - b);
+        const lo = sorted[Math.floor(0.02 * (sorted.length - 1))] ?? 0;
+        const hi = sorted[Math.floor(0.98 * (sorted.length - 1))] ?? 255;
+        const scale = hi > lo ? 255 / (hi - lo) : 1;
+        for (let y = 0; y < patchHeight; y++) {
+            for (let x = 0; x < patchWidth; x++) {
+                const srcIndex = y * patchWidth + x;
+                const dstY = patchHeight - 1 - y;
+                const dstIndex = 4 * (dstY * patchWidth + x);
+                const value = Math.max(0, Math.min(255, (values[srcIndex] - lo) * scale));
+                patchData.data[dstIndex] = value;
+                patchData.data[dstIndex + 1] = value;
+                patchData.data[dstIndex + 2] = value;
+                patchData.data[dstIndex + 3] = 255;
+            }
+        }
+        patchContext.putImageData(patchData, 0, 0);
+        densityContext.save();
+        densityContext.imageSmoothingEnabled = false;
+        densityContext.globalAlpha = 0.78;
+        densityContext.drawImage(patchCanvas, plot.x0, plot.y0, plot.w, plot.h);
+        densityContext.restore();
     }
 
     function addPopupContourSegment(x, y, v00, v10, v11, v01, threshold, sx, sy) {
