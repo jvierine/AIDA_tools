@@ -1460,7 +1460,7 @@ def image_to_az_el(x, y, optpar=optpar, optmod=optmod,
             return "Fit residual mode: normal markings are hidden. Red lines connect each identified image star to its fitted catalog position; press r to return.";
         }
         if (state.deleteDetectionMode) {
-            return "Detection delete mode: click an automatically detected star to remove it from proximity matching.";
+            return "Pairing delete mode: click a matched image or catalog star to remove that star pairing.";
         }
         if (state.maskMode) {
             return "Mask mode: click the image to black out a 100 px radius region and exclude it from starfinding.";
@@ -1469,7 +1469,7 @@ def image_to_az_el(x, y, optpar=optpar, optmod=optmod,
             return "Zoom mode: move the mouse over the image to inspect a 100 x 100 raw-pixel region.";
         }
         if (!state.starMatchMode) {
-            return "Left-drag moves the 90 deg elevation point in x/y. Right-drag rotates the azimuth grid around that point. Wheel edits f1/f2 together. Press c to switch image/Stellarium view, s for star picking, n to show/hide star names, d to delete an auto detection, m to mask image regions, or z to zoom.";
+            return "Left-drag moves the 90 deg elevation point in x/y. Right-drag rotates the azimuth grid around that point. Wheel edits f1/f2 together. Press c to switch image/Stellarium view, s for star picking, n to show/hide star names, d to delete a star pairing, m to mask image regions, or z to zoom.";
         }
         if (!state.pendingMatch) {
             return "Star pairing: hold s and click the image star. A KDE centroid fit will select the sub-pixel star position.";
@@ -2537,9 +2537,11 @@ def image_to_az_el(x, y, optpar=optpar, optmod=optmod,
             raw[i] = Math.max(0, raw[i] - background);
         }
 
-        // 80x80 interpolated-pixel Gaussian support. Sigma=13.3 fine pixels
-        // gives a practical +/-40 fine-pixel smoothing footprint.
-        const kernel = gaussianKernel(13.3);
+        // 160x160 interpolated-pixel Gaussian support. Sigma=26.6 fine pixels
+        // gives a practical +/-80 fine-pixel smoothing footprint.
+        const gaussianSigmaFinePx = 26.6;
+        const gaussianSupportFinePx = 160;
+        const kernel = gaussianKernel(gaussianSigmaFinePx);
         const horizontal = convolveHorizontal(raw, fineWidth, fineHeight, kernel);
         const smooth = convolveVertical(horizontal, fineWidth, fineHeight, kernel);
         let bestIndex = 0;
@@ -2583,9 +2585,9 @@ def image_to_az_el(x, y, optpar=optpar, optmod=optmod,
             selectedFineY: bestFineY,
             selectedValue: bestValue,
             background,
-            gaussianSupportPx: 80,
+            gaussianSupportPx: gaussianSupportFinePx,
         };
-        return {x: cx, y: cy, sigma: 13.3 / upsample, method: "upsampled KDE"};
+        return {x: cx, y: cy, sigma: gaussianSigmaFinePx / upsample, method: "upsampled KDE"};
     }
 
     function nearestProjectedStar(event) {
@@ -2754,34 +2756,11 @@ def image_to_az_el(x, y, optpar=optpar, optmod=optmod,
         render();
     }
 
-    function handleDeleteDetectionClick(event) {
-        const imagePoint = eventToImagePixel(event);
-        if (!imagePoint || state.detectedStars.length === 0) {
-            return;
-        }
-        let best = null;
-        let bestD2 = Infinity;
-        for (const detection of state.detectedStars) {
-            if (state.deletedDetectionIds.has(detection.id)) {
-                continue;
-            }
-            const dx = detection.x - imagePoint.x;
-            const dy = detection.y - imagePoint.y;
-            const d2 = dx * dx + dy * dy;
-            if (d2 < bestD2) {
-                best = detection;
-                bestD2 = d2;
-            }
-        }
-        if (!best || bestD2 > 18 * 18) {
-            state.fitMessage = "delete detection: no auto-detected star within 18 px";
+    function handleDeletePairingClick(event) {
+        if (!removeNearestMatchedStar(event)) {
+            state.fitMessage = "delete pairing: no matched image or catalog star nearby";
             render();
-            return;
         }
-        state.deletedDetectionIds.add(best.id);
-        state.fitMessage = `deleted auto detection ${best.id} at x/y ${best.x.toFixed(2)}, ${best.y.toFixed(2)}`;
-        updateAutoMatches();
-        render();
     }
 
     function fitPenalty(x) {
@@ -3489,7 +3468,7 @@ def image_to_az_el(x, y, optpar=optpar, optmod=optmod,
         }
         if (state.deleteDetectionMode && event.button === 0) {
             event.preventDefault();
-            handleDeleteDetectionClick(event);
+            handleDeletePairingClick(event);
             return;
         }
         if (state.displayMode === "pairing" && state.starMatchMode && event.button === 0) {
