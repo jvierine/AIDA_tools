@@ -47,6 +47,39 @@ body {
     text-decoration: none;
 }
 
+.audio-button {
+    display: inline-grid;
+    place-items: center;
+    width: 34px;
+    min-height: 34px;
+    margin: 0;
+    padding: 0;
+    border-radius: 50%;
+    background: #111827;
+}
+
+.audio-button.toggle-on {
+    background: #065f46;
+}
+
+.audio-icon {
+    width: 0;
+    height: 0;
+    margin-left: 3px;
+    border-top: 7px solid transparent;
+    border-bottom: 7px solid transparent;
+    border-left: 11px solid #ffffff;
+}
+
+.audio-button.toggle-on .audio-icon {
+    width: 12px;
+    height: 12px;
+    margin-left: 0;
+    border: 0;
+    background: #ffffff;
+    border-radius: 1px;
+}
+
 .top-link:hover {
     background: #d1d5db;
 }

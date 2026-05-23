@@ -60,3 +60,19 @@ test("density centroid stores the unfiltered interpolated patch for display", ()
     const smoothValue = density.values[fineY * density.width + fineX];
     assert.notEqual(smoothValue, rawValue);
 });
+
+test("fast density centroid remains fast enough for interactive picking", () => {
+    const sample = gaussianStar(19.42, 21.73, 1.7, 900, 28);
+    const start = performance.now();
+    const runs = 8;
+    for (let i = 0; i < runs; i++) {
+        const result = AidaCentroid.estimateCentroid(20.0, 21.0, sample);
+        assertNear(result.x, 19.42, 0.015, "interactive speed x");
+        assertNear(result.y, 21.73, 0.015, "interactive speed y");
+    }
+    const elapsedMs = performance.now() - start;
+    assert.ok(
+        elapsedMs < 850,
+        `expected ${runs} density estimates below 850 ms, got ${elapsedMs.toFixed(1)} ms`,
+    );
+});

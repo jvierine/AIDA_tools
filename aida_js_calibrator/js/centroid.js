@@ -62,6 +62,72 @@
         return dst;
     }
 
+    function boxSizesForGaussian(sigma, passes) {
+        const ideal = Math.sqrt((12 * sigma * sigma / passes) + 1);
+        let lower = Math.floor(ideal);
+        if (lower % 2 === 0) {
+            lower -= 1;
+        }
+        const upper = lower + 2;
+        const mIdeal = (12 * sigma * sigma - passes * lower * lower - 4 * passes * lower - 3 * passes) /
+            (-4 * lower - 4);
+        const m = Math.round(mIdeal);
+        return Array.from({length: passes}, (_, i) => i < m ? lower : upper).map(size => Math.max(1, size));
+    }
+
+    function boxBlurHorizontal(src, width, height, radius) {
+        if (radius <= 0) {
+            return src.slice();
+        }
+        const dst = new Float32Array(src.length);
+        const windowSize = 2 * radius + 1;
+        for (let y = 0; y < height; y++) {
+            const row = y * width;
+            let sum = src[row] * (radius + 1);
+            for (let i = 1; i <= radius; i++) {
+                sum += src[row + Math.min(width - 1, i)];
+            }
+            for (let x = 0; x < width; x++) {
+                dst[row + x] = sum / windowSize;
+                const removeX = Math.max(0, x - radius);
+                const addX = Math.min(width - 1, x + radius + 1);
+                sum += src[row + addX] - src[row + removeX];
+            }
+        }
+        return dst;
+    }
+
+    function boxBlurVertical(src, width, height, radius) {
+        if (radius <= 0) {
+            return src.slice();
+        }
+        const dst = new Float32Array(src.length);
+        const windowSize = 2 * radius + 1;
+        for (let x = 0; x < width; x++) {
+            let sum = src[x] * (radius + 1);
+            for (let i = 1; i <= radius; i++) {
+                sum += src[Math.min(height - 1, i) * width + x];
+            }
+            for (let y = 0; y < height; y++) {
+                dst[y * width + x] = sum / windowSize;
+                const removeY = Math.max(0, y - radius);
+                const addY = Math.min(height - 1, y + radius + 1);
+                sum += src[addY * width + x] - src[removeY * width + x];
+            }
+        }
+        return dst;
+    }
+
+    function fastGaussianApprox(src, width, height, sigma) {
+        let out = src;
+        for (const size of boxSizesForGaussian(sigma, 4)) {
+            const radius = Math.floor(size / 2);
+            out = boxBlurHorizontal(out, width, height, radius);
+            out = boxBlurVertical(out, width, height, radius);
+        }
+        return out;
+    }
+
     function estimateCentroid(clickX, clickY, sample, options = {}) {
         const upsample = options.upsample ?? 40;
         const patchRadius = options.patchRadius ?? 8;
@@ -92,9 +158,7 @@
             raw[i] = Math.max(0, raw[i] - background);
         }
 
-        const kernel = gaussianKernel(gaussianSigmaFinePx);
-        const horizontal = convolveHorizontal(raw, fineWidth, fineHeight, kernel);
-        const smooth = convolveVertical(horizontal, fineWidth, fineHeight, kernel);
+        const smooth = fastGaussianApprox(raw, fineWidth, fineHeight, gaussianSigmaFinePx);
         let bestIndex = 0;
         let bestValue = -Infinity;
         for (let i = 0; i < smooth.length; i++) {
@@ -149,6 +213,7 @@
         convolveHorizontal,
         convolveVertical,
         estimateCentroid,
+        fastGaussianApprox,
         gaussianKernel,
     };
 }));

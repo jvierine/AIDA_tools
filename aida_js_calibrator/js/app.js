@@ -45,6 +45,7 @@
         toggleAzElGrid: document.getElementById("toggleAzElGrid"),
         toggleDetectionCircles: document.getElementById("toggleDetectionCircles"),
         toggleStarNames: document.getElementById("toggleStarNames"),
+        toggleAmbientMusic: document.getElementById("toggleAmbientMusic"),
         resetOffset: document.getElementById("resetOffset"),
         optmod: document.getElementById("optmod"),
         fScaleX: document.getElementById("fScaleX"),
@@ -86,7 +87,8 @@
         imageFlipY: false,
         displayMode: "pairing",
         previousAnnotatedDisplayMode: "pairing",
-        maxMagByMode: {stellarium: 6.0, pairing: 4.0},
+        ambientMusic: null,
+        maxMagByMode: {stellarium: 6.0, pairing: 4.0, pureImage: 6.0, pureStellarium: 6.0},
         starNamesByMode: {stellarium: false, pairing: true},
         showRaDecGrid: false,
         showAzElGrid: true,
@@ -1497,6 +1499,11 @@ def image_to_az_el(x, y, optpar=optpar, optmod=optmod,
         } else {
             updateResidualHistogram([]);
             if (state.displayMode === "pureImage") {
+                drawAzElGrid();
+                cardinalLayer.replaceChildren();
+            } else if (state.displayMode === "pureStellarium") {
+                drawAzElGrid();
+                drawStars();
                 cardinalLayer.replaceChildren();
             } else {
                 drawAzElGrid();
@@ -1548,15 +1555,15 @@ def image_to_az_el(x, y, optpar=optpar, optmod=optmod,
     }
 
     function setDisplayMode(mode) {
-        if (!["pairing", "stellarium", "pureImage"].includes(mode)) {
+        if (!["pairing", "stellarium", "pureImage", "pureStellarium"].includes(mode)) {
             return;
         }
-        if (state.maxMagByMode[state.displayMode]) {
+        if (Object.prototype.hasOwnProperty.call(state.maxMagByMode, state.displayMode)) {
             state.maxMagByMode[state.displayMode] = Number(controls.maxMag.value) || 4.0;
             state.starNamesByMode[state.displayMode] = state.showStarNames;
         }
         state.displayMode = mode;
-        if (state.maxMagByMode[mode]) {
+        if (Object.prototype.hasOwnProperty.call(state.maxMagByMode, mode)) {
             controls.maxMag.value = state.maxMagByMode[mode].toFixed(1);
             state.showStarNames = state.starNamesByMode[mode];
         }
@@ -1571,7 +1578,10 @@ def image_to_az_el(x, y, optpar=optpar, optmod=optmod,
             return "Fit residual mode: normal markings are hidden. Red lines connect each identified image star to its fitted catalog position; press r to return.";
         }
         if (state.displayMode === "pureImage") {
-            return "Pure image view: all annotations are hidden. Press x to return to the previous annotated view, or s to start picking stars.";
+            return "Pure image view: labels and pairing annotations are hidden. Press x for pure Stellarium view, or s to start picking stars.";
+        }
+        if (state.displayMode === "pureStellarium") {
+            return "Pure Stellarium view: labels and pairing annotations are hidden. Press x for pure image view, or s to start picking stars.";
         }
         if (state.deleteDetectionMode) {
             return "Pairing delete mode: click a matched image or catalog star to remove that star pairing.";
@@ -1586,7 +1596,7 @@ def image_to_az_el(x, y, optpar=optpar, optmod=optmod,
             if (state.showKdePositionDots) {
                 return "KDE dot inspection: all other markings are hidden. Press k to return to the normal overlay.";
             }
-            return "Star pairing view: left-drag moves the 90 deg elevation point in x/y. Right-drag rotates the azimuth grid around that point. Wheel edits f1/f2 together. Press c for Stellarium view, x for pure image view, s to pick an image star, k for KDE sub-pixel dots, n to show/hide star names, d to delete a star pairing, m to mask image regions, or z to zoom.";
+            return "Star pairing view: left-drag moves the 90 deg elevation point in x/y. Right-drag rotates the azimuth grid around that point. Wheel edits f1/f2 together. Press c for Stellarium view, x for pure image/Stellarium views, s to pick an image star, k for KDE sub-pixel dots, n to show/hide star names, d to delete a star pairing, m to mask image regions, or z to zoom.";
         }
         if (!state.pendingMatch) {
             return "Star pairing: hold s and click the image star. A KDE centroid fit will select the sub-pixel star position.";
@@ -2854,6 +2864,7 @@ def image_to_az_el(x, y, optpar=optpar, optmod=optmod,
         state.pendingMatch = null;
         clearDensityEstimate();
         state.showPickedMatchMarkers = true;
+        playPairingRewardSound();
         render();
     }
 
@@ -3570,9 +3581,11 @@ def image_to_az_el(x, y, optpar=optpar, optmod=optmod,
         recomputeAndRender();
     }
 
-    function togglePureImageView() {
+    function togglePureView() {
         if (state.displayMode === "pureImage") {
-            setDisplayMode(state.previousAnnotatedDisplayMode || "pairing");
+            setDisplayMode("pureStellarium");
+        } else if (state.displayMode === "pureStellarium") {
+            setDisplayMode("pureImage");
         } else {
             if (state.displayMode === "pairing" || state.displayMode === "stellarium") {
                 state.previousAnnotatedDisplayMode = state.displayMode;
@@ -3587,6 +3600,479 @@ def image_to_az_el(x, y, optpar=optpar, optmod=optmod,
         state.pendingMatch = null;
         updateDetectionCircleButton();
         recomputeAndRender();
+        playInteractionSound("mode");
+    }
+
+    function updateAmbientMusicButton() {
+        const playing = Boolean(state.ambientMusic);
+        const label = playing ? "Stop ambient sky music" : "Play ambient sky music";
+        controls.toggleAmbientMusic.setAttribute("aria-label", label);
+        controls.toggleAmbientMusic.classList.toggle("toggle-on", playing);
+    }
+
+    function createAmbientVoice(audioContext, destination, frequency, detuneCents, gainValue, waveType) {
+        const osc = audioContext.createOscillator();
+        const gain = audioContext.createGain();
+        const detuneLfo = audioContext.createOscillator();
+        const detuneGain = audioContext.createGain();
+        osc.type = waveType;
+        osc.frequency.value = frequency;
+        osc.detune.value = detuneCents;
+        gain.gain.value = 0.0001;
+        detuneLfo.type = "sine";
+        detuneLfo.frequency.value = 0.001 + Math.random() * 0.002;
+        detuneGain.gain.value = 0.25 + Math.random() * 0.55;
+        detuneLfo.connect(detuneGain);
+        detuneGain.connect(osc.detune);
+        osc.connect(gain);
+        gain.connect(destination);
+        osc.start();
+        detuneLfo.start();
+        gain.gain.setTargetAtTime(gainValue, audioContext.currentTime + 0.05, 3.5);
+        return {osc, gain, detuneLfo, detuneGain};
+    }
+
+    function createSpaceReverb(audioContext, seconds = 8.5, decay = 4.8) {
+        const sampleRate = audioContext.sampleRate;
+        const length = Math.max(1, Math.floor(sampleRate * seconds));
+        const impulse = audioContext.createBuffer(2, length, sampleRate);
+        for (let channel = 0; channel < impulse.numberOfChannels; channel += 1) {
+            const data = impulse.getChannelData(channel);
+            for (let i = 0; i < length; i += 1) {
+                const t = i / length;
+                const envelope = Math.pow(1 - t, decay);
+                const shimmer = Math.sin(i * 0.013 + channel * 1.7) * 0.35 + 0.65;
+                data[i] = (Math.random() * 2 - 1) * envelope * shimmer;
+            }
+        }
+        const convolver = audioContext.createConvolver();
+        convolver.buffer = impulse;
+        return convolver;
+    }
+
+    function setAmbientChord(music, notes) {
+        const now = music.audioContext.currentTime;
+        for (const [index, voice] of music.voices.entries()) {
+            const note = notes[index % notes.length];
+            voice.osc.frequency.setTargetAtTime(note, now, 18.0);
+            voice.gain.gain.setTargetAtTime(0.0028 + 0.00045 * (index % 5), now, 14.0);
+        }
+    }
+
+    function chooseRandomIndex(length, avoid = -1) {
+        if (length <= 1) {
+            return 0;
+        }
+        let index = Math.floor(Math.random() * length);
+        if (index === avoid) {
+            index = (index + 1 + Math.floor(Math.random() * (length - 1))) % length;
+        }
+        return index;
+    }
+
+    function randomChoice(values) {
+        return values[Math.floor(Math.random() * values.length)];
+    }
+
+    function midiToFrequency(midi) {
+        return 440 * Math.pow(2, (midi - 69) / 12);
+    }
+
+    function chordFromMidi(root, intervals, upper = []) {
+        return intervals.concat(upper).map(interval => midiToFrequency(root + interval));
+    }
+
+    function playSputnikBeep(music, when, frequency = 1040) {
+        const audioContext = music.audioContext;
+        const osc = audioContext.createOscillator();
+        const gain = audioContext.createGain();
+        osc.type = "sine";
+        osc.frequency.setValueAtTime(frequency, when);
+        gain.gain.setValueAtTime(0.0001, when);
+        gain.gain.exponentialRampToValueAtTime(0.030, when + 0.035);
+        gain.gain.exponentialRampToValueAtTime(0.0001, when + 0.34);
+        osc.connect(gain);
+        gain.connect(music.delay);
+        gain.connect(music.reverb);
+        gain.connect(music.dryGain);
+        osc.start(when);
+        osc.stop(when + 0.42);
+        window.setTimeout(() => {
+            osc.disconnect();
+            gain.disconnect();
+        }, 900);
+    }
+
+    function playSputnikPass(music) {
+        const now = music.audioContext.currentTime + 0.05;
+        const base = [880, 987.77, 1046.50, 1174.66][music.beepIndex % 4];
+        const count = 4 + (music.beepIndex % 3);
+        for (let i = 0; i < count; i += 1) {
+            playSputnikBeep(music, now + i * 0.82, base * (i % 2 === 0 ? 1 : 1.12246));
+        }
+        music.beepIndex += 1;
+    }
+
+    function playInteractionSound(kind = "click") {
+        const music = state.ambientMusic;
+        if (!music) {
+            return;
+        }
+        const audioContext = music.audioContext;
+        const now = audioContext.currentTime + 0.01;
+        const osc = audioContext.createOscillator();
+        const gain = audioContext.createGain();
+        const palette = {
+            click: {frequency: midiToFrequency(84), gain: 0.0045, length: 0.10},
+            mode: {frequency: midiToFrequency(79), gain: 0.0060, length: 0.24},
+            pick: {frequency: midiToFrequency(88), gain: 0.0065, length: 0.18},
+            fit: {frequency: midiToFrequency(83), gain: 0.0080, length: 0.36},
+            delete: {frequency: midiToFrequency(74), gain: 0.0058, length: 0.22},
+        };
+        const tone = palette[kind] || palette.click;
+        osc.type = "sine";
+        osc.frequency.setValueAtTime(tone.frequency, now);
+        osc.frequency.exponentialRampToValueAtTime(tone.frequency * 1.006, now + tone.length);
+        gain.gain.setValueAtTime(0.0001, now);
+        gain.gain.exponentialRampToValueAtTime(tone.gain, now + 0.018);
+        gain.gain.exponentialRampToValueAtTime(0.0001, now + tone.length);
+        osc.connect(gain);
+        gain.connect(music.delay);
+        gain.connect(music.reverb);
+        if (kind === "click" && Math.random() < 0.35) {
+            gain.connect(music.dryGain);
+        }
+        osc.start(now);
+        osc.stop(now + tone.length + 0.05);
+        window.setTimeout(() => {
+            osc.disconnect();
+            gain.disconnect();
+        }, 700);
+    }
+
+    function playPairingRewardSound() {
+        const music = state.ambientMusic;
+        if (!music) {
+            return;
+        }
+        const theme = music.themes[music.themeIndex];
+        const chord = theme.chords[music.chordIndex];
+        const now = music.audioContext.currentTime + 0.03;
+        const notes = [
+            chord[1] * 2,
+            chord[2] * 2,
+            chord[4] * 2,
+            theme.melody[(music.melodyIndex + 2) % theme.melody.length],
+        ];
+        notes.forEach((note, i) => {
+            playAmbientBell(music, note, now + i * 0.18, 0.007 + i * 0.0018);
+        });
+        music.melodyIndex += 1;
+    }
+
+    function playPingSound() {
+        const music = state.ambientMusic;
+        if (!music) {
+            return;
+        }
+        const now = music.audioContext.currentTime + 0.01;
+        playAmbientBell(music, midiToFrequency(91), now, 0.012);
+    }
+
+    function playAmbientBell(music, frequency, when, gainValue = 0.018) {
+        const audioContext = music.audioContext;
+        const osc = audioContext.createOscillator();
+        const gain = audioContext.createGain();
+        const filter = audioContext.createBiquadFilter();
+        osc.type = "sine";
+        osc.frequency.setValueAtTime(frequency, when);
+        osc.frequency.exponentialRampToValueAtTime(frequency * 0.999, when + 2.6);
+        filter.type = "lowpass";
+        filter.frequency.setValueAtTime(2600, when);
+        filter.frequency.exponentialRampToValueAtTime(1200, when + 2.8);
+        filter.Q.value = 0.35;
+        gain.gain.setValueAtTime(0.0001, when);
+        gain.gain.exponentialRampToValueAtTime(gainValue, when + 0.12);
+        gain.gain.exponentialRampToValueAtTime(0.0001, when + 4.6);
+        osc.connect(filter);
+        filter.connect(gain);
+        gain.connect(music.filter);
+        gain.connect(music.reverb);
+        osc.start(when);
+        osc.stop(when + 4.8);
+        window.setTimeout(() => {
+            osc.disconnect();
+            filter.disconnect();
+            gain.disconnect();
+        }, 5200);
+    }
+
+    function advanceAmbientTheme(music) {
+        if (Math.random() < 0.05) {
+            music.themeIndex = chooseRandomIndex(music.themes.length, music.themeIndex);
+            music.chordIndex = chooseRandomIndex(music.themes[music.themeIndex].chords.length);
+        } else {
+            const theme = music.themes[music.themeIndex];
+            const phraseStep = theme.motion[music.phraseIndex % theme.motion.length];
+            const randomStep = Math.random() < 0.08 ? 0 : phraseStep;
+            music.chordIndex = (music.chordIndex + randomStep + theme.chords.length) % theme.chords.length;
+            music.phraseIndex += 1;
+        }
+        const theme = music.themes[music.themeIndex];
+        music.filter.frequency.setTargetAtTime(
+            theme.filterHz + (Math.random() * 30 - 15),
+            music.audioContext.currentTime,
+            24.0
+        );
+        music.delay.delayTime.setTargetAtTime(1.05 + Math.random() * 0.08, music.audioContext.currentTime, 22.0);
+        setAmbientChord(music, theme.chords[music.chordIndex]);
+    }
+
+    function playAmbientArpeggio(music) {
+        const theme = music.themes[music.themeIndex];
+        const chord = theme.chords[music.chordIndex];
+        const now = music.audioContext.currentTime + 0.08;
+        const pattern = randomChoice(theme.motifs);
+        const start = music.melodyIndex % theme.melody.length;
+        let t = now;
+        pattern.forEach((degree, i) => {
+            if (degree === null) {
+                t += 0.58 + Math.random() * 0.32;
+                return;
+            }
+            const fromMelody = Math.random() < 0.68;
+            const note = fromMelody
+                ? theme.melody[(start + degree) % theme.melody.length]
+                : chord[(music.chordIndex + degree) % chord.length] * (Math.random() < 0.24 ? 2 : 1);
+            playAmbientBell(music, note, t, 0.0055 + 0.0016 * Math.min(i, 4));
+            t += 0.62 + Math.random() * 0.46;
+        });
+        if (Math.random() < 0.72) {
+            const spread = randomChoice(theme.harmonySpreads);
+            spread.forEach((degree, i) => {
+                const note = theme.melody[(start + degree) % theme.melody.length];
+                playAmbientBell(music, note, now + 0.16 + i * 0.055, 0.0038);
+            });
+        }
+        music.melodyIndex += 1 + Math.floor(Math.random() * 2);
+    }
+
+    function scheduleAmbientEvolution(music) {
+        music.evolutionTimeoutId = window.setTimeout(() => {
+            if (state.ambientMusic !== music) {
+                return;
+            }
+            advanceAmbientTheme(music);
+            scheduleAmbientEvolution(music);
+        }, 36000 + Math.random() * 42000);
+    }
+
+    function scheduleAmbientArpeggio(music) {
+        music.arpeggioTimeoutId = window.setTimeout(() => {
+            if (state.ambientMusic !== music) {
+                return;
+            }
+            if (Math.random() < 0.82) {
+                playAmbientArpeggio(music);
+            }
+            scheduleAmbientArpeggio(music);
+        }, 5600 + Math.random() * 10500);
+    }
+
+    function scheduleSputnikPass(music) {
+        music.beepTimeoutId = window.setTimeout(() => {
+            if (state.ambientMusic !== music) {
+                return;
+            }
+            if (Math.random() < 0.58) {
+                playSputnikPass(music);
+            }
+            scheduleSputnikPass(music);
+        }, 18000 + Math.random() * 46000);
+    }
+
+    async function startAmbientMusic() {
+        if (state.ambientMusic) {
+            return;
+        }
+        const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+        if (!AudioContextClass) {
+            state.fitMessage = "ambient music unavailable: Web Audio is not supported in this browser";
+            render();
+            return;
+        }
+        const audioContext = new AudioContextClass();
+        await audioContext.resume();
+        const master = audioContext.createGain();
+        const dryGain = audioContext.createGain();
+        const wetGain = audioContext.createGain();
+        const filter = audioContext.createBiquadFilter();
+        const reverb = createSpaceReverb(audioContext);
+        const delay = audioContext.createDelay(8.0);
+        const delayFeedback = audioContext.createGain();
+        const delayWet = audioContext.createGain();
+        const lfo = audioContext.createOscillator();
+        const lfoGain = audioContext.createGain();
+        const themes = [
+            {
+                name: "morning dome",
+                filterHz: 1850,
+                motion: [0, 1, 0, 1, 0, 1, 0, 1],
+                chords: [
+                    chordFromMidi(48, [0, 7, 12, 16, 19], [26, 28]),
+                    chordFromMidi(53, [0, 7, 12, 14, 21], [24, 28]),
+                    chordFromMidi(55, [0, 5, 12, 16, 19], [24, 26]),
+                    chordFromMidi(50, [0, 7, 12, 17, 21], [24, 29]),
+                    chordFromMidi(45, [0, 7, 12, 16, 21], [24, 28]),
+                ],
+                melody: [72, 74, 76, 79, 81, 83, 86].map(midiToFrequency),
+                motifs: [[0, 2, 4, null, 3], [1, null, 2, 4], [3, 2, null, 0], [0, 1, 3, 5, null, 4]],
+                harmonySpreads: [[0, 2, 4], [1, 3, 5], [0, 3, 6], [2, 4, 6]],
+            },
+            {
+                name: "small settlement",
+                filterHz: 1550,
+                motion: [0, 1, 0, 1, 0, 1, 0, 1],
+                chords: [
+                    chordFromMidi(45, [0, 7, 12, 15, 19], [24, 27]),
+                    chordFromMidi(50, [0, 5, 12, 17, 21], [24, 29]),
+                    chordFromMidi(52, [0, 7, 12, 16, 19], [23, 28]),
+                    chordFromMidi(43, [0, 7, 12, 15, 22], [24, 27]),
+                    chordFromMidi(48, [0, 7, 12, 16, 19], [24, 28]),
+                ],
+                melody: [69, 71, 72, 76, 78, 79, 83].map(midiToFrequency),
+                motifs: [[0, 1, null, 3], [2, 4, 3, null, 1], [0, null, 2, null, 4], [3, 1, 0]],
+                harmonySpreads: [[0, 2, 4], [1, 3, 5], [0, 3, 6], [2, 4, 5]],
+            },
+            {
+                name: "star harbor",
+                filterHz: 2050,
+                motion: [0, 1, 0, 1, 0, 1, 0, 1],
+                chords: [
+                    chordFromMidi(50, [0, 7, 12, 14, 19], [24, 26]),
+                    chordFromMidi(57, [0, 7, 12, 16, 21], [24, 28]),
+                    chordFromMidi(55, [0, 7, 11, 14, 19], [24, 26]),
+                    chordFromMidi(52, [0, 7, 12, 16, 23], [24, 28]),
+                    chordFromMidi(47, [0, 7, 12, 14, 19], [24, 26]),
+                ],
+                melody: [74, 76, 78, 81, 83, 86, 88].map(midiToFrequency),
+                motifs: [[0, 2, 5, 4], [1, null, 3, 5], [4, 3, 1, null, 2], [0, 2, null, 4, 6]],
+                harmonySpreads: [[0, 2, 4], [1, 3, 6], [0, 4, 6], [2, 5, 6]],
+            },
+        ];
+        const voices = [];
+        master.gain.value = 0.0001;
+        dryGain.gain.value = 0.30;
+        wetGain.gain.value = 0.42;
+        delay.delayTime.value = 1.05;
+        delayFeedback.gain.value = 0.28;
+        delayWet.gain.value = 0.22;
+        filter.type = "lowpass";
+        filter.frequency.value = 2100;
+        filter.Q.value = 0.25;
+        lfo.type = "sine";
+        lfo.frequency.value = 0.004;
+        lfoGain.gain.value = 55;
+        lfo.connect(lfoGain);
+        lfoGain.connect(filter.frequency);
+        master.connect(filter);
+        filter.connect(dryGain);
+        filter.connect(reverb);
+        filter.connect(delay);
+        delay.connect(delayFeedback);
+        delayFeedback.connect(delay);
+        delay.connect(delayWet);
+        reverb.connect(wetGain);
+        dryGain.connect(audioContext.destination);
+        wetGain.connect(audioContext.destination);
+        delayWet.connect(audioContext.destination);
+        lfo.start();
+        for (let i = 0; i < 8; i += 1) {
+            voices.push(createAmbientVoice(
+                audioContext,
+                master,
+                themes[0].chords[0][i % themes[0].chords[0].length] * (i < 2 ? 0.5 : 1),
+                (i - 3.5) * 0.35,
+                0.0018 + 0.0003 * (i % 4),
+                i % 5 === 0 ? "triangle" : "sine"
+            ));
+        }
+        master.gain.setTargetAtTime(0.24, audioContext.currentTime + 0.1, 5.0);
+        const music = {
+            audioContext,
+            master,
+            dryGain,
+            wetGain,
+            filter,
+            reverb,
+            delay,
+            delayFeedback,
+            delayWet,
+            lfo,
+            voices,
+            themes,
+            themeIndex: 0,
+            chordIndex: 0,
+            phraseIndex: 0,
+            melodyIndex: 0,
+            beepIndex: 0,
+            evolutionTimeoutId: null,
+            arpeggioTimeoutId: null,
+            beepTimeoutId: null,
+        };
+        state.ambientMusic = music;
+        scheduleAmbientEvolution(music);
+        scheduleAmbientArpeggio(music);
+        scheduleSputnikPass(music);
+        updateAmbientMusicButton();
+    }
+
+    function stopAmbientMusic() {
+        const music = state.ambientMusic;
+        if (!music) {
+            return;
+        }
+        window.clearTimeout(music.evolutionTimeoutId);
+        window.clearTimeout(music.arpeggioTimeoutId);
+        window.clearTimeout(music.beepTimeoutId);
+        const now = music.audioContext.currentTime;
+        music.master.gain.setTargetAtTime(0.0001, now, 1.2);
+        window.setTimeout(() => {
+            for (const voice of music.voices) {
+                voice.osc.stop();
+                voice.detuneLfo.stop();
+                voice.osc.disconnect();
+                voice.gain.disconnect();
+                voice.detuneLfo.disconnect();
+                voice.detuneGain.disconnect();
+            }
+            music.lfo.stop();
+            music.lfo.disconnect();
+            music.master.disconnect();
+            music.dryGain.disconnect();
+            music.wetGain.disconnect();
+            music.filter.disconnect();
+            music.reverb.disconnect();
+            music.delay.disconnect();
+            music.delayFeedback.disconnect();
+            music.delayWet.disconnect();
+            music.audioContext.close();
+        }, 1800);
+        state.ambientMusic = null;
+        updateAmbientMusicButton();
+    }
+
+    function toggleAmbientMusic() {
+        if (state.ambientMusic) {
+            stopAmbientMusic();
+        } else {
+            startAmbientMusic().catch(error => {
+                state.fitMessage = `ambient music failed: ${error.message || error}`;
+                state.ambientMusic = null;
+                updateAmbientMusicButton();
+                render();
+            });
+        }
     }
 
     function enableStarPairingMode(armed = false) {
@@ -3610,7 +4096,9 @@ def image_to_az_el(x, y, optpar=optpar, optmod=optmod,
 
     function toggleStarNames() {
         state.showStarNames = !state.showStarNames;
-        state.starNamesByMode[state.displayMode] = state.showStarNames;
+        if (Object.prototype.hasOwnProperty.call(state.starNamesByMode, state.displayMode)) {
+            state.starNamesByMode[state.displayMode] = state.showStarNames;
+        }
         updateStarNameButton();
         render();
     }
@@ -3643,42 +4131,52 @@ def image_to_az_el(x, y, optpar=optpar, optmod=optmod,
     controls.highPassImage.addEventListener("change", refreshDisplayImage);
     controls.highPassWidth.addEventListener("input", refreshDisplayImage);
     controls.maxMag.addEventListener("input", () => {
-        state.maxMagByMode[state.displayMode] = Number(controls.maxMag.value) || 4.0;
+        if (Object.prototype.hasOwnProperty.call(state.maxMagByMode, state.displayMode)) {
+            state.maxMagByMode[state.displayMode] = Number(controls.maxMag.value) || 4.0;
+        }
+        playInteractionSound("click");
         recomputeAndRender();
     });
 
     controls.flipX.addEventListener("click", () => {
         state.flipX = !state.flipX;
+        playInteractionSound("mode");
         updateAutoMatches();
         render();
     });
     controls.flipY.addEventListener("click", () => {
         state.flipY = !state.flipY;
+        playInteractionSound("mode");
         updateAutoMatches();
         render();
     });
     controls.flipImageX.addEventListener("click", () => {
         state.imageFlipX = !state.imageFlipX;
+        playInteractionSound("mode");
         updateAutoMatches();
         render();
     });
     controls.flipImageY.addEventListener("click", () => {
         state.imageFlipY = !state.imageFlipY;
+        playInteractionSound("mode");
         updateAutoMatches();
         render();
     });
     controls.toggleRaDecGrid.addEventListener("click", () => {
         state.showRaDecGrid = !state.showRaDecGrid;
         controls.toggleRaDecGrid.textContent = state.showRaDecGrid ? "Hide RA/Dec grid" : "Show RA/Dec grid";
+        playInteractionSound("mode");
         render();
     });
     controls.toggleAzElGrid.addEventListener("click", () => {
         state.showAzElGrid = !state.showAzElGrid;
         controls.toggleAzElGrid.textContent = state.showAzElGrid ? "Hide az/el grid" : "Show az/el grid";
+        playInteractionSound("mode");
         render();
     });
     controls.toggleDetectionCircles.addEventListener("click", toggleDetectionCircles);
     controls.toggleStarNames.addEventListener("click", toggleStarNames);
+    controls.toggleAmbientMusic.addEventListener("click", toggleAmbientMusic);
     controls.toggleFitResiduals.addEventListener("click", toggleFitResiduals);
     densityPopupClose.addEventListener("click", () => {
         clearDensityEstimate();
@@ -3686,33 +4184,51 @@ def image_to_az_el(x, y, optpar=optpar, optmod=optmod,
     });
     controls.resetOffset.addEventListener("click", () => {
         setCameraAnglesFromBoresightAzEl(0, 90);
+        playInteractionSound("mode");
         recomputeAndRender();
     });
-    controls.fitLens.addEventListener("click", fitLensFromMatches);
-    controls.fitLensLm.addEventListener("click", fitLensLevenbergMarquardt);
-    controls.undoFit.addEventListener("click", undoFit);
+    controls.fitLens.addEventListener("click", () => {
+        playInteractionSound("fit");
+        fitLensFromMatches();
+    });
+    controls.fitLensLm.addEventListener("click", () => {
+        playInteractionSound("fit");
+        fitLensLevenbergMarquardt();
+    });
+    controls.undoFit.addEventListener("click", () => {
+        playInteractionSound("mode");
+        undoFit();
+    });
     controls.copyOptpar.addEventListener("click", () => {
+        playInteractionSound("click");
         copyTextToClipboard(optparPythonArrayText(), "optpar Python array");
     });
     controls.copyPythonMapper.addEventListener("click", () => {
+        playInteractionSound("click");
         copyTextToClipboard(pythonImageToAzElFunctionText(), "image-to-az/el Python function");
     });
-    controls.clearMatches.addEventListener("click", clearIdentifiedStars);
+    controls.clearMatches.addEventListener("click", () => {
+        playInteractionSound("delete");
+        clearIdentifiedStars();
+    });
 
     canvas.addEventListener("pointerdown", event => {
         if (state.maskMode && event.button === 0) {
             event.preventDefault();
             handleMaskClick(event);
+            playInteractionSound("delete");
             return;
         }
         if (state.deleteDetectionMode && event.button === 0) {
             event.preventDefault();
             handleDeletePairingClick(event);
+            playInteractionSound("delete");
             return;
         }
         if (state.displayMode === "pairing" && state.starMatchMode && event.button === 0) {
             event.preventDefault();
             handleStarMatchClick(event);
+            playInteractionSound("pick");
             return;
         }
         if (state.displayMode === "pairing" && state.pendingMatch && event.button === 0) {
@@ -3720,6 +4236,7 @@ def image_to_az_el(x, y, optpar=optpar, optmod=optmod,
             handleCatalogPairClick(event);
             return;
         }
+        playPingSound();
         state.dragging = true;
         state.lensDragMode = event.button === 0 ? "zenithPosition" : "azimuthGridRoll";
         state.lastMouse = [event.clientX, event.clientY];
@@ -3802,6 +4319,7 @@ def image_to_az_el(x, y, optpar=optpar, optmod=optmod,
         if ((event.key === "s" || event.key === "S") && !event.repeat) {
             event.preventDefault();
             enableStarPairingMode(true);
+            playInteractionSound("pick");
         } else if ((event.key === "d" || event.key === "D") && !event.repeat) {
             event.preventDefault();
             state.deleteDetectionMode = true;
@@ -3810,6 +4328,7 @@ def image_to_az_el(x, y, optpar=optpar, optmod=optmod,
             state.zoomMode = false;
             hideZoomCanvas();
             state.pendingMatch = null;
+            playInteractionSound("delete");
             render();
         } else if ((event.key === "m" || event.key === "M") && !event.repeat) {
             event.preventDefault();
@@ -3819,6 +4338,7 @@ def image_to_az_el(x, y, optpar=optpar, optmod=optmod,
             state.zoomMode = false;
             hideZoomCanvas();
             state.pendingMatch = null;
+            playInteractionSound("mode");
             render();
         } else if ((event.key === "z" || event.key === "Z") && !event.repeat) {
             event.preventDefault();
@@ -3827,28 +4347,35 @@ def image_to_az_el(x, y, optpar=optpar, optmod=optmod,
             state.deleteDetectionMode = false;
             state.starMatchMode = false;
             state.pendingMatch = null;
+            playInteractionSound("mode");
             render();
         } else if ((event.key === "c" || event.key === "C") && !event.repeat) {
             event.preventDefault();
             toggleDetectionCircles();
+            playInteractionSound("mode");
         } else if ((event.key === "x" || event.key === "X") && !event.repeat) {
             event.preventDefault();
-            togglePureImageView();
+            togglePureView();
         } else if ((event.key === "n" || event.key === "N") && !event.repeat) {
             event.preventDefault();
             toggleStarNames();
+            playInteractionSound("mode");
         } else if ((event.key === "k" || event.key === "K") && !event.repeat) {
             event.preventDefault();
             state.showKdePositionDots = !state.showKdePositionDots;
+            playInteractionSound("mode");
             render();
         } else if ((event.key === "r" || event.key === "R") && !event.repeat) {
             event.preventDefault();
             toggleFitResiduals();
+            playInteractionSound("mode");
         } else if ((event.key === "f" || event.key === "F") && !event.repeat) {
             event.preventDefault();
+            playInteractionSound("fit");
             fitLensFromMatches();
         } else if ((event.key === "g" || event.key === "G") && !event.repeat) {
             event.preventDefault();
+            playInteractionSound("fit");
             fitLensLevenbergMarquardt();
         } else if (event.key === "Escape" && state.pendingMatch) {
             event.preventDefault();
@@ -3896,6 +4423,7 @@ def image_to_az_el(x, y, optpar=optpar, optmod=optmod,
     });
 
     window.addEventListener("resize", render);
+    window.addEventListener("beforeunload", stopAmbientMusic);
     window.addEventListener("load", () => {
         state.lastLensEquation = "";
         updateLensEquation(currentOptpar(), Number(controls.optmod.value));
@@ -3909,6 +4437,7 @@ def image_to_az_el(x, y, optpar=optpar, optmod=optmod,
     });
     updateDetectionCircleButton();
     updateStarNameButton();
+    updateAmbientMusicButton();
     updateFitResidualButton();
     updateUndoFitButton();
     render();
