@@ -92,6 +92,12 @@
             catalog view. Press <kbd>N</kbd> to toggle star names.
         </li>
         <li>
+            Roughly align the catalog field of view before picking stars:
+            left-drag the image to move the 90 degree elevation point, right-drag
+            to rotate the azimuth grid, and use the mouse wheel to scale the
+            horizontal and vertical focal lengths together.
+        </li>
+        <li>
             Hold <kbd>S</kbd> and click an image star. The local star position is
             refined with an interpolated Gaussian-smoothed density estimate.
             Release <kbd>S</kbd>, then click the matching red catalog star.
@@ -124,7 +130,21 @@
         <li><kbd>G</kbd>: fit all eight optical parameters with Levenberg-Marquardt.</li>
         <li><kbd>R</kbd>: show or hide residual view.</li>
         <li><kbd>Esc</kbd>: cancel the current star selection or close the density popup.</li>
+        <li>Left mouse drag: move the field of view by shifting the 90 degree elevation point.</li>
+        <li>Right mouse drag: rotate the field of view around the 90 degree elevation point.</li>
+        <li>Mouse wheel: zoom the field of view by changing <code>f1</code> and <code>f2</code> together.</li>
     </ul>
+
+    <h2>Field of view adjustment</h2>
+    <p>
+        The first alignment step is meant to be visual and approximate. Drag with
+        the left mouse button until the catalog zenith is near the image zenith.
+        Drag with the right mouse button to rotate the star field so bright
+        catalog stars line up with the image orientation. Use the mouse wheel if
+        the projected catalog field is too wide or too narrow. After the field is
+        close, use <kbd>S</kbd> to create accurate star pairs and let the lens
+        optimizer refine all eight optical parameters.
+    </p>
 
     <h2>Export notes</h2>
     <p>
