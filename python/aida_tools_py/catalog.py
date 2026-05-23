@@ -18,6 +18,20 @@ class CatalogStar:
     magnitude: float
 
 
+def _parse_yale_catalog_line(line: str, name: str = "") -> CatalogStar | None:
+    parts = line.split()
+    if len(parts) < 8:
+        return None
+    ra_h, ra_m, ra_s = map(float, parts[0:3])
+    dec_d_text = parts[3]
+    dec_d, dec_m, dec_s = map(float, parts[3:6])
+    magnitude = float(parts[6])
+    ra_hours = ra_h + ra_m / 60.0 + ra_s / 3600.0
+    sign = -1.0 if dec_d_text.startswith("-") else 1.0
+    dec_deg = sign * (abs(dec_d) + dec_m / 60.0 + dec_s / 3600.0)
+    return CatalogStar(name=name, ra_hours=ra_hours, dec_deg=dec_deg, magnitude=magnitude)
+
+
 def _repo_root() -> Path:
     """Return the repository root from the installed package location."""
     return Path(__file__).resolve().parents[2]
@@ -40,18 +54,11 @@ def load_yale_bright_star_catalog() -> list[CatalogStar]:
     for idx, line in enumerate(path.read_text().splitlines()):
         if not line.strip():
             continue
-        parts = line.split()
-        if len(parts) < 8:
-            continue
-        ra_h, ra_m, ra_s = map(float, parts[0:3])
-        dec_d_text = parts[3]
-        dec_d, dec_m, dec_s = map(float, parts[3:6])
-        magnitude = float(parts[6])
-        ra_hours = ra_h + ra_m / 60.0 + ra_s / 3600.0
-        sign = -1.0 if dec_d_text.startswith("-") else 1.0
-        dec_deg = sign * (abs(dec_d) + dec_m / 60.0 + dec_s / 3600.0)
         name = names[idx] if idx < len(names) else ""
-        stars.append(CatalogStar(name=name, ra_hours=ra_hours, dec_deg=dec_deg, magnitude=magnitude))
+        star = _parse_yale_catalog_line(line, name)
+        if star is None:
+            continue
+        stars.append(star)
     return stars
 
 

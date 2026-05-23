@@ -76,12 +76,20 @@
     <h2>Basic workflow</h2>
     <ol>
         <li>
-            Load an all-sky PNG/JPEG image. The bundled example image is loaded
-            automatically when the page opens.
+            Load an all-sky PNG, JPEG, or iPhone HEIC image. The bundled example
+            image is loaded automatically when the page opens.
         </li>
         <li>
-            Check the UTC timestamp, latitude, and longitude. For known allsky7
-            filenames, the browser fills these from the filename and station id.
+            Check the UTC timestamp, latitude, longitude, and altitude. The
+            browser first tries EXIF metadata from the image. If that is not
+            available, known allsky7 filenames are used to fill time and station
+            position.
+        </li>
+        <li>
+            Check the initial camera parameters. The browser sets
+            <code>f1 = 1</code> and guesses <code>f2</code> from the loaded image
+            aspect ratio, so ordinary 16:9 images and 4:3 phone images start
+            with different vertical focal scales.
         </li>
         <li>
             Use brightness, contrast, and the high-pass filter so stars are easy
@@ -109,6 +117,7 @@
         <li>
             Press <kbd>F</kbd> for the robust randomized Nelder-Mead fit, or
             <kbd>G</kbd> for the ordinary least-squares Levenberg-Marquardt fit.
+            Press <kbd>Cmd/Ctrl Z</kbd> to undo an accepted fit.
         </li>
         <li>
             Press <kbd>R</kbd> to inspect fit residuals. The suggested red marker
@@ -129,6 +138,7 @@
         <li><kbd>K</kbd>: show or hide tiny KDE subpixel dots at the picked image-star positions.</li>
         <li><kbd>F</kbd>: fit all eight optical parameters with robust Nelder-Mead.</li>
         <li><kbd>G</kbd>: fit all eight optical parameters with Levenberg-Marquardt.</li>
+        <li><kbd>Cmd/Ctrl Z</kbd>: undo the most recent accepted fit.</li>
         <li><kbd>D</kbd> + click: delete the nearest matched star pairing.</li>
         <li><kbd>R</kbd>: show or hide residual view.</li>
         <li><kbd>Esc</kbd>: cancel the current star selection or close the density popup.</li>
@@ -146,6 +156,36 @@
         the projected catalog field is too wide or too narrow. After the field is
         close, use <kbd>S</kbd> to create accurate star pairs and let the lens
         optimizer refine all eight optical parameters.
+    </p>
+
+    <h2>Star picking details</h2>
+    <p>
+        When <kbd>S</kbd> is held, a magnified view follows the mouse. Click near
+        the image star; the magnifier disappears and a density-estimate popup is
+        placed away from the click area. The selected star position is found from
+        a 40x interpolated local image patch smoothed with a Gaussian kernel, and
+        the popup shows the unfiltered interpolated bitmap underneath scientific
+        contour lines of the smoothed density estimate.
+    </p>
+    <p>
+        Press <kbd>K</kbd> to inspect only the picked subpixel image-star
+        positions. In this KDE-dot mode all other overlays are hidden, which is
+        useful for checking whether the centroiding is landing on the intended
+        stars.
+    </p>
+
+    <h2>Residuals and undo</h2>
+    <p>
+        Residual mode draws the fitted catalog location and the selected image
+        location for each pair. The suggested removal marker is based on the
+        star whose residual is furthest from the main residual pattern, rather
+        than simply the largest absolute residual.
+    </p>
+    <p>
+        Accepted fits are stored in an undo stack. Use the Undo fit button or
+        <kbd>Cmd/Ctrl Z</kbd> to restore the parameters from before the latest
+        accepted fit. Loading a new image or removing all star pairings clears
+        the fit undo history.
     </p>
 
     <h2>Export notes</h2>
