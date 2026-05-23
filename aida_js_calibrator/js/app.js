@@ -432,7 +432,6 @@
     function rememberFitState(label) {
         state.fitUndoStack.push({
             optpar: currentOptpar(),
-            optmod: Number(controls.optmod.value) || 2,
             label,
         });
         if (state.fitUndoStack.length > 20) {
@@ -455,9 +454,6 @@
             return;
         }
         applyFitVector(previous.optpar);
-        if (previous.optmod) {
-            controls.optmod.value = String(previous.optmod);
-        }
         state.lastFitVector = previous.optpar.slice();
         state.pendingMatch = null;
         state.showPickedMatchMarkers = false;
@@ -1155,10 +1151,15 @@ def image_to_az_el(x, y, optpar=optpar, optmod=optmod,
         if (rows.length === 0) {
             return;
         }
+        const residualDisplayScale = 20;
         const segments = [];
         for (const row of rows) {
             const detected = imageMarkerCanvasPixel(row.match.image.x, row.match.image.y);
-            const model = imageMarkerCanvasPixel(row.model.x, row.model.y);
+            const trueModel = imageMarkerCanvasPixel(row.model.x, row.model.y);
+            const model = [
+                detected[0] + (trueModel[0] - detected[0]) * residualDisplayScale,
+                detected[1] + (trueModel[1] - detected[1]) * residualDisplayScale,
+            ];
             segments.push(detected[0], detected[1], model[0], model[1]);
         }
         gl.useProgram(lineProgram);
@@ -1173,10 +1174,10 @@ def image_to_az_el(x, y, optpar=optpar, optmod=optmod,
         gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
         gl.drawArrays(gl.LINES, 0, segments.length / 2);
         gl.disable(gl.BLEND);
-        drawWorstResidualMarker(rows);
+        drawWorstResidualMarker(rows, residualDisplayScale);
     }
 
-    function drawWorstResidualMarker(rows) {
+    function drawWorstResidualMarker(rows, residualDisplayScale = 1) {
         if (state.showKdePositionDots) {
             return;
         }
@@ -1196,12 +1197,17 @@ def image_to_az_el(x, y, optpar=optpar, optmod=optmod,
             return;
         }
         const imagePoint = imageMarkerCanvasPixel(worst.match.image.x, worst.match.image.y);
+        const trueModel = imageMarkerCanvasPixel(worst.model.x, worst.model.y);
+        const displayPoint = [
+            imagePoint[0] + (trueModel[0] - imagePoint[0]) * residualDisplayScale,
+            imagePoint[1] + (trueModel[1] - imagePoint[1]) * residualDisplayScale,
+        ];
         if (!addOverlayCircle(imagePoint, "worst-residual-marker")) {
             return;
         }
         const offset = 20 * (window.devicePixelRatio || 1);
         addOverlayLabel(`outlier ${worst.modeDistance.toFixed(1)} px from median residual`,
-            [imagePoint[0] + offset, imagePoint[1] - offset],
+            [displayPoint[0] + offset, displayPoint[1] - offset],
             "worst-residual-label");
     }
 
@@ -1227,7 +1233,7 @@ def image_to_az_el(x, y, optpar=optpar, optmod=optmod,
         const rms = Math.sqrt(rows.reduce((acc, row) => acc + row.r * row.r, 0) / rows.length);
         const maxAbs = Math.max(1, ...rows.map(row => Math.max(Math.abs(row.dx), Math.abs(row.dy))));
         const span = Math.ceil(maxAbs * 1.15);
-        title.textContent = `Fit residuals: ${rows.length} stars, RMS ${rms.toFixed(2)} px, axis +/-${span} px`;
+        title.textContent = `Fit residuals: ${rows.length} stars, RMS ${rms.toFixed(2)} px, axis +/-${span} px; image vectors 20x`;
         residualHistogram.appendChild(title);
 
         const svg = svgEl("svg");
@@ -1727,12 +1733,15 @@ def image_to_az_el(x, y, optpar=optpar, optmod=optmod,
 
     function autoAdjustDisplayStretch() {
         if (!state.imagePixels || !state.image) {
-            controls.brightness.value = "0.00";
+            controls.brightness.value = "0.06";
             controls.contrast.value = "1.00";
             return;
         }
         const values = [];
-        const data = state.imagePixels.data;
+        state.displayPixels = null;
+        state.highPassCacheKey = "";
+        const stretchPixels = displayImagePixels() || state.imagePixels;
+        const data = stretchPixels.data;
         const width = state.image.width;
         const height = state.image.height;
         const step = Math.max(1, Math.floor(Math.sqrt((width * height) / 90000)));
@@ -1748,7 +1757,7 @@ def image_to_az_el(x, y, optpar=optpar, optmod=optmod,
         const span = Math.max(8, hi - lo);
         const contrast = Math.max(0.25, Math.min(4.0, 0.9 * 255 / span));
         const mid = 0.5 * (lo + hi) / 255;
-        const brightness = Math.max(-1.0, Math.min(1.0, -(mid - 0.5) * contrast));
+        const brightness = Math.max(-1.0, Math.min(1.0, -(mid - 0.5) * contrast + 0.06));
         controls.contrast.value = contrast.toFixed(2);
         controls.brightness.value = brightness.toFixed(2);
     }
@@ -2891,10 +2900,11 @@ def image_to_az_el(x, y, optpar=optpar, optmod=optmod,
         return 0;
     }
 
-    function matchResidualFactory(optmod = Number(controls.optmod.value)) {
+    function matchResidualFactory() {
         const date = AidaTools.datetimeLocalToDate(controls.timestampUtc.value);
         const lat = Number(controls.latDeg.value) || 0;
         const lon = Number(controls.lonDeg.value) || 0;
+        const optmod = Number(controls.optmod.value);
         const rows = fittingMatches().map(match => {
             const azze = AidaTools.radecToAzZe(match.catalog.raHours, match.catalog.decDeg, date, lat, lon);
             return {az: azze.az, ze: azze.ze, image: match.image};
@@ -3212,30 +3222,6 @@ def image_to_az_el(x, y, optpar=optpar, optmod=optmod,
         return {x, fx, iterations, accepted};
     }
 
-    function annotateFitResultScore(result, residualFn, fitCount) {
-        const sse = residualSumSquares(residualFn(result.x));
-        result.sse = sse;
-        result.rms = Math.sqrt(sse / Math.max(1, fitCount));
-        return result;
-    }
-
-    function isBetterFitResult(candidate, best, currentOptmod) {
-        if (!candidate || !Number.isFinite(candidate.sse)) {
-            return false;
-        }
-        if (!best || !Number.isFinite(best.sse)) {
-            return true;
-        }
-        const epsilon = Math.max(0.25, 0.02 * Math.max(candidate.rms, best.rms));
-        if (candidate.rms < best.rms - epsilon) {
-            return true;
-        }
-        if (Math.abs(candidate.rms - best.rms) <= epsilon) {
-            return candidate.optmod === currentOptmod && best.optmod !== currentOptmod;
-        }
-        return false;
-    }
-
     function acceptFitResult(result, start, residualFn, methodLabel, detail, fitCount, objectiveLabel) {
         const startSse = residualSumSquares(residualFn(start));
         const resultSse = residualSumSquares(residualFn(result.x));
@@ -3247,15 +3233,11 @@ def image_to_az_el(x, y, optpar=optpar, optmod=optmod,
             return false;
         }
         rememberFitState(methodLabel);
-        if (result.optmod) {
-            controls.optmod.value = String(result.optmod);
-        }
         applyFitVector(result.x);
         state.lastFitVector = result.x.slice();
         state.pendingMatch = null;
         state.showPickedMatchMarkers = false;
-        const modelLabel = result.optmod ? `optmod ${result.optmod}, ` : "";
-        state.fitMessage = `${methodLabel}: ${modelLabel}RMS ${rmsBefore.toFixed(2)} -> ${rmsAfter.toFixed(2)} px, ` +
+        state.fitMessage = `${methodLabel}: RMS ${rmsBefore.toFixed(2)} -> ${rmsAfter.toFixed(2)} px, ` +
             `${detail}; ${objectiveLabel}; fitted all 8 optpar values using ${fitCount}/${state.matches.length} pairs ` +
             `with mag <= ${Number(controls.maxMag.value).toFixed(1)}`;
         recomputeAndRender();
@@ -3271,27 +3253,18 @@ def image_to_az_el(x, y, optpar=optpar, optmod=optmod,
             return;
         }
 
+        const residualFn = matchResidualFactory();
+        const objective = matchObjectiveFactory(residualFn);
         const start = currentFitVector();
         const steps = [0.05, 0.05, 1.5, 1.5, 2.0, 0.006, 0.006, 0.03];
+        const starts = fitStartCandidates(objective, start);
         let result = null;
-        let resultResidualFn = null;
-        const currentOptmod = Number(controls.optmod.value) || 2;
-        let totalStarts = 0;
         let totalIterations = 0;
-        for (const optmod of [2, 3]) {
-            const residualFn = matchResidualFactory(optmod);
-            const objective = matchObjectiveFactory(residualFn);
-            const starts = fitStartCandidates(objective, start);
-            totalStarts += starts.length;
-            for (const candidate of starts) {
-                const candidateResult = nelderMead(objective, candidate.x, steps, 800);
-                candidateResult.optmod = optmod;
-                annotateFitResultScore(candidateResult, residualFn, fitCount);
-                totalIterations += candidateResult.iterations;
-                if (isBetterFitResult(candidateResult, result, currentOptmod)) {
-                    result = candidateResult;
-                    resultResidualFn = residualFn;
-                }
+        for (const candidate of starts) {
+            const candidateResult = nelderMead(objective, candidate.x, steps, 800);
+            totalIterations += candidateResult.iterations;
+            if (!result || candidateResult.fx < result.fx) {
+                result = candidateResult;
             }
         }
         if (!result) {
@@ -3302,9 +3275,9 @@ def image_to_az_el(x, y, optpar=optpar, optmod=optmod,
         acceptFitResult(
             result,
             start,
-            resultResidualFn,
+            residualFn,
             "Nelder-Mead lens fit",
-            `tested optmod 2 and 3, ${totalStarts} starts including random perturbations, ${totalIterations} iterations`,
+            `${starts.length} starts including random perturbations, ${totalIterations} iterations`,
             fitCount,
             "robust Huber objective"
         );
@@ -3318,28 +3291,19 @@ def image_to_az_el(x, y, optpar=optpar, optmod=optmod,
             render();
             return;
         }
+        const residualFn = matchResidualFactory();
+        const objective = leastSquaresObjectiveFactory(residualFn);
         const start = currentFitVector();
+        const starts = fitStartCandidates(objective, start).slice(0, 12);
         let result = null;
-        let resultResidualFn = null;
-        const currentOptmod = Number(controls.optmod.value) || 2;
-        let totalStarts = 0;
         let totalIterations = 0;
         let accepted = 0;
-        for (const optmod of [2, 3]) {
-            const residualFn = matchResidualFactory(optmod);
-            const objective = leastSquaresObjectiveFactory(residualFn);
-            const starts = fitStartCandidates(objective, start).slice(0, 12);
-            totalStarts += starts.length;
-            for (const candidate of starts) {
-                const candidateResult = levenbergMarquardt(residualFn, candidate.x, 80);
-                candidateResult.optmod = optmod;
-                annotateFitResultScore(candidateResult, residualFn, fitCount);
-                totalIterations += candidateResult.iterations;
-                accepted += candidateResult.accepted;
-                if (isBetterFitResult(candidateResult, result, currentOptmod)) {
-                    result = candidateResult;
-                    resultResidualFn = residualFn;
-                }
+        for (const candidate of starts) {
+            const candidateResult = levenbergMarquardt(residualFn, candidate.x, 80);
+            totalIterations += candidateResult.iterations;
+            accepted += candidateResult.accepted;
+            if (!result || candidateResult.fx < result.fx) {
+                result = candidateResult;
             }
         }
         if (!result) {
@@ -3350,9 +3314,9 @@ def image_to_az_el(x, y, optpar=optpar, optmod=optmod,
         acceptFitResult(
             result,
             start,
-            resultResidualFn,
+            residualFn,
             "Levenberg-Marquardt lens fit",
-            `tested optmod 2 and 3, ${totalStarts} starts, ${totalIterations} iterations, ${accepted} accepted steps`,
+            `${starts.length} starts, ${totalIterations} iterations, ${accepted} accepted steps`,
             fitCount,
             "ordinary least-squares objective"
         );
@@ -3463,7 +3427,7 @@ def image_to_az_el(x, y, optpar=optpar, optmod=optmod,
                     autoAdjustDisplayStretch();
                 } catch (error) {
                     state.imagePixels = null;
-                    controls.brightness.value = "0.00";
+                    controls.brightness.value = "0.06";
                     controls.contrast.value = "1.00";
                     state.fitMessage = `image pixel readback unavailable for ${name}; display still works, centroid picking disabled`;
                 }
