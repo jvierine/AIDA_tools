@@ -84,9 +84,9 @@
         flipY: false,
         imageFlipX: false,
         imageFlipY: false,
-        displayMode: "image",
-        maxMagByMode: {image: 4.0, stellarium: 6.0, pairing: 4.0},
-        starNamesByMode: {image: true, stellarium: false, pairing: true},
+        displayMode: "pairing",
+        maxMagByMode: {stellarium: 6.0, pairing: 4.0},
+        starNamesByMode: {stellarium: false, pairing: true},
         showRaDecGrid: false,
         showAzElGrid: true,
         showStarNames: true,
@@ -1334,6 +1334,16 @@ def image_to_az_el(x, y, optpar=optpar, optmod=optmod,
         }
     }
 
+    function starMagnitudeClass(mag) {
+        if (mag <= 2) {
+            return "mag-radius-6";
+        }
+        if (mag <= 4) {
+            return "mag-radius-4";
+        }
+        return "mag-radius-2";
+    }
+
     function drawCatalogPairingMarkers() {
         const offset = 12 * (window.devicePixelRatio || 1);
         for (const star of visibleCatalogStars()) {
@@ -1341,7 +1351,7 @@ def image_to_az_el(x, y, optpar=optpar, optmod=optmod,
                 continue;
             }
             const [x, y] = canvasPixelFromImagePixel(star.x, star.y);
-            addOverlayCircle([x, y], "catalog-pairing-marker");
+            addOverlayCircle([x, y], `catalog-pairing-marker ${starMagnitudeClass(star.mag)}`);
             if (state.showStarNames) {
                 const label = star.name && star.name.trim()
                     ? star.name.trim()
@@ -1360,9 +1370,10 @@ def image_to_az_el(x, y, optpar=optpar, optmod=optmod,
             const matchLabel = match.catalog.name && match.catalog.name.trim()
                 ? match.catalog.name.trim()
                 : `mag ${match.catalog.mag.toFixed(1)}`;
+            const markerClass = `paired-marker ${starMagnitudeClass(match.catalog.mag)}`;
             if (state.showPickedMatchMarkers) {
                 const imagePoint = imageMarkerCanvasPixel(match.image.x, match.image.y);
-                const visible = addOverlayCircle(imagePoint, "paired-marker");
+                const visible = addOverlayCircle(imagePoint, markerClass);
                 if (visible && state.showStarNames) {
                     addOverlayLabel(matchLabel, [imagePoint[0] + labelOffset, imagePoint[1] - labelOffset],
                         "match-label");
@@ -1379,7 +1390,7 @@ def image_to_az_el(x, y, optpar=optpar, optmod=optmod,
                 optmod,
                 false
             );
-            if (catalogPoint && addOverlayCircle(catalogPoint, "paired-marker")) {
+            if (catalogPoint && addOverlayCircle(catalogPoint, markerClass)) {
                 if (state.showStarNames) {
                     addOverlayLabel(matchLabel, [catalogPoint[0] + labelOffset, catalogPoint[1] - labelOffset],
                         "match-label");
@@ -1389,7 +1400,7 @@ def image_to_az_el(x, y, optpar=optpar, optmod=optmod,
 
         if (state.pendingMatch) {
             addOverlayCircle(imageMarkerCanvasPixel(state.pendingMatch.image.x, state.pendingMatch.image.y),
-                "paired-marker match-pending");
+                "paired-marker mag-radius-6 match-pending");
         }
         if (state.centroidPreview && Date.now() < state.centroidPreview.expiresAt) {
             const point = imageMarkerCanvasPixel(state.centroidPreview.x, state.centroidPreview.y);
@@ -1457,7 +1468,7 @@ def image_to_az_el(x, y, optpar=optpar, optmod=optmod,
         canvas.classList.toggle("mask-mode", state.maskMode);
         gl.clearColor(0, 0, 0, 1);
         gl.clear(gl.COLOR_BUFFER_BIT);
-        if (state.showFitResiduals || state.displayMode === "image" || state.displayMode === "pairing") {
+        if (state.showFitResiduals || state.displayMode === "pairing") {
             drawImage();
         }
         if (state.showFitResiduals) {
@@ -1532,7 +1543,7 @@ def image_to_az_el(x, y, optpar=optpar, optmod=optmod,
 
     function matchInstructionText() {
         if (!state.image) {
-            return "Load an image first. Press s for star picking, or c to switch between image and Stellarium views.";
+            return "Load an image first. Press s for star picking, or c to switch between pairing and Stellarium views.";
         }
         if (state.showFitResiduals) {
             return "Fit residual mode: normal markings are hidden. Red lines connect each identified image star to its fitted catalog position; press r to return.";
@@ -1550,7 +1561,7 @@ def image_to_az_el(x, y, optpar=optpar, optmod=optmod,
             if (state.showKdePositionDots) {
                 return "KDE dot inspection: all other markings are hidden. Press k to return to the normal overlay.";
             }
-            return "Left-drag moves the 90 deg elevation point in x/y. Right-drag rotates the azimuth grid around that point. Wheel edits f1/f2 together. Press c to switch image/Stellarium view, s for star picking, k for KDE sub-pixel dots, n to show/hide star names, d to delete a star pairing, m to mask image regions, or z to zoom.";
+            return "Star pairing view: left-drag moves the 90 deg elevation point in x/y. Right-drag rotates the azimuth grid around that point. Wheel edits f1/f2 together. Press c for Stellarium view, s to pick an image star, k for KDE sub-pixel dots, n to show/hide star names, d to delete a star pairing, m to mask image regions, or z to zoom.";
         }
         if (!state.pendingMatch) {
             return "Star pairing: hold s and click the image star. A KDE centroid fit will select the sub-pixel star position.";
@@ -3520,12 +3531,12 @@ def image_to_az_el(x, y, optpar=optpar, optmod=optmod,
 
     function updateDetectionCircleButton() {
         controls.toggleDetectionCircles.textContent =
-            state.displayMode === "stellarium" ? "Image view (C)" : "Stellarium view (C)";
+            state.displayMode === "stellarium" ? "Star pairing view (C)" : "Stellarium view (C)";
         controls.toggleDetectionCircles.classList.toggle("toggle-on", state.displayMode === "stellarium");
     }
 
     function toggleDetectionCircles() {
-        setDisplayMode(state.displayMode === "stellarium" ? "image" : "stellarium");
+        setDisplayMode(state.displayMode === "stellarium" ? "pairing" : "stellarium");
         state.starMatchMode = false;
         state.pendingMatch = null;
         updateDetectionCircleButton();
@@ -3802,7 +3813,7 @@ def image_to_az_el(x, y, optpar=optpar, optmod=optmod,
         } else if (event.key === "Escape" && state.starMatchMode) {
             event.preventDefault();
             state.starMatchMode = false;
-            setDisplayMode("image");
+            setDisplayMode("pairing");
             state.pendingMatch = null;
             clearDensityEstimate();
             updateDetectionCircleButton();

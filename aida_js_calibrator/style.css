@@ -313,44 +313,25 @@ h2 {
 }
 
 .paired-marker {
-    width: 30px;
-    height: 30px;
-    border: 0;
-    border-radius: 0;
-    box-shadow: none;
+    border: 2px solid #33ff77;
+    border-radius: 50%;
+    background: rgba(51, 255, 119, 0.08);
+    box-shadow: 0 0 5px rgba(51, 255, 119, 0.85);
 }
 
-.paired-marker::before,
-.paired-marker::after {
-    content: "";
-    position: absolute;
-    left: 50%;
-    top: 50%;
-    background: #33ff77;
-    box-shadow: 0 0 4px rgba(51, 255, 119, 0.9);
-    transform: translate(-50%, -50%);
+.mag-radius-2 {
+    width: 4px;
+    height: 4px;
 }
 
-.paired-marker::before {
-    width: 30px;
-    height: 2px;
-    background: linear-gradient(
-        to right,
-        #33ff77 0 38%,
-        transparent 38% 62%,
-        #33ff77 62% 100%
-    );
+.mag-radius-4 {
+    width: 8px;
+    height: 8px;
 }
 
-.paired-marker::after {
-    width: 2px;
-    height: 30px;
-    background: linear-gradient(
-        to bottom,
-        #33ff77 0 38%,
-        transparent 38% 62%,
-        #33ff77 62% 100%
-    );
+.mag-radius-6 {
+    width: 12px;
+    height: 12px;
 }
 
 .match-label {
@@ -422,8 +403,6 @@ h2 {
 }
 
 .catalog-pairing-marker {
-    width: 18px;
-    height: 18px;
     border-color: rgba(255, 60, 60, 0.95);
     box-shadow: 0 0 5px rgba(255, 60, 60, 0.75);
 }
