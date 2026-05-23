@@ -18,6 +18,10 @@
     const loadingOverlay = document.getElementById("loadingOverlay");
     const loadingBar = document.getElementById("loadingBar");
     const loadingText = document.getElementById("loadingText");
+    const defaultImage = {
+        url: "calibration_images/2025_02_19_03_47_01_000_010881_ams0882_first1s.png",
+        name: "2025_02_19_03_47_01_000_010881_ams0882_first1s.png",
+    };
     const controls = {
         file: document.getElementById("imageFile"),
         timestampUtc: document.getElementById("timestampUtc"),
@@ -3527,6 +3531,12 @@
     window.addEventListener("load", () => {
         state.lastLensEquation = "";
         updateLensEquation(currentOptpar(), Number(controls.optmod.value));
+        if (!state.image) {
+            resetInteractiveState();
+            state.baseOptpar = null;
+            applyOptpar(null);
+            loadImageSource(defaultImage.url, defaultImage.name);
+        }
     });
     updateDetectionCircleButton();
     updateStarNameButton();
