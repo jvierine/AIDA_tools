@@ -432,6 +432,7 @@
     function rememberFitState(label) {
         state.fitUndoStack.push({
             optpar: currentOptpar(),
+            optmod: Number(controls.optmod.value) || 2,
             label,
         });
         if (state.fitUndoStack.length > 20) {
@@ -454,6 +455,9 @@
             return;
         }
         applyFitVector(previous.optpar);
+        if (previous.optmod) {
+            controls.optmod.value = String(previous.optmod);
+        }
         state.lastFitVector = previous.optpar.slice();
         state.pendingMatch = null;
         state.showPickedMatchMarkers = false;
@@ -2887,11 +2891,10 @@ def image_to_az_el(x, y, optpar=optpar, optmod=optmod,
         return 0;
     }
 
-    function matchResidualFactory() {
+    function matchResidualFactory(optmod = Number(controls.optmod.value)) {
         const date = AidaTools.datetimeLocalToDate(controls.timestampUtc.value);
         const lat = Number(controls.latDeg.value) || 0;
         const lon = Number(controls.lonDeg.value) || 0;
-        const optmod = Number(controls.optmod.value);
         const rows = fittingMatches().map(match => {
             const azze = AidaTools.radecToAzZe(match.catalog.raHours, match.catalog.decDeg, date, lat, lon);
             return {az: azze.az, ze: azze.ze, image: match.image};
@@ -3209,6 +3212,30 @@ def image_to_az_el(x, y, optpar=optpar, optmod=optmod,
         return {x, fx, iterations, accepted};
     }
 
+    function annotateFitResultScore(result, residualFn, fitCount) {
+        const sse = residualSumSquares(residualFn(result.x));
+        result.sse = sse;
+        result.rms = Math.sqrt(sse / Math.max(1, fitCount));
+        return result;
+    }
+
+    function isBetterFitResult(candidate, best, currentOptmod) {
+        if (!candidate || !Number.isFinite(candidate.sse)) {
+            return false;
+        }
+        if (!best || !Number.isFinite(best.sse)) {
+            return true;
+        }
+        const epsilon = Math.max(0.25, 0.02 * Math.max(candidate.rms, best.rms));
+        if (candidate.rms < best.rms - epsilon) {
+            return true;
+        }
+        if (Math.abs(candidate.rms - best.rms) <= epsilon) {
+            return candidate.optmod === currentOptmod && best.optmod !== currentOptmod;
+        }
+        return false;
+    }
+
     function acceptFitResult(result, start, residualFn, methodLabel, detail, fitCount, objectiveLabel) {
         const startSse = residualSumSquares(residualFn(start));
         const resultSse = residualSumSquares(residualFn(result.x));
@@ -3220,11 +3247,15 @@ def image_to_az_el(x, y, optpar=optpar, optmod=optmod,
             return false;
         }
         rememberFitState(methodLabel);
+        if (result.optmod) {
+            controls.optmod.value = String(result.optmod);
+        }
         applyFitVector(result.x);
         state.lastFitVector = result.x.slice();
         state.pendingMatch = null;
         state.showPickedMatchMarkers = false;
-        state.fitMessage = `${methodLabel}: RMS ${rmsBefore.toFixed(2)} -> ${rmsAfter.toFixed(2)} px, ` +
+        const modelLabel = result.optmod ? `optmod ${result.optmod}, ` : "";
+        state.fitMessage = `${methodLabel}: ${modelLabel}RMS ${rmsBefore.toFixed(2)} -> ${rmsAfter.toFixed(2)} px, ` +
             `${detail}; ${objectiveLabel}; fitted all 8 optpar values using ${fitCount}/${state.matches.length} pairs ` +
             `with mag <= ${Number(controls.maxMag.value).toFixed(1)}`;
         recomputeAndRender();
@@ -3240,18 +3271,27 @@ def image_to_az_el(x, y, optpar=optpar, optmod=optmod,
             return;
         }
 
-        const residualFn = matchResidualFactory();
-        const objective = matchObjectiveFactory(residualFn);
         const start = currentFitVector();
         const steps = [0.05, 0.05, 1.5, 1.5, 2.0, 0.006, 0.006, 0.03];
-        const starts = fitStartCandidates(objective, start);
         let result = null;
+        let resultResidualFn = null;
+        const currentOptmod = Number(controls.optmod.value) || 2;
+        let totalStarts = 0;
         let totalIterations = 0;
-        for (const candidate of starts) {
-            const candidateResult = nelderMead(objective, candidate.x, steps, 800);
-            totalIterations += candidateResult.iterations;
-            if (!result || candidateResult.fx < result.fx) {
-                result = candidateResult;
+        for (const optmod of [2, 3]) {
+            const residualFn = matchResidualFactory(optmod);
+            const objective = matchObjectiveFactory(residualFn);
+            const starts = fitStartCandidates(objective, start);
+            totalStarts += starts.length;
+            for (const candidate of starts) {
+                const candidateResult = nelderMead(objective, candidate.x, steps, 800);
+                candidateResult.optmod = optmod;
+                annotateFitResultScore(candidateResult, residualFn, fitCount);
+                totalIterations += candidateResult.iterations;
+                if (isBetterFitResult(candidateResult, result, currentOptmod)) {
+                    result = candidateResult;
+                    resultResidualFn = residualFn;
+                }
             }
         }
         if (!result) {
@@ -3262,9 +3302,9 @@ def image_to_az_el(x, y, optpar=optpar, optmod=optmod,
         acceptFitResult(
             result,
             start,
-            residualFn,
+            resultResidualFn,
             "Nelder-Mead lens fit",
-            `${starts.length} starts including random perturbations, ${totalIterations} iterations`,
+            `tested optmod 2 and 3, ${totalStarts} starts including random perturbations, ${totalIterations} iterations`,
             fitCount,
             "robust Huber objective"
         );
@@ -3278,19 +3318,28 @@ def image_to_az_el(x, y, optpar=optpar, optmod=optmod,
             render();
             return;
         }
-        const residualFn = matchResidualFactory();
-        const objective = leastSquaresObjectiveFactory(residualFn);
         const start = currentFitVector();
-        const starts = fitStartCandidates(objective, start).slice(0, 12);
         let result = null;
+        let resultResidualFn = null;
+        const currentOptmod = Number(controls.optmod.value) || 2;
+        let totalStarts = 0;
         let totalIterations = 0;
         let accepted = 0;
-        for (const candidate of starts) {
-            const candidateResult = levenbergMarquardt(residualFn, candidate.x, 80);
-            totalIterations += candidateResult.iterations;
-            accepted += candidateResult.accepted;
-            if (!result || candidateResult.fx < result.fx) {
-                result = candidateResult;
+        for (const optmod of [2, 3]) {
+            const residualFn = matchResidualFactory(optmod);
+            const objective = leastSquaresObjectiveFactory(residualFn);
+            const starts = fitStartCandidates(objective, start).slice(0, 12);
+            totalStarts += starts.length;
+            for (const candidate of starts) {
+                const candidateResult = levenbergMarquardt(residualFn, candidate.x, 80);
+                candidateResult.optmod = optmod;
+                annotateFitResultScore(candidateResult, residualFn, fitCount);
+                totalIterations += candidateResult.iterations;
+                accepted += candidateResult.accepted;
+                if (isBetterFitResult(candidateResult, result, currentOptmod)) {
+                    result = candidateResult;
+                    resultResidualFn = residualFn;
+                }
             }
         }
         if (!result) {
@@ -3301,9 +3350,9 @@ def image_to_az_el(x, y, optpar=optpar, optmod=optmod,
         acceptFitResult(
             result,
             start,
-            residualFn,
+            resultResidualFn,
             "Levenberg-Marquardt lens fit",
-            `${starts.length} starts, ${totalIterations} iterations, ${accepted} accepted steps`,
+            `tested optmod 2 and 3, ${totalStarts} starts, ${totalIterations} iterations, ${accepted} accepted steps`,
             fitCount,
             "ordinary least-squares objective"
         );
@@ -3713,6 +3762,20 @@ def image_to_az_el(x, y, optpar=optpar, optmod=optmod,
         music.beepIndex += 1;
     }
 
+    function playWorkflowPulse(music) {
+        const now = music.audioContext.currentTime + 0.04;
+        const theme = music.themes[music.themeIndex];
+        const chord = theme.chords[music.chordIndex];
+        const notes = [
+            chord[0],
+            theme.melody[music.melodyIndex % theme.melody.length],
+            theme.melody[(music.melodyIndex + 2) % theme.melody.length],
+        ];
+        notes.forEach((note, i) => {
+            playAmbientBell(music, note * (i === 0 ? 1 : 0.5), now + i * 0.11, 0.0032 + i * 0.0009);
+        });
+    }
+
     function playInteractionSound(kind = "click") {
         const music = state.ambientMusic;
         if (!music) {
@@ -3891,6 +3954,18 @@ def image_to_az_el(x, y, optpar=optpar, optmod=optmod,
         }, 18000 + Math.random() * 46000);
     }
 
+    function scheduleWorkflowPulse(music) {
+        music.workflowTimeoutId = window.setTimeout(() => {
+            if (state.ambientMusic !== music) {
+                return;
+            }
+            if (Math.random() < 0.74) {
+                playWorkflowPulse(music);
+            }
+            scheduleWorkflowPulse(music);
+        }, 9000 + Math.random() * 18000);
+    }
+
     async function startAmbientMusic() {
         if (state.ambientMusic) {
             return;
@@ -3915,49 +3990,49 @@ def image_to_az_el(x, y, optpar=optpar, optmod=optmod,
         const lfoGain = audioContext.createGain();
         const themes = [
             {
-                name: "morning dome",
-                filterHz: 1850,
+                name: "off-grid dawn",
+                filterHz: 1750,
                 motion: [0, 1, 0, 1, 0, 1, 0, 1],
                 chords: [
-                    chordFromMidi(48, [0, 7, 12, 16, 19], [26, 28]),
-                    chordFromMidi(53, [0, 7, 12, 14, 21], [24, 28]),
-                    chordFromMidi(55, [0, 5, 12, 16, 19], [24, 26]),
-                    chordFromMidi(50, [0, 7, 12, 17, 21], [24, 29]),
-                    chordFromMidi(45, [0, 7, 12, 16, 21], [24, 28]),
+                    chordFromMidi(48, [0, 7, 12, 16, 19], [24, 26, 28]),
+                    chordFromMidi(53, [0, 7, 12, 16, 21], [24, 26, 28]),
+                    chordFromMidi(55, [0, 7, 12, 14, 19], [24, 26, 31]),
+                    chordFromMidi(50, [0, 7, 12, 16, 21], [24, 28, 31]),
+                    chordFromMidi(45, [0, 7, 12, 16, 19], [24, 26, 28]),
                 ],
-                melody: [72, 74, 76, 79, 81, 83, 86].map(midiToFrequency),
-                motifs: [[0, 2, 4, null, 3], [1, null, 2, 4], [3, 2, null, 0], [0, 1, 3, 5, null, 4]],
-                harmonySpreads: [[0, 2, 4], [1, 3, 5], [0, 3, 6], [2, 4, 6]],
+                melody: [72, 74, 76, 79, 81, 83, 86, 88].map(midiToFrequency),
+                motifs: [[0, 2, 4, null, 3], [1, null, 2, 4, 6], [3, 2, null, 0], [0, 1, 3, 5, null, 4]],
+                harmonySpreads: [[0, 2, 4], [1, 3, 5], [0, 3, 6], [2, 4, 7]],
             },
             {
-                name: "small settlement",
-                filterHz: 1550,
+                name: "local inference",
+                filterHz: 1900,
                 motion: [0, 1, 0, 1, 0, 1, 0, 1],
                 chords: [
-                    chordFromMidi(45, [0, 7, 12, 15, 19], [24, 27]),
-                    chordFromMidi(50, [0, 5, 12, 17, 21], [24, 29]),
-                    chordFromMidi(52, [0, 7, 12, 16, 19], [23, 28]),
-                    chordFromMidi(43, [0, 7, 12, 15, 22], [24, 27]),
-                    chordFromMidi(48, [0, 7, 12, 16, 19], [24, 28]),
+                    chordFromMidi(45, [0, 7, 12, 16, 21], [24, 28, 31]),
+                    chordFromMidi(50, [0, 7, 12, 14, 19], [24, 26, 28]),
+                    chordFromMidi(52, [0, 7, 12, 16, 21], [24, 28, 33]),
+                    chordFromMidi(43, [0, 7, 12, 17, 21], [24, 29, 31]),
+                    chordFromMidi(48, [0, 7, 12, 16, 21], [24, 28, 31]),
                 ],
-                melody: [69, 71, 72, 76, 78, 79, 83].map(midiToFrequency),
-                motifs: [[0, 1, null, 3], [2, 4, 3, null, 1], [0, null, 2, null, 4], [3, 1, 0]],
-                harmonySpreads: [[0, 2, 4], [1, 3, 5], [0, 3, 6], [2, 4, 5]],
+                melody: [69, 71, 74, 76, 78, 81, 83, 86].map(midiToFrequency),
+                motifs: [[0, 1, null, 3, 5], [2, 4, 3, null, 1], [0, null, 2, null, 4], [3, 1, 0, null, 5]],
+                harmonySpreads: [[0, 2, 4], [1, 3, 5], [0, 3, 6], [2, 5, 7]],
             },
             {
-                name: "star harbor",
-                filterHz: 2050,
+                name: "open-source orbit",
+                filterHz: 2150,
                 motion: [0, 1, 0, 1, 0, 1, 0, 1],
                 chords: [
-                    chordFromMidi(50, [0, 7, 12, 14, 19], [24, 26]),
-                    chordFromMidi(57, [0, 7, 12, 16, 21], [24, 28]),
-                    chordFromMidi(55, [0, 7, 11, 14, 19], [24, 26]),
-                    chordFromMidi(52, [0, 7, 12, 16, 23], [24, 28]),
-                    chordFromMidi(47, [0, 7, 12, 14, 19], [24, 26]),
+                    chordFromMidi(50, [0, 7, 12, 16, 21], [24, 28, 33]),
+                    chordFromMidi(57, [0, 7, 12, 14, 19], [24, 26, 31]),
+                    chordFromMidi(55, [0, 7, 12, 16, 19], [24, 28, 31]),
+                    chordFromMidi(52, [0, 7, 12, 16, 21], [24, 28, 33]),
+                    chordFromMidi(47, [0, 7, 12, 16, 21], [24, 28, 31]),
                 ],
-                melody: [74, 76, 78, 81, 83, 86, 88].map(midiToFrequency),
-                motifs: [[0, 2, 5, 4], [1, null, 3, 5], [4, 3, 1, null, 2], [0, 2, null, 4, 6]],
-                harmonySpreads: [[0, 2, 4], [1, 3, 6], [0, 4, 6], [2, 5, 6]],
+                melody: [74, 76, 79, 81, 83, 86, 88, 91].map(midiToFrequency),
+                motifs: [[0, 2, 5, 4], [1, null, 3, 5, 7], [4, 3, 1, null, 2], [0, 2, null, 4, 6]],
+                harmonySpreads: [[0, 2, 4], [1, 3, 6], [0, 4, 7], [2, 5, 7]],
             },
         ];
         const voices = [];
@@ -4019,11 +4094,13 @@ def image_to_az_el(x, y, optpar=optpar, optmod=optmod,
             evolutionTimeoutId: null,
             arpeggioTimeoutId: null,
             beepTimeoutId: null,
+            workflowTimeoutId: null,
         };
         state.ambientMusic = music;
         scheduleAmbientEvolution(music);
         scheduleAmbientArpeggio(music);
         scheduleSputnikPass(music);
+        scheduleWorkflowPulse(music);
         updateAmbientMusicButton();
     }
 
@@ -4035,6 +4112,7 @@ def image_to_az_el(x, y, optpar=optpar, optmod=optmod,
         window.clearTimeout(music.evolutionTimeoutId);
         window.clearTimeout(music.arpeggioTimeoutId);
         window.clearTimeout(music.beepTimeoutId);
+        window.clearTimeout(music.workflowTimeoutId);
         const now = music.audioContext.currentTime;
         music.master.gain.setTargetAtTime(0.0001, now, 1.2);
         window.setTimeout(() => {
