@@ -407,6 +407,15 @@ h2 {
     font-weight: 800;
 }
 
+.kde-position-dot {
+    width: 5px;
+    height: 5px;
+    border: 1px solid rgba(255, 255, 255, 0.88);
+    border-radius: 50%;
+    background: #000000;
+    box-shadow: 0 0 2px rgba(255, 255, 255, 0.85);
+}
+
 .probe-marker {
     border-color: #33ff77;
     box-shadow: 0 0 6px rgba(51, 255, 119, 0.95);

@@ -108,6 +108,7 @@
         centroidDensity: null,
         matches: [],
         showPickedMatchMarkers: true,
+        showKdePositionDots: false,
         showFitResiduals: false,
         fitMessage: "lens fit: not run",
         lastFitVector: null,
@@ -945,7 +946,7 @@ def image_to_az_el(x, y, optpar=optpar, optmod=optmod,
     }
 
     function drawAzElGrid() {
-        if (!state.showAzElGrid || !state.image) {
+        if (state.showKdePositionDots || !state.showAzElGrid || !state.image) {
             return;
         }
         const optpar = currentOptpar();
@@ -986,7 +987,7 @@ def image_to_az_el(x, y, optpar=optpar, optmod=optmod,
     }
 
     function drawRaDecGrid() {
-        if (!state.showRaDecGrid || !state.image) {
+        if (state.showKdePositionDots || !state.showRaDecGrid || !state.image) {
             return;
         }
         const date = AidaTools.datetimeLocalToDate(controls.timestampUtc.value);
@@ -1085,6 +1086,9 @@ def image_to_az_el(x, y, optpar=optpar, optmod=optmod,
     }
 
     function drawFitResiduals(rows = matchResidualRows()) {
+        if (state.showKdePositionDots) {
+            return;
+        }
         if (rows.length === 0) {
             return;
         }
@@ -1110,6 +1114,9 @@ def image_to_az_el(x, y, optpar=optpar, optmod=optmod,
     }
 
     function drawWorstResidualMarker(rows) {
+        if (state.showKdePositionDots) {
+            return;
+        }
         if (rows.length === 0) {
             return;
         }
@@ -1335,6 +1342,12 @@ def image_to_az_el(x, y, optpar=optpar, optmod=optmod,
 
     }
 
+    function drawKdePositionDots() {
+        for (const match of state.matches) {
+            addOverlayCircle(imageMarkerCanvasPixel(match.image.x, match.image.y), "kde-position-dot");
+        }
+    }
+
     function drawAutoDetectionMarkers() {
         if (!state.image || state.displayMode !== "pairing") {
             return;
@@ -1350,6 +1363,10 @@ def image_to_az_el(x, y, optpar=optpar, optmod=optmod,
     function drawOverlayLabels() {
         cardinalLayer.replaceChildren();
         if (!state.image) {
+            return;
+        }
+        if (state.showKdePositionDots) {
+            drawKdePositionDots();
             return;
         }
         const optpar = currentOptpar();
@@ -1390,7 +1407,11 @@ def image_to_az_el(x, y, optpar=optpar, optmod=optmod,
         if (state.showFitResiduals) {
             const rows = matchResidualRows();
             cardinalLayer.replaceChildren();
-            drawFitResiduals(rows);
+            if (state.showKdePositionDots) {
+                drawKdePositionDots();
+            } else {
+                drawFitResiduals(rows);
+            }
             updateResidualHistogram(rows);
         } else {
             updateResidualHistogram([]);
@@ -1428,6 +1449,7 @@ def image_to_az_el(x, y, optpar=optpar, optmod=optmod,
             `az/el grid: ${state.showAzElGrid ? "on" : "off"}\n` +
             `display mode: ${state.displayMode}\n` +
             `star names: ${state.showStarNames ? "on" : "off"}\n` +
+            `KDE sub-pixel dots: ${state.showKdePositionDots ? "on" : "off"}\n` +
             `fit residuals: ${state.showFitResiduals ? "on" : "off"}\n` +
             `star pairing armed: ${state.starMatchMode ? "on" : "off"}${state.pendingMatch ? " (select catalog star)" : ""}\n` +
             `matched star pairs: ${state.matches.length}\n` +
@@ -1469,7 +1491,10 @@ def image_to_az_el(x, y, optpar=optpar, optmod=optmod,
             return "Zoom mode: move the mouse over the image to inspect a 100 x 100 raw-pixel region.";
         }
         if (!state.starMatchMode) {
-            return "Left-drag moves the 90 deg elevation point in x/y. Right-drag rotates the azimuth grid around that point. Wheel edits f1/f2 together. Press c to switch image/Stellarium view, s for star picking, n to show/hide star names, d to delete a star pairing, m to mask image regions, or z to zoom.";
+            if (state.showKdePositionDots) {
+                return "KDE dot inspection: all other markings are hidden. Press k to return to the normal overlay.";
+            }
+            return "Left-drag moves the 90 deg elevation point in x/y. Right-drag rotates the azimuth grid around that point. Wheel edits f1/f2 together. Press c to switch image/Stellarium view, s for star picking, k for KDE sub-pixel dots, n to show/hide star names, d to delete a star pairing, m to mask image regions, or z to zoom.";
         }
         if (!state.pendingMatch) {
             return "Star pairing: hold s and click the image star. A KDE centroid fit will select the sub-pixel star position.";
@@ -2115,7 +2140,7 @@ def image_to_az_el(x, y, optpar=optpar, optmod=optmod,
         densityContext.fillText("Gaussian-smoothed density contours from 40x interpolated image patch", plot.x0, 16);
 
         const sx = fineX => plot.x0 + (fineX / (density.width - 1)) * plot.w;
-        const sy = fineY => plot.y0 + plot.h - (fineY / (density.height - 1)) * plot.h;
+        const sy = fineY => plot.y0 + (fineY / (density.height - 1)) * plot.h;
         drawDensityBitmapUnderlay(density, plot);
         densityContext.strokeStyle = "rgba(148, 163, 184, 0.42)";
         densityContext.lineWidth = 1;
@@ -2199,8 +2224,7 @@ def image_to_az_el(x, y, optpar=optpar, optmod=optmod,
         for (let y = 0; y < density.height; y++) {
             for (let x = 0; x < density.width; x++) {
                 const srcIndex = y * density.width + x;
-                const dstY = density.height - 1 - y;
-                const dstIndex = 4 * (dstY * density.width + x);
+                const dstIndex = 4 * (y * density.width + x);
                 const value = Math.max(0, Math.min(255, (values[srcIndex] - lo) * scale));
                 patchData.data[dstIndex] = value;
                 patchData.data[dstIndex + 1] = value;
@@ -3573,6 +3597,10 @@ def image_to_az_el(x, y, optpar=optpar, optmod=optmod,
         } else if ((event.key === "n" || event.key === "N") && !event.repeat) {
             event.preventDefault();
             toggleStarNames();
+        } else if ((event.key === "k" || event.key === "K") && !event.repeat) {
+            event.preventDefault();
+            state.showKdePositionDots = !state.showKdePositionDots;
+            render();
         } else if ((event.key === "r" || event.key === "R") && !event.repeat) {
             event.preventDefault();
             toggleFitResiduals();
