@@ -428,6 +428,13 @@
         }
     }
 
+    function toggleAzElGrid() {
+        state.showAzElGrid = !state.showAzElGrid;
+        controls.toggleAzElGrid.textContent = state.showAzElGrid ? "Hide az/el grid" : "Show az/el grid";
+        playInteractionSound("mode");
+        render();
+    }
+
     function applyFitVector(x) {
         controls.fScaleX.value = x[0].toFixed(6);
         controls.fScaleY.value = x[1].toFixed(6);
@@ -4352,10 +4359,7 @@ def image_to_az_el(x, y, optpar=optpar, optmod=optmod,
         render();
     });
     controls.toggleAzElGrid.addEventListener("click", () => {
-        state.showAzElGrid = !state.showAzElGrid;
-        controls.toggleAzElGrid.textContent = state.showAzElGrid ? "Hide az/el grid" : "Show az/el grid";
-        playInteractionSound("mode");
-        render();
+        toggleAzElGrid();
     });
     controls.toggleDetectionCircles.addEventListener("click", toggleDetectionCircles);
     controls.toggleStarNames.addEventListener("click", toggleStarNames);
@@ -4552,6 +4556,9 @@ def image_to_az_el(x, y, optpar=optpar, optmod=optmod,
             event.preventDefault();
             toggleFitResiduals();
             playInteractionSound("mode");
+        } else if ((event.key === "a" || event.key === "A") && !event.repeat) {
+            event.preventDefault();
+            toggleAzElGrid();
         } else if ((event.key === "f" || event.key === "F") && !event.repeat) {
             event.preventDefault();
             playInteractionSound("fit");

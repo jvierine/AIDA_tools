@@ -56,6 +56,7 @@ Open `index.html` directly in a browser. No local web server is needed.
 - `N`: show or hide star names in the current view.
 - `K`: show only the picked KDE subpixel star positions.
 - `R`: show or hide residual view.
+- `A`: show or hide the az/el grid.
 - `D` + click: delete the nearest matched star pair.
 - `M` + click: mask a local image region.
 - `Z`: show the zoom/magnifier view.
