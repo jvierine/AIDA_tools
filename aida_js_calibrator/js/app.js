@@ -85,6 +85,7 @@
         imageFlipX: false,
         imageFlipY: false,
         displayMode: "pairing",
+        previousAnnotatedDisplayMode: "pairing",
         maxMagByMode: {stellarium: 6.0, pairing: 4.0},
         starNamesByMode: {stellarium: false, pairing: true},
         showRaDecGrid: false,
@@ -1277,11 +1278,24 @@ def image_to_az_el(x, y, optpar=optpar, optmod=optmod,
         residualHistogram.appendChild(svg);
     }
 
+    function nearestCardinalAzimuthDistance(azDeg) {
+        const normalized = ((azDeg % 360) + 360) % 360;
+        let best = 180;
+        for (let cardinal = 0; cardinal < 360; cardinal += 45) {
+            const diff = Math.abs(((normalized - cardinal + 540) % 360) - 180);
+            best = Math.min(best, diff);
+        }
+        return best;
+    }
+
     function drawAzElGridLabels(optpar, optmod) {
         if (!state.showAzElGrid) {
             return;
         }
         for (let az = 0; az < 360; az += 30) {
+            if (nearestCardinalAzimuthDistance(az) < 1e-6) {
+                continue;
+            }
             const point = horizonPointForAz(az, optpar, optmod);
             if (point) {
                 addOverlayLabel(`${az}° az`, point, "grid-label azel-label", true);
@@ -1468,7 +1482,7 @@ def image_to_az_el(x, y, optpar=optpar, optmod=optmod,
         canvas.classList.toggle("mask-mode", state.maskMode);
         gl.clearColor(0, 0, 0, 1);
         gl.clear(gl.COLOR_BUFFER_BIT);
-        if (state.showFitResiduals || state.displayMode === "pairing") {
+        if (state.showFitResiduals || state.displayMode === "pairing" || state.displayMode === "pureImage") {
             drawImage();
         }
         if (state.showFitResiduals) {
@@ -1482,12 +1496,16 @@ def image_to_az_el(x, y, optpar=optpar, optmod=optmod,
             updateResidualHistogram(rows);
         } else {
             updateResidualHistogram([]);
-            drawAzElGrid();
-            drawRaDecGrid();
-            if (state.displayMode === "stellarium") {
-                drawStars();
+            if (state.displayMode === "pureImage") {
+                cardinalLayer.replaceChildren();
+            } else {
+                drawAzElGrid();
+                drawRaDecGrid();
+                if (state.displayMode === "stellarium") {
+                    drawStars();
+                }
+                drawOverlayLabels();
             }
-            drawOverlayLabels();
         }
         controls.brightnessValue.textContent = Number(controls.brightness.value).toFixed(2);
         controls.contrastValue.textContent = Number(controls.contrast.value).toFixed(2);
@@ -1530,14 +1548,18 @@ def image_to_az_el(x, y, optpar=optpar, optmod=optmod,
     }
 
     function setDisplayMode(mode) {
-        if (!state.maxMagByMode[mode]) {
+        if (!["pairing", "stellarium", "pureImage"].includes(mode)) {
             return;
         }
-        state.maxMagByMode[state.displayMode] = Number(controls.maxMag.value) || 4.0;
-        state.starNamesByMode[state.displayMode] = state.showStarNames;
+        if (state.maxMagByMode[state.displayMode]) {
+            state.maxMagByMode[state.displayMode] = Number(controls.maxMag.value) || 4.0;
+            state.starNamesByMode[state.displayMode] = state.showStarNames;
+        }
         state.displayMode = mode;
-        controls.maxMag.value = state.maxMagByMode[mode].toFixed(1);
-        state.showStarNames = state.starNamesByMode[mode];
+        if (state.maxMagByMode[mode]) {
+            controls.maxMag.value = state.maxMagByMode[mode].toFixed(1);
+            state.showStarNames = state.starNamesByMode[mode];
+        }
         updateStarNameButton();
     }
 
@@ -1547,6 +1569,9 @@ def image_to_az_el(x, y, optpar=optpar, optmod=optmod,
         }
         if (state.showFitResiduals) {
             return "Fit residual mode: normal markings are hidden. Red lines connect each identified image star to its fitted catalog position; press r to return.";
+        }
+        if (state.displayMode === "pureImage") {
+            return "Pure image view: all annotations are hidden. Press x to return to the previous annotated view, or s to start picking stars.";
         }
         if (state.deleteDetectionMode) {
             return "Pairing delete mode: click a matched image or catalog star to remove that star pairing.";
@@ -1561,7 +1586,7 @@ def image_to_az_el(x, y, optpar=optpar, optmod=optmod,
             if (state.showKdePositionDots) {
                 return "KDE dot inspection: all other markings are hidden. Press k to return to the normal overlay.";
             }
-            return "Star pairing view: left-drag moves the 90 deg elevation point in x/y. Right-drag rotates the azimuth grid around that point. Wheel edits f1/f2 together. Press c for Stellarium view, s to pick an image star, k for KDE sub-pixel dots, n to show/hide star names, d to delete a star pairing, m to mask image regions, or z to zoom.";
+            return "Star pairing view: left-drag moves the 90 deg elevation point in x/y. Right-drag rotates the azimuth grid around that point. Wheel edits f1/f2 together. Press c for Stellarium view, x for pure image view, s to pick an image star, k for KDE sub-pixel dots, n to show/hide star names, d to delete a star pairing, m to mask image regions, or z to zoom.";
         }
         if (!state.pendingMatch) {
             return "Star pairing: hold s and click the image star. A KDE centroid fit will select the sub-pixel star position.";
@@ -3536,8 +3561,29 @@ def image_to_az_el(x, y, optpar=optpar, optmod=optmod,
     }
 
     function toggleDetectionCircles() {
-        setDisplayMode(state.displayMode === "stellarium" ? "pairing" : "stellarium");
+        const nextMode = state.displayMode === "stellarium" ? "pairing" : "stellarium";
+        setDisplayMode(nextMode);
+        state.previousAnnotatedDisplayMode = nextMode;
         state.starMatchMode = false;
+        state.pendingMatch = null;
+        updateDetectionCircleButton();
+        recomputeAndRender();
+    }
+
+    function togglePureImageView() {
+        if (state.displayMode === "pureImage") {
+            setDisplayMode(state.previousAnnotatedDisplayMode || "pairing");
+        } else {
+            if (state.displayMode === "pairing" || state.displayMode === "stellarium") {
+                state.previousAnnotatedDisplayMode = state.displayMode;
+            }
+            setDisplayMode("pureImage");
+        }
+        state.starMatchMode = false;
+        state.deleteDetectionMode = false;
+        state.maskMode = false;
+        state.zoomMode = false;
+        hideZoomCanvas();
         state.pendingMatch = null;
         updateDetectionCircleButton();
         recomputeAndRender();
@@ -3785,6 +3831,9 @@ def image_to_az_el(x, y, optpar=optpar, optmod=optmod,
         } else if ((event.key === "c" || event.key === "C") && !event.repeat) {
             event.preventDefault();
             toggleDetectionCircles();
+        } else if ((event.key === "x" || event.key === "X") && !event.repeat) {
+            event.preventDefault();
+            togglePureImageView();
         } else if ((event.key === "n" || event.key === "N") && !event.repeat) {
             event.preventDefault();
             toggleStarNames();
