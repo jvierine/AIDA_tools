@@ -625,6 +625,25 @@ button.toggle-on {
     line-height: 1.45;
 }
 
+.lens-equation-legend {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 4px 12px;
+    margin: -4px 0 10px;
+    padding: 9px 10px;
+    border: 1px solid #dbeafe;
+    border-radius: 6px;
+    background: #f8fbff;
+    color: #334155;
+    font-size: 12px;
+    line-height: 1.35;
+}
+
+.lens-equation-legend code {
+    color: #1d4ed8;
+    font-weight: 700;
+}
+
 pre {
     min-height: 130px;
     margin: 0;

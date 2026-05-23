@@ -138,14 +138,14 @@
 
     <h2>Useful controls</h2>
     <ul>
-        <li><kbd>S</kbd>: enter star picking and select an image star while held; clicking an existing matched pair removes it.</li>
+        <li><kbd>S</kbd>: enter star picking and select an image star while held.</li>
         <li><kbd>C</kbd>: toggle star pairing view and Stellarium-style catalog view.</li>
         <li><kbd>X</kbd>: alternate pure image view and pure Stellarium view, hiding labels and pairings while respecting the az/el grid toggle.</li>
         <li><kbd>N</kbd>: show or hide catalog star names in the current view.</li>
         <li>Play/stop button next to Help: start or stop the evolving generated planetarium score and subtle interaction blips.</li>
         <li><kbd>K</kbd>: show or hide tiny KDE subpixel dots at the picked image-star positions.</li>
-        <li><kbd>F</kbd>: fit all eight optical parameters with robust Nelder-Mead.</li>
-        <li><kbd>G</kbd>: fit all eight optical parameters with Levenberg-Marquardt.</li>
+        <li><kbd>F</kbd>: fit the selected model parameters with robust Nelder-Mead.</li>
+        <li><kbd>G</kbd>: fit the selected model parameters with Levenberg-Marquardt.</li>
         <li><kbd>Cmd/Ctrl Z</kbd>: undo the most recent accepted fit.</li>
         <li><kbd>D</kbd> + click: delete the nearest matched star pairing.</li>
         <li><kbd>R</kbd>: show or hide residual view.</li>
@@ -163,7 +163,7 @@
         catalog stars line up with the image orientation. Use the mouse wheel if
         the projected catalog field is too wide or too narrow. After the field is
         close, use <kbd>S</kbd> to create accurate star pairs and let the lens
-        optimizer refine all eight optical parameters.
+        optimizer refine the selected model parameters.
     </p>
 
     <h2>Star picking details</h2>
@@ -198,8 +198,19 @@
 
     <h2>Export notes</h2>
     <p>
+        The model selector names the two AIDA-specific lens models as
+        AIDA sinusoidal radial (<code>optmod 2</code>) and AIDA hybrid
+        tan/theta radial (<code>optmod 3</code>). These are descriptive names
+        for the AIDA model variants, not literature names. Brown-Conrady is
+        provided as a standard radial/tangential distortion alternative; see
+        Nowakowski and Skarbek (2013), "Analysis of Brown camera distortion
+        model", SPIE volume 8903.
+    </p>
+    <p>
         The copied <code>optpar</code> array contains
         <code>[f1, f2, alpha, beta, gamma, du, dv, radial_alpha]</code>.
+        For the Brown-Conrady model, it contains
+        <code>[f1, f2, alpha, beta, gamma, du, dv, k1, k2, k3, p1, p2]</code>.
         The copied Python mapper uses the same forward model and numerically
         searches for the azimuth and elevation whose projected image coordinate
         matches the supplied pixel.

@@ -10,6 +10,7 @@
     const matchInstructions = document.getElementById("matchInstructions");
     const residualHistogram = document.getElementById("residualHistogram");
     const lensEquation = document.getElementById("lensEquation");
+    const lensEquationLegend = document.getElementById("lensEquationLegend");
     const densityPopup = document.getElementById("densityPopup");
     const densityPopupSubtitle = document.getElementById("densityPopupSubtitle");
     const densityPopupClose = document.getElementById("densityPopupClose");
@@ -56,6 +57,11 @@
         du: document.getElementById("du"),
         dv: document.getElementById("dv"),
         radialAlpha: document.getElementById("radialAlpha"),
+        brownConradyParams: document.getElementById("brownConradyParams"),
+        brownK2: document.getElementById("brownK2"),
+        brownK3: document.getElementById("brownK3"),
+        brownP1: document.getElementById("brownP1"),
+        brownP2: document.getElementById("brownP2"),
         fitLens: document.getElementById("fitLens"),
         fitLensLm: document.getElementById("fitLensLm"),
         undoFit: document.getElementById("undoFit"),
@@ -369,7 +375,8 @@
     }
 
     function currentOptpar() {
-        return [
+        const optmod = Number(controls.optmod.value) || 2;
+        const common = [
             Number(controls.fScaleX.value) || 1.0,
             Number(controls.fScaleY.value) || 1.0,
             Number(controls.rotAlpha.value) || 0,
@@ -377,8 +384,17 @@
             Number(controls.rotGamma.value) || 0,
             Number(controls.du.value) || 0,
             Number(controls.dv.value) || 0,
-            Number(controls.radialAlpha.value) || 0.35,
+            Number.isFinite(Number(controls.radialAlpha.value)) ? Number(controls.radialAlpha.value) : 0.35,
         ];
+        if (optmod !== 4) {
+            return common;
+        }
+        return common.concat([
+            Number(controls.brownK2.value) || 0,
+            Number(controls.brownK3.value) || 0,
+            Number(controls.brownP1.value) || 0,
+            Number(controls.brownP2.value) || 0,
+        ]);
     }
 
     function isMacPlatform() {
@@ -395,20 +411,21 @@
     }
 
     function optparFromFitVector(x) {
-        return [
-            x[0],
-            x[1],
-            x[2],
-            x[3],
-            x[4],
-            x[5],
-            x[6],
-            x[7],
-        ];
+        return x.slice();
     }
 
     function currentFitVector() {
         return currentOptpar();
+    }
+
+    function updateOptmodUi() {
+        const optmod = Number(controls.optmod.value) || 2;
+        controls.brownConradyParams.hidden = optmod !== 4;
+        if (optmod === 4 && Number(controls.radialAlpha.value) === 0.35) {
+            controls.radialAlpha.value = "0";
+        } else if (optmod !== 4 && Number(controls.radialAlpha.value) === 0) {
+            controls.radialAlpha.value = "0.35";
+        }
     }
 
     function applyFitVector(x) {
@@ -419,7 +436,16 @@
         controls.rotGamma.value = wrapDegrees180(x[4]).toFixed(3);
         controls.du.value = Math.max(-0.5, Math.min(0.5, x[5])).toFixed(6);
         controls.dv.value = Math.max(-0.5, Math.min(0.5, x[6])).toFixed(6);
-        controls.radialAlpha.value = Math.max(0.05, Math.min(2.5, x[7])).toFixed(6);
+        const optmod = Number(controls.optmod.value) || 2;
+        controls.radialAlpha.value = (optmod === 4 ?
+            Math.max(-5.0, Math.min(5.0, x[7] || 0)) :
+            Math.max(0.05, Math.min(2.5, x[7]))).toFixed(6);
+        if (optmod === 4) {
+            controls.brownK2.value = Math.max(-5.0, Math.min(5.0, x[8] || 0)).toFixed(6);
+            controls.brownK3.value = Math.max(-5.0, Math.min(5.0, x[9] || 0)).toFixed(6);
+            controls.brownP1.value = Math.max(-1.0, Math.min(1.0, x[10] || 0)).toFixed(6);
+            controls.brownP2.value = Math.max(-1.0, Math.min(1.0, x[11] || 0)).toFixed(6);
+        }
     }
 
     function updateUndoFitButton() {
@@ -479,6 +505,10 @@
         controls.du.value = optpar[5].toFixed(6);
         controls.dv.value = optpar[6].toFixed(6);
         controls.radialAlpha.value = optpar[7].toFixed(6);
+        controls.brownK2.value = (optpar[8] || 0).toFixed(6);
+        controls.brownK3.value = (optpar[9] || 0).toFixed(6);
+        controls.brownP1.value = (optpar[10] || 0).toFixed(6);
+        controls.brownP2.value = (optpar[11] || 0).toFixed(6);
     }
 
     function latexNumber(value, digits = 4) {
@@ -490,6 +520,21 @@
     }
 
     function lensEquationLatex(optpar, optmod) {
+        if (optmod === 4) {
+            return "\\[" +
+                "\\begin{aligned}" +
+                "\\mathbf{o}&=[f_1,f_2,\\alpha,\\beta,\\gamma,d_u,d_v,k_1,k_2,k_3,p_1,p_2]\\\\" +
+                `&=[${optpar.map((value, idx) => latexNumber(value, idx >= 2 && idx <= 4 ? 3 : 5)).join(", ")}]` +
+                "\\\\" +
+                "x_n&=s_1/s_3,\\quad y_n=s_2/s_3,\\quad r^2=x_n^2+y_n^2\\\\" +
+                "L(r)&=1+k_1r^2+k_2r^4+k_3r^6\\\\" +
+                "x_d&=x_nL(r)+2p_1x_ny_n+p_2(r^2+2x_n^2)\\\\" +
+                "y_d&=y_nL(r)+p_1(r^2+2y_n^2)+2p_2x_ny_n\\\\" +
+                "x&=W\\left(f_1x_d+\\frac{1}{2}+d_u\\right)-1\\\\" +
+                "y&=H\\left(f_2y_d+\\frac{1}{2}+d_v\\right)-1" +
+                "\\end{aligned}" +
+                "\\]";
+        }
         const radial = optmod === 2
             ? "q(\\theta)=\\sin(a_r\\theta)"
             : "q(\\theta)=a_r\\theta+(1-a_r)\\tan\\theta";
@@ -506,6 +551,31 @@
             "\\]";
     }
 
+    function lensEquationLegendHtml(optmod) {
+        const common = [
+            ["f1, f2", "horizontal and vertical focal scale factors"],
+            ["alpha, beta, gamma", "camera rotation angles in degrees"],
+            ["du, dv", "principal-point offsets in normalized image coordinates"],
+            ["s1, s2, s3", "star direction vector after camera rotation"],
+            ["W, H", "image width and height in pixels"],
+            ["x, y", "0-based image pixel coordinates"],
+        ];
+        const modelSpecific = optmod === 4 ? [
+            ["xn, yn", "normalized pinhole image coordinates"],
+            ["r", "radius in normalized pinhole coordinates"],
+            ["k1, k2, k3", "Brown-Conrady radial distortion coefficients"],
+            ["p1, p2", "Brown-Conrady tangential distortion coefficients"],
+            ["xd, yd", "distorted normalized image coordinates"],
+        ] : [
+            ["theta", "off-axis angle from the camera boresight"],
+            ["q(theta)", "radial projection law for the selected AIDA model"],
+            ["a_r", "AIDA radial model parameter"],
+        ];
+        return common.concat(modelSpecific)
+            .map(([symbol, meaning]) => `<div><code>${symbol}</code>: ${meaning}</div>`)
+            .join("");
+    }
+
     function updateLensEquation(optpar, optmod) {
         if (!lensEquation) {
             return;
@@ -516,6 +586,9 @@
         }
         state.lastLensEquation = latex;
         lensEquation.textContent = latex;
+        if (lensEquationLegend) {
+            lensEquationLegend.innerHTML = lensEquationLegendHtml(optmod);
+        }
         if (window.MathJax && MathJax.typesetPromise) {
             MathJax.typesetPromise([lensEquation]).catch(() => {});
         }
@@ -579,11 +652,30 @@ def az_el_to_image(az_deg, el_deg, optpar=optpar, optmod=optmod,
         r = np.sin(radial_alpha * theta)
         u_norm = f1 * s1 / radial * r + 0.5 + du
         v_norm = f2 * s2 / radial * r + 0.5 + dv
-    else:
+    elif optmod == 3:
         theta = np.arctan2(radial, s3)
         safe_s3 = max(s3, 1e-12)
         u_norm = f1 * (1.0 - radial_alpha) * s1 / safe_s3 + f1 * radial_alpha * s1 / radial * theta + 0.5 + du
         v_norm = f2 * (1.0 - radial_alpha) * s2 / safe_s3 + f2 * radial_alpha * s2 / radial * theta + 0.5 + dv
+    elif optmod == 4:
+        safe_s3 = s3 if abs(s3) > 1e-12 else 1e-12
+        xn = s1 / safe_s3
+        yn = s2 / safe_s3
+        r2 = xn * xn + yn * yn
+        r4 = r2 * r2
+        r6 = r4 * r2
+        k1 = optpar[7] if len(optpar) > 7 else 0.0
+        k2 = optpar[8] if len(optpar) > 8 else 0.0
+        k3 = optpar[9] if len(optpar) > 9 else 0.0
+        p1 = optpar[10] if len(optpar) > 10 else 0.0
+        p2 = optpar[11] if len(optpar) > 11 else 0.0
+        radial_distortion = 1.0 + k1 * r2 + k2 * r4 + k3 * r6
+        x_distorted = xn * radial_distortion + 2.0 * p1 * xn * yn + p2 * (r2 + 2.0 * xn * xn)
+        y_distorted = yn * radial_distortion + p1 * (r2 + 2.0 * yn * yn) + 2.0 * p2 * xn * yn
+        u_norm = f1 * x_distorted + 0.5 + du
+        v_norm = f2 * y_distorted + 0.5 + dv
+    else:
+        raise ValueError(f"unsupported optmod {optmod}")
     return np.array([u_norm * width - 1.0, v_norm * height - 1.0])
 
 def image_to_az_el(x, y, optpar=optpar, optmod=optmod,
@@ -790,7 +882,7 @@ def image_to_az_el(x, y, optpar=optpar, optmod=optmod,
         const date = AidaTools.datetimeLocalToDate(controls.timestampUtc.value);
         const lat = Number(controls.latDeg.value) || 0;
         const lon = Number(controls.lonDeg.value) || 0;
-        const stars = AidaTools.visibleStars(window.AIDA_STAR_CATALOG, date, lat, lon, 6, 88);
+        const stars = AidaTools.visibleStars(window.AIDA_STAR_CATALOG, date, lat, lon, 7, 88);
         const optpar = currentOptpar();
         const optmod = Number(controls.optmod.value);
         state.projected = [];
@@ -1152,7 +1244,26 @@ def image_to_az_el(x, y, optpar=optpar, optmod=optmod,
             return;
         }
         const residualDisplayScale = 20;
-        const segments = [];
+        const triangles = [];
+        const residualLineWidth = 3.0 * (window.devicePixelRatio || 1);
+        const appendThickSegment = (x0, y0, x1, y1) => {
+            const dx = x1 - x0;
+            const dy = y1 - y0;
+            const len = Math.hypot(dx, dy);
+            if (len < 1e-6) {
+                return;
+            }
+            const nx = -dy / len * residualLineWidth * 0.5;
+            const ny = dx / len * residualLineWidth * 0.5;
+            triangles.push(
+                x0 + nx, y0 + ny,
+                x0 - nx, y0 - ny,
+                x1 + nx, y1 + ny,
+                x1 + nx, y1 + ny,
+                x0 - nx, y0 - ny,
+                x1 - nx, y1 - ny,
+            );
+        };
         for (const row of rows) {
             const detected = imageMarkerCanvasPixel(row.match.image.x, row.match.image.y);
             const trueModel = imageMarkerCanvasPixel(row.model.x, row.model.y);
@@ -1160,11 +1271,14 @@ def image_to_az_el(x, y, optpar=optpar, optmod=optmod,
                 detected[0] + (trueModel[0] - detected[0]) * residualDisplayScale,
                 detected[1] + (trueModel[1] - detected[1]) * residualDisplayScale,
             ];
-            segments.push(detected[0], detected[1], model[0], model[1]);
+            appendThickSegment(detected[0], detected[1], model[0], model[1]);
+        }
+        if (triangles.length === 0) {
+            return;
         }
         gl.useProgram(lineProgram);
         gl.bindBuffer(gl.ARRAY_BUFFER, lineBuffer);
-        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(segments), gl.DYNAMIC_DRAW);
+        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(triangles), gl.DYNAMIC_DRAW);
         const aPixel = gl.getAttribLocation(lineProgram, "a_pixel");
         gl.enableVertexAttribArray(aPixel);
         gl.vertexAttribPointer(aPixel, 2, gl.FLOAT, false, 0, 0);
@@ -1172,7 +1286,7 @@ def image_to_az_el(x, y, optpar=optpar, optmod=optmod,
         gl.uniform4f(gl.getUniformLocation(lineProgram, "u_color"), 1.0, 0.0, 0.0, 0.9);
         gl.enable(gl.BLEND);
         gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
-        gl.drawArrays(gl.LINES, 0, segments.length / 2);
+        gl.drawArrays(gl.TRIANGLES, 0, triangles.length / 2);
         gl.disable(gl.BLEND);
         drawWorstResidualMarker(rows, residualDisplayScale);
     }
@@ -2824,9 +2938,6 @@ def image_to_az_el(x, y, optpar=optpar, optmod=optmod,
     }
 
     function handleStarMatchClick(event) {
-        if (removeNearestMatchedStar(event)) {
-            return;
-        }
         const imagePoint = eventToImagePixel(event);
         if (!imagePoint) {
             state.fitMessage = "star match: click on an image star while holding s";
@@ -2888,13 +2999,22 @@ def image_to_az_el(x, y, optpar=optpar, optmod=optmod,
         }
     }
 
-    function fitPenalty(x) {
-        if (x.length < 8 ||
+    function requiredOptparLength(optmod = Number(controls.optmod.value) || 2) {
+        return optmod === 4 ? 12 : 8;
+    }
+
+    function fitPenalty(x, optmod = Number(controls.optmod.value) || 2) {
+        const radialPenalty = optmod === 4
+            ? Math.abs(x[7]) > 5.0 || Math.abs(x[8] || 0) > 5.0 ||
+                Math.abs(x[9] || 0) > 5.0 || Math.abs(x[10] || 0) > 1.0 ||
+                Math.abs(x[11] || 0) > 1.0
+            : x[7] < 0.05 || x[7] > 2.5;
+        if (x.length < requiredOptparLength(optmod) ||
                 Math.abs(x[0]) < 0.05 || Math.abs(x[0]) > 10 ||
                 Math.abs(x[1]) < 0.05 || Math.abs(x[1]) > 10 ||
                 Math.abs(x[2]) > 90 || Math.abs(x[3]) > 90 ||
                 Math.abs(x[4]) > 720 || Math.abs(x[5]) > 0.5 ||
-                Math.abs(x[6]) > 0.5 || x[7] < 0.05 || x[7] > 2.5) {
+                Math.abs(x[6]) > 0.5 || radialPenalty) {
             return 1e12;
         }
         return 0;
@@ -2910,7 +3030,7 @@ def image_to_az_el(x, y, optpar=optpar, optmod=optmod,
             return {az: azze.az, ze: azze.ze, image: match.image};
         });
         return x => {
-            if (fitPenalty(x) > 0 || rows.length === 0) {
+            if (fitPenalty(x, optmod) > 0 || rows.length === 0) {
                 return null;
             }
             const optpar = optparFromFitVector(x);
@@ -2978,9 +3098,9 @@ def image_to_az_el(x, y, optpar=optpar, optmod=optmod,
         return weighted;
     }
 
-    function matchObjectiveFactory(residualFn = matchResidualFactory()) {
+    function matchObjectiveFactory(residualFn = matchResidualFactory(), optmod = Number(controls.optmod.value) || 2) {
         return x => {
-            const penalty = fitPenalty(x);
+            const penalty = fitPenalty(x, optmod);
             if (penalty > 0) {
                 return penalty;
             }
@@ -2988,9 +3108,9 @@ def image_to_az_el(x, y, optpar=optpar, optmod=optmod,
         };
     }
 
-    function leastSquaresObjectiveFactory(residualFn = matchResidualFactory()) {
+    function leastSquaresObjectiveFactory(residualFn = matchResidualFactory(), optmod = Number(controls.optmod.value) || 2) {
         return x => {
-            const penalty = fitPenalty(x);
+            const penalty = fitPenalty(x, optmod);
             if (penalty > 0) {
                 return penalty;
             }
@@ -3055,11 +3175,11 @@ def image_to_az_el(x, y, optpar=optpar, optmod=optmod,
         return {x: simplex[0].x, fx: simplex[0].fx, iterations};
     }
 
-    function fitStartCandidates(objective, start) {
+    function fitStartCandidates(objective, start, optmod = Number(controls.optmod.value) || 2) {
         const starts = [];
         const seen = new Set();
         const addStart = x => {
-            if (fitPenalty(x) > 0) {
+            if (fitPenalty(x, optmod) > 0) {
                 return;
             }
             const key = x.map(value => value.toFixed(5)).join(",");
@@ -3078,7 +3198,9 @@ def image_to_az_el(x, y, optpar=optpar, optmod=optmod,
             addStart(state.lastFitVector);
         }
 
-        const axisOffsets = [0.08, 0.08, 3, 3, 8, 0.02, 0.02, 0.08];
+        const axisOffsets = optmod === 4
+            ? [0.08, 0.08, 3, 3, 8, 0.02, 0.02, 0.04, 0.01, 0.005, 0.002, 0.002]
+            : [0.08, 0.08, 3, 3, 8, 0.02, 0.02, 0.08];
         for (let i = 0; i < start.length; i++) {
             for (const sign of [-1, 1]) {
                 const x = start.slice();
@@ -3101,8 +3223,13 @@ def image_to_az_el(x, y, optpar=optpar, optmod=optmod,
                 start[4] + (Math.random() * 2 - 1) * 25,
                 start[5] + (Math.random() * 2 - 1) * 0.06,
                 start[6] + (Math.random() * 2 - 1) * 0.06,
-                start[7] + (Math.random() * 2 - 1) * 0.18,
-            ]);
+                start[7] + (Math.random() * 2 - 1) * (optmod === 4 ? 0.08 : 0.18),
+            ].concat(optmod === 4 ? [
+                (start[8] || 0) + (Math.random() * 2 - 1) * 0.03,
+                (start[9] || 0) + (Math.random() * 2 - 1) * 0.01,
+                (start[10] || 0) + (Math.random() * 2 - 1) * 0.004,
+                (start[11] || 0) + (Math.random() * 2 - 1) * 0.004,
+            ] : []));
         }
 
         starts.sort((a, b) => a.fx - b.fx);
@@ -3144,9 +3271,11 @@ def image_to_az_el(x, y, optpar=optpar, optmod=optmod,
         return m.map(row => row[n]);
     }
 
-    function levenbergMarquardt(residualFn, start, maxIter = 80) {
+    function levenbergMarquardt(residualFn, start, maxIter = 80, optmod = Number(controls.optmod.value) || 2) {
         const n = start.length;
-        const diffSteps = [1e-4, 1e-4, 1e-3, 1e-3, 1e-3, 1e-5, 1e-5, 1e-4];
+        const diffSteps = optmod === 4
+            ? [1e-4, 1e-4, 1e-3, 1e-3, 1e-3, 1e-5, 1e-5, 1e-5, 1e-6, 1e-6, 1e-6, 1e-6]
+            : [1e-4, 1e-4, 1e-3, 1e-3, 1e-3, 1e-5, 1e-5, 1e-4];
         let x = start.slice();
         let residuals = residualFn(x);
         let fx = residualSumSquares(residuals);
@@ -3195,7 +3324,7 @@ def image_to_az_el(x, y, optpar=optpar, optmod=optmod,
                     continue;
                 }
                 const xCandidate = x.map((value, i) => value + step[i]);
-                if (fitPenalty(xCandidate) > 0) {
+                if (fitPenalty(xCandidate, optmod) > 0) {
                     lambda *= 10;
                     continue;
                 }
@@ -3238,7 +3367,7 @@ def image_to_az_el(x, y, optpar=optpar, optmod=optmod,
         state.pendingMatch = null;
         state.showPickedMatchMarkers = false;
         state.fitMessage = `${methodLabel}: RMS ${rmsBefore.toFixed(2)} -> ${rmsAfter.toFixed(2)} px, ` +
-            `${detail}; ${objectiveLabel}; fitted all 8 optpar values using ${fitCount}/${state.matches.length} pairs ` +
+            `${detail}; ${objectiveLabel}; fitted all ${result.x.length} optpar values using ${fitCount}/${state.matches.length} pairs ` +
             `with mag <= ${Number(controls.maxMag.value).toFixed(1)}`;
         recomputeAndRender();
         return true;
@@ -3246,18 +3375,22 @@ def image_to_az_el(x, y, optpar=optpar, optmod=optmod,
 
     function fitLensFromMatches() {
         const fitCount = fittingMatches().length;
-        if (!state.image || fitCount < 4) {
-            state.fitMessage = `lens fit: need at least 4 matched star pairs with mag <= ` +
+        const optmod = Number(controls.optmod.value) || 2;
+        const minPairs = Math.ceil(requiredOptparLength(optmod) / 2);
+        if (!state.image || fitCount < minPairs) {
+            state.fitMessage = `lens fit: need at least ${minPairs} matched star pairs with mag <= ` +
                 `${Number(controls.maxMag.value).toFixed(1)} (${fitCount}/${state.matches.length} available)`;
             render();
             return;
         }
 
         const residualFn = matchResidualFactory();
-        const objective = matchObjectiveFactory(residualFn);
+        const objective = matchObjectiveFactory(residualFn, optmod);
         const start = currentFitVector();
-        const steps = [0.05, 0.05, 1.5, 1.5, 2.0, 0.006, 0.006, 0.03];
-        const starts = fitStartCandidates(objective, start);
+        const steps = optmod === 4
+            ? [0.05, 0.05, 1.5, 1.5, 2.0, 0.006, 0.006, 0.02, 0.006, 0.003, 0.001, 0.001]
+            : [0.05, 0.05, 1.5, 1.5, 2.0, 0.006, 0.006, 0.03];
+        const starts = fitStartCandidates(objective, start, optmod);
         let result = null;
         let totalIterations = 0;
         for (const candidate of starts) {
@@ -3285,21 +3418,23 @@ def image_to_az_el(x, y, optpar=optpar, optmod=optmod,
 
     function fitLensLevenbergMarquardt() {
         const fitCount = fittingMatches().length;
-        if (!state.image || fitCount < 4) {
-            state.fitMessage = `LM lens fit: need at least 4 matched star pairs with mag <= ` +
+        const optmod = Number(controls.optmod.value) || 2;
+        const minPairs = Math.ceil(requiredOptparLength(optmod) / 2);
+        if (!state.image || fitCount < minPairs) {
+            state.fitMessage = `LM lens fit: need at least ${minPairs} matched star pairs with mag <= ` +
                 `${Number(controls.maxMag.value).toFixed(1)} (${fitCount}/${state.matches.length} available)`;
             render();
             return;
         }
         const residualFn = matchResidualFactory();
-        const objective = leastSquaresObjectiveFactory(residualFn);
+        const objective = leastSquaresObjectiveFactory(residualFn, optmod);
         const start = currentFitVector();
-        const starts = fitStartCandidates(objective, start).slice(0, 12);
+        const starts = fitStartCandidates(objective, start, optmod).slice(0, 12);
         let result = null;
         let totalIterations = 0;
         let accepted = 0;
         for (const candidate of starts) {
-            const candidateResult = levenbergMarquardt(residualFn, candidate.x, 80);
+            const candidateResult = levenbergMarquardt(residualFn, candidate.x, 80, optmod);
             totalIterations += candidateResult.iterations;
             accepted += candidateResult.accepted;
             if (!result || candidateResult.fx < result.fx) {
@@ -4166,7 +4301,7 @@ def image_to_az_el(x, y, optpar=optpar, optmod=optmod,
     for (const el of document.querySelectorAll(".controls input, .controls select")) {
         if (el !== controls.file &&
                 el !== controls.highPassImage && el !== controls.highPassWidth &&
-                el !== controls.maxMag) {
+                el !== controls.maxMag && el !== controls.optmod) {
             el.addEventListener("input", recomputeAndRender);
         }
     }
@@ -4177,6 +4312,12 @@ def image_to_az_el(x, y, optpar=optpar, optmod=optmod,
             state.maxMagByMode[state.displayMode] = Number(controls.maxMag.value) || 4.0;
         }
         playInteractionSound("click");
+        recomputeAndRender();
+    });
+    controls.optmod.addEventListener("input", () => {
+        updateOptmodUi();
+        state.lastFitVector = null;
+        clearFitUndoStack();
         recomputeAndRender();
     });
 
@@ -4482,5 +4623,6 @@ def image_to_az_el(x, y, optpar=optpar, optmod=optmod,
     updateAmbientMusicButton();
     updateFitResidualButton();
     updateUndoFitButton();
+    updateOptmodUi();
     render();
 })();

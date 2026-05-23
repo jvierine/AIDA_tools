@@ -102,7 +102,7 @@
                 <input id="highPassWidth" type="range" min="10" max="300" value="100" step="5">
             </label>
             <label>Limiting magnitude <span id="magValue">4.0</span>
-                <input id="maxMag" type="range" min="2" max="6" value="4" step="0.1">
+                <input id="maxMag" type="range" min="2" max="7" value="4" step="0.1">
             </label>
             <div class="button-row">
                 <button id="flipX" type="button">Flip X</button>
@@ -124,8 +124,9 @@
             <div class="grid2">
                 <label>Optical model
                     <select id="optmod">
-                        <option value="2" selected>optmod 2</option>
-                        <option value="3">optmod 3</option>
+                        <option value="2" selected>AIDA sinusoidal radial (optmod 2)</option>
+                        <option value="3">AIDA hybrid tan/theta radial (optmod 3)</option>
+                        <option value="4">Brown-Conrady</option>
                     </select>
                 </label>
                 <label>Horizontal focal f1
@@ -152,10 +153,25 @@
                     <input id="dv" type="number" value="0" step="0.001">
                 </label>
             </div>
-            <label>Radial alpha
+            <label>Radial alpha / Brown k1
                 <input id="radialAlpha" type="number" value="0.35" step="0.01">
             </label>
+            <div id="brownConradyParams" class="grid2" hidden>
+                <label>Brown k2
+                    <input id="brownK2" type="number" value="0" step="0.001">
+                </label>
+                <label>Brown k3
+                    <input id="brownK3" type="number" value="0" step="0.001">
+                </label>
+                <label>Brown p1
+                    <input id="brownP1" type="number" value="0" step="0.0001">
+                </label>
+                <label>Brown p2
+                    <input id="brownP2" type="number" value="0" step="0.0001">
+                </label>
+            </div>
             <div id="lensEquation" class="lens-equation"></div>
+            <div id="lensEquationLegend" class="lens-equation-legend"></div>
             <button id="fitLens" type="button">Fit lens with Nelder-Mead (F)</button>
             <button id="fitLensLm" type="button">Fit lens with Levenberg-Marquardt (G)</button>
             <button id="undoFit" type="button" disabled>Undo fit</button>
@@ -177,7 +193,7 @@
     </aside>
 </main>
 
-<script src="js/star_catalog.js?v=20260523a"></script>
+<script src="js/star_catalog.js?v=20260523b"></script>
 <script>
 window.MathJax = {
     tex: {inlineMath: [["\\(", "\\)"], ["$", "$"]]},

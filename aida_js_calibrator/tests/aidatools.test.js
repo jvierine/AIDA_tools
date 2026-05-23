@@ -309,6 +309,27 @@ test("optmod 2 follows the sin(alpha * theta) radial model", () => {
     assertNear(projected.y, expectedY);
 });
 
+test("optmod 4 follows the Brown-Conrady radial and tangential model", () => {
+    const optpar = [0.8, 0.6, 0, 0, 0, 0.02, -0.03, 0.15, -0.04, 0.01, 0.002, -0.003];
+    const az = Math.PI / 2;
+    const ze = 30 * AidaTools.DEG;
+    const width = 1000;
+    const height = 800;
+    const projected = AidaTools.cameraModel(az, ze, optpar, 4, width, height);
+
+    const xn = Math.tan(ze);
+    const r2 = xn * xn;
+    const r4 = r2 * r2;
+    const r6 = r4 * r2;
+    const radial = 1 + optpar[7] * r2 + optpar[8] * r4 + optpar[9] * r6;
+    const xDistorted = xn * radial + optpar[11] * (r2 + 2 * xn * xn);
+    const yDistorted = optpar[10] * r2 + 2 * optpar[11] * xn * 0;
+    const expectedX = (optpar[0] * xDistorted + 0.5 + optpar[5]) * width - 1;
+    const expectedY = (optpar[1] * yDistorted + 0.5 + optpar[6]) * height - 1;
+    assertNear(projected.x, expectedX);
+    assertNear(projected.y, expectedY);
+});
+
 test("visibleStars filters by magnitude and zenith angle", () => {
     const catalog = [
         [0, 0, 1.0, "bright"],

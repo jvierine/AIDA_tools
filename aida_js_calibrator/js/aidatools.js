@@ -123,7 +123,7 @@
             const r = Math.sin(alpha * theta);
             uNorm = f1 * sese1 / radial * r + 0.5 + dx;
             vNorm = f2 * sese2 / radial * r + 0.5 + dy;
-        } else {
+        } else if (optmod === 3) {
             const safeSese3 = Math.max(sese3, 1e-12);
             const u1 = f1 * (1.0 - alpha) * sese1 / safeSese3;
             const v1 = f2 * (1.0 - alpha) * sese2 / safeSese3;
@@ -131,6 +131,25 @@
             const v2 = f2 * alpha * sese2 / radial * theta;
             uNorm = u1 + u2 + 0.5 + dx;
             vNorm = v1 + v2 + 0.5 + dy;
+        } else if (optmod === 4) {
+            const safeSese3 = Math.abs(sese3) > 1e-12 ? sese3 : 1e-12;
+            const xn = sese1 / safeSese3;
+            const yn = sese2 / safeSese3;
+            const r2 = xn * xn + yn * yn;
+            const r4 = r2 * r2;
+            const r6 = r4 * r2;
+            const k1 = optpar[7] || 0;
+            const k2 = optpar[8] || 0;
+            const k3 = optpar[9] || 0;
+            const p1 = optpar[10] || 0;
+            const p2 = optpar[11] || 0;
+            const radialDistortion = 1.0 + k1 * r2 + k2 * r4 + k3 * r6;
+            const xDistorted = xn * radialDistortion + 2.0 * p1 * xn * yn + p2 * (r2 + 2.0 * xn * xn);
+            const yDistorted = yn * radialDistortion + p1 * (r2 + 2.0 * yn * yn) + 2.0 * p2 * xn * yn;
+            uNorm = f1 * xDistorted + 0.5 + dx;
+            vNorm = f2 * yDistorted + 0.5 + dy;
+        } else {
+            return {x: NaN, y: NaN};
         }
 
         // AIDA/Matlab calibration files use 1-based pixel coordinates. The
