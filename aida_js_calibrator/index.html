@@ -22,6 +22,7 @@
             <kbd>N</kbd> star names,
             <kbd>K</kbd> KDE dots,
             <kbd>R</kbd> residuals,
+            <kbd>Cmd/Ctrl Z</kbd> undo fit,
             <kbd>Left drag</kbd> move view,
             <kbd>Right drag</kbd> rotate view,
             <kbd>Wheel</kbd> scale view,
@@ -32,7 +33,7 @@
         <a class="top-link" href="help.html" target="_blank" rel="noopener">Help</a>
         <label class="file-button">
             Load image
-            <input id="imageFile" type="file" accept="image/png,image/jpeg,image/jpg">
+            <input id="imageFile" type="file" accept="image/png,image/jpeg,image/jpg,image/heic,image/heif,.heic,.heif">
         </label>
     </div>
 </header>
@@ -53,7 +54,7 @@
             </div>
             <canvas id="densityCanvas" width="560" height="460"></canvas>
         </div>
-        <div class="hint" id="canvasHint">Drop or load a PNG/JPEG calibration frame.</div>
+        <div class="hint" id="canvasHint">Drop or load a PNG/JPEG/HEIC calibration frame.</div>
         <div class="loading-overlay" id="loadingOverlay" aria-hidden="true">
             <div class="loading-box">
                 <div id="loadingText">Loading image...</div>
@@ -127,7 +128,7 @@
                     <input id="fScaleX" type="number" value="1.0" step="0.01">
                 </label>
                 <label>Vertical focal f2
-                    <input id="fScaleY" type="number" value="1.77" step="0.01">
+                    <input id="fScaleY" type="number" value="1.0" step="0.01">
                 </label>
             </div>
             <label>Alpha deg
@@ -153,6 +154,7 @@
             <div id="lensEquation" class="lens-equation"></div>
             <button id="fitLens" type="button">Fit lens with Nelder-Mead (F)</button>
             <button id="fitLensLm" type="button">Fit lens with Levenberg-Marquardt (G)</button>
+            <button id="undoFit" type="button" disabled>Undo fit</button>
             <div class="button-row button-row-2">
                 <button id="copyOptpar" type="button">Copy optpar Python array</button>
                 <button id="copyPythonMapper" type="button">Copy image-to-az/el Python function</button>
@@ -171,7 +173,7 @@
     </aside>
 </main>
 
-<script src="js/star_catalog.js?v=20260521o"></script>
+<script src="js/star_catalog.js?v=20260523a"></script>
 <script>
 window.MathJax = {
     tex: {inlineMath: [["\\(", "\\)"], ["$", "$"]]},
@@ -179,7 +181,10 @@ window.MathJax = {
 };
 </script>
 <script defer src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js"></script>
-<script src="js/aidatools.js?v=20260521o"></script>
+<script src="https://cdn.jsdelivr.net/npm/exifr/dist/full.umd.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/heic-to@1.3.0/dist/iife/heic-to.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/heic2any@0.0.4/dist/heic2any.min.js"></script>
+<script src="js/aidatools.js?v=20260523a"></script>
 <script src="js/centroid.js?v=20260523a"></script>
 <script src="js/app.js?v=20260523a"></script>
 </body>

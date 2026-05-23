@@ -44,11 +44,12 @@ def load_yale_bright_star_catalog() -> list[CatalogStar]:
         if len(parts) < 8:
             continue
         ra_h, ra_m, ra_s = map(float, parts[0:3])
+        dec_d_text = parts[3]
         dec_d, dec_m, dec_s = map(float, parts[3:6])
         magnitude = float(parts[6])
         ra_hours = ra_h + ra_m / 60.0 + ra_s / 3600.0
-        sign = -1.0 if dec_d < 0 else 1.0
-        dec_deg = dec_d + sign * dec_m / 60.0 + sign * dec_s / 3600.0
+        sign = -1.0 if dec_d_text.startswith("-") else 1.0
+        dec_deg = sign * (abs(dec_d) + dec_m / 60.0 + dec_s / 3600.0)
         name = names[idx] if idx < len(names) else ""
         stars.append(CatalogStar(name=name, ra_hours=ra_hours, dec_deg=dec_deg, magnitude=magnitude))
     return stars

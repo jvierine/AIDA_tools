@@ -9,7 +9,10 @@ function loadAidaTools() {
     const source = fs.readFileSync(path.join(__dirname, "..", "js", "aidatools.js"), "utf8");
     const context = {
         window: {},
+        ArrayBuffer,
+        DataView,
         Math,
+        Uint8Array,
         Date,
         Number,
         Array,
@@ -28,6 +31,87 @@ function assertNear(actual, expected, tolerance = 1e-12) {
 }
 
 const AidaTools = loadAidaTools();
+
+function loadStarCatalog() {
+    const source = fs.readFileSync(path.join(__dirname, "..", "js", "star_catalog.js"), "utf8");
+    const context = {window: {}};
+    vm.createContext(context);
+    vm.runInContext(source, context, {filename: "star_catalog.js"});
+    return context.window.AIDA_STAR_CATALOG;
+}
+
+function bufferToArrayBuffer(buffer) {
+    return buffer.buffer.slice(buffer.byteOffset, buffer.byteOffset + buffer.byteLength);
+}
+
+function makeExifJpeg() {
+    const tiff = Buffer.alloc(512, 0);
+    let p = 0;
+    tiff.write("II", p, "ascii"); p += 2;
+    tiff.writeUInt16LE(42, p); p += 2;
+    tiff.writeUInt32LE(8, p);
+
+    const writeEntry = (offset, tag, type, count, value) => {
+        tiff.writeUInt16LE(tag, offset);
+        tiff.writeUInt16LE(type, offset + 2);
+        tiff.writeUInt32LE(count, offset + 4);
+        if (Buffer.isBuffer(value)) {
+            value.copy(tiff, offset + 8, 0, 4);
+        } else {
+            tiff.writeUInt32LE(value, offset + 8);
+        }
+    };
+    const writeAscii = (offset, text) => {
+        tiff.write(text, offset, "ascii");
+        tiff.writeUInt8(0, offset + text.length);
+    };
+    const writeRationals = (offset, values) => {
+        values.forEach(([num, den], i) => {
+            tiff.writeUInt32LE(num, offset + i * 8);
+            tiff.writeUInt32LE(den, offset + i * 8 + 4);
+        });
+    };
+
+    const ifd0 = 8;
+    tiff.writeUInt16LE(2, ifd0);
+    const exifIfd = 38;
+    const gpsIfd = 114;
+    writeEntry(ifd0 + 2, 0x8769, 4, 1, exifIfd);
+    writeEntry(ifd0 + 14, 0x8825, 4, 1, gpsIfd);
+    tiff.writeUInt32LE(0, ifd0 + 26);
+
+    tiff.writeUInt16LE(2, exifIfd);
+    const dateText = 68;
+    const offsetText = 88;
+    writeEntry(exifIfd + 2, 0x9003, 2, 20, dateText);
+    writeEntry(exifIfd + 14, 0x9011, 2, 7, offsetText);
+    tiff.writeUInt32LE(0, exifIfd + 26);
+    writeAscii(dateText, "2025:02:19 03:47:01");
+    writeAscii(offsetText, "+02:00");
+
+    tiff.writeUInt16LE(6, gpsIfd);
+    const latValue = 192;
+    const lonValue = 216;
+    const altValue = 240;
+    writeEntry(gpsIfd + 2, 1, 2, 2, Buffer.from("N\0\0\0", "binary"));
+    writeEntry(gpsIfd + 14, 2, 5, 3, latValue);
+    writeEntry(gpsIfd + 26, 3, 2, 2, Buffer.from("E\0\0\0", "binary"));
+    writeEntry(gpsIfd + 38, 4, 5, 3, lonValue);
+    writeEntry(gpsIfd + 50, 5, 1, 1, Buffer.from([0, 0, 0, 0]));
+    writeEntry(gpsIfd + 62, 6, 5, 1, altValue);
+    tiff.writeUInt32LE(0, gpsIfd + 74);
+    writeRationals(latValue, [[51, 1], [26, 1], [5712, 100]]);
+    writeRationals(lonValue, [[14, 1], [16, 1], [4584, 100]]);
+    writeRationals(altValue, [[1234, 10]]);
+
+    const exifPayload = Buffer.concat([Buffer.from("Exif\0\0", "binary"), tiff.subarray(0, 248)]);
+    const app1Length = exifPayload.length + 2;
+    return Buffer.concat([
+        Buffer.from([0xff, 0xd8, 0xff, 0xe1, app1Length >> 8, app1Length & 0xff]),
+        exifPayload,
+        Buffer.from([0xff, 0xd9]),
+    ]);
+}
 
 function matMul3(a, b) {
     const out = new Array(9).fill(0);
@@ -172,6 +256,35 @@ test("allsky7 station metadata parser handles known camera ids and aliases", () 
     assert.equal(aliasStation.latDeg, 51.4492);
     assert.equal(aliasStation.lonDeg, 14.2794);
     assert.equal(AidaTools.guessAllsky7StationMetadata("unknown_first1s.png"), null);
+});
+
+test("EXIF parser extracts GPS position, altitude, and timestamp", () => {
+    const metadata = AidaTools.parseExifMetadata(bufferToArrayBuffer(makeExifJpeg()));
+    assert.equal(metadata.timestampUtc.toISOString(), "2025-02-19T01:47:01.000Z");
+    assertNear(metadata.latDeg, 51 + 26 / 60 + 57.12 / 3600, 1e-10);
+    assertNear(metadata.lonDeg, 14 + 16 / 60 + 45.84 / 3600, 1e-10);
+    assertNear(metadata.altM, 123.4, 1e-10);
+});
+
+test("external EXIF metadata normalizer handles HEIC-style fields", () => {
+    const metadata = AidaTools.normalizeExternalExifMetadata({
+        DateTimeOriginal: "2025:02:19 03:47:01",
+        OffsetTimeOriginal: "+02:00",
+        latitude: 51.4492,
+        longitude: 14.2794,
+        GPSAltitude: 123.4,
+    });
+    assert.equal(metadata.timestampUtc.toISOString(), "2025-02-19T01:47:01.000Z");
+    assertNear(metadata.latDeg, 51.4492);
+    assertNear(metadata.lonDeg, 14.2794);
+    assertNear(metadata.altM, 123.4);
+});
+
+test("star catalog preserves negative zero-degree declinations", () => {
+    const mintaka = loadStarCatalog().find(row => row[3] === "Mintaka");
+    assert.ok(mintaka, "Mintaka must be present in the catalog");
+    assertNear(mintaka[0], 5.5334444, 1e-7);
+    assertNear(mintaka[1], -0.2991667, 1e-7);
 });
 
 test("optmod 2 projects zenith to the calibrated image center", () => {

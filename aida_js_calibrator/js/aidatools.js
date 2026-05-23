@@ -209,6 +209,254 @@
         ));
     }
 
+    function parseExifDate(text, offsetText = "") {
+        const match = String(text || "").match(/^(\d{4}):(\d{2}):(\d{2})[ T](\d{2}):(\d{2}):(\d{2})/);
+        if (!match) {
+            return null;
+        }
+        const [, yy, mm, dd, hh, mi, ss] = match;
+        let utcMillis = Date.UTC(Number(yy), Number(mm) - 1, Number(dd), Number(hh), Number(mi), Number(ss));
+        const offsetMatch = String(offsetText || "").match(/^([+-])(\d{2}):?(\d{2})$/);
+        if (offsetMatch) {
+            const sign = offsetMatch[1] === "+" ? 1 : -1;
+            const offsetMinutes = sign * (Number(offsetMatch[2]) * 60 + Number(offsetMatch[3]));
+            utcMillis -= offsetMinutes * 60000;
+        }
+        return new Date(utcMillis);
+    }
+
+    function parseExifMetadata(buffer) {
+        const bytes = buffer instanceof ArrayBuffer ? buffer : buffer.buffer;
+        const view = new DataView(bytes);
+        if (view.byteLength < 4 || view.getUint16(0, false) !== 0xffd8) {
+            return null;
+        }
+
+        let app1Offset = -1;
+        let offset = 2;
+        while (offset + 4 <= view.byteLength) {
+            if (view.getUint8(offset) !== 0xff) {
+                break;
+            }
+            const marker = view.getUint8(offset + 1);
+            const length = view.getUint16(offset + 2, false);
+            if (marker === 0xe1 && offset + 4 + length <= view.byteLength &&
+                    readAscii(view, offset + 4, 6) === "Exif\0\0") {
+                app1Offset = offset + 10;
+                break;
+            }
+            if (length < 2) {
+                break;
+            }
+            offset += 2 + length;
+        }
+        if (app1Offset < 0 || app1Offset + 8 > view.byteLength) {
+            return null;
+        }
+
+        const byteOrder = readAscii(view, app1Offset, 2);
+        const little = byteOrder === "II";
+        if (!little && byteOrder !== "MM") {
+            return null;
+        }
+        const u16 = at => view.getUint16(at, little);
+        const u32 = at => view.getUint32(at, little);
+        const i32 = at => view.getInt32(at, little);
+        if (u16(app1Offset + 2) !== 42) {
+            return null;
+        }
+        const firstIfd = app1Offset + u32(app1Offset + 4);
+        const metadata = {};
+        const ifd0 = readIfd(view, app1Offset, firstIfd, little);
+        const exifIfdOffset = ifd0.get(0x8769);
+        const gpsIfdOffset = ifd0.get(0x8825);
+        const exifIfd = exifIfdOffset ? readIfd(view, app1Offset, app1Offset + exifIfdOffset.value, little) : new Map();
+        const gpsIfd = gpsIfdOffset ? readIfd(view, app1Offset, app1Offset + gpsIfdOffset.value, little) : new Map();
+
+        const dateEntry = exifIfd.get(0x9003) || exifIfd.get(0x9004) || ifd0.get(0x0132);
+        const offsetEntry = exifIfd.get(0x9011) || exifIfd.get(0x9012);
+        if (dateEntry) {
+            const parsedDate = parseExifDate(dateEntry.value, offsetEntry ? offsetEntry.value : "");
+            if (parsedDate) {
+                metadata.timestampUtc = parsedDate;
+            }
+        }
+
+        const lat = gpsCoordinate(gpsIfd.get(1), gpsIfd.get(2));
+        const lon = gpsCoordinate(gpsIfd.get(3), gpsIfd.get(4));
+        if (Number.isFinite(lat) && Number.isFinite(lon)) {
+            metadata.latDeg = lat;
+            metadata.lonDeg = lon;
+        }
+        const alt = gpsAltitude(gpsIfd.get(5), gpsIfd.get(6));
+        if (Number.isFinite(alt)) {
+            metadata.altM = alt;
+        }
+        return Object.keys(metadata).length ? metadata : null;
+
+        function readEntryValue(type, count, valueOffset) {
+            const size = typeSize(type) * count;
+            const valueAt = size <= 4 ? valueOffset : app1Offset + u32(valueOffset);
+            if (valueAt < 0 || valueAt + Math.max(0, size) > view.byteLength) {
+                return null;
+            }
+            if (type === 2) {
+                return readAscii(view, valueAt, count).replace(/\0+$/, "");
+            }
+            if (type === 1) {
+                return count === 1 ? view.getUint8(valueAt) :
+                    Array.from({length: count}, (_, i) => view.getUint8(valueAt + i));
+            }
+            if (type === 3) {
+                return count === 1 ? u16(valueAt) : Array.from({length: count}, (_, i) => u16(valueAt + 2 * i));
+            }
+            if (type === 4) {
+                return count === 1 ? u32(valueAt) : Array.from({length: count}, (_, i) => u32(valueAt + 4 * i));
+            }
+            if (type === 5) {
+                const read = i => {
+                    const den = u32(valueAt + 8 * i + 4);
+                    return den === 0 ? NaN : u32(valueAt + 8 * i) / den;
+                };
+                return count === 1 ? read(0) : Array.from({length: count}, (_, i) => read(i));
+            }
+            if (type === 9) {
+                return count === 1 ? i32(valueAt) : Array.from({length: count}, (_, i) => i32(valueAt + 4 * i));
+            }
+            if (type === 10) {
+                const read = i => {
+                    const den = i32(valueAt + 8 * i + 4);
+                    return den === 0 ? NaN : i32(valueAt + 8 * i) / den;
+                };
+                return count === 1 ? read(0) : Array.from({length: count}, (_, i) => read(i));
+            }
+            return null;
+        }
+
+        function readIfd(_view, tiffBase, ifdOffset, _little) {
+            const out = new Map();
+            if (ifdOffset < tiffBase || ifdOffset + 2 > view.byteLength) {
+                return out;
+            }
+            const entries = u16(ifdOffset);
+            for (let i = 0; i < entries; i++) {
+                const entryOffset = ifdOffset + 2 + i * 12;
+                if (entryOffset + 12 > view.byteLength) {
+                    break;
+                }
+                const tag = u16(entryOffset);
+                const type = u16(entryOffset + 2);
+                const count = u32(entryOffset + 4);
+                const value = readEntryValue(type, count, entryOffset + 8);
+                out.set(tag, {type, count, value});
+            }
+            return out;
+        }
+    }
+
+    function readAscii(view, offset, count) {
+        let out = "";
+        for (let i = 0; i < count && offset + i < view.byteLength; i++) {
+            out += String.fromCharCode(view.getUint8(offset + i));
+        }
+        return out;
+    }
+
+    function typeSize(type) {
+        return {1: 1, 2: 1, 3: 2, 4: 4, 5: 8, 7: 1, 9: 4, 10: 8}[type] || 0;
+    }
+
+    function gpsCoordinate(refEntry, valueEntry) {
+        if (!refEntry || !valueEntry || !Array.isArray(valueEntry.value) || valueEntry.value.length < 3) {
+            return NaN;
+        }
+        const sign = /[SW]/i.test(refEntry.value) ? -1 : 1;
+        const [deg, min, sec] = valueEntry.value;
+        return sign * (deg + min / 60 + sec / 3600);
+    }
+
+    function gpsAltitude(refEntry, valueEntry) {
+        if (!valueEntry || !Number.isFinite(valueEntry.value)) {
+            return NaN;
+        }
+        const sign = refEntry && Number(refEntry.value) === 1 ? -1 : 1;
+        return sign * valueEntry.value;
+    }
+
+    function normalizeExternalExifMetadata(raw) {
+        if (!raw || typeof raw !== "object") {
+            return null;
+        }
+        const metadata = {};
+        const timestamp = coerceExifDate(
+            raw.DateTimeOriginal || raw.CreateDate || raw.DateTimeDigitized || raw.ModifyDate,
+            raw.OffsetTimeOriginal || raw.OffsetTimeDigitized || raw.OffsetTime
+        );
+        if (timestamp) {
+            metadata.timestampUtc = timestamp;
+        }
+
+        const lat = coerceGpsCoordinate(
+            firstFinite(raw.latitude, raw.GPSLatitude),
+            raw.GPSLatitudeRef
+        );
+        const lon = coerceGpsCoordinate(
+            firstFinite(raw.longitude, raw.GPSLongitude),
+            raw.GPSLongitudeRef
+        );
+        if (Number.isFinite(lat) && Number.isFinite(lon)) {
+            metadata.latDeg = lat;
+            metadata.lonDeg = lon;
+        }
+
+        const alt = firstFinite(raw.altitude, raw.GPSAltitude);
+        if (Number.isFinite(alt)) {
+            const sign = Number(raw.GPSAltitudeRef) === 1 ? -1 : 1;
+            metadata.altM = sign * alt;
+        }
+        return Object.keys(metadata).length ? metadata : null;
+    }
+
+    function coerceExifDate(value, offsetText = "") {
+        if (value instanceof Date && !Number.isNaN(value.getTime())) {
+            return value;
+        }
+        if (typeof value !== "string") {
+            return null;
+        }
+        const exifDate = parseExifDate(value, offsetText);
+        if (exifDate) {
+            return exifDate;
+        }
+        const parsed = new Date(value);
+        return Number.isNaN(parsed.getTime()) ? null : parsed;
+    }
+
+    function coerceGpsCoordinate(value, ref) {
+        let out = NaN;
+        if (Number.isFinite(value)) {
+            out = value;
+        } else if (Array.isArray(value) && value.length >= 3) {
+            out = value[0] + value[1] / 60 + value[2] / 3600;
+        }
+        if (Number.isFinite(out) && /[SW]/i.test(String(ref || ""))) {
+            out = -Math.abs(out);
+        }
+        return out;
+    }
+
+    function firstFinite(...values) {
+        for (const value of values) {
+            if (Number.isFinite(value)) {
+                return value;
+            }
+            if (Array.isArray(value)) {
+                return value;
+            }
+        }
+        return NaN;
+    }
+
     window.AidaTools = {
         DEG,
         RAD,
@@ -216,6 +464,8 @@
         datetimeLocalToDate,
         guessAllsky7StationMetadata,
         guessTimestampFromAllsky7Name,
+        parseExifMetadata,
+        normalizeExternalExifMetadata,
         cameraModel,
         radecToAzZe: starAzZe,
         visibleStars,

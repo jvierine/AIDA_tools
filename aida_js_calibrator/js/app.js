@@ -57,6 +57,7 @@
         radialAlpha: document.getElementById("radialAlpha"),
         fitLens: document.getElementById("fitLens"),
         fitLensLm: document.getElementById("fitLensLm"),
+        undoFit: document.getElementById("undoFit"),
         copyOptpar: document.getElementById("copyOptpar"),
         copyPythonMapper: document.getElementById("copyPythonMapper"),
         toggleFitResiduals: document.getElementById("toggleFitResiduals"),
@@ -112,6 +113,7 @@
         showFitResiduals: false,
         fitMessage: "lens fit: not run",
         lastFitVector: null,
+        fitUndoStack: [],
         lastLensEquation: "",
     };
     let detectorUpdateTimer = null;
@@ -376,6 +378,19 @@
         ];
     }
 
+    function isMacPlatform() {
+        const platform = navigator.userAgentData && navigator.userAgentData.platform ?
+            navigator.userAgentData.platform :
+            navigator.platform;
+        return /mac/i.test(platform || "");
+    }
+
+    function defaultOptparForImage(image = state.image) {
+        const width = image && Number.isFinite(image.width) && image.width > 0 ? image.width : 16;
+        const height = image && Number.isFinite(image.height) && image.height > 0 ? image.height : 9;
+        return [1.0, width / height, 0, 0, 0, 0, 0, 0.35];
+    }
+
     function optparFromFitVector(x) {
         return [
             x[0],
@@ -404,11 +419,52 @@
         controls.radialAlpha.value = Math.max(0.05, Math.min(2.5, x[7])).toFixed(6);
     }
 
+    function updateUndoFitButton() {
+        controls.undoFit.disabled = state.fitUndoStack.length === 0;
+        controls.undoFit.textContent = state.fitUndoStack.length > 0
+            ? `Undo fit ${state.fitUndoStack.length}`
+            : "Undo fit";
+    }
+
+    function rememberFitState(label) {
+        state.fitUndoStack.push({
+            optpar: currentOptpar(),
+            label,
+        });
+        if (state.fitUndoStack.length > 20) {
+            state.fitUndoStack.shift();
+        }
+        updateUndoFitButton();
+    }
+
+    function clearFitUndoStack() {
+        state.fitUndoStack = [];
+        updateUndoFitButton();
+    }
+
+    function undoFit() {
+        const previous = state.fitUndoStack.pop();
+        if (!previous) {
+            state.fitMessage = "undo fit: no previous fit available";
+            updateUndoFitButton();
+            render();
+            return;
+        }
+        applyFitVector(previous.optpar);
+        state.lastFitVector = previous.optpar.slice();
+        state.pendingMatch = null;
+        state.showPickedMatchMarkers = false;
+        state.fitMessage = `undo fit: restored parameters before ${previous.label}`;
+        updateUndoFitButton();
+        recomputeAndRender();
+    }
+
     function applyOptpar(optpar) {
         if (!optpar || optpar.length < 8) {
             state.baseOptpar = null;
-            controls.fScaleX.value = "1.0000";
-            controls.fScaleY.value = "1.7700";
+            const defaults = defaultOptparForImage();
+            controls.fScaleX.value = defaults[0].toFixed(4);
+            controls.fScaleY.value = defaults[1].toFixed(4);
             return;
         }
         state.baseOptpar = optpar.slice();
@@ -3116,6 +3172,7 @@ def image_to_az_el(x, y, optpar=optpar, optmod=optmod,
             render();
             return false;
         }
+        rememberFitState(methodLabel);
         applyFitVector(result.x);
         state.lastFitVector = result.x.slice();
         state.pendingMatch = null;
@@ -3210,6 +3267,7 @@ def image_to_az_el(x, y, optpar=optpar, optmod=optmod,
         state.matches = [];
         state.pendingMatch = null;
         state.lastFitVector = null;
+        clearFitUndoStack();
         state.showPickedMatchMarkers = true;
         updateAutoMatches();
         state.fitMessage = count > 0
@@ -3245,7 +3303,37 @@ def image_to_az_el(x, y, optpar=optpar, optmod=optmod,
         state.fitMessage = "lens fit: not run";
     }
 
-    function loadImageSource(url, name, onLoaded = null, revokeWhenLoaded = false) {
+    function applyImageMetadata(name, exifMetadata = null) {
+        const guessed = AidaTools.guessTimestampFromAllsky7Name(name);
+        if (guessed) {
+            controls.timestampUtc.value = AidaTools.dateToDatetimeLocal(guessed);
+        }
+        const station = AidaTools.guessAllsky7StationMetadata(name);
+        if (station) {
+            controls.latDeg.value = station.latDeg.toFixed(6);
+            controls.lonDeg.value = station.lonDeg.toFixed(6);
+        }
+        if (!exifMetadata) {
+            return [];
+        }
+        const applied = [];
+        if (exifMetadata.timestampUtc instanceof Date && !Number.isNaN(exifMetadata.timestampUtc.getTime())) {
+            controls.timestampUtc.value = AidaTools.dateToDatetimeLocal(exifMetadata.timestampUtc);
+            applied.push("time");
+        }
+        if (Number.isFinite(exifMetadata.latDeg) && Number.isFinite(exifMetadata.lonDeg)) {
+            controls.latDeg.value = exifMetadata.latDeg.toFixed(6);
+            controls.lonDeg.value = exifMetadata.lonDeg.toFixed(6);
+            applied.push("position");
+        }
+        if (Number.isFinite(exifMetadata.altM)) {
+            controls.altM.value = exifMetadata.altM.toFixed(1);
+            applied.push("altitude");
+        }
+        return applied;
+    }
+
+    function loadImageSource(url, name, onLoaded = null, revokeWhenLoaded = false, exifMetadata = null, metadataName = name) {
         const loadId = ++state.imageLoadId;
         const img = new Image();
         setLoadingProgress(8, `Loading ${name}...`);
@@ -3302,14 +3390,12 @@ def image_to_az_el(x, y, optpar=optpar, optmod=optmod,
                     gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, img);
                 }
                 hint.style.display = "none";
-                const guessed = AidaTools.guessTimestampFromAllsky7Name(name);
-                if (guessed) {
-                    controls.timestampUtc.value = AidaTools.dateToDatetimeLocal(guessed);
+                if (!state.baseOptpar) {
+                    applyOptpar(null);
                 }
-                const station = AidaTools.guessAllsky7StationMetadata(name);
-                if (station) {
-                    controls.latDeg.value = station.latDeg.toFixed(6);
-                    controls.lonDeg.value = station.lonDeg.toFixed(6);
+                const appliedExif = applyImageMetadata(metadataName, exifMetadata);
+                if (appliedExif.length > 0) {
+                    state.fitMessage = `image metadata: used EXIF ${appliedExif.join(", ")}`;
                 }
                 state.pendingMatch = null;
                 if (onLoaded) {
@@ -3334,16 +3420,102 @@ def image_to_az_el(x, y, optpar=optpar, optmod=optmod,
         img.src = url;
     }
 
-    function loadImageFile(file) {
+    function isHeicFile(file) {
+        const name = String(file.name || "").toLowerCase();
+        const type = String(file.type || "").toLowerCase();
+        return name.endsWith(".heic") || name.endsWith(".heif") ||
+            type === "image/heic" || type === "image/heif" ||
+            type === "image/heic-sequence" || type === "image/heif-sequence";
+    }
+
+    function mergeMetadata(primary, secondary) {
+        if (!primary) {
+            return secondary || null;
+        }
+        if (!secondary) {
+            return primary;
+        }
+        return {
+            timestampUtc: secondary.timestampUtc || primary.timestampUtc,
+            latDeg: Number.isFinite(secondary.latDeg) ? secondary.latDeg : primary.latDeg,
+            lonDeg: Number.isFinite(secondary.lonDeg) ? secondary.lonDeg : primary.lonDeg,
+            altM: Number.isFinite(secondary.altM) ? secondary.altM : primary.altM,
+        };
+    }
+
+    async function readImageMetadata(file, buffer) {
+        let metadata = AidaTools.parseExifMetadata(buffer);
+        if (window.exifr && typeof window.exifr.parse === "function") {
+            try {
+                const external = await window.exifr.parse(file, {
+                    tiff: true,
+                    exif: true,
+                    gps: true,
+                    mergeOutput: true,
+                });
+                metadata = mergeMetadata(metadata, AidaTools.normalizeExternalExifMetadata(external));
+            } catch (error) {
+                // EXIF metadata is useful but optional; image loading should continue.
+            }
+        }
+        return metadata;
+    }
+
+    async function displayBlobForImage(file) {
+        if (!isHeicFile(file)) {
+            return {blob: file, displayName: file.name};
+        }
+        setLoadingProgress(16, `Converting ${file.name} from HEIC...`);
+        let blob = null;
+        if (typeof window.HeicTo === "function") {
+            blob = await window.HeicTo({
+                blob: file,
+                type: "image/png",
+                quality: 1.0,
+            });
+        } else if (window.HeicTo && typeof window.HeicTo.heicTo === "function") {
+            blob = await window.HeicTo.heicTo({
+                blob: file,
+                type: "image/png",
+                quality: 1.0,
+            });
+        } else if (typeof window.heic2any === "function") {
+            const converted = await window.heic2any({
+                blob: file,
+                toType: "image/png",
+                quality: 1.0,
+            });
+            blob = Array.isArray(converted) ? converted[0] : converted;
+        }
+        if (!blob) {
+            return {blob: file, displayName: file.name};
+        }
+        return {
+            blob,
+            displayName: file.name.replace(/\.(heic|heif)$/i, ".png"),
+        };
+    }
+
+    async function loadImageFile(file) {
         resetInteractiveState();
         state.baseOptpar = null;
         applyOptpar(null);
+        clearFitUndoStack();
         state.fitMessage = "lens fit: not run";
         if (state.localImageUrl) {
             URL.revokeObjectURL(state.localImageUrl);
         }
-        state.localImageUrl = URL.createObjectURL(file);
-        loadImageSource(state.localImageUrl, file.name, null, false);
+        try {
+            const buffer = await file.arrayBuffer();
+            const metadata = await readImageMetadata(file, buffer);
+            const display = await displayBlobForImage(file);
+            state.localImageUrl = URL.createObjectURL(display.blob);
+            loadImageSource(state.localImageUrl, display.displayName, null, false, metadata, file.name);
+        } catch (error) {
+            state.fitMessage = `image load failed: ${file.name}; ${error.message || error}`;
+            hideLoadingProgress();
+            render();
+        }
     }
 
     function updateDetectionCircleButton() {
@@ -3461,6 +3633,7 @@ def image_to_az_el(x, y, optpar=optpar, optmod=optmod,
     });
     controls.fitLens.addEventListener("click", fitLensFromMatches);
     controls.fitLensLm.addEventListener("click", fitLensLevenbergMarquardt);
+    controls.undoFit.addEventListener("click", undoFit);
     controls.copyOptpar.addEventListener("click", () => {
         copyTextToClipboard(optparPythonArrayText(), "optpar Python array");
     });
@@ -3560,6 +3733,13 @@ def image_to_az_el(x, y, optpar=optpar, optmod=optmod,
     document.addEventListener("keydown", event => {
         const tag = event.target && event.target.tagName ? event.target.tagName.toLowerCase() : "";
         if (tag === "input" || tag === "select" || tag === "textarea") {
+            return;
+        }
+        if ((event.key === "z" || event.key === "Z") &&
+                ((isMacPlatform() && event.metaKey) || (!isMacPlatform() && event.ctrlKey)) &&
+                !event.shiftKey && !event.altKey && !event.repeat) {
+            event.preventDefault();
+            undoFit();
             return;
         }
         if ((event.key === "s" || event.key === "S") && !event.repeat) {
@@ -3663,11 +3843,13 @@ def image_to_az_el(x, y, optpar=optpar, optmod=optmod,
             resetInteractiveState();
             state.baseOptpar = null;
             applyOptpar(null);
+            clearFitUndoStack();
             loadImageSource(defaultImage.url, defaultImage.name);
         }
     });
     updateDetectionCircleButton();
     updateStarNameButton();
     updateFitResidualButton();
+    updateUndoFitButton();
     render();
 })();
