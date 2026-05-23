@@ -1543,6 +1543,30 @@ def image_to_az_el(x, y, optpar=optpar, optmod=optmod,
         return 0.2126 * data[k] + 0.7152 * data[k + 1] + 0.0722 * data[k + 2];
     }
 
+    function imageGrayInterpolated(x, y) {
+        if (!state.imagePixels) {
+            return 0;
+        }
+        const gx = Math.max(0, Math.min(state.image.width - 1, x));
+        const gy = Math.max(0, Math.min(state.image.height - 1, y));
+        if (isMaskedImagePixel(Math.round(gx), Math.round(gy))) {
+            return 0;
+        }
+        const x0 = Math.floor(gx);
+        const y0 = Math.floor(gy);
+        const x1 = Math.min(state.image.width - 1, x0 + 1);
+        const y1 = Math.min(state.image.height - 1, y0 + 1);
+        const tx = gx - x0;
+        const ty = gy - y0;
+        const v00 = imageGrayAtIndex(x0, y0);
+        const v10 = imageGrayAtIndex(x1, y0);
+        const v01 = imageGrayAtIndex(x0, y1);
+        const v11 = imageGrayAtIndex(x1, y1);
+        const top = v00 * (1 - tx) + v10 * tx;
+        const bottom = v01 * (1 - tx) + v11 * tx;
+        return top * (1 - ty) + bottom * ty;
+    }
+
     function imageGrayAtIndex(ix, iy) {
         if (isMaskedImagePixel(ix, iy)) {
             return 0;
@@ -2159,31 +2183,24 @@ def image_to_az_el(x, y, optpar=optpar, optmod=optmod,
     }
 
     function drawDensityBitmapUnderlay(density, plot) {
-        if (!state.imagePixels) {
+        if (!density.rawValues) {
             return;
         }
-        const patchWidth = Math.max(1, Math.round(density.width / density.upsample));
-        const patchHeight = Math.max(1, Math.round(density.height / density.upsample));
         const patchCanvas = document.createElement("canvas");
-        patchCanvas.width = patchWidth;
-        patchCanvas.height = patchHeight;
+        patchCanvas.width = density.width;
+        patchCanvas.height = density.height;
         const patchContext = patchCanvas.getContext("2d");
-        const patchData = patchContext.createImageData(patchWidth, patchHeight);
-        const values = [];
-        for (let y = 0; y < patchHeight; y++) {
-            for (let x = 0; x < patchWidth; x++) {
-                values.push(imageGray(density.originX + x, density.originY + y));
-            }
-        }
+        const patchData = patchContext.createImageData(density.width, density.height);
+        const values = Array.from(density.rawValues);
         const sorted = values.slice().sort((a, b) => a - b);
         const lo = sorted[Math.floor(0.02 * (sorted.length - 1))] ?? 0;
         const hi = sorted[Math.floor(0.98 * (sorted.length - 1))] ?? 255;
         const scale = hi > lo ? 255 / (hi - lo) : 1;
-        for (let y = 0; y < patchHeight; y++) {
-            for (let x = 0; x < patchWidth; x++) {
-                const srcIndex = y * patchWidth + x;
-                const dstY = patchHeight - 1 - y;
-                const dstIndex = 4 * (dstY * patchWidth + x);
+        for (let y = 0; y < density.height; y++) {
+            for (let x = 0; x < density.width; x++) {
+                const srcIndex = y * density.width + x;
+                const dstY = density.height - 1 - y;
+                const dstIndex = 4 * (dstY * density.width + x);
                 const value = Math.max(0, Math.min(255, (values[srcIndex] - lo) * scale));
                 patchData.data[dstIndex] = value;
                 patchData.data[dstIndex + 1] = value;
@@ -2193,8 +2210,8 @@ def image_to_az_el(x, y, optpar=optpar, optmod=optmod,
         }
         patchContext.putImageData(patchData, 0, 0);
         densityContext.save();
-        densityContext.imageSmoothingEnabled = false;
-        densityContext.globalAlpha = 0.78;
+        densityContext.imageSmoothingEnabled = true;
+        densityContext.globalAlpha = 0.94;
         densityContext.drawImage(patchCanvas, plot.x0, plot.y0, plot.w, plot.h);
         densityContext.restore();
     }
@@ -2339,7 +2356,7 @@ def image_to_az_el(x, y, optpar=optpar, optmod=optmod,
             for (let x = 0; x < imageData.width; x++) {
                 const k = 4 * (y * imageData.width + x);
                 const gray = 0.2126 * src[k] + 0.7152 * src[k + 1] + 0.0722 * src[k + 2];
-                const value = Math.max(0, Math.min(255, 128 + 1.6 * (gray - sampledBackground(bg, x, y))));
+                const value = Math.max(0, Math.min(255, 18 + 4.0 * (gray - sampledBackground(bg, x, y))));
                 dst[k] = value;
                 dst[k + 1] = value;
                 dst[k + 2] = value;
@@ -2553,83 +2570,9 @@ def image_to_az_el(x, y, optpar=optpar, optmod=optmod,
         if (!state.imagePixels) {
             return {x: clickX, y: clickY, sigma: 0, method: "click"};
         }
-        const upsample = 40;
-        const patchRadius = 8;
-        const size = 2 * patchRadius + 1;
-        const fineWidth = size * upsample;
-        const fineHeight = size * upsample;
-        const originX = clickX - patchRadius;
-        const originY = clickY - patchRadius;
-        const raw = new Float32Array(fineWidth * fineHeight);
-        const bgSamples = [];
-        for (let y = 0; y < fineHeight; y++) {
-            const iy = originY + y / upsample;
-            for (let x = 0; x < fineWidth; x++) {
-                const ix = originX + x / upsample;
-                const value = imageGray(ix, iy);
-                raw[y * fineWidth + x] = value;
-                if (x < upsample || x >= fineWidth - upsample ||
-                        y < upsample || y >= fineHeight - upsample) {
-                    bgSamples.push(value);
-                }
-            }
-        }
-        const background = bgSamples.length ? median(bgSamples) : 0;
-        for (let i = 0; i < raw.length; i++) {
-            raw[i] = Math.max(0, raw[i] - background);
-        }
-
-        // 320x320 interpolated-pixel Gaussian support. Sigma=53.2 fine pixels
-        // gives a practical +/-160 fine-pixel smoothing footprint.
-        const gaussianSigmaFinePx = 53.2;
-        const gaussianSupportFinePx = 320;
-        const kernel = gaussianKernel(gaussianSigmaFinePx);
-        const horizontal = convolveHorizontal(raw, fineWidth, fineHeight, kernel);
-        const smooth = convolveVertical(horizontal, fineWidth, fineHeight, kernel);
-        let bestIndex = 0;
-        let bestValue = -Infinity;
-        for (let i = 0; i < smooth.length; i++) {
-            if (smooth[i] > bestValue) {
-                bestValue = smooth[i];
-                bestIndex = i;
-            }
-        }
-        const bestFineX = bestIndex % fineWidth;
-        const bestFineY = Math.floor(bestIndex / fineWidth);
-        let cx = originX + bestFineX / upsample;
-        let cy = originY + bestFineY / upsample;
-
-        // A local quadratic interpolation of the smoothed upsampled peak gives
-        // a small additional sub-fine-pixel correction when the peak is not on
-        // the edge of the patch.
-        if (bestFineX > 0 && bestFineX < fineWidth - 1 && bestFineY > 0 && bestFineY < fineHeight - 1) {
-            const c = smooth[bestFineY * fineWidth + bestFineX];
-            const l = smooth[bestFineY * fineWidth + bestFineX - 1];
-            const r = smooth[bestFineY * fineWidth + bestFineX + 1];
-            const u = smooth[(bestFineY - 1) * fineWidth + bestFineX];
-            const d = smooth[(bestFineY + 1) * fineWidth + bestFineX];
-            const denomX = l - 2 * c + r;
-            const denomY = u - 2 * c + d;
-            const dx = Math.abs(denomX) > 1e-9 ? 0.5 * (l - r) / denomX : 0;
-            const dy = Math.abs(denomY) > 1e-9 ? 0.5 * (u - d) / denomY : 0;
-            cx += Math.max(-0.5, Math.min(0.5, dx)) / upsample;
-            cy += Math.max(-0.5, Math.min(0.5, dy)) / upsample;
-        }
-        state.centroidDensity = {
-            values: smooth,
-            width: fineWidth,
-            height: fineHeight,
-            originX,
-            originY,
-            upsample,
-            maxValue: Math.max(bestValue, 1e-9),
-            selectedFineX: bestFineX,
-            selectedFineY: bestFineY,
-            selectedValue: bestValue,
-            background,
-            gaussianSupportPx: gaussianSupportFinePx,
-        };
-        return {x: cx, y: cy, sigma: gaussianSigmaFinePx / upsample, method: "upsampled KDE"};
+        const result = AidaCentroid.estimateCentroid(clickX, clickY, imageGrayInterpolated);
+        state.centroidDensity = result.density;
+        return {x: result.x, y: result.y, sigma: result.sigma, method: result.method};
     }
 
     function nearestProjectedStar(event) {
