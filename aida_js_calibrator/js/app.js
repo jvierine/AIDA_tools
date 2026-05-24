@@ -124,6 +124,7 @@
         lastFitVector: null,
         fitUndoStack: [],
         lastLensEquation: "",
+        activeOptmod: Number(controls.optmod.value) || 2,
     };
     let detectorUpdateTimer = null;
 
@@ -410,6 +411,23 @@
         return [1.0, width / height, 0, 0, 0, 0, 0, 0.35];
     }
 
+    function defaultRadialAlphaForOptmod(optmod = Number(controls.optmod.value) || 2) {
+        return optmod === BROWN_CONRADY_OPTMOD ? 0.0 : 0.35;
+    }
+
+    function radialAlphaIsValidForOptmod(value, optmod = Number(controls.optmod.value) || 2) {
+        if (!Number.isFinite(value)) {
+            return false;
+        }
+        if (optmod === BROWN_CONRADY_OPTMOD) {
+            return Math.abs(value) <= 5.0;
+        }
+        if (optmod === 12) {
+            return Math.abs(value) <= 2.5;
+        }
+        return value >= 0.05 && value <= 2.5;
+    }
+
     function optparFromFitVector(x) {
         return x.slice();
     }
@@ -420,11 +438,20 @@
 
     function updateOptmodUi() {
         const optmod = Number(controls.optmod.value) || 2;
+        const previousOptmod = state.activeOptmod;
+        const optmodChanged = previousOptmod !== optmod;
+        state.activeOptmod = optmod;
         controls.brownConradyParams.hidden = optmod !== BROWN_CONRADY_OPTMOD;
-        if (optmod === BROWN_CONRADY_OPTMOD && Number(controls.radialAlpha.value) === 0.35) {
-            controls.radialAlpha.value = "0";
-        } else if (optmod !== BROWN_CONRADY_OPTMOD && Number(controls.radialAlpha.value) === 0) {
-            controls.radialAlpha.value = "0.35";
+        if (optmodChanged) {
+            controls.radialAlpha.value = defaultRadialAlphaForOptmod(optmod).toFixed(6);
+            if (optmod === BROWN_CONRADY_OPTMOD) {
+                controls.brownK2.value = "0.000000";
+                controls.brownK3.value = "0.000000";
+                controls.brownP1.value = "0.000000";
+                controls.brownP2.value = "0.000000";
+            }
+        } else if (!radialAlphaIsValidForOptmod(Number(controls.radialAlpha.value), optmod)) {
+            controls.radialAlpha.value = defaultRadialAlphaForOptmod(optmod).toFixed(6);
         }
     }
 
@@ -503,6 +530,17 @@
             const defaults = defaultOptparForImage();
             controls.fScaleX.value = defaults[0].toFixed(4);
             controls.fScaleY.value = defaults[1].toFixed(4);
+            controls.rotAlpha.value = defaults[2].toFixed(3);
+            controls.rotBeta.value = defaults[3].toFixed(3);
+            controls.rotGamma.value = defaults[4].toFixed(3);
+            controls.du.value = defaults[5].toFixed(6);
+            controls.dv.value = defaults[6].toFixed(6);
+            controls.radialAlpha.value = defaultRadialAlphaForOptmod().toFixed(6);
+            controls.brownK2.value = "0.000000";
+            controls.brownK3.value = "0.000000";
+            controls.brownP1.value = "0.000000";
+            controls.brownP2.value = "0.000000";
+            updateOptmodUi();
             return;
         }
         state.baseOptpar = optpar.slice();
