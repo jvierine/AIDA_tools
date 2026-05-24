@@ -3714,12 +3714,12 @@ end
         return 0;
     }
 
-    function matchResidualFactory() {
+    function matchResidualFactory(matchesForFit = fittingMatches()) {
         const date = AidaTools.datetimeLocalToDate(controls.timestampUtc.value);
         const lat = Number(controls.latDeg.value) || 0;
         const lon = Number(controls.lonDeg.value) || 0;
         const optmod = Number(controls.optmod.value);
-        const rows = fittingMatches().map(match => {
+        const rows = matchesForFit.map(match => {
             const azze = AidaTools.radecToAzZe(match.catalog.raHours, match.catalog.decDeg, date, lat, lon);
             return {az: azze.az, ze: azze.ze, image: match.image};
         });
@@ -4104,7 +4104,7 @@ end
         return {x, fx, iterations, accepted};
     }
 
-    function acceptFitResult(result, start, residualFn, methodLabel, detail, fitCount, objectiveLabel) {
+    function acceptFitResult(result, start, residualFn, methodLabel, detail, fitCount, objectiveLabel, fitScopeText = null) {
         const startSse = residualSumSquares(residualFn(start));
         const resultSse = residualSumSquares(residualFn(result.x));
         const rmsBefore = Math.sqrt(startSse / fitCount);
@@ -4125,9 +4125,10 @@ end
         state.lastFitVector = result.x.slice();
         state.pendingMatch = null;
         state.showPickedMatchMarkers = false;
+        const scopeText = fitScopeText || `with mag <= ${Number(controls.maxMag.value).toFixed(1)}`;
         state.fitMessage = `${methodLabel}: RMS ${rmsBefore.toFixed(2)} -> ${rmsAfter.toFixed(2)} px, ` +
             `${detail}; ${objectiveLabel}; fitted all ${result.x.length} optpar values using ${fitCount}/${state.matches.length} pairs ` +
-            `with mag <= ${Number(controls.maxMag.value).toFixed(1)}`;
+            `${scopeText}`;
         recomputeAndRender();
         return {
             accepted: true,
@@ -4139,8 +4140,9 @@ end
         };
     }
 
-    function fitLensFromMatches() {
-        const fitCount = fittingMatches().length;
+    function fitLensFromMatches(options = {}) {
+        const matchesForFit = Array.isArray(options.matches) ? options.matches : fittingMatches();
+        const fitCount = matchesForFit.length;
         const optmod = Number(controls.optmod.value) || 2;
         const minPairs = Math.ceil(requiredOptparLength(optmod) / 2);
         if (!state.image || fitCount < minPairs) {
@@ -4150,7 +4152,7 @@ end
             return {accepted: false, reason: "not enough matched star pairs", fitCount};
         }
 
-        const residualFn = matchResidualFactory();
+        const residualFn = matchResidualFactory(matchesForFit);
         const objective = matchObjectiveFactory(residualFn, optmod);
         const start = currentFitVector();
         const steps = optmod === BROWN_CONRADY_OPTMOD
@@ -4175,15 +4177,17 @@ end
             result,
             start,
             residualFn,
-            "Nelder-Mead lens fit",
+            options.methodLabel || "Nelder-Mead lens fit",
             `${starts.length} starts including random perturbations, ${totalIterations} iterations`,
             fitCount,
-            optmod === BROWN_CONRADY_OPTMOD ? "Brown-Conrady monotonic robust Huber objective" : "robust Huber objective"
+            optmod === BROWN_CONRADY_OPTMOD ? "Brown-Conrady monotonic robust Huber objective" : "robust Huber objective",
+            options.fitScopeText || null
         );
     }
 
-    function fitLensLevenbergMarquardt() {
-        const fitCount = fittingMatches().length;
+    function fitLensLevenbergMarquardt(options = {}) {
+        const matchesForFit = Array.isArray(options.matches) ? options.matches : fittingMatches();
+        const fitCount = matchesForFit.length;
         const optmod = Number(controls.optmod.value) || 2;
         const minPairs = Math.ceil(requiredOptparLength(optmod) / 2);
         if (!state.image || fitCount < minPairs) {
@@ -4192,7 +4196,7 @@ end
             render();
             return {accepted: false, reason: "not enough matched star pairs", fitCount};
         }
-        const residualFn = matchResidualFactory();
+        const residualFn = matchResidualFactory(matchesForFit);
         const lmResidualFn = optmod === BROWN_CONRADY_OPTMOD ?
             regularizedResidualFactory(residualFn, optmod) :
             residualFn;
@@ -4219,10 +4223,11 @@ end
             result,
             start,
             residualFn,
-            "Levenberg-Marquardt lens fit",
+            options.methodLabel || "Levenberg-Marquardt lens fit",
             `${starts.length} starts, ${totalIterations} iterations, ${accepted} accepted steps`,
             fitCount,
-            optmod === BROWN_CONRADY_OPTMOD ? "Brown-Conrady monotonic ordinary least-squares objective" : "ordinary least-squares objective"
+            optmod === BROWN_CONRADY_OPTMOD ? "Brown-Conrady monotonic ordinary least-squares objective" : "ordinary least-squares objective",
+            options.fitScopeText || null
         );
     }
 
@@ -4237,6 +4242,36 @@ end
             return Infinity;
         }
         return Math.sqrt(residualSumSquares(residuals) / fitCount);
+    }
+
+    function sortedLuckyFitMatches() {
+        return fittingMatches()
+            .slice()
+            .sort((a, b) => a.catalog.mag - b.catalog.mag || a.id - b.id);
+    }
+
+    function luckyFitSweepCounts(totalMatches, optmod) {
+        const minPairs = Math.ceil(requiredOptparLength(optmod) / 2);
+        const base = [
+            minPairs,
+            minPairs + 2,
+            8,
+            10,
+            12,
+            16,
+            20,
+            28,
+            40,
+            totalMatches,
+        ];
+        const counts = [];
+        for (const count of base) {
+            const clipped = Math.min(totalMatches, Math.max(minPairs, count));
+            if (clipped <= totalMatches && !counts.includes(clipped)) {
+                counts.push(clipped);
+            }
+        }
+        return counts.sort((a, b) => a - b);
     }
 
     function autoAddedMatch(match) {
@@ -4346,24 +4381,56 @@ end
         return {...pass, seeded};
     }
 
-    async function runLuckySelectedModelFits(label) {
+    async function runLuckySelectedModelFits(label, options = {}) {
         const optmod = Number(controls.optmod.value) || 2;
         const minPairs = Math.ceil(requiredOptparLength(optmod) / 2);
-        if (fittingMatches().length < minPairs) {
+        const sortedMatches = sortedLuckyFitMatches();
+        if (sortedMatches.length < minPairs) {
             return {accepted: 0, skipped: true};
         }
-        setLoadingProgress(88, `${label}: fitting selected optmod ${optmod} with robust Nelder-Mead...`);
-        await yieldToBrowser();
-        const nm = fitLensFromMatches();
-        await yieldToBrowser();
-        setLoadingProgress(92, `${label}: polishing selected optmod ${optmod} with Levenberg-Marquardt...`);
-        await yieldToBrowser();
-        const lm = fitLensLevenbergMarquardt();
-        await yieldToBrowser();
-        return {
-            accepted: (nm && nm.accepted ? 1 : 0) + (lm && lm.accepted ? 1 : 0),
-            skipped: false,
-        };
+        const counts = options.counts || luckyFitSweepCounts(sortedMatches.length, optmod);
+        let accepted = 0;
+        let attempted = 0;
+        let lastRms = Infinity;
+        for (let i = 0; i < counts.length; i += 1) {
+            const count = counts[i];
+            const subset = sortedMatches.slice(0, count);
+            const scope = `from the ${count} brightest bootstrap pairs`;
+            const first = i === 0;
+            const final = i === counts.length - 1;
+            if (first || final || options.robustEachStep === true) {
+                setLoadingProgress(
+                    86,
+                    `${label}: robust fit of selected optmod ${optmod} using ${count} brightest pairs...`
+                );
+                await yieldToBrowser();
+                const nm = fitLensFromMatches({
+                    matches: subset,
+                    methodLabel: `${label} Nelder-Mead sweep`,
+                    fitScopeText: scope,
+                });
+                accepted += nm && nm.accepted ? 1 : 0;
+                attempted += 1;
+                await yieldToBrowser();
+            }
+            setLoadingProgress(
+                final ? 92 : 89,
+                `${label}: Levenberg-Marquardt sweep of selected optmod ${optmod} using ${count} brightest pairs...`
+            );
+            await yieldToBrowser();
+            const lm = fitLensLevenbergMarquardt({
+                matches: subset,
+                methodLabel: `${label} LM sweep`,
+                fitScopeText: scope,
+            });
+            accepted += lm && lm.accepted ? 1 : 0;
+            attempted += 1;
+            if (lm && Number.isFinite(lm.rmsAfter)) {
+                lastRms = lm.rmsAfter;
+            }
+            await yieldToBrowser();
+        }
+        return {accepted, attempted, skipped: false, counts, lastRms};
     }
 
     async function feelingLuckyFit() {
@@ -4391,6 +4458,7 @@ end
             {
                 maxDetections: 50,
                 maxMagnitude: 4.0,
+                phase: "blind bright-star bootstrap",
                 seedFromBlind: true,
                 includeBlind: true,
                 includeAsterisms: true,
@@ -4410,6 +4478,7 @@ end
             {
                 maxDetections: 90,
                 maxMagnitude: 5.0,
+                phase: "projected refinement",
                 includeBlind: false,
                 includeAsterisms: false,
                 detectorOptions: {
@@ -4428,6 +4497,7 @@ end
             {
                 maxDetections: 120,
                 maxMagnitude: 6.0,
+                phase: "deeper projected refinement",
                 includeBlind: false,
                 includeAsterisms: false,
                 detectorOptions: {
@@ -4443,18 +4513,43 @@ end
                     translationSearchRadiusPx: 55,
                 },
             },
+            {
+                maxDetections: 150,
+                maxMagnitude: 6.5,
+                phase: "final model-guided expansion",
+                includeBlind: false,
+                includeAsterisms: false,
+                detectorOptions: {
+                    thresholdSigma: 2.9,
+                    localThresholdSigma: 3.0,
+                    requireGlobalThreshold: false,
+                    maxElongation: 3.2,
+                },
+                projectedOptions: {
+                    maxDetections: 150,
+                    maxCatalogStars: 220,
+                    maxDistancePx: 18,
+                    translationSearchRadiusPx: 35,
+                    minMatches: 6,
+                },
+            },
         ];
 
         let totalAdded = 0;
         let totalPruned = 0;
         let acceptedFits = 0;
+        let stagesRun = 0;
         let seeded = false;
         try {
             for (let i = 0; i < stages.length; i += 1) {
+                const rmsBeforeStage = currentFitRmsPx();
                 const pass = await runLuckyFitStage(stages[i], i + 1, stages.length);
+                stagesRun += 1;
                 totalAdded += pass.added;
                 seeded = seeded || pass.seeded;
-                const fitResult = await runLuckySelectedModelFits(`I'm feeling lucky ${i + 1}/${stages.length}`);
+                const fitResult = await runLuckySelectedModelFits(
+                    `I'm feeling lucky ${i + 1}/${stages.length} ${stages[i].phase || "fit sweep"}`
+                );
                 acceptedFits += fitResult.accepted;
                 if (!fitResult.skipped) {
                     const prune = pruneLuckyAutoOutliers();
@@ -4465,11 +4560,20 @@ end
                             `I'm feeling lucky ${i + 1}/${stages.length}: pruned ${prune.removed} automatic outlier${prune.removed === 1 ? "" : "s"} and refitting...`
                         );
                         await yieldToBrowser();
-                        const refit = await runLuckySelectedModelFits(`I'm feeling lucky ${i + 1}/${stages.length} after outlier pruning`);
+                        const refit = await runLuckySelectedModelFits(
+                            `I'm feeling lucky ${i + 1}/${stages.length} after outlier pruning`
+                        );
                         acceptedFits += refit.accepted;
                     }
                 }
                 if (fitResult.skipped && i === 0 && pass.added === 0) {
+                    break;
+                }
+                const rmsAfterStage = currentFitRmsPx();
+                const improved = Number.isFinite(rmsBeforeStage) && Number.isFinite(rmsAfterStage) ?
+                    rmsBeforeStage - rmsAfterStage > 0.15 :
+                    fitResult.accepted > 0;
+                if (i >= 2 && pass.added === 0 && !improved) {
                     break;
                 }
             }
@@ -4480,7 +4584,7 @@ end
                 ? `final RMS ${rms.toFixed(2)} px using ${fitCount}/${state.matches.length} pairs`
                 : `only ${fitCount}/${state.matches.length} usable pairs`;
             state.autoIdentificationStatus =
-                `I'm feeling lucky: added ${totalAdded} pairings in ${stages.length} staged passes; ` +
+                `I'm feeling lucky: added ${totalAdded} pairings in ${stagesRun} staged bootstrap/refinement passes; ` +
                 `${seeded ? "seeded from blind asterisms" : "no blind seed"}; ` +
                 `pruned ${totalPruned} automatic outlier${totalPruned === 1 ? "" : "s"}; ${acceptedFits} accepted fits`;
             state.fitMessage =

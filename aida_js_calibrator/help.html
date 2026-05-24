@@ -151,14 +151,14 @@
         </li>
         <li>
             For a hands-off attempt, press <kbd>L</kbd> or the
-            <em>I'm feeling lucky...</em> button. This runs a staged automatic
-            workflow: first a conservative magnitude-4 bright-star search,
-            then a blind spherical asterism match to seed the selected optical
-            model's rotation and coarse focal scale, then repeated
-            detect-match-fit passes that add fainter stars and refit only the
-            currently selected optical model. After each accepted fit, obvious
-            automatic outliers are pruned from the residual pattern and the
-            selected model is refit.
+            <em>I'm feeling lucky...</em> button. This follows the same
+            bootstrap idea used in the graphical test cases: first a
+            conservative magnitude-4 bright-star search, then a blind spherical
+            asterism match to seed the selected optical model's rotation and
+            coarse focal scale. It then fits the selected model in sweeps using
+            the brightest matched stars first, expands to fainter stars with
+            the improved projection, prunes obvious automatic outliers from the
+            residual pattern, and repeats until the model stops improving.
         </li>
         <li>
             Hold <kbd>S</kbd> and click an image star. The local star position is
