@@ -101,6 +101,35 @@ const REAL_CASE_012165_NEGATIVE_FOCAL = {
         0.896240000000,
     ],
 };
+const REAL_CASE_IMG_9371_IMAGE = path.join(
+    __dirname,
+    "..",
+    "calibration_images",
+    "IMG_9371.png",
+);
+const REAL_CASE_IMG_9371 = {
+    width: 3024,
+    height: 4032,
+    date: new Date(Date.UTC(2024, 9, 19, 17, 29, 8)),
+    latDeg: 69.600625,
+    lonDeg: 18.961947,
+    altM: 384.3,
+    optmod: 20,
+    optpar: [
+        1.41164100000,
+        1.05299500000,
+        -79.7000000000,
+        -27.0000000000,
+        93.0000000000,
+        -0.00657100000000,
+        0.0144680000000,
+        0.239385000000,
+        -0.846254000000,
+        1.04222700000,
+        -0.000576000000000,
+        -0.00337100000000,
+    ],
+};
 const SCENARIOS = [
     {name: "centered", f1: 0.52, f2: 0.92, alpha: 0, beta: 0, gamma: 0, du: 0, dv: 0},
     {name: "tilted", f1: 0.48, f2: 0.84, alpha: 8, beta: -5, gamma: 18, du: 0.03, dv: -0.02},
@@ -444,6 +473,127 @@ function perturbedOptmod2Start(optpar) {
     start[5] += 0.004;
     start[6] -= 0.004;
     start[7] *= 1.015;
+    return start;
+}
+
+function brownConradyFitPenalty(optpar) {
+    if (optpar.length !== 12 ||
+            Math.abs(optpar[0]) < 0.05 || Math.abs(optpar[0]) > 10 ||
+            Math.abs(optpar[1]) < 0.05 || Math.abs(optpar[1]) > 10 ||
+            Math.abs(optpar[2]) > 90 || Math.abs(optpar[3]) > 90 ||
+            Math.abs(optpar[4]) > 720 || Math.abs(optpar[5]) > 0.5 ||
+            Math.abs(optpar[6]) > 0.5 || Math.abs(optpar[7]) > 5 ||
+            Math.abs(optpar[8]) > 5 || Math.abs(optpar[9]) > 5 ||
+            Math.abs(optpar[10]) > 1 || Math.abs(optpar[11]) > 1) {
+        return true;
+    }
+    return false;
+}
+
+function lensFitResidualsBrownConrady(optpar, pairs, realCase, includeRegularization = false) {
+    if (brownConradyFitPenalty(optpar)) {
+        return null;
+    }
+    const residuals = [];
+    for (const pair of pairs) {
+        const xy = AidaTools.cameraModel(
+            pair.star.az,
+            pair.star.ze,
+            optpar,
+            20,
+            realCase.width,
+            realCase.height,
+        );
+        if (!Number.isFinite(xy.x) || !Number.isFinite(xy.y)) {
+            return null;
+        }
+        residuals.push(xy.x - pair.detection.x, xy.y - pair.detection.y);
+    }
+    if (includeRegularization) {
+        residuals.push(optpar[7] * 0.4, optpar[8] * 0.8, optpar[9] * 1.6, optpar[10] * 8, optpar[11] * 8);
+    }
+    return residuals;
+}
+
+function fitBrownConradyFromPairs(pairs, realCase, startOptpar, maxIter = 80) {
+    const diffSteps = [1e-4, 1e-4, 1e-3, 1e-3, 1e-3, 1e-5, 1e-5, 1e-5, 1e-6, 1e-6, 1e-6, 1e-6];
+    let x = startOptpar.slice();
+    let residuals = lensFitResidualsBrownConrady(x, pairs, realCase, true);
+    let fx = residualSumSquares(residuals);
+    let lambda = 1e-3;
+    let accepted = 0;
+    let iterations = 0;
+    for (; iterations < maxIter; iterations += 1) {
+        if (!residuals || !Number.isFinite(fx)) {
+            break;
+        }
+        const jac = Array.from({length: residuals.length}, () => Array(x.length).fill(0));
+        for (let col = 0; col < x.length; col += 1) {
+            const xp = x.slice();
+            xp[col] += diffSteps[col];
+            const rp = lensFitResidualsBrownConrady(xp, pairs, realCase, true);
+            if (!rp) {
+                continue;
+            }
+            for (let row = 0; row < residuals.length; row += 1) {
+                jac[row][col] = (rp[row] - residuals[row]) / diffSteps[col];
+            }
+        }
+        const jtj = Array.from({length: x.length}, () => Array(x.length).fill(0));
+        const jtr = Array(x.length).fill(0);
+        for (let row = 0; row < residuals.length; row += 1) {
+            for (let i = 0; i < x.length; i += 1) {
+                jtr[i] += jac[row][i] * residuals[row];
+                for (let j = 0; j < x.length; j += 1) {
+                    jtj[i][j] += jac[row][i] * jac[row][j];
+                }
+            }
+        }
+        let improved = false;
+        for (let attempt = 0; attempt < 8; attempt += 1) {
+            const a = jtj.map((row, i) => row.map((value, j) =>
+                i === j ? value + lambda * Math.max(1, Math.abs(value)) : value));
+            const step = solveLinearSystem(a, jtr.map(value => -value));
+            if (!step) {
+                lambda *= 10;
+                continue;
+            }
+            const candidate = x.map((value, i) => value + step[i]);
+            const candidateResiduals = lensFitResidualsBrownConrady(candidate, pairs, realCase, true);
+            const candidateFx = residualSumSquares(candidateResiduals);
+            if (candidateResiduals && candidateFx < fx) {
+                x = candidate;
+                residuals = candidateResiduals;
+                fx = candidateFx;
+                accepted += 1;
+                lambda = Math.max(lambda / 3, 1e-9);
+                improved = true;
+                break;
+            }
+            lambda *= 10;
+        }
+        if (!improved) {
+            break;
+        }
+    }
+    const rawResiduals = lensFitResidualsBrownConrady(x, pairs, realCase, false);
+    return {optpar: x, residuals: rawResiduals, rms: residualRmsPx(rawResiduals), iterations, accepted};
+}
+
+function perturbedBrownConradyStart(optpar) {
+    const start = optpar.slice();
+    start[0] *= 1.01;
+    start[1] *= 0.99;
+    start[2] += 0.4;
+    start[3] -= 0.3;
+    start[4] += 0.5;
+    start[5] += 0.001;
+    start[6] -= 0.001;
+    start[7] *= 1.02;
+    start[8] *= 0.98;
+    start[9] *= 1.01;
+    start[10] += 0.0002;
+    start[11] -= 0.0002;
     return start;
 }
 
@@ -819,6 +969,49 @@ test("012165 negative-focal optmod 2 fit converges from automatic star detection
     assert.ok(
         results.at(-1).rms <= 12.0,
         `012165 negative-focal optpar: expected the 12-star fit to stay stable; sweep ${report}`,
+    );
+});
+
+test("IMG_9371 Brown-Conrady fit converges from automatic star detections", async () => {
+    const imageData = readPngImageData(REAL_CASE_IMG_9371_IMAGE);
+    assert.equal(imageData.width, REAL_CASE_IMG_9371.width);
+    assert.equal(imageData.height, REAL_CASE_IMG_9371.height);
+    const detectionResult = await StarDetector.detectBrightStars(imageData, {
+        maxDetections: 120,
+        thresholdSigma: 2,
+        localThresholdSigma: 2,
+        maxRadiusPx: 4,
+        maxElongation: 3.5,
+    });
+    const knownStars = projectedRealCaseStars(
+        REAL_CASE_IMG_9371.optpar,
+        7.0,
+        REAL_CASE_IMG_9371,
+    );
+    const autoPairs = matchDetectionsToKnownStars(detectionResult.detections, knownStars, 18)
+        .sort((a, b) => a.star.mag - b.star.mag || a.distance - b.distance);
+    assert.ok(
+        autoPairs.length >= 14,
+        `IMG_9371 Brown-Conrady: expected at least 14 automatically detected stars, ` +
+            `got ${autoPairs.length}; ${detectionResult.status}`,
+    );
+
+    const sweepCounts = [8, 10, 12, 14];
+    const results = [];
+    for (const count of sweepCounts) {
+        const fit = fitBrownConradyFromPairs(
+            autoPairs.slice(0, count),
+            REAL_CASE_IMG_9371,
+            perturbedBrownConradyStart(REAL_CASE_IMG_9371.optpar),
+        );
+        results.push({count, ...fit});
+    }
+    const report = results
+        .map(result => `${result.count}:${result.rms.toFixed(2)}px/${result.accepted}step`)
+        .join(", ");
+    assert.ok(
+        results.every(result => result.rms <= 4.0 && result.accepted > 0),
+        `IMG_9371 Brown-Conrady: expected all automatic-star fits to stay below 4 px RMS; sweep ${report}`,
     );
 });
 
