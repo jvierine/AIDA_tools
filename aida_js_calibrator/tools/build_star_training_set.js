@@ -25,6 +25,8 @@ function parseArgs(argv) {
         noPerCase: 120,
         randomNoPerCase: 40,
         reset: false,
+        overlayOnly: false,
+        overlayDir: path.join(DEFAULT_DATASET_DIR, "overlays"),
     };
     for (let i = 0; i < argv.length; i += 1) {
         const arg = argv[i];
@@ -35,6 +37,13 @@ function parseArgs(argv) {
             options.datasetDir = path.resolve(arg.slice("--dir=".length));
         } else if (arg === "--reset") {
             options.reset = true;
+        } else if (arg === "--overlay-only") {
+            options.overlayOnly = true;
+        } else if (arg === "--overlay-dir" && argv[i + 1]) {
+            options.overlayDir = path.resolve(argv[i + 1]);
+            i += 1;
+        } else if (arg.startsWith("--overlay-dir=")) {
+            options.overlayDir = path.resolve(arg.slice("--overlay-dir=".length));
         } else if (arg === "--yes" && argv[i + 1]) {
             options.yesPerCase = Number(argv[i + 1]);
             i += 1;
@@ -141,6 +150,80 @@ function writePngRgba(filename, width, height, rgba) {
         pngChunk("IDAT", idat),
         pngChunk("IEND", Buffer.alloc(0)),
     ]));
+}
+
+function copyImageData(imageData) {
+    return {
+        width: imageData.width,
+        height: imageData.height,
+        data: new Uint8ClampedArray(imageData.data),
+    };
+}
+
+function setPixel(imageData, x, y, r, g, b, a = 255) {
+    const ix = Math.round(x);
+    const iy = Math.round(y);
+    if (ix < 0 || ix >= imageData.width || iy < 0 || iy >= imageData.height) {
+        return;
+    }
+    const k = 4 * (iy * imageData.width + ix);
+    imageData.data[k] = r;
+    imageData.data[k + 1] = g;
+    imageData.data[k + 2] = b;
+    imageData.data[k + 3] = a;
+}
+
+function drawCircle(imageData, cx, cy, radius, color) {
+    const r = Math.max(1, Math.round(radius));
+    for (let deg = 0; deg < 360; deg += 2) {
+        const theta = deg * Math.PI / 180;
+        setPixel(
+            imageData,
+            cx + r * Math.cos(theta),
+            cy + r * Math.sin(theta),
+            color[0],
+            color[1],
+            color[2],
+            color[3] === undefined ? 255 : color[3],
+        );
+    }
+}
+
+function drawCrosshair(imageData, cx, cy, radius, color) {
+    const r = Math.max(2, Math.round(radius));
+    const gap = Math.max(2, Math.floor(r * 0.35));
+    for (let d = -r; d <= r; d += 1) {
+        if (Math.abs(d) > gap) {
+            setPixel(imageData, cx + d, cy, color[0], color[1], color[2], color[3] === undefined ? 255 : color[3]);
+            setPixel(imageData, cx, cy + d, color[0], color[1], color[2], color[3] === undefined ? 255 : color[3]);
+        }
+    }
+}
+
+function magnitudeRadius(mag) {
+    if (mag <= 2.0) {
+        return 10;
+    }
+    if (mag <= 4.0) {
+        return 7;
+    }
+    return 5;
+}
+
+function writeOverlay(testCase, imageData, stars, detections, overlayDir) {
+    fs.mkdirSync(overlayDir, {recursive: true});
+    const overlay = copyImageData(imageData);
+    for (const detection of detections) {
+        drawCrosshair(overlay, detection.x, detection.y, 5, [255, 220, 64, 255]);
+    }
+    for (const star of stars) {
+        const radius = magnitudeRadius(star.mag);
+        drawCircle(overlay, star.x, star.y, radius + 1, [0, 0, 0, 255]);
+        drawCircle(overlay, star.x, star.y, radius, [255, 64, 64, 255]);
+    }
+    const out = path.join(overlayDir, `${safeName(testCase.id)}_stars_overlay.png`);
+    writePngRgba(out, overlay.width, overlay.height, overlay.data);
+    return out;
 }
 
 function cropImage(imageData, cx, cy, size = CROP_SIZE) {
@@ -306,13 +389,48 @@ async function buildCase(testCase, options, manifest) {
     };
 }
 
+async function buildOverlay(testCase, options) {
+    const imagePath = path.join(IMAGE_DIR, testCase.image);
+    const imageData = readPngImageData(imagePath);
+    const detectionResult = await StarDetector.detectBrightStars(imageData, {
+        maxDetections: 240,
+        thresholdSigma: testCase.detectorOptions && Number.isFinite(testCase.detectorOptions.thresholdSigma) ?
+            testCase.detectorOptions.thresholdSigma : 2.5,
+        localThresholdSigma: testCase.detectorOptions && Number.isFinite(testCase.detectorOptions.localThresholdSigma) ?
+            testCase.detectorOptions.localThresholdSigma : 2.5,
+        requireGlobalThreshold: testCase.detectorOptions && testCase.detectorOptions.requireGlobalThreshold === true,
+        maxRadiusPx: 5,
+        maxElongation: 4.0,
+        suppressionRadiusPx: 18,
+    });
+    const stars = projectStars(testCase, testCase.optpar, Math.max(7, testCase.maxMag || 7));
+    const outfile = writeOverlay(testCase, imageData, stars, detectionResult.detections, options.overlayDir);
+    return {
+        caseId: testCase.id,
+        outfile,
+        stars: stars.length,
+        detections: detectionResult.detections.length,
+    };
+}
+
 async function main() {
     const options = parseArgs(process.argv.slice(2));
-    ensureDirs(options.datasetDir, options.reset);
     const cases = buildCases().filter(testCase => caseMatchesFilter(testCase, options.filters));
     if (cases.length === 0) {
         throw new Error(`no test cases matched: ${options.filters.join(", ")}`);
     }
+    if (options.overlayOnly) {
+        const summaries = [];
+        for (const testCase of cases) {
+            process.stderr.write(`drawing known-lens overlay for ${testCase.id}\n`);
+            summaries.push(await buildOverlay(testCase, options));
+        }
+        for (const summary of summaries) {
+            process.stdout.write(`${summary.outfile} (${summary.stars} stars, ${summary.detections} detections)\n`);
+        }
+        return;
+    }
+    ensureDirs(options.datasetDir, options.reset);
     const manifest = [];
     const summaries = [];
     for (const testCase of cases) {
@@ -336,4 +454,3 @@ if (require.main === module) {
         process.exitCode = 1;
     });
 }
-

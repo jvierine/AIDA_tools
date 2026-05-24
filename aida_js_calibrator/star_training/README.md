@@ -23,6 +23,17 @@ npm run build:star-training -- 010095 --reset
 npm run build:star-training -- IMG-9953 --yes 40 --no 80 --random-no 20
 ```
 
+Quickly check known lens models by drawing red catalogue star circles and
+yellow detector crosshairs over the source images:
+
+```sh
+npm run build:star-training -- --overlay-only 010095
+npm run build:star-training -- --overlay-only IMG-9953
+```
+
+Overlay images are written to `star_training/overlays/` by default. Use
+`--overlay-dir <path>` to write them elsewhere.
+
 Launch the browser reviewer:
 
 ```sh
@@ -41,4 +52,3 @@ Useful keys:
 
 Relabeling moves the image file between label directories and appends a JSONL
 event to `star_training/review_manifest.jsonl`.
-
