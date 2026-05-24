@@ -3263,7 +3263,7 @@ def image_to_az_el(x, y, optpar=optpar, optmod=optmod,
             if (penalty > 0) {
                 return penalty;
             }
-            return robustLoss(residualFn(x)) + regularizationSumSquares(x, optmod);
+            return robustLoss(residualFn(x));
         };
     }
 
@@ -3571,7 +3571,7 @@ def image_to_az_el(x, y, optpar=optpar, optmod=optmod,
             "Nelder-Mead lens fit",
             `${starts.length} starts including random perturbations, ${totalIterations} iterations`,
             fitCount,
-            "regularized robust Huber objective"
+            "robust Huber objective"
         );
     }
 
@@ -3586,15 +3586,14 @@ def image_to_az_el(x, y, optpar=optpar, optmod=optmod,
             return;
         }
         const residualFn = matchResidualFactory();
-        const regularizedResidualFn = regularizedResidualFactory(residualFn, optmod);
-        const objective = leastSquaresObjectiveFactory(regularizedResidualFn, optmod);
+        const objective = leastSquaresObjectiveFactory(residualFn, optmod);
         const start = currentFitVector();
         const starts = fitStartCandidates(objective, start, optmod).slice(0, 12);
         let result = null;
         let totalIterations = 0;
         let accepted = 0;
         for (const candidate of starts) {
-            const candidateResult = levenbergMarquardt(regularizedResidualFn, candidate.x, 80, optmod);
+            const candidateResult = levenbergMarquardt(residualFn, candidate.x, 80, optmod);
             totalIterations += candidateResult.iterations;
             accepted += candidateResult.accepted;
             if (!result || candidateResult.fx < result.fx) {
@@ -3613,7 +3612,7 @@ def image_to_az_el(x, y, optpar=optpar, optmod=optmod,
             "Levenberg-Marquardt lens fit",
             `${starts.length} starts, ${totalIterations} iterations, ${accepted} accepted steps`,
             fitCount,
-            "regularized ordinary least-squares objective"
+            "ordinary least-squares objective"
         );
     }
 
