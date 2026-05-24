@@ -164,8 +164,12 @@ h1 { margin: 0; font-size: 20px; }
 .subtle { color: #93a4ba; }
 .layout { display: grid; grid-template-columns: minmax(0, 1fr) 330px; gap: 18px; padding: 18px; }
 .viewer { min-height: calc(100vh - 110px); display: grid; place-items: center; background: #07090d; border: 1px solid #2d3748; border-radius: 8px; overflow: hidden; }
+.crop-wrap { display: grid; grid-template-columns: auto 150px; gap: 14px; align-items: start; }
 .crop-frame { image-rendering: pixelated; width: min(78vh, 78vw); max-width: 720px; aspect-ratio: 1; display: grid; place-items: center; background: #000; border: 1px solid #334155; }
 .crop-frame img { width: 100%; height: 100%; object-fit: contain; image-rendering: pixelated; }
+.image-label { position: sticky; top: 12px; display: grid; gap: 8px; }
+.image-label .label { width: 100%; box-sizing: border-box; text-align: center; font-size: 24px; padding: 10px 12px; border-radius: 8px; }
+.image-label .hint { color: #93a4ba; font-size: 13px; text-align: center; }
 .empty { color: #93a4ba; padding: 24px; text-align: center; }
 .panel { display: flex; flex-direction: column; gap: 12px; }
 .card { background: #171d28; border: 1px solid #2d3748; border-radius: 8px; padding: 14px; }
@@ -183,7 +187,7 @@ button { cursor: pointer; font-weight: 700; }
 .meta { overflow-wrap: anywhere; color: #b8c4d6; }
 kbd { background: #263244; border: 1px solid #40506a; border-radius: 4px; padding: 1px 5px; font-weight: 700; }
 ul { padding-left: 18px; margin: 8px 0 0; color: #aebbd0; }
-@media (max-width: 900px) { .layout { grid-template-columns: 1fr; } .crop-frame { width: min(88vw, 70vh); } }
+@media (max-width: 900px) { .layout { grid-template-columns: 1fr; } .crop-wrap { grid-template-columns: 1fr; } .image-label { position: static; } .crop-frame { width: min(88vw, 70vh); } }
 </style>
 </head>
 <body>
@@ -196,7 +200,13 @@ ul { padding-left: 18px; margin: 8px 0 0; color: #aebbd0; }
 </header>
 <main class="layout">
     <section class="viewer">
-        <div class="crop-frame" id="cropFrame"><div class="empty">Loading...</div></div>
+        <div class="crop-wrap">
+            <div class="crop-frame" id="cropFrame"><div class="empty">Loading...</div></div>
+            <div class="image-label">
+                <div id="imageSideLabel"></div>
+                <div class="hint">current label</div>
+            </div>
+        </div>
     </section>
     <aside class="panel">
         <section class="card">
@@ -243,6 +253,7 @@ let filtered = [];
 let index = 0;
 
 const cropFrame = document.getElementById("cropFrame");
+const imageSideLabel = document.getElementById("imageSideLabel");
 const countsEl = document.getElementById("counts");
 const positionEl = document.getElementById("position");
 const labelEl = document.getElementById("currentLabel");
@@ -281,6 +292,7 @@ function render() {
     countsEl.textContent = \`yes \${count("yes")}  no \${count("no")}  unsure \${count("unsure")}  total \${items.length}\`;
     if (filtered.length === 0) {
         cropFrame.innerHTML = '<div class="empty">No crops match this filter.</div>';
+        imageSideLabel.innerHTML = "";
         positionEl.textContent = "0 / 0";
         labelEl.innerHTML = "";
         filenameEl.textContent = "";
@@ -288,6 +300,7 @@ function render() {
     }
     const item = filtered[index];
     cropFrame.innerHTML = \`<img src="\${item.url}?t=\${Date.now()}" alt="\${item.id}">\`;
+    imageSideLabel.innerHTML = \`<span class="label \${item.label}">\${item.label}</span>\`;
     positionEl.textContent = \`\${index + 1} / \${filtered.length}\`;
     labelEl.innerHTML = \`<span class="label \${item.label}">\${item.label}</span>\`;
     filenameEl.textContent = item.id;
@@ -445,4 +458,3 @@ function main() {
 if (require.main === module) {
     main();
 }
-
