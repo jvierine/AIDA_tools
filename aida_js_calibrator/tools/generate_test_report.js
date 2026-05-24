@@ -53,6 +53,24 @@ const CASES = [
         optpar: [0.784905, 1.393641, -60.8, 35.2, 74.5, 0.042289, 0.008410, 0.895509],
     },
     {
+        id: "010880-ams0881-optmod2",
+        title: "010880 AMS0881 optmod 2",
+        image: "2025_02_19_03_46_00_000_010880_ams0881_first1s.png",
+        width: 1920,
+        height: 1080,
+        date: new Date(Date.UTC(2025, 1, 19, 3, 46, 0)),
+        latDeg: 51.449200,
+        lonDeg: 14.279400,
+        altM: 384.3,
+        optmod: 2,
+        maxMag: 5.0,
+        matchRadiusPx: 18,
+        sweepCounts: [8, 10, 12, 14, 16, 18, 20, 24, 28, 32, 36, 40],
+        detectorOptions: {maxDetections: 50},
+        startMode: "perturbed",
+        optpar: [0.776864, 1.373172, -19.3, 62.6, 20.5, 0.003257, 0.001258, 0.904396],
+    },
+    {
         id: "012165-optmod2",
         title: "012165 optmod 2",
         image: "2025_02_19_03_44_00_000_012165_first1s.png",
@@ -478,6 +496,20 @@ function magnitudeRadius(mag) {
     return 4;
 }
 
+function formatFitNumber(value) {
+    if (!Number.isFinite(value)) {
+        return String(value);
+    }
+    if (Number.isInteger(value)) {
+        return String(value);
+    }
+    return value.toPrecision(12).replace(/(\.\d*?)0+$/, "$1").replace(/\.$/, "");
+}
+
+function formatBestParameterVector(testCase, fit) {
+    return [testCase.optmod, ...fit.optpar].map(formatFitNumber).join(", ");
+}
+
 function overlaySvg(result) {
     const matchedKeys = new Set(result.matches.map(pair => pair.star.key));
     const fittedStars = new Map(projectStars(result.case, result.fit.optpar, result.case.maxMag + 0.01)
@@ -612,6 +644,7 @@ function caseHtml(result) {
         <p class="status">${escapeHtml(result.detectionStatus)}</p>
         <p class="status">${escapeHtml(result.autoIdentification.status)}</p>
         <p class="status">${escapeHtml(autoIdStatus)}</p>
+        <p class="status">best fit [optmod, ...optpar]: [${escapeHtml(formatBestParameterVector(c, result.fit))}]</p>
         <div class="summary-grid">
             <div><strong>${result.detections.length}</strong><span>detections</span></div>
             <div><strong>${result.catalog.length}</strong><span>catalog stars</span></div>

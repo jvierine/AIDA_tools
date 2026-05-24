@@ -57,6 +57,31 @@ const REAL_CASE = {
         0.895509000000,
     ],
 };
+const REAL_CASE_010880_AMS0881_IMAGE = path.join(
+    __dirname,
+    "..",
+    "calibration_images",
+    "2025_02_19_03_46_00_000_010880_ams0881_first1s.png",
+);
+const REAL_CASE_010880_AMS0881 = {
+    width: 1920,
+    height: 1080,
+    date: new Date(Date.UTC(2025, 1, 19, 3, 46, 0)),
+    latDeg: 51.449200,
+    lonDeg: 14.279400,
+    altM: 384.3,
+    optmod: 2,
+    optpar: [
+        0.776864000000,
+        1.37317200000,
+        -19.3000000000,
+        62.6000000000,
+        20.5000000000,
+        0.00325700000000,
+        0.00125800000000,
+        0.904396000000,
+    ],
+};
 const REAL_CASE_012165_IMAGE = path.join(
     __dirname,
     "..",
@@ -883,6 +908,13 @@ test("automatic star finder detects real bright stars without catalogue matching
             minTrueDetections: 16,
             maxMedianCentroidErrorPx: 8,
         },
+        {
+            name: "010880 AMS0881",
+            image: REAL_CASE_010880_AMS0881_IMAGE,
+            realCase: REAL_CASE_010880_AMS0881,
+            minTrueDetections: 25,
+            maxMedianCentroidErrorPx: 8,
+        },
     ];
     for (const testCase of cases) {
         const imageData = readPngImageData(testCase.image);
@@ -928,6 +960,18 @@ test("known lens model maps Yale catalogue stars to image detections for auto-ID
             detectorOptions: {maxDetections: 50},
             minTruthMatches: 16,
             minCorrect: 16,
+            maxIncorrect: 0,
+            maxUnknown: 0,
+        },
+        {
+            name: "010880 AMS0881",
+            image: REAL_CASE_010880_AMS0881_IMAGE,
+            realCase: REAL_CASE_010880_AMS0881,
+            maxMag: 5.0,
+            matchRadiusPx: 18,
+            detectorOptions: {maxDetections: 50},
+            minTruthMatches: 40,
+            minCorrect: 40,
             maxIncorrect: 0,
             maxUnknown: 0,
         },
@@ -1013,6 +1057,14 @@ test("optmod 2 lens fitting works from automatically found real stars", async ()
             name: "012165 high-pass",
             image: REAL_CASE_012165_IMAGE,
             realCase: REAL_CASE_012165,
+            minStablePairs: 12,
+            maxStableRmsPx: 5.0,
+            minStableFits: 3,
+        },
+        {
+            name: "010880 AMS0881",
+            image: REAL_CASE_010880_AMS0881_IMAGE,
+            realCase: REAL_CASE_010880_AMS0881,
             minStablePairs: 12,
             maxStableRmsPx: 5.0,
             minStableFits: 3,

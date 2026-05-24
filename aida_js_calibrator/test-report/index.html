@@ -47,7 +47,7 @@ h2 { margin: 0 0 8px; font-size: 20px; }
 <body>
 <header>
 <h1>AIDA Calibrator Star-Fit Test Report</h1>
-<p class="intro">Generated 2026-05-24T13:25:35.166Z. The report uses the same real-image fixtures as the unit tests. A known-good lens model first creates a truth map between Yale catalogue stars and image detections; the automatic star-identification result is then scored against that map. Green circles are detected truth-map stars used for fitting, cyan circles are fitted lens-model positions, red circles are unmatched catalogue stars under the fitted model, and yellow dots are raw automatic detections. Brown-Conrady cases use light coefficient regularization.</p>
+<p class="intro">Generated 2026-05-24T13:30:06.184Z. The report uses the same real-image fixtures as the unit tests. A known-good lens model first creates a truth map between Yale catalogue stars and image detections; the automatic star-identification result is then scored against that map. Green circles are detected truth-map stars used for fitting, cyan circles are fitted lens-model positions, red circles are unmatched catalogue stars under the fitted model, and yellow dots are raw automatic detections. Brown-Conrady cases use light coefficient regularization.</p>
 </header>
 <section class="case-card" id="010095-optmod2">
         <h2>010095 optmod 2</h2>
@@ -59,6 +59,7 @@ h2 { margin: 0 0 8px; font-size: 20px; }
         <p class="status">bright-star detector: bg 41.0, sigma 17.9, 1458 candidates, selected top 50/50, suppression radius 22 px</p>
         <p class="status">auto-identify: 22 star pairs, median residual 0.4 px, translation dx/dy -0.3/-0.2 px</p>
         <p class="status">known-lens validation: 21/22 auto-ID pairs correct, 1 wrong, 0 outside truth map</p>
+        <p class="status">best fit [optmod, ...optpar]: [2, 0.782174129956, 1.38840321956, -60.7808244413, 35.1761477778, 74.5186147553, 0.0419031418978, 0.00761206466979, 0.898934278394]</p>
         <div class="summary-grid">
             <div><strong>50</strong><span>detections</span></div>
             <div><strong>41</strong><span>catalog stars</span></div>
@@ -236,6 +237,353 @@ h2 { margin: 0 0 8px; font-size: 20px; }
             </div>
         </div>
     </section>
+<section class="case-card" id="010880-ams0881-optmod2">
+        <h2>010880 AMS0881 optmod 2</h2>
+        <div class="meta">
+            <span>optmod 2</span>
+            <span>2025-02-19T03:46:00.000Z</span>
+            <span>lat 51.449200, lon 14.279400, alt 384.3 m</span>
+        </div>
+        <p class="status">bright-star detector: bg 76.4, sigma 7.2, 1191 candidates, selected top 50/50, suppression radius 22 px</p>
+        <p class="status">auto-identify: 40 star pairs, median residual 0.4 px, translation dx/dy 0.1/0.8 px</p>
+        <p class="status">known-lens validation: 40/40 auto-ID pairs correct, 0 wrong, 0 outside truth map</p>
+        <p class="status">best fit [optmod, ...optpar]: [2, 0.779105269047, 1.37731690557, -19.2756206454, 62.5747136602, 20.4659362505, 0.00334356706946, 0.0013702230242, 0.901509595521]</p>
+        <div class="summary-grid">
+            <div><strong>50</strong><span>detections</span></div>
+            <div><strong>134</strong><span>catalog stars</span></div>
+            <div><strong>40</strong><span>known-lens truth pairs</span></div>
+            <div><strong>40</strong><span>validated auto-ID pairs</span></div>
+            <div><strong>0</strong><span>wrong auto-ID pairs</span></div>
+            <div><strong>0.49 px</strong><span>fit RMS</span></div>
+        </div>
+        <p class="sweep"><strong>fit sweep:</strong> 8: 0.21 px (8 accepted) / 10: 0.21 px (11 accepted) / 12: 0.22 px (7 accepted) / 14: 0.36 px (9 accepted) / 16: 0.41 px (11 accepted) / 18: 0.40 px (8 accepted) / 20: 0.44 px (8 accepted) / 24: 0.43 px (9 accepted) / 28: 0.44 px (10 accepted) / 32: 0.46 px (9 accepted) / 36: 0.45 px (9 accepted) / 40: 0.49 px (7 accepted)</p>
+        <div class="visual-grid">
+            <div class="image-panel">
+                <img src="../calibration_images/2025_02_19_03_46_00_000_010880_ams0881_first1s.png" alt="010880 AMS0881 optmod 2">
+                <svg class="overlay" viewBox="0 0 1920 1080" preserveAspectRatio="none"><circle class="catalog-star" cx="575.54" cy="804.46" r="9.00"><title>Capella mag 0.1</title></circle>
+<circle class="catalog-star" cx="1062.04" cy="1070.95" r="9.00"><title>Algol mag 2.1</title></circle>
+<circle class="catalog-star" cx="1341.24" cy="1021.52" r="9.00"><title>And Gamma1-57 mag 2.3</title></circle>
+<circle class="catalog-star" cx="838.25" cy="1057.72" r="6.00"><title>Per Epsilo-45 mag 2.9</title></circle>
+<circle class="catalog-star" cx="26.78" cy="890.33" r="6.00"><title>MEbsuta mag 3.0</title></circle>
+<circle class="catalog-star" cx="562.86" cy="919.67" r="6.00"><title>Aur Eta-10 mag 3.2</title></circle>
+<circle class="catalog-star" cx="1418.82" cy="857.99" r="6.00"><title>And 51 mag 3.6</title></circle>
+<circle class="catalog-star" cx="112.25" cy="725.03" r="6.00"><title>Gem Theta-34 mag 3.6</title></circle>
+<circle class="catalog-star" cx="151.43" cy="71.92" r="6.00"><title>UMa Kappa-12 mag 3.6</title></circle>
+<circle class="catalog-star" cx="576.94" cy="931.39" r="6.00"><title>Aur Zeta-8 mag 3.8</title></circle>
+<circle class="catalog-star" cx="1763.85" cy="293.31" r="6.00"><title>Cep Delta-27 mag 3.8</title></circle>
+<circle class="catalog-star" cx="905.96" cy="1015.05" r="6.00"><title>Per Nu-41 mag 3.8</title></circle>
+<circle class="catalog-star" cx="1064.24" cy="984.51" r="6.00"><title>Per Kappa-27 mag 3.8</title></circle>
+<circle class="catalog-star" cx="1820.32" cy="661.84" r="6.00"><title>And Lambda-16 mag 3.8</title></circle>
+<circle class="catalog-star" cx="1634.61" cy="1005.78" r="6.00"><title>And Mu-37 mag 3.9</title></circle>
+<circle class="catalog-star" cx="374.44" cy="845.70" r="6.00"><title>Aur Nu-32 mag 4.0</title></circle>
+<circle class="catalog-star" cx="839.43" cy="879.88" r="6.00"><title>Per 48 mag 4.0</title></circle>
+<circle class="catalog-star" cx="1075.13" cy="877.41" r="6.00"><title>Per Iota mag 4.0</title></circle>
+<circle class="catalog-star" cx="1388.33" cy="818.66" r="6.00"><title>Per Phi mag 4.1</title></circle>
+<circle class="catalog-star" cx="1457.21" cy="1012.38" r="6.00"><title>And Upsilo-50 mag 4.1</title></circle>
+<circle class="catalog-star" cx="1169.54" cy="887.09" r="6.00"><title>Per Theta-13 mag 4.1</title></circle>
+<circle class="catalog-star" cx="1838.25" cy="706.74" r="6.00"><title>And Kappa-19 mag 4.1</title></circle>
+<circle class="catalog-star" cx="820.61" cy="857.47" r="6.00"><title>Per Mu-51 mag 4.1</title></circle>
+<circle class="catalog-star" cx="1803.77" cy="272.20" r="6.00"><title>Cep Epsilo-23 mag 4.2</title></circle>
+<circle class="catalog-star" cx="965.63" cy="897.72" r="6.00"><title>Per Psi-37 mag 4.2</title></circle>
+<circle class="catalog-star" cx="1528.95" cy="849.19" r="6.00"><title>And Phi-42 mag 4.3</title></circle>
+<circle class="catalog-star" cx="96.43" cy="258.10" r="6.00"><title>Lyn 31 mag 4.3</title></circle>
+<circle class="catalog-star" cx="681.65" cy="976.76" r="6.00"><title>Per 58 mag 4.3</title></circle>
+<circle class="catalog-star" cx="434.65" cy="701.90" r="6.00"><title>Aur Pi-35 mag 4.3</title></circle>
+<circle class="catalog-star" cx="1856.79" cy="718.65" r="6.00"><title>And Iota-17 mag 4.3</title></circle>
+<circle class="catalog-star" cx="863.98" cy="824.29" r="6.00"><title>Per Lambda-47 mag 4.3</title></circle>
+<circle class="catalog-star" cx="1464.79" cy="682.87" r="6.00"><title>Cas Theta-33 mag 4.3</title></circle>
+<circle class="catalog-star" cx="174.93" cy="932.19" r="6.00"><title>Aur Kappa-44 mag 4.3</title></circle>
+<circle class="catalog-star" cx="987.89" cy="905.68" r="6.00"><title>Per Sigma-35 mag 4.4</title></circle>
+<circle class="catalog-star" cx="11.58" cy="704.99" r="6.00"><title>Gem Tau-46 mag 4.4</title></circle>
+<circle class="catalog-star" cx="1877.91" cy="355.53" r="6.00"><title>Lac Beta-3 mag 4.4</title></circle>
+<circle class="catalog-star" cx="722.30" cy="684.09" r="6.00"><title>Cam 7 mag 4.5</title></circle>
+<circle class="catalog-star" cx="1839.47" cy="541.95" r="4.00"><title>And 7 mag 4.5</title></circle>
+<circle class="catalog-star" cx="1792.57" cy="948.64" r="4.00"><title>And Sigma-25 mag 4.5</title></circle>
+<circle class="catalog-star" cx="382.91" cy="851.70" r="4.00"><title>Aur Tau-29 mag 4.5</title></circle>
+<circle class="catalog-star" cx="1191.96" cy="462.60" r="4.00"><title>Cas Iota mag 4.5</title></circle>
+<circle class="catalog-star" cx="1644.02" cy="940.13" r="4.00"><title>And Nu-35 mag 4.5</title></circle>
+<circle class="catalog-star" cx="1604.46" cy="784.65" r="4.00"><title>Cas Omicro-22 mag 4.5</title></circle>
+<circle class="catalog-star" cx="1636.67" cy="506.09" r="4.00"><title>Cas Rho-7 mag 4.5</title></circle>
+<circle class="catalog-star" cx="522.81" cy="43.27" r="4.00"><title>UMa Pi2-4 mag 4.6</title></circle>
+<circle class="catalog-star" cx="1781.32" cy="910.06" r="4.00"><title>And Theta-24 mag 4.6</title></circle>
+<circle class="catalog-star" cx="1469.16" cy="577.77" r="4.00"><title>Cas Upsil2-28 mag 4.6</title></circle>
+<circle class="catalog-star" cx="1870.02" cy="406.47" r="4.00"><title>Lac 9 mag 4.6</title></circle>
+<circle class="catalog-star" cx="282.26" cy="392.53" r="4.00"><title>Lyn 21 mag 4.6</title></circle>
+<circle class="catalog-star" cx="997.81" cy="872.25" r="4.00"><title>Per 34 mag 4.7</title></circle>
+<circle class="catalog-star" cx="1238.42" cy="857.92" r="4.00"><title>And 65 mag 4.7</title></circle>
+<circle class="catalog-star" cx="503.02" cy="912.98" r="4.00"><title>Aur Lambda-15 mag 4.7</title></circle>
+<circle class="catalog-star" cx="1369.27" cy="618.92" r="4.00"><title>Cas Chi-39 mag 4.7</title></circle>
+<circle class="catalog-star" cx="767.21" cy="1026.60" r="4.00"><title>Per 52 mag 4.7</title></circle>
+<circle class="catalog-star" cx="1582.20" cy="634.75" r="4.00"><title>Cas Lambda-14 mag 4.7</title></circle>
+<circle class="catalog-star" cx="1733.75" cy="124.44" r="4.00"><title>Cep 9 mag 4.7</title></circle>
+<circle class="catalog-star" cx="353.89" cy="879.60" r="4.00"><title>Aur Upsilo-31 mag 4.7</title></circle>
+<circle class="catalog-star" cx="1530.86" cy="261.34" r="4.00"><title>Cep Omicro-34 mag 4.8</title></circle>
+<circle class="catalog-star" cx="577.14" cy="1037.89" r="4.00"><title>Aur 2 mag 4.8</title></circle>
+<circle class="catalog-star" cx="272.86" cy="642.91" r="4.00"><title>Aur Psi2-50 mag 4.8</title></circle>
+<circle class="catalog-star" cx="1507.23" cy="98.18" r="4.00"><title>Cep 24 mag 4.8</title></circle>
+<circle class="catalog-star" cx="1592.69" cy="734.39" r="4.00"><title>Cas Xi-19 mag 4.8</title></circle>
+<circle class="catalog-star" cx="1298.12" cy="986.86" r="4.00"><title>And 60 mag 4.8</title></circle>
+<circle class="catalog-star" cx="1474.01" cy="914.91" r="4.00"><title>And Omega-48 mag 4.8</title></circle>
+<circle class="catalog-star" cx="1475.43" cy="579.92" r="4.00"><title>Cas Upsil1-26 mag 4.8</title></circle>
+<circle class="catalog-star" cx="1341.19" cy="1021.51" r="4.00"><title>And Gamma2-57 mag 4.8</title></circle>
+<circle class="catalog-star" cx="270.43" cy="230.72" r="4.00"><title>Lyn 27 mag 4.8</title></circle>
+<circle class="catalog-star" cx="1833.89" cy="563.08" r="4.00"><title>And 8 mag 4.8</title></circle>
+<circle class="catalog-star" cx="1695.96" cy="370.59" r="4.00"><title>Cas 1 mag 4.8</title></circle>
+<circle class="catalog-star" cx="781.89" cy="890.17" r="4.00"><title>Per 53 mag 4.8</title></circle>
+<circle class="catalog-star" cx="508.55" cy="957.30" r="4.00"><title>Aur Mu-11 mag 4.9</title></circle>
+<circle class="catalog-star" cx="1635.83" cy="470.58" r="4.00"><title>Cas Tau-5 mag 4.9</title></circle>
+<circle class="catalog-star" cx="538.94" cy="363.48" r="4.00"><title>Lyn 12 mag 4.9</title></circle>
+<circle class="catalog-star" cx="1493.30" cy="904.86" r="4.00"><title>And Xi-46 mag 4.9</title></circle>
+<circle class="catalog-star" cx="1649.61" cy="547.50" r="4.00"><title>Cas Sigma-8 mag 4.9</title></circle>
+<circle class="catalog-star" cx="1567.71" cy="737.13" r="4.00"><title>Cas Nu-25 mag 4.9</title></circle>
+<circle class="catalog-star" cx="143.79" cy="576.95" r="4.00"><title>Aur 63 mag 4.9</title></circle>
+<circle class="catalog-star" cx="11.43" cy="530.57" r="4.00"><title>Gem Omicro-71 mag 4.9</title></circle>
+<circle class="catalog-star" cx="268.62" cy="543.74" r="4.00"><title>Lyn 16 mag 4.9</title></circle>
+<circle class="catalog-star" cx="414.41" cy="577.04" r="4.00"><title>Aur Psi1-46 mag 4.9</title></circle>
+<circle class="catalog-star" cx="1444.86" cy="1034.77" r="4.00"><title>And Tau-53 mag 4.9</title></circle>
+<circle class="catalog-star" cx="559.98" cy="1000.69" r="4.00"><title>Aur Omega-4 mag 4.9</title></circle>
+<circle class="catalog-star" cx="1619.50" cy="807.78" r="4.00"><title>Cas Pi-20 mag 4.9</title></circle>
+<circle class="catalog-star" cx="1798.54" cy="685.67" r="4.00"><title>And Psi-20 mag 5.0</title></circle>
+<circle class="catalog-star" cx="1010.13" cy="1014.17" r="4.00"><title>Per 32 mag 5.0</title></circle>
+<circle class="catalog-star" cx="1433.97" cy="951.83" r="4.00"><title>And Chi-52 mag 5.0</title></circle>
+<circle class="catalog-star" cx="1620.40" cy="364.47" r="4.00"><title>Cas 4 mag 5.0</title></circle>
+<circle class="catalog-star" cx="1414.88" cy="626.87" r="4.00"><title>Cas Phi-34 mag 5.0</title></circle>
+<circle class="catalog-star" cx="626.37" cy="390.96" r="4.00"><title>Lyn 1 mag 5.0</title></circle>
+<circle class="catalog-star" cx="453.34" cy="950.50" r="4.00"><title>Aur Sigma-21 mag 5.0</title></circle>
+<circle class="catalog-star" cx="586.43" cy="538.91" r="4.00"><title>Aur Xi-30 mag 5.0</title></circle>
+<circle class="catalog-star" cx="1257.11" cy="421.10" r="4.00"><title>Cas Omega-46 mag 5.0</title></circle>
+<circle class="catalog-star" cx="442.88" cy="232.52" r="4.00"><title>Lyn 24 mag 5.0</title></circle>
+<circle class="catalog-star" cx="670.14" cy="712.40" r="4.00"><title>Aur 9 mag 5.0</title></circle>
+<circle class="detected-star" cx="1383.85" cy="588.94" r="3.00"></circle>
+<circle class="detected-star" cx="1537.46" cy="609.00" r="3.00"></circle>
+<circle class="detected-star" cx="1582.34" cy="504.04" r="3.00"></circle>
+<circle class="detected-star" cx="1453.96" cy="545.51" r="3.00"></circle>
+<circle class="detected-star" cx="422.44" cy="720.34" r="3.00"></circle>
+<circle class="detected-star" cx="1729.01" cy="72.93" r="3.00"></circle>
+<circle class="detected-star" cx="1096.85" cy="789.22" r="3.00"></circle>
+<circle class="detected-star" cx="1018.44" cy="866.58" r="3.00"></circle>
+<circle class="detected-star" cx="28.95" cy="743.69" r="3.00"></circle>
+<circle class="detected-star" cx="1342.35" cy="137.70" r="3.00"></circle>
+<circle class="detected-star" cx="1502.00" cy="596.07" r="3.00"></circle>
+<circle class="detected-star" cx="1560.10" cy="43.89" r="3.00"></circle>
+<circle class="detected-star" cx="1288.58" cy="534.95" r="3.00"></circle>
+<circle class="detected-star" cx="1598.43" cy="237.85" r="3.00"></circle>
+<circle class="detected-star" cx="1786.94" cy="247.37" r="3.00"></circle>
+<circle class="detected-star" cx="169.60" cy="83.12" r="3.00"></circle>
+<circle class="detected-star" cx="447.55" cy="90.27" r="3.00"></circle>
+<circle class="detected-star" cx="553.83" cy="554.72" r="3.00"></circle>
+<circle class="detected-star" cx="777.22" cy="536.94" r="3.00"></circle>
+<circle class="detected-star" cx="1133.11" cy="807.22" r="3.00"></circle>
+<circle class="detected-star" cx="1484.01" cy="467.75" r="3.00"></circle>
+<circle class="detected-star" cx="1146.02" cy="733.99" r="3.00"></circle>
+<circle class="detected-star" cx="605.80" cy="877.70" r="3.00"></circle>
+<circle class="detected-star" cx="1222.85" cy="338.74" r="3.00"></circle>
+<circle class="detected-star" cx="1749.27" cy="151.92" r="3.00"></circle>
+<circle class="detected-star" cx="1738.56" cy="858.79" r="3.00"></circle>
+<circle class="detected-star" cx="1162.11" cy="25.67" r="3.00"></circle>
+<circle class="detected-star" cx="49.11" cy="119.73" r="3.00"></circle>
+<circle class="detected-star" cx="1030.65" cy="362.47" r="3.00"></circle>
+<circle class="detected-star" cx="1408.37" cy="139.67" r="3.00"></circle>
+<circle class="detected-star" cx="1796.18" cy="167.78" r="3.00"></circle>
+<circle class="detected-star" cx="1668.95" cy="161.97" r="3.00"></circle>
+<circle class="detected-star" cx="864.32" cy="426.10" r="3.00"></circle>
+<circle class="detected-star" cx="1847.51" cy="507.10" r="3.00"></circle>
+<circle class="detected-star" cx="1002.66" cy="495.69" r="3.00"></circle>
+<circle class="detected-star" cx="939.21" cy="902.24" r="3.00"></circle>
+<circle class="detected-star" cx="1540.01" cy="61.47" r="3.00"></circle>
+<circle class="detected-star" cx="1320.91" cy="414.92" r="3.00"></circle>
+<circle class="detected-star" cx="100.03" cy="169.60" r="3.00"></circle>
+<circle class="detected-star" cx="1263.56" cy="24.89" r="3.00"></circle>
+<circle class="detected-star" cx="500.87" cy="352.30" r="3.00"></circle>
+<circle class="detected-star" cx="322.31" cy="854.45" r="3.00"></circle>
+<circle class="detected-star" cx="1899.16" cy="404.74" r="3.00"></circle>
+<circle class="detected-star" cx="52.01" cy="482.32" r="3.00"></circle>
+<circle class="detected-star" cx="1574.81" cy="657.44" r="3.00"></circle>
+<circle class="detected-star" cx="241.46" cy="28.28" r="3.00"></circle>
+<circle class="detected-star" cx="1233.19" cy="373.41" r="3.00"></circle>
+<circle class="detected-star" cx="1774.99" cy="112.31" r="3.00"></circle>
+<circle class="detected-star" cx="1027.48" cy="657.35" r="3.00"></circle>
+<circle class="detected-star" cx="581.46" cy="429.14" r="3.00"></circle>
+<line class="residual-line" x1="1018.44" y1="866.58" x2="1018.01" y2="866.71"></line>
+<circle class="matched-star" cx="1018.44" cy="866.58" r="11.00"><title>Mirfak mag 1.8 detection</title></circle>
+<circle class="fit-star" cx="1018.01" cy="866.71" r="9.00"><title>Mirfak fitted model</title></circle>
+<line class="residual-line" x1="422.44" y1="720.34" x2="422.48" y2="720.50"></line>
+<circle class="matched-star" cx="422.44" cy="720.34" r="11.00"><title>Menkalinan mag 1.9 detection</title></circle>
+<circle class="fit-star" cx="422.48" cy="720.50" r="9.00"><title>Menkalinan fitted model</title></circle>
+<line class="residual-line" x1="1537.46" y1="609.00" x2="1537.64" y2="608.87"></line>
+<circle class="matched-star" cx="1537.46" cy="609.00" r="11.00"><title>Schedar mag 2.2 detection</title></circle>
+<circle class="fit-star" cx="1537.64" cy="608.87" r="9.00"><title>Schedar fitted model</title></circle>
+<line class="residual-line" x1="1582.34" y1="504.04" x2="1582.56" y2="503.76"></line>
+<circle class="matched-star" cx="1582.34" cy="504.04" r="11.00"><title>Caph mag 2.3 detection</title></circle>
+<circle class="fit-star" cx="1582.56" cy="503.76" r="9.00"><title>Caph fitted model</title></circle>
+<line class="residual-line" x1="1729.01" y1="72.93" x2="1729.45" y2="72.66"></line>
+<circle class="matched-star" cx="1729.01" cy="72.93" r="11.00"><title>Alderamin mag 2.4 detection</title></circle>
+<circle class="fit-star" cx="1729.45" cy="72.66" r="9.00"><title>Alderamin fitted model</title></circle>
+<line class="residual-line" x1="1453.96" y1="545.51" x2="1454.11" y2="545.47"></line>
+<circle class="matched-star" cx="1453.96" cy="545.51" r="11.00"><title>Cas Gamma-27 mag 2.5 detection</title></circle>
+<circle class="fit-star" cx="1454.11" cy="545.47" r="9.00"><title>Cas Gamma-27 fitted model</title></circle>
+<line class="residual-line" x1="322.31" y1="854.45" x2="322.20" y2="855.30"></line>
+<circle class="matched-star" cx="322.31" cy="854.45" r="8.00"><title>Aur Theta-37 mag 2.6 detection</title></circle>
+<circle class="fit-star" cx="322.20" cy="855.30" r="6.00"><title>Aur Theta-37 fitted model</title></circle>
+<line class="residual-line" x1="1383.85" y1="588.94" x2="1384.15" y2="588.87"></line>
+<circle class="matched-star" cx="1383.85" cy="588.94" r="8.00"><title>Cas Delta-37 mag 2.7 detection</title></circle>
+<circle class="fit-star" cx="1384.15" cy="588.87" r="6.00"><title>Cas Delta-37 fitted model</title></circle>
+<line class="residual-line" x1="1096.85" y1="789.22" x2="1096.91" y2="788.95"></line>
+<circle class="matched-star" cx="1096.85" cy="789.22" r="8.00"><title>Per Gamma-23 mag 2.9 detection</title></circle>
+<circle class="fit-star" cx="1096.91" cy="788.95" r="6.00"><title>Per Gamma-23 fitted model</title></circle>
+<line class="residual-line" x1="605.80" y1="877.70" x2="605.69" y2="877.93"></line>
+<circle class="matched-star" cx="605.80" cy="877.70" r="8.00"><title>Aur Epsilon-7 mag 3.0 detection</title></circle>
+<circle class="fit-star" cx="605.69" cy="877.93" r="6.00"><title>Aur Epsilon-7 fitted model</title></circle>
+<line class="residual-line" x1="939.21" y1="902.24" x2="938.93" y2="902.31"></line>
+<circle class="matched-star" cx="939.21" cy="902.24" r="8.00"><title>Per Delta-39 mag 3.0 detection</title></circle>
+<circle class="fit-star" cx="938.93" cy="902.31" r="6.00"><title>Per Delta-39 fitted model</title></circle>
+<line class="residual-line" x1="169.60" y1="83.12" x2="169.87" y2="82.58"></line>
+<circle class="matched-star" cx="169.60" cy="83.12" r="8.00"><title>Talitha mag 3.1 detection</title></circle>
+<circle class="fit-star" cx="169.87" cy="82.58" r="6.00"><title>Talitha fitted model</title></circle>
+<line class="residual-line" x1="1342.35" y1="137.70" x2="1342.63" y2="138.37"></line>
+<circle class="matched-star" cx="1342.35" cy="137.70" r="8.00"><title>Alrai mag 3.2 detection</title></circle>
+<circle class="fit-star" cx="1342.63" cy="138.37" r="6.00"><title>Alrai fitted model</title></circle>
+<line class="residual-line" x1="1560.10" y1="43.89" x2="1560.19" y2="43.70"></line>
+<circle class="matched-star" cx="1560.10" cy="43.89" r="8.00"><title>Alphirk mag 3.2 detection</title></circle>
+<circle class="fit-star" cx="1560.19" cy="43.70" r="6.00"><title>Alphirk fitted model</title></circle>
+<line class="residual-line" x1="1786.94" y1="247.37" x2="1786.64" y2="247.60"></line>
+<circle class="matched-star" cx="1786.94" cy="247.37" r="8.00"><title>Cep Zeta-21 mag 3.4 detection</title></circle>
+<circle class="fit-star" cx="1786.64" cy="247.60" r="6.00"><title>Cep Zeta-21 fitted model</title></circle>
+<line class="residual-line" x1="447.55" y1="90.27" x2="447.06" y2="90.16"></line>
+<circle class="matched-star" cx="447.55" cy="90.27" r="8.00"><title>UMa Omicron-1 mag 3.4 detection</title></circle>
+<circle class="fit-star" cx="447.06" cy="90.16" r="6.00"><title>UMa Omicron-1 fitted model</title></circle>
+<line class="residual-line" x1="1288.58" y1="534.95" x2="1288.59" y2="534.46"></line>
+<circle class="matched-star" cx="1288.58" cy="534.95" r="8.00"><title>Cas Epsilo-45 mag 3.4 detection</title></circle>
+<circle class="fit-star" cx="1288.59" cy="534.46" r="6.00"><title>Cas Epsilo-45 fitted model</title></circle>
+<line class="residual-line" x1="1502.00" y1="596.07" x2="1502.08" y2="595.75"></line>
+<circle class="matched-star" cx="1502.00" cy="596.07" r="8.00"><title>Cas Eta-24 mag 3.4 detection</title></circle>
+<circle class="fit-star" cx="1502.08" cy="595.75" r="6.00"><title>Cas Eta-24 fitted model</title></circle>
+<line class="residual-line" x1="1598.43" y1="237.85" x2="1598.52" y2="238.02"></line>
+<circle class="matched-star" cx="1598.43" cy="237.85" r="8.00"><title>Cep Iota-32 mag 3.5 detection</title></circle>
+<circle class="fit-star" cx="1598.52" cy="238.02" r="6.00"><title>Cep Iota-32 fitted model</title></circle>
+<line class="residual-line" x1="1574.81" y1="657.44" x2="1574.49" y2="656.56"></line>
+<circle class="matched-star" cx="1574.81" cy="657.44" r="8.00"><title>Cas Zeta-17 mag 3.7 detection</title></circle>
+<circle class="fit-star" cx="1574.49" cy="656.56" r="6.00"><title>Cas Zeta-17 fitted model</title></circle>
+<line class="residual-line" x1="553.83" y1="554.72" x2="554.02" y2="554.32"></line>
+<circle class="matched-star" cx="553.83" cy="554.72" r="8.00"><title>Aur Delta-33 mag 3.7 detection</title></circle>
+<circle class="fit-star" cx="554.02" cy="554.32" r="6.00"><title>Aur Delta-33 fitted model</title></circle>
+<line class="residual-line" x1="1146.02" y1="733.99" x2="1146.30" y2="734.30"></line>
+<circle class="matched-star" cx="1146.02" cy="733.99" r="8.00"><title>Per Eta-15 mag 3.8 detection</title></circle>
+<circle class="fit-star" cx="1146.30" cy="734.30" r="6.00"><title>Per Eta-15 fitted model</title></circle>
+<line class="residual-line" x1="1899.16" y1="404.74" x2="1899.26" y2="404.75"></line>
+<circle class="matched-star" cx="1899.16" cy="404.74" r="8.00"><title>Lac Alpha-7 mag 3.8 detection</title></circle>
+<circle class="fit-star" cx="1899.26" cy="404.75" r="6.00"><title>Lac Alpha-7 fitted model</title></circle>
+<line class="residual-line" x1="1133.11" y1="807.22" x2="1133.24" y2="806.86"></line>
+<circle class="matched-star" cx="1133.11" cy="807.22" r="8.00"><title>Per Tau-18 mag 4.0 detection</title></circle>
+<circle class="fit-star" cx="1133.24" cy="806.86" r="6.00"><title>Per Tau-18 fitted model</title></circle>
+<line class="residual-line" x1="1222.85" y1="338.74" x2="1222.63" y2="339.27"></line>
+<circle class="matched-star" cx="1222.85" cy="338.74" r="8.00"><title>Cas 50 mag 4.0 detection</title></circle>
+<circle class="fit-star" cx="1222.63" cy="339.27" r="6.00"><title>Cas 50 fitted model</title></circle>
+<line class="residual-line" x1="777.22" y1="536.94" x2="777.24" y2="536.83"></line>
+<circle class="matched-star" cx="777.22" cy="536.94" r="8.00"><title>Cam Beta-10 mag 4.0 detection</title></circle>
+<circle class="fit-star" cx="777.24" cy="536.83" r="6.00"><title>Cam Beta-10 fitted model</title></circle>
+<line class="residual-line" x1="1796.18" y1="167.78" x2="1795.75" y2="167.41"></line>
+<circle class="matched-star" cx="1796.18" cy="167.78" r="8.00"><title>Cep Mu mag 4.1 detection</title></circle>
+<circle class="fit-star" cx="1795.75" cy="167.41" r="6.00"><title>Cep Mu fitted model</title></circle>
+<line class="residual-line" x1="1484.01" y1="467.75" x2="1483.99" y2="468.14"></line>
+<circle class="matched-star" cx="1484.01" cy="467.75" r="8.00"><title>Cas Kappa-15 mag 4.2 detection</title></circle>
+<circle class="fit-star" cx="1483.99" cy="468.14" r="6.00"><title>Cas Kappa-15 fitted model</title></circle>
+<line class="residual-line" x1="1668.95" y1="161.97" x2="1668.79" y2="162.10"></line>
+<circle class="matched-star" cx="1668.95" cy="161.97" r="8.00"><title>Cep Xi-17 mag 4.3 detection</title></circle>
+<circle class="fit-star" cx="1668.79" cy="162.10" r="6.00"><title>Cep Xi-17 fitted model</title></circle>
+<line class="residual-line" x1="1749.27" y1="151.92" x2="1749.22" y2="151.59"></line>
+<circle class="matched-star" cx="1749.27" cy="151.92" r="8.00"><title>Cep Nu-10 mag 4.3 detection</title></circle>
+<circle class="fit-star" cx="1749.22" cy="151.59" r="6.00"><title>Cep Nu-10 fitted model</title></circle>
+<line class="residual-line" x1="864.32" y1="426.10" x2="863.62" y2="426.04"></line>
+<circle class="matched-star" cx="864.32" cy="426.10" r="8.00"><title>Cam Alpha-9 mag 4.3 detection</title></circle>
+<circle class="fit-star" cx="863.62" cy="426.04" r="6.00"><title>Cam Alpha-9 fitted model</title></circle>
+<line class="residual-line" x1="500.87" y1="352.30" x2="501.56" y2="352.26"></line>
+<circle class="matched-star" cx="500.87" cy="352.30" r="8.00"><title>Lyn 15 mag 4.3 detection</title></circle>
+<circle class="fit-star" cx="501.56" cy="352.26" r="6.00"><title>Lyn 15 fitted model</title></circle>
+<line class="residual-line" x1="1408.37" y1="139.67" x2="1408.24" y2="140.35"></line>
+<circle class="matched-star" cx="1408.37" cy="139.67" r="8.00"><title>Cep Pi-33 mag 4.4 detection</title></circle>
+<circle class="fit-star" cx="1408.24" cy="140.35" r="6.00"><title>Cep Pi-33 fitted model</title></circle>
+<line class="residual-line" x1="241.46" y1="28.28" x2="241.31" y2="28.47"></line>
+<circle class="matched-star" cx="241.46" cy="28.28" r="8.00"><title>UMa 15 mag 4.5 detection</title></circle>
+<circle class="fit-star" cx="241.31" cy="28.47" r="6.00"><title>UMa 15 fitted model</title></circle>
+<line class="residual-line" x1="581.46" y1="429.14" x2="581.77" y2="429.01"></line>
+<circle class="matched-star" cx="581.46" cy="429.14" r="8.00"><title>Lyn 2 mag 4.5 detection</title></circle>
+<circle class="fit-star" cx="581.77" cy="429.01" r="6.00"><title>Lyn 2 fitted model</title></circle>
+<line class="residual-line" x1="1233.19" y1="373.41" x2="1233.31" y2="373.17"></line>
+<circle class="matched-star" cx="1233.19" cy="373.41" r="6.00"><title>Cas 48 mag 4.5 detection</title></circle>
+<circle class="fit-star" cx="1233.31" cy="373.17" r="4.00"><title>Cas 48 fitted model</title></circle>
+<line class="residual-line" x1="1540.01" y1="61.47" x2="1540.57" y2="61.66"></line>
+<circle class="matched-star" cx="1540.01" cy="61.47" r="6.00"><title>Cep 11 mag 4.6 detection</title></circle>
+<circle class="fit-star" cx="1540.57" cy="61.66" r="4.00"><title>Cep 11 fitted model</title></circle>
+<line class="residual-line" x1="1030.65" y1="362.47" x2="1029.87" y2="362.52"></line>
+<circle class="matched-star" cx="1030.65" cy="362.47" r="6.00"><title>Cam Gamma mag 4.6 detection</title></circle>
+<circle class="fit-star" cx="1029.87" cy="362.52" r="4.00"><title>Cam Gamma fitted model</title></circle>
+<line class="residual-line" x1="1847.51" y1="507.10" x2="1846.98" y2="507.67"></line>
+<circle class="matched-star" cx="1847.51" cy="507.10" r="6.00"><title>And 3 mag 4.7 detection</title></circle>
+<circle class="fit-star" cx="1846.98" cy="507.67" r="4.00"><title>And 3 fitted model</title></circle>
+<line class="residual-line" x1="1320.91" y1="414.92" x2="1321.50" y2="414.97"></line>
+<circle class="matched-star" cx="1320.91" cy="414.92" r="6.00"><title>Cas Psi-36 mag 4.7 detection</title></circle>
+<circle class="fit-star" cx="1321.50" cy="414.97" r="4.00"><title>Cas Psi-36 fitted model</title></circle></svg>
+            </div>
+            <div class="plot-panel">
+                <svg class="residual-plot" viewBox="0 0 420 320">
+        <rect x="0" y="0" width="420" height="320" class="plot-bg"></rect>
+        <line class="plot-grid" x1="42" y1="160" x2="378" y2="160"></line>
+        <line class="plot-grid" x1="210" y1="42" x2="210" y2="278"></line>
+        <rect class="plot-frame" x="42" y="42" width="336" height="236"></rect>
+        <circle class="residual-point" cx="195.3" cy="157.0" r="4"><title>Mirfak dx -0.44 dy 0.13</title></circle>
+<circle class="residual-point" cx="211.1" cy="156.3" r="4"><title>Menkalinan dx 0.03 dy 0.16</title></circle>
+<circle class="residual-point" cx="216.1" cy="163.2" r="4"><title>Schedar dx 0.18 dy -0.13</title></circle>
+<circle class="residual-point" cx="217.6" cy="166.6" r="4"><title>Caph dx 0.23 dy -0.28</title></circle>
+<circle class="residual-point" cx="224.7" cy="166.3" r="4"><title>Alderamin dx 0.44 dy -0.27</title></circle>
+<circle class="residual-point" cx="215.1" cy="160.9" r="4"><title>Cas Gamma-27 dx 0.15 dy -0.04</title></circle>
+<circle class="residual-point" cx="206.2" cy="139.8" r="4"><title>Aur Theta-37 dx -0.11 dy 0.85</title></circle>
+<circle class="residual-point" cx="220.2" cy="161.6" r="4"><title>Cas Delta-37 dx 0.30 dy -0.07</title></circle>
+<circle class="residual-point" cx="211.9" cy="166.2" r="4"><title>Per Gamma-23 dx 0.06 dy -0.26</title></circle>
+<circle class="residual-point" cx="206.3" cy="154.8" r="4"><title>Aur Epsilon-7 dx -0.11 dy 0.22</title></circle>
+<circle class="residual-point" cx="200.4" cy="158.4" r="4"><title>Per Delta-39 dx -0.28 dy 0.07</title></circle>
+<circle class="residual-point" cx="218.9" cy="172.8" r="4"><title>Talitha dx 0.27 dy -0.54</title></circle>
+<circle class="residual-point" cx="219.3" cy="144.0" r="4"><title>Alrai dx 0.28 dy 0.68</title></circle>
+<circle class="residual-point" cx="213.1" cy="164.5" r="4"><title>Alphirk dx 0.09 dy -0.19</title></circle>
+<circle class="residual-point" cx="200.0" cy="154.7" r="4"><title>Cep Zeta-21 dx -0.30 dy 0.22</title></circle>
+<circle class="residual-point" cx="193.5" cy="162.6" r="4"><title>UMa Omicron-1 dx -0.49 dy -0.11</title></circle>
+<circle class="residual-point" cx="210.5" cy="171.5" r="4"><title>Cas Epsilo-45 dx 0.02 dy -0.49</title></circle>
+<circle class="residual-point" cx="212.8" cy="167.5" r="4"><title>Cas Eta-24 dx 0.08 dy -0.32</title></circle>
+<circle class="residual-point" cx="213.1" cy="156.0" r="4"><title>Cep Iota-32 dx 0.09 dy 0.17</title></circle>
+<circle class="residual-point" cx="199.5" cy="180.6" r="4"><title>Cas Zeta-17 dx -0.31 dy -0.87</title></circle>
+<circle class="residual-point" cx="216.1" cy="169.3" r="4"><title>Aur Delta-33 dx 0.18 dy -0.40</title></circle>
+<circle class="residual-point" cx="219.5" cy="152.7" r="4"><title>Per Eta-15 dx 0.28 dy 0.31</title></circle>
+<circle class="residual-point" cx="213.5" cy="159.7" r="4"><title>Lac Alpha-7 dx 0.10 dy 0.01</title></circle>
+<circle class="residual-point" cx="214.5" cy="168.4" r="4"><title>Per Tau-18 dx 0.13 dy -0.36</title></circle>
+<circle class="residual-point" cx="202.4" cy="147.4" r="4"><title>Cas 50 dx -0.23 dy 0.53</title></circle>
+<circle class="residual-point" cx="210.4" cy="162.6" r="4"><title>Cam Beta-10 dx 0.01 dy -0.11</title></circle>
+<circle class="residual-point" cx="195.7" cy="168.8" r="4"><title>Cep Mu dx -0.43 dy -0.37</title></circle>
+<circle class="residual-point" cx="209.6" cy="150.6" r="4"><title>Cas Kappa-15 dx -0.01 dy 0.40</title></circle>
+<circle class="residual-point" cx="204.7" cy="156.8" r="4"><title>Cep Xi-17 dx -0.16 dy 0.14</title></circle>
+<circle class="residual-point" cx="208.5" cy="167.8" r="4"><title>Cep Nu-10 dx -0.04 dy -0.33</title></circle>
+<circle class="residual-point" cx="186.5" cy="161.4" r="4"><title>Cam Alpha-9 dx -0.70 dy -0.06</title></circle>
+<circle class="residual-point" cx="233.3" cy="161.0" r="4"><title>Lyn 15 dx 0.69 dy -0.04</title></circle>
+<circle class="residual-point" cx="205.6" cy="144.1" r="4"><title>Cep Pi-33 dx -0.13 dy 0.67</title></circle>
+<circle class="residual-point" cx="205.0" cy="155.6" r="4"><title>UMa 15 dx -0.15 dy 0.19</title></circle>
+<circle class="residual-point" cx="220.2" cy="163.1" r="4"><title>Lyn 2 dx 0.30 dy -0.13</title></circle>
+<circle class="residual-point" cx="214.1" cy="165.7" r="4"><title>Cas 48 dx 0.12 dy -0.24</title></circle>
+<circle class="residual-point" cx="228.6" cy="155.5" r="4"><title>Cep 11 dx 0.56 dy 0.19</title></circle>
+<circle class="residual-point" cx="183.7" cy="158.9" r="4"><title>Cam Gamma dx -0.78 dy 0.05</title></circle>
+<circle class="residual-point" cx="192.3" cy="146.5" r="4"><title>And 3 dx -0.53 dy 0.57</title></circle>
+<circle class="residual-point" cx="229.8" cy="159.0" r="4"><title>Cas Psi-36 dx 0.59 dy 0.04</title></circle>
+        <text class="axis-label" x="210" y="310" text-anchor="middle">x residual (px)</text>
+        <text class="axis-label" x="15" y="160" text-anchor="middle" transform="rotate(-90 15 160)">y residual (px)</text>
+        <text class="plot-title" x="210" y="24" text-anchor="middle">Residuals +/-5 px</text>
+    </svg>
+                <ul class="legend">
+                    <li><span class="swatch matched"></span> known-lens truth-map detections</li>
+                    <li><span class="swatch fit"></span> fitted model positions</li>
+                    <li><span class="swatch catalog"></span> other catalogue stars under fitted model</li>
+                    <li><span class="swatch detected"></span> raw automatic detections</li>
+                </ul>
+            </div>
+        </div>
+    </section>
 <section class="case-card" id="012165-optmod2">
         <h2>012165 optmod 2</h2>
         <div class="meta">
@@ -246,6 +594,7 @@ h2 { margin: 0 0 8px; font-size: 20px; }
         <p class="status">bright-star detector: bg 71.3, sigma 27.6, 993 candidates, selected top 50/50, suppression radius 22 px</p>
         <p class="status">auto-identify: 18 star pairs, median residual 0.4 px, translation dx/dy 0.3/-0.0 px</p>
         <p class="status">known-lens validation: 18/18 auto-ID pairs correct, 0 wrong, 0 outside truth map</p>
+        <p class="status">best fit [optmod, ...optpar]: [2, 0.793080340296, 1.40798495605, -60.7364102916, 23.5190474794, 76.4585298916, 0.0320319114677, 0.00236876489393, 0.885815299836]</p>
         <div class="summary-grid">
             <div><strong>50</strong><span>detections</span></div>
             <div><strong>43</strong><span>catalog stars</span></div>
@@ -435,6 +784,7 @@ h2 { margin: 0 0 8px; font-size: 20px; }
         <p class="status">bright-star detector: bg 71.3, sigma 27.6, 993 candidates, selected top 80/80, suppression radius 22 px</p>
         <p class="status">auto-identify: 13 star pairs, median residual 12.5 px, translation dx/dy 20.1/-7.8 px</p>
         <p class="status">known-lens validation: 4/13 auto-ID pairs correct, 0 wrong, 9 outside truth map</p>
+        <p class="status">best fit [optmod, ...optpar]: [2, -0.71473868044, -1.30006689922, -60.3692207753, 38.4288980455, -105.018571835, 0.078623362051, 0.0145464966262, 0.986185122766]</p>
         <div class="summary-grid">
             <div><strong>80</strong><span>detections</span></div>
             <div><strong>265</strong><span>catalog stars</span></div>
@@ -867,6 +1217,7 @@ h2 { margin: 0 0 8px; font-size: 20px; }
         <p class="status">bright-star detector: bg 60.2, sigma 54.5, 237 candidates, selected top 106/120, suppression radius 50 px</p>
         <p class="status">auto-identify: 14 star pairs, median residual 2.9 px, translation dx/dy 0.4/0.2 px</p>
         <p class="status">known-lens validation: 14/14 auto-ID pairs correct, 0 wrong, 0 outside truth map</p>
+        <p class="status">best fit [optmod, ...optpar]: [20, 1.41113779643, 1.05510833601, -79.9709449507, -25.8487092798, 93.0012962751, 0.0226405708638, 0.0175172024952, 0.287665350648, -0.945440079278, 1.16851107225, 0.00830656230943, 0.00271806936466]</p>
         <div class="summary-grid">
             <div><strong>106</strong><span>detections</span></div>
             <div><strong>156</strong><span>catalog stars</span></div>
