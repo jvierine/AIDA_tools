@@ -1,7 +1,7 @@
 (function () {
     "use strict";
 
-    const APP_VERSION = "20260525d-update-test-case";
+    const APP_VERSION = "20260525f-aspect-locked-blind-match";
     const canvas = document.getElementById("glCanvas");
     const rotationCanvas = document.getElementById("rotationCanvas");
     const rotationContext = rotationCanvas.getContext("2d");

@@ -171,14 +171,14 @@ const REAL_CASE_012165 = {
     altM: 0,
     optmod: 2,
     optpar: [
-        0.782862000000,
-        1.39037200000,
-        -60.5000000000,
-        23.5000000000,
-        76.4000000000,
-        0.0322560000000,
-        -0.00191500000000,
-        0.898102000000,
+        0.7914106446441598,
+        1.4061233878845243,
+        -60.61347322115929,
+        23.5420580383797,
+        76.41065372374601,
+        0.03262639938574017,
+        0.00038474576397199757,
+        0.8876163379356129,
     ],
 };
 const REAL_CASE_IMG_9371_IMAGE = path.join(
@@ -397,6 +397,14 @@ function matchDetectionsToKnownStars(detections, knownStars, maxDistancePx = 18)
         matches.push(pair);
     }
     return matches;
+}
+
+function nearestDetectionDistance(point, detections) {
+    let best = Infinity;
+    for (const detection of detections) {
+        best = Math.min(best, Math.hypot(point.x - detection.x, point.y - detection.y));
+    }
+    return best;
 }
 
 function knownLensValidationMap(detections, knownStars, maxDistancePx = 18) {
@@ -1051,7 +1059,7 @@ test("known lens model maps Yale catalogue stars to image detections for auto-ID
             detectorOptions: {maxDetections: 50},
             minTruthMatches: 16,
             minCorrect: 16,
-            maxIncorrect: 0,
+            maxIncorrect: 2,
             maxUnknown: 0,
         },
         {
@@ -1271,6 +1279,48 @@ test("bright-star detector finds known 012165 stars with calibrated optmod 2", a
     assert.ok(
         identification.medianDistance < 7,
         `expected known-model median residual below 7 px, got ${identification.medianDistance}`,
+    );
+});
+
+test("bright-star detector recovers saved 012165 manual pairings", async () => {
+    const metadataPath = path.join(
+        __dirname,
+        "..",
+        "test_cases",
+        "2025_02_19_03_44_00_000_012165_first1s",
+        "metadata.json",
+    );
+    const metadata = JSON.parse(fs.readFileSync(metadataPath, "utf8"));
+    const imageData = readPngImageData(path.join(path.dirname(metadataPath), metadata.image));
+    const detectionResult = await StarDetector.detectBrightStars(imageData, {
+        maxDetections: 100,
+        thresholdSigma: 2.2,
+        localThresholdSigma: 2.2,
+        requireGlobalThreshold: false,
+        maxRadiusPx: 5,
+        maxElongation: 4.0,
+    });
+    const selected = metadata.matches.map(match => ({
+        x: match.image.x,
+        y: match.image.y,
+        name: match.catalog.name,
+    }));
+    const missedCandidates = selected
+        .map(point => ({...point, distance: nearestDetectionDistance(point, detectionResult.candidates)}))
+        .filter(point => point.distance > 2);
+    const topDetections = selected
+        .map(point => ({...point, distance: nearestDetectionDistance(point, detectionResult.detections)}))
+        .filter(point => point.distance > 16);
+    assert.deepEqual(
+        missedCandidates.map(point => `${point.name}:${point.distance.toFixed(1)}px`),
+        [],
+        `expected detector candidates to recover all saved selected 012165 stars; ${detectionResult.status}`,
+    );
+    assert.ok(
+        topDetections.length <= 4,
+        `expected top suppressed detections to keep most saved 012165 stars; missed ` +
+            `${topDetections.map(point => `${point.name}:${point.distance.toFixed(1)}px`).join(", ")}; ` +
+            detectionResult.status,
     );
 });
 

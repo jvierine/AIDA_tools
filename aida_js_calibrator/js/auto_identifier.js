@@ -303,13 +303,19 @@
         ];
     }
 
+    function aspectLockedF2(options, f1) {
+        const width = finiteNumber(options.imageWidth, 0);
+        const height = finiteNumber(options.imageHeight, 0);
+        return height > 0 ? f1 * width / height : NaN;
+    }
+
     function optmod2DetectionVector(detection, options, f1, radialAlpha) {
         const width = finiteNumber(options.imageWidth, 0);
         const height = finiteNumber(options.imageHeight, 0);
         if (!(width > 0 && height > 0 && f1 > 0 && radialAlpha > 0)) {
             return null;
         }
-        const f2 = Number.isFinite(options.preflattenF2) ? options.preflattenF2 : f1 * width / height;
+        const f2 = aspectLockedF2(options, f1);
         const du = Number.isFinite(options.preflattenDu) ? options.preflattenDu : 0;
         const dv = Number.isFinite(options.preflattenDv) ? options.preflattenDv : 0;
         const signX = options.preflattenSignX === -1 ? -1 : 1;
@@ -335,7 +341,7 @@
         if (!(width > 0 && height > 0 && f1 > 0)) {
             return null;
         }
-        const f2 = Number.isFinite(options.preflattenF2) ? options.preflattenF2 : f1 * width / height;
+        const f2 = aspectLockedF2(options, f1);
         const du = Number.isFinite(options.preflattenDu) ? options.preflattenDu : 0;
         const dv = Number.isFinite(options.preflattenDv) ? options.preflattenDv : 0;
         const signX = options.preflattenSignX === -1 ? -1 : 1;
@@ -801,7 +807,7 @@
         }
         const theta = Math.acos(Math.max(-1, Math.min(1, cameraVector[2])));
         const sint = Math.sin(theta);
-        const f2 = Number.isFinite(options.preflattenF2) ? options.preflattenF2 : f1 * width / height;
+        const f2 = aspectLockedF2(options, f1);
         const du = Number.isFinite(options.du) ? options.du : 0;
         const dv = Number.isFinite(options.dv) ? options.dv : 0;
         const signX = options.signX === -1 ? -1 : 1;
@@ -952,9 +958,9 @@
         }
         let best = candidate;
         const stepSets = [
-            {f1: 0.06, radialAlpha: 0.10, du: 0.035, dv: 0.035},
-            {f1: 0.03, radialAlpha: 0.05, du: 0.018, dv: 0.018},
-            {f1: 0.015, radialAlpha: 0.025, du: 0.009, dv: 0.009},
+            {f1: 0.06, radialAlpha: 0.10},
+            {f1: 0.03, radialAlpha: 0.05},
+            {f1: 0.015, radialAlpha: 0.025},
         ];
         const evaluate = (f1, radialAlpha, du, dv, seedRot) => {
             const model = best.preflattenModel === "pinhole" ? "pinhole" : "fisheye";
@@ -994,10 +1000,6 @@
                     {name: "f1", delta: -steps.f1},
                     {name: "radialAlpha", delta: steps.radialAlpha},
                     {name: "radialAlpha", delta: -steps.radialAlpha},
-                    {name: "du", delta: steps.du},
-                    {name: "du", delta: -steps.du},
-                    {name: "dv", delta: steps.dv},
-                    {name: "dv", delta: -steps.dv},
                 ];
                 for (const trial of trials) {
                     const params = {
@@ -1560,10 +1562,10 @@
             options.preflattenF1Candidates : [0.80, 0.70, 0.90, 1.00, 0.60];
         const radialCandidates = Array.isArray(options.preflattenRadialAlphaCandidates) ?
             options.preflattenRadialAlphaCandidates : [0.90, 0.75, 1.05, 0.60];
-        const duCandidates = Array.isArray(options.preflattenDuCandidates) ?
-            options.preflattenDuCandidates : [0.04, 0.08, 0.0, -0.04, -0.08];
-        const dvCandidates = Array.isArray(options.preflattenDvCandidates) ?
-            options.preflattenDvCandidates : [0.0, 0.04, 0.08, -0.04, -0.08];
+        const fixedDu = Number.isFinite(options.preflattenDu) ? options.preflattenDu : 0;
+        const fixedDv = Number.isFinite(options.preflattenDv) ? options.preflattenDv : 0;
+        const duCandidates = [fixedDu];
+        const dvCandidates = [fixedDv];
         const signCandidates = Array.isArray(options.preflattenSignCandidates) ?
             options.preflattenSignCandidates : [[1, 1], [-1, -1]];
         const modelCandidates = Array.isArray(options.preflattenModelCandidates) ?

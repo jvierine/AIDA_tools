@@ -36,10 +36,21 @@
                 }
                 if (neighbor === value) {
                     equal += 1;
+                    if (value < 250) {
+                        continue;
+                    }
+                    // Saturated stars often form a small flat-topped plateau. Keep one
+                    // deterministic representative from the plateau instead of rejecting
+                    // the whole star as "not a strict maximum".
+                    const ny = y + dy;
+                    const nx = x + dx;
+                    if (ny < y || ny === y && nx < x) {
+                        return false;
+                    }
                 }
             }
         }
-        return equal <= 1;
+        return value >= 250 || equal <= 1;
     }
 
     function weightedCentroid(pixelData, cx, cy, radius, background, maskPredicate = null) {

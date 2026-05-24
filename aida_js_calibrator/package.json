@@ -5,9 +5,6 @@
     "report:saved-overlays": "node tools/generate_saved_case_overlay_report.js",
     "report:case": "node tools/generate_test_report.js",
     "serve": "node tools/serve_calibrator.js",
-    "build:star-training": "node tools/build_star_training_set.js",
-    "overlays:stars": "node tools/build_star_training_set.js --overlay-only",
-    "review:overlays": "node tools/review_star_overlays.js",
-    "review:stars": "node tools/review_star_training_set.js"
+    "review:overlays": "node tools/review_star_overlays.js"
   }
 }
