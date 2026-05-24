@@ -405,14 +405,24 @@
         return /mac/i.test(platform || "");
     }
 
-    function defaultOptparForImage(image = state.image) {
-        const width = image && Number.isFinite(image.width) && image.width > 0 ? image.width : 16;
-        const height = image && Number.isFinite(image.height) && image.height > 0 ? image.height : 9;
-        return [1.0, width / height, 0, 0, 0, 0, 0, 0.35];
+    function defaultRadialAlphaForOptmod(optmod = Number(controls.optmod.value) || 2) {
+        if (optmod === BROWN_CONRADY_OPTMOD || optmod === 12) {
+            return 0.0;
+        }
+        if (optmod === 1 || optmod === 4) {
+            return 1.0;
+        }
+        if (optmod === 5) {
+            return 0.5;
+        }
+        return 0.35;
     }
 
-    function defaultRadialAlphaForOptmod(optmod = Number(controls.optmod.value) || 2) {
-        return optmod === BROWN_CONRADY_OPTMOD ? 0.0 : 0.35;
+    function defaultOptparForImage(image = state.image, optmod = Number(controls.optmod.value) || 2) {
+        const width = image && Number.isFinite(image.width) && image.width > 0 ? image.width : 16;
+        const height = image && Number.isFinite(image.height) && image.height > 0 ? image.height : 9;
+        const common = [1.0, width / height, 0, 0, 0, 0, 0, defaultRadialAlphaForOptmod(optmod)];
+        return optmod === BROWN_CONRADY_OPTMOD ? common.concat([0, 0, 0, 0]) : common;
     }
 
     function radialAlphaIsValidForOptmod(value, optmod = Number(controls.optmod.value) || 2) {
@@ -443,13 +453,8 @@
         state.activeOptmod = optmod;
         controls.brownConradyParams.hidden = optmod !== BROWN_CONRADY_OPTMOD;
         if (optmodChanged) {
-            controls.radialAlpha.value = defaultRadialAlphaForOptmod(optmod).toFixed(6);
-            if (optmod === BROWN_CONRADY_OPTMOD) {
-                controls.brownK2.value = "0.000000";
-                controls.brownK3.value = "0.000000";
-                controls.brownP1.value = "0.000000";
-                controls.brownP2.value = "0.000000";
-            }
+            state.baseOptpar = null;
+            applyOptpar(defaultOptparForImage(state.image, optmod));
         } else if (!radialAlphaIsValidForOptmod(Number(controls.radialAlpha.value), optmod)) {
             controls.radialAlpha.value = defaultRadialAlphaForOptmod(optmod).toFixed(6);
         }
