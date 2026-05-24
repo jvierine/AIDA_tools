@@ -3673,6 +3673,7 @@ def image_to_az_el(x, y, optpar=optpar, optmod=optmod,
                 setLoadingProgress(96, "Rendering calibration view...");
                 recomputeAndRender();
                 hideLoadingProgress();
+                focusImageWindowSoon();
             }, 0);
         };
         img.onerror = () => {
@@ -4363,6 +4364,27 @@ def image_to_az_el(x, y, optpar=optpar, optmod=optmod,
         }
     }
 
+    function focusImageWindow() {
+        if (document.activeElement === canvas) {
+            return;
+        }
+        canvas.focus({preventScroll: true});
+    }
+
+    function focusImageWindowSoon() {
+        window.setTimeout(focusImageWindow, 0);
+    }
+
+    const controlsPanel = document.querySelector(".controls");
+    if (controlsPanel) {
+        controlsPanel.addEventListener("click", event => {
+            if (event.target.closest("button")) {
+                focusImageWindowSoon();
+            }
+        });
+        controlsPanel.addEventListener("change", focusImageWindowSoon);
+    }
+
     controls.file.addEventListener("change", () => {
         if (controls.file.files.length > 0) {
             loadImageFile(controls.file.files[0]);
@@ -4432,6 +4454,7 @@ def image_to_az_el(x, y, optpar=optpar, optmod=optmod,
     densityPopupClose.addEventListener("click", () => {
         clearDensityEstimate();
         render();
+        focusImageWindowSoon();
     });
     controls.resetOffset.addEventListener("click", () => {
         setCameraAnglesFromBoresightAzEl(0, 90);
@@ -4464,6 +4487,7 @@ def image_to_az_el(x, y, optpar=optpar, optmod=optmod,
     });
 
     canvas.addEventListener("pointerdown", event => {
+        focusImageWindow();
         if (state.maskMode && event.button === 0) {
             event.preventDefault();
             handleMaskClick(event);
