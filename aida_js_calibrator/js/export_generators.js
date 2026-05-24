@@ -11,7 +11,7 @@
     }
 
     function optparArrayText(context, language = "python") {
-        const values = context.optpar.map(numberText);
+        const values = [context.optmod].concat(context.optpar).map(numberText);
         if (language === "c") {
             return `static const double optpar[${values.length}] = {${values.join(", ")}};`;
         }
@@ -40,7 +40,8 @@ from scipy.optimize import least_squares
 
 ${optparArrayText(context, "python")}
 optpar = np.array(optpar, dtype=float)
-optmod = ${context.optmod}
+optmod = int(round(optpar[0]))
+optpar = optpar[1:]
 image_width = ${context.width}
 image_height = ${context.height}
 
@@ -147,7 +148,8 @@ def image_to_az_el(x, y, optpar=optpar, optmod=optmod,
 
     function juliaMapperCode(context) {
         return `${header(context, "julia")}${optparArrayText(context, "julia")}
-optmod = ${context.optmod}
+optmod = round(Int, optpar[1])
+optpar = optpar[2:end]
 image_width = ${context.width}
 image_height = ${context.height}
 
@@ -212,7 +214,8 @@ end
     function cMapperCode(context) {
         return `${header(context, "c")}#include <math.h>
 ${optparArrayText(context, "c")}
-static const int optmod = ${context.optmod};
+static const int optmod = (int)(optpar[0] >= 0.0 ? optpar[0] + 0.5 : optpar[0] - 0.5);
+static const double *op = optpar + 1;
 static const double image_width = ${numberText(context.width)};
 static const double image_height = ${numberText(context.height)};
 
@@ -227,14 +230,14 @@ static void camera_rot(double alpha_deg, double beta_deg, double gamma_deg, doub
 }
 
 void aida_az_el_to_image(double az_deg, double el_deg, double *x, double *y) {
-    double rot[9]; camera_rot(optpar[2], optpar[3], optpar[4], rot);
+    double rot[9]; camera_rot(op[2], op[3], op[4], rot);
     double az = az_deg * M_PI / 180.0, ze = (90.0 - el_deg) * M_PI / 180.0;
     double sinze = sin(ze);
     double es1 = sinze * sin(az), es2 = sinze * cos(az), es3 = cos(ze);
     double s1 = es1*rot[0] + es2*rot[3] + es3*rot[6];
     double s2 = es1*rot[1] + es2*rot[4] + es3*rot[7];
     double s3 = es1*rot[2] + es2*rot[5] + es3*rot[8];
-    double f1 = optpar[0], f2 = optpar[1], du = optpar[5], dv = optpar[6], radial_alpha = optpar[7];
+    double f1 = op[0], f2 = op[1], du = op[5], dv = op[6], radial_alpha = op[7];
     double radial = hypot(s1, s2), u_norm, v_norm;
     if (radial <= 1e-12) { u_norm = 0.5 + du; v_norm = 0.5 + dv; }
     else if (optmod == 1) { double ss3 = fabs(s3) > 1e-12 ? s3 : 1e-12; u_norm = f1*s1/ss3 + 0.5 + du; v_norm = f2*s2/ss3 + 0.5 + dv; }
@@ -246,7 +249,7 @@ void aida_az_el_to_image(double az_deg, double el_deg, double *x, double *y) {
     else {
         double ss3 = fabs(s3) > 1e-12 ? s3 : 1e-12, xn = s1/ss3, yn = s2/ss3;
         double r2 = xn*xn + yn*yn, r4 = r2*r2, r6 = r4*r2;
-        double k1 = optpar[7], k2 = optpar[8], k3 = optpar[9], p1 = optpar[10], p2 = optpar[11];
+        double k1 = op[7], k2 = op[8], k3 = op[9], p1 = op[10], p2 = op[11];
         double L = 1.0 + k1*r2 + k2*r4 + k3*r6;
         double xd = xn*L + 2.0*p1*xn*yn + p2*(r2 + 2.0*xn*xn);
         double yd = yn*L + p1*(r2 + 2.0*yn*yn) + 2.0*p2*xn*yn;
@@ -259,7 +262,8 @@ void aida_az_el_to_image(double az_deg, double el_deg, double *x, double *y) {
 
     function matlabMapperCode(context) {
         return `${header(context, "matlab")}${optparArrayText(context, "matlab")}
-optmod = ${context.optmod};
+optmod = round(optpar(1));
+optpar = optpar(2:end);
 image_width = ${context.width};
 image_height = ${context.height};
 

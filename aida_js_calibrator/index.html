@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>AIDA Browser Star Calibration Prototype</title>
-<link rel="stylesheet" href="style.css?v=20260524a">
+<link rel="stylesheet" href="style.css?v=20260524b">
 </head>
 <body>
 <header class="topbar">
@@ -86,6 +86,7 @@
             <label>Altitude m
                 <input id="altM" type="number" step="1" value="0">
             </label>
+            <button id="luckyFit" class="primary-action" type="button">I'm feeling lucky... (L)</button>
         </section>
 
         <section>
@@ -181,7 +182,6 @@
                 </label>
             </div>
             <div id="lensEquation" class="lens-equation"></div>
-            <button id="luckyFit" type="button">I'm feeling lucky... (L)</button>
             <button id="fitLens" type="button">Fit lens with Nelder-Mead (F)</button>
             <button id="fitLensLm" type="button">Fit lens with Levenberg-Marquardt (G)</button>
             <button id="undoFit" type="button" disabled>Undo fit</button>
@@ -197,6 +197,7 @@
                 <button id="copyOptpar" type="button">Copy optpar</button>
                 <button id="copyPythonMapper" type="button">Copy mapper code</button>
             </div>
+            <button id="copyTestCaseCommand" type="button">Copy test case command</button>
             <button id="toggleFitResiduals" type="button">Show fit residual view (R)</button>
             <button id="clearMatches" type="button">Remove star pairings</button>
         </section>
@@ -224,9 +225,9 @@ window.MathJax = {
 <script src="https://cdn.jsdelivr.net/npm/heic2any@0.0.4/dist/heic2any.min.js"></script>
 <script src="js/aidatools.js?v=20260524a"></script>
 <script src="js/centroid.js?v=20260523a"></script>
-<script src="js/export_generators.js?v=20260524a"></script>
+<script src="js/export_generators.js?v=20260524b"></script>
 <script src="js/star_detector.js?v=20260524a"></script>
-<script src="js/auto_identifier.js?v=20260524f"></script>
-<script src="js/app.js?v=20260524l"></script>
+<script src="js/auto_identifier.js?v=20260524h"></script>
+<script src="js/app.js?v=20260524o"></script>
 </body>
 </html>

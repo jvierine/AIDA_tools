@@ -14,6 +14,7 @@ const ROOT = path.join(__dirname, "..");
 const OUT_DIR = path.join(ROOT, "test-report");
 const ALLSKY_DIR = path.join(ROOT, "allsky7");
 const IMAGE_DIR = path.join(ROOT, "calibration_images");
+const TEST_CASE_DIR = path.join(ROOT, "test_cases");
 const DEG = Math.PI / 180;
 
 function loadBrowserScript(filename) {
@@ -139,6 +140,93 @@ const MANUAL_CASES = [
             0.014468, 0.239385, -0.846254, 1.042227, -0.000576, -0.003371,
         ],
     },
+    {
+        id: "IMG-9945-heic-brown-conrady",
+        title: "IMG_9945 HEIC Brown-Conrady",
+        image: "IMG_9945.png",
+        sourceImage: "IMG_9945.HEIC",
+        width: 3022,
+        height: 4029,
+        date: new Date(Date.UTC(2024, 11, 18, 17, 23, 14)),
+        latDeg: 69.675133,
+        lonDeg: 18.965897,
+        altM: 56.0,
+        optmod: 20,
+        maxMag: 7.0,
+        matchRadiusPx: 22,
+        sweepCounts: [8, 10, 12, 14, 16, 18, 20],
+        detectorOptions: {
+            maxDetections: 180,
+            thresholdSigma: 1.8,
+            localThresholdSigma: 1.8,
+            requireGlobalThreshold: false,
+            maxRadiusPx: 5,
+            maxElongation: 4.0,
+        },
+        startMode: "perturbed",
+        optpar: [
+            -0.929301, -0.696219, 54.3, -25.7, 79.3, 0.004729,
+            0.001198, 0.144270, -0.359896, 0.279946, 0.001460, -0.000584,
+        ],
+    },
+    {
+        id: "IMG-9948-heic-brown-conrady",
+        title: "IMG_9948 HEIC Brown-Conrady",
+        image: "IMG_9948.png",
+        sourceImage: "IMG_9948.HEIC",
+        width: 4032,
+        height: 3024,
+        date: new Date(Date.UTC(2024, 11, 18, 18, 5, 56)),
+        latDeg: 69.691519,
+        lonDeg: 18.802783,
+        altM: 130.3,
+        optmod: 20,
+        maxMag: 7.0,
+        matchRadiusPx: 22,
+        sweepCounts: [8, 10, 12, 14, 16, 18, 20],
+        detectorOptions: {
+            maxDetections: 180,
+            thresholdSigma: 1.8,
+            localThresholdSigma: 1.8,
+            requireGlobalThreshold: false,
+            maxRadiusPx: 5,
+            maxElongation: 4.0,
+        },
+        startMode: "perturbed",
+        optpar: [
+            0.690428, 0.918992, -71.8, 27.9, 80.4, -0.005235,
+            -0.000513, 0.165823, -0.427766, 0.367047, -0.001158, -0.001537,
+        ],
+    },
+    {
+        id: "IMG-9953-heic-brown-conrady",
+        title: "IMG_9953 HEIC Brown-Conrady",
+        image: "IMG_9953.png",
+        sourceImage: "IMG_9953.HEIC",
+        width: 4032,
+        height: 3024,
+        date: new Date(Date.UTC(2024, 11, 18, 18, 11, 31)),
+        latDeg: 69.693428,
+        lonDeg: 18.804203,
+        altM: 211.1,
+        optmod: 20,
+        maxMag: 7.0,
+        matchRadiusPx: 22,
+        sweepCounts: [8, 10, 12, 14, 16, 18, 20],
+        detectorOptions: {
+            maxDetections: 180,
+            thresholdSigma: 1.8,
+            localThresholdSigma: 1.8,
+            requireGlobalThreshold: false,
+            maxRadiusPx: 5,
+            maxElongation: 4.0,
+        },
+        startMode: "perturbed",
+        optpar: [
+            20, 0.689599, 0.918121, -69.9, 12.7, 84.9, -0.001729,
+            -0.001422, 0.149483, -0.316432, 0.221669, -0.000469, 0.000666,
+        ],
+    },
 ];
 
 function timestampFromAllskyName(filename) {
@@ -189,6 +277,31 @@ function copyIfDifferent(source, destination) {
     fs.copyFileSync(source, destination);
 }
 
+function expectedOptparLength(optmod) {
+    return Number(optmod) === 20 ? 12 : 8;
+}
+
+function optmodFromPrefixedOptpar(optpar) {
+    if (!Array.isArray(optpar) || optpar.length < 2) {
+        return null;
+    }
+    const candidate = Math.round(Number(optpar[0]));
+    if (![1, 2, 3, 4, 5, 12, 20].includes(candidate)) {
+        return null;
+    }
+    return optpar.length === expectedOptparLength(candidate) + 1 ? candidate : null;
+}
+
+function normalizeOptparAndModel(rawOptpar, explicitOptmod = null) {
+    const optpar = Array.isArray(rawOptpar) ? rawOptpar.map(Number) : [];
+    const prefixedOptmod = optmodFromPrefixedOptpar(optpar);
+    if (prefixedOptmod !== null) {
+        return {optmod: prefixedOptmod, optpar: optpar.slice(1)};
+    }
+    const optmod = Number.isFinite(explicitOptmod) ? explicitOptmod : optpar.length === 12 ? 20 : 2;
+    return {optmod, optpar};
+}
+
 function allskyCaseFromH5(h5Path) {
     const pngName = path.basename(h5Path, ".h5") + ".png";
     const sourcePng = path.join(ALLSKY_DIR, pngName);
@@ -199,9 +312,14 @@ function allskyCaseFromH5(h5Path) {
     copyIfDifferent(sourcePng, path.join(IMAGE_DIR, pngName));
     const imageHeader = readPngImageData(sourcePng, true);
     const override = KNOWN_CASE_OVERRIDES.get(sanitizeId(path.basename(h5Path, ".h5"))) || null;
-    const optpar = override && Array.isArray(override.optpar) ?
+    const rawOptpar = override && Array.isArray(override.optpar) ?
         override.optpar.slice() :
         h5DatasetNumbers(h5Path, "/optpar");
+    const normalized = normalizeOptparAndModel(
+        rawOptpar,
+        override && Number.isFinite(override.optmod) ? override.optmod : null,
+    );
+    const optpar = normalized.optpar;
     const date = timestampFromAllskyName(pngName);
     if (!date || optpar.length < 8) {
         return null;
@@ -212,7 +330,7 @@ function allskyCaseFromH5(h5Path) {
     const lonDeg = override && Number.isFinite(override.lonDeg) ?
         override.lonDeg :
         h5DatasetNumbers(h5Path, "/camera_lon_deg")[0];
-    const optmod = override && Number.isFinite(override.optmod) ? override.optmod : optpar.length === 12 ? 20 : 2;
+    const optmod = normalized.optmod;
     const id = sanitizeId(path.basename(h5Path, ".h5"));
     return {
         id,
@@ -244,13 +362,61 @@ function allskyCaseFromH5(h5Path) {
     };
 }
 
+function normalizeCase(testCase) {
+    const normalized = normalizeOptparAndModel(testCase.optpar, testCase.optmod);
+    return {
+        ...testCase,
+        optmod: normalized.optmod,
+        optpar: normalized.optpar,
+        date: testCase.date instanceof Date ?
+            testCase.date :
+            new Date(testCase.timestampUtc || testCase.date),
+    };
+}
+
+function jsonTestCases() {
+    if (!fs.existsSync(TEST_CASE_DIR)) {
+        return [];
+    }
+    return fs.readdirSync(TEST_CASE_DIR)
+        .filter(name => name.endsWith(".json"))
+        .sort((a, b) => a.localeCompare(b))
+        .map(name => {
+            const filename = path.join(TEST_CASE_DIR, name);
+            const parsed = JSON.parse(fs.readFileSync(filename, "utf8"));
+            return normalizeCase({
+                ...parsed,
+                id: sanitizeId(parsed.id || path.basename(name, ".json")),
+                title: parsed.title || `${path.basename(name, ".json")} browser test case`,
+                sourceJson: path.relative(ROOT, filename),
+                date: new Date(parsed.timestampUtc || parsed.date),
+                detectorOptions: parsed.detectorOptions || {
+                    maxDetections: 180,
+                    thresholdSigma: 1.8,
+                    localThresholdSigma: 1.8,
+                    requireGlobalThreshold: false,
+                    maxRadiusPx: 5,
+                    maxElongation: 4.0,
+                },
+                maxMag: Number.isFinite(parsed.maxMag) ? parsed.maxMag : 7.0,
+                matchRadiusPx: Number.isFinite(parsed.matchRadiusPx) ? parsed.matchRadiusPx : 22,
+                sweepCounts: parsed.sweepCounts || [8, 10, 12, 14, 16, 18, 20],
+                startMode: parsed.startMode || "perturbed",
+            });
+        });
+}
+
 function buildCases() {
+    const cases = jsonTestCases();
+    if (cases.length > 0) {
+        return cases;
+    }
     const allskyCases = fs.readdirSync(ALLSKY_DIR)
         .filter(name => name.endsWith("_first1s.h5"))
         .sort((a, b) => a.localeCompare(b))
         .map(name => allskyCaseFromH5(path.join(ALLSKY_DIR, name)))
         .filter(Boolean);
-    return allskyCases.concat(MANUAL_CASES);
+    return allskyCases.map(normalizeCase).concat(MANUAL_CASES.map(normalizeCase));
 }
 
 function escapeHtml(value) {
@@ -583,10 +749,11 @@ async function simulateGuiAutoIdentify(testCase, imageData) {
             maxDetections: 50,
             maxMagnitude: 4.0,
             detectorOptions: {
-                thresholdSigma: 4.417,
-                localThresholdSigma: 4.417,
-                requireGlobalThreshold: true,
-                maxElongation: 2.7,
+                thresholdSigma: 2.2,
+                localThresholdSigma: 2.2,
+                requireGlobalThreshold: false,
+                maxRadiusPx: 5,
+                maxElongation: 4.0,
             },
             blindOptions: {
                 maxDetections: 50,
@@ -605,6 +772,81 @@ async function simulateGuiAutoIdentify(testCase, imageData) {
                 ambiguityMaxMagnitude: 6.0,
             },
             maxAddDistancePx: 0.8,
+            maxMedianDistance: 0.42,
+        },
+        {
+            label: "extended blind bootstrap",
+            maxDetections: 100,
+            maxMagnitude: 4.0,
+            runOnlyWithoutSeed: true,
+            detectorOptions: {
+                thresholdSigma: 2.2,
+                localThresholdSigma: 2.2,
+                requireGlobalThreshold: false,
+                maxRadiusPx: 5,
+                maxElongation: 4.0,
+            },
+            blindOptions: {
+                maxDetections: 100,
+                maxBlindVerifyDetections: 100,
+                maxCatalogStars: 220,
+                maxCatalogTriangleStars: 220,
+                maxCatalogTriangles: 30000,
+                maxDetectionTriangleStars: 80,
+                maxDetectionTriangles: 2800,
+                preflattenModelCandidates: ["pinhole", "fisheye"],
+                maxCatalogLocalNeighbors: 20,
+                maxBlindNeighborTriangles: 8,
+                blindEarlyAcceptMatches: 12,
+                maxBlindCandidateRotations: 12000,
+                rejectAmbiguousBlindMatches: true,
+                blindAmbiguityRadiusDeg: 1.0,
+                blindAmbiguityDistanceSlackDeg: 0.35,
+                blindPixelAmbiguityRadiusPx: 18,
+                blindPixelAmbiguityDistanceSlackPx: 8,
+                ambiguityMaxMagnitude: 6.0,
+            },
+            maxAddDistancePx: 0.8,
+            maxMedianDistance: 0.42,
+        },
+        {
+            label: "phone deep blind bootstrap",
+            maxDetections: 140,
+            maxMagnitude: 6.0,
+            runOnlyWithoutSeed: true,
+            detectorOptions: {
+                thresholdSigma: 1.8,
+                localThresholdSigma: 1.8,
+                requireGlobalThreshold: false,
+                maxRadiusPx: 5,
+                maxElongation: 4.0,
+            },
+            blindOptions: {
+                maxDetections: 140,
+                maxBlindVerifyDetections: 140,
+                maxCatalogStars: 420,
+                maxCatalogTriangleStars: 360,
+                maxCatalogTriangles: 50000,
+                maxAmbiguityCatalogStars: 520,
+                maxDetectionTriangleStars: 100,
+                maxDetectionTriangles: 5200,
+                preflattenModelCandidates: ["pinhole", "fisheye"],
+                preflattenF1Candidates: [0.55, 0.65, 0.75, 0.85, 0.95, 1.10],
+                preflattenRadialAlphaCandidates: [0.20, 0.35, 0.55, 0.75, 0.95, 1.15],
+                maxCatalogLocalNeighbors: 24,
+                maxBlindNeighborTriangles: 10,
+                blindEarlyAcceptMatches: 11,
+                blindEarlyAcceptMedianDeg: 0.75,
+                maxBlindCandidateRotations: 18000,
+                rejectAmbiguousBlindMatches: true,
+                blindAmbiguityRadiusDeg: 0.9,
+                blindAmbiguityDistanceSlackDeg: 0.3,
+                blindPixelMatchRadiusPx: 58,
+                blindPixelAmbiguityRadiusPx: 16,
+                blindPixelAmbiguityDistanceSlackPx: 8,
+                ambiguityMaxMagnitude: 7.0,
+            },
+            maxAddDistancePx: 1.2,
             maxMedianDistance: 0.42,
         },
         {
@@ -657,7 +899,11 @@ async function simulateGuiAutoIdentify(testCase, imageData) {
     const summaries = [];
     for (let i = 0; i < stages.length && matches.length < targetPairs; i += 1) {
         const stage = stages[i];
-        if (i > 0 && matches.length === 0) {
+        if (stage.runOnlyWithoutSeed === true && matches.length > 0) {
+            summaries.push(`${stage.label}: skipped because a blind seed was already accepted`);
+            continue;
+        }
+        if (!stage.blindOptions && matches.length === 0) {
             summaries.push(`${stage.label}: skipped because no blind seed was accepted`);
             continue;
         }
@@ -666,7 +912,7 @@ async function simulateGuiAutoIdentify(testCase, imageData) {
             ...stage.detectorOptions,
         });
         let result;
-        if (i === 0) {
+        if (stage.blindOptions) {
             const blindCatalogMagnitude = Math.max(
                 stage.maxMagnitude,
                 Number.isFinite(stage.blindOptions && stage.blindOptions.ambiguityMaxMagnitude) ?

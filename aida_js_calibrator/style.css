@@ -598,6 +598,14 @@ button.toggle-on {
     background: #065f46;
 }
 
+button.primary-action {
+    background: #15803d;
+}
+
+button.primary-action:hover {
+    background: #166534;
+}
+
 .file-button {
     display: inline-block;
     width: auto;

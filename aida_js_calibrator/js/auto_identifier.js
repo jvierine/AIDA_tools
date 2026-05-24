@@ -329,6 +329,31 @@
         return normalize3([sint * xn / rho, sint * yn / rho, cost]);
     }
 
+    function pinholeDetectionVector(detection, options, f1) {
+        const width = finiteNumber(options.imageWidth, 0);
+        const height = finiteNumber(options.imageHeight, 0);
+        if (!(width > 0 && height > 0 && f1 > 0)) {
+            return null;
+        }
+        const f2 = Number.isFinite(options.preflattenF2) ? options.preflattenF2 : f1 * width / height;
+        const du = Number.isFinite(options.preflattenDu) ? options.preflattenDu : 0;
+        const dv = Number.isFinite(options.preflattenDv) ? options.preflattenDv : 0;
+        const signX = options.preflattenSignX === -1 ? -1 : 1;
+        const signY = options.preflattenSignY === -1 ? -1 : 1;
+        const xn = ((detection.x + 1) / width - 0.5 - du) / (signX * f1);
+        const yn = ((detection.y + 1) / height - 0.5 - dv) / (signY * f2);
+        if (!Number.isFinite(xn) || !Number.isFinite(yn)) {
+            return null;
+        }
+        return normalize3([xn, yn, 1]);
+    }
+
+    function preflattenDetectionVector(detection, options, f1, radialAlpha, model = "fisheye") {
+        return model === "pinhole" ?
+            pinholeDetectionVector(detection, options, f1) :
+            optmod2DetectionVector(detection, options, f1, radialAlpha);
+    }
+
     function sphericalTriangleRecord(points, i, j, k) {
         const a = points[i];
         const b = points[j];
@@ -625,6 +650,9 @@
                 const d = Math.acos(clamp(similarity, -1, 1));
                 const detRank = Number.isFinite(detection.rank) ? detection.rank : 99;
                 const rankPenalty = Math.min(1.5, Math.abs(star.rank - detRank) / 35);
+                const brightRankPenalty = star.mag <= 2.8 && detRank > 85 ?
+                    Math.min(3.5, (detRank - 85) / 18) :
+                    0;
                 const brightnessBonus = 0.15 * Math.max(0, 4.2 - star.mag);
                 candidates.push({
                     star,
@@ -632,7 +660,7 @@
                     transformedVector: transformed,
                     distance: d * 180 / Math.PI,
                     angularDistanceRad: d,
-                    cost: d / radius + rankPenalty - brightnessBonus,
+                    cost: d / radius + rankPenalty + brightRankPenalty - brightnessBonus,
                 });
             }
         }
@@ -696,7 +724,11 @@
             const bright = Math.max(0, 4.2 - match.star.mag) / 4.2;
             const detRank = Number.isFinite(match.detection.rank) ? match.detection.rank : 99;
             const rankAgreement = 1 - Math.min(1, Math.abs(match.star.rank - detRank) / 55);
+            const brightRankPenalty = match.star.mag <= 2.8 && detRank > 85 ?
+                Math.min(8.0, (detRank - 85) / 8) :
+                0;
             score += 4.0 + 5.0 * bright + 1.2 * rankAgreement - 10.0 * match.angularDistanceRad / radius;
+            score -= brightRankPenalty;
         }
         const distractors = dets.length - usedDetections.size;
         matches.sort((a, b) => a.star.mag - b.star.mag || a.angularDistanceRad - b.angularDistanceRad);
@@ -759,7 +791,8 @@
         const height = finiteNumber(options.imageHeight, 0);
         const f1 = finiteNumber(options.f1, NaN);
         const radialAlpha = finiteNumber(options.radialAlpha, NaN);
-        if (!(width > 0 && height > 0 && f1 > 0 && radialAlpha > 0)) {
+        const model = options.preflattenModel === "pinhole" ? "pinhole" : "fisheye";
+        if (!(width > 0 && height > 0 && f1 > 0 && (model === "pinhole" || radialAlpha > 0))) {
             return null;
         }
         const cameraVector = applyRot3(transposeRot3(rot), star.vector);
@@ -776,7 +809,7 @@
         let dx = 0;
         let dy = 0;
         if (sint > 1e-12) {
-            const rho = Math.sin(radialAlpha * theta);
+            const rho = model === "pinhole" ? sint / Math.max(1e-12, cameraVector[2]) : Math.sin(radialAlpha * theta);
             dx = signX * f1 * rho * cameraVector[0] / sint;
             dy = signY * f2 * rho * cameraVector[1] / sint;
         }
@@ -805,6 +838,7 @@
                 ...options,
                 f1: candidate.f1,
                 radialAlpha: candidate.radialAlpha,
+                preflattenModel: candidate.preflattenModel,
                 signX: candidate.signX,
                 signY: candidate.signY,
                 du: candidate.du,
@@ -894,18 +928,19 @@
         };
     }
 
-    function vectorizeBlindDetections(detections, options, f1, radialAlpha, du, dv, signX = 1, signY = 1) {
+    function vectorizeBlindDetections(detections, options, f1, radialAlpha, du, dv, signX = 1, signY = 1, model = "fisheye") {
         const vectorOptions = {
             ...options,
             preflattenDu: du,
             preflattenDv: dv,
             preflattenSignX: signX,
             preflattenSignY: signY,
+            preflattenModel: model,
         };
         return detections
             .map((detection, index) => ({
                 ...detection,
-                vector: optmod2DetectionVector(detection, vectorOptions, f1, radialAlpha),
+                vector: preflattenDetectionVector(detection, vectorOptions, f1, radialAlpha, model),
                 rank: Number.isFinite(detection.rank) ? detection.rank : index + 1,
             }))
             .filter(detection => detection.vector);
@@ -922,13 +957,14 @@
             {f1: 0.015, radialAlpha: 0.025, du: 0.009, dv: 0.009},
         ];
         const evaluate = (f1, radialAlpha, du, dv, seedRot) => {
-            if (!(f1 > 0.35 && f1 < 1.25 && radialAlpha > 0.45 && radialAlpha < 1.25 &&
+            const model = best.preflattenModel === "pinhole" ? "pinhole" : "fisheye";
+            if (!(f1 > 0.35 && f1 < 1.25 && (model === "pinhole" || (radialAlpha > 0.45 && radialAlpha < 1.25)) &&
                     Math.abs(du) < 0.16 && Math.abs(dv) < 0.16)) {
                 return null;
             }
             const signX = best.signX === -1 ? -1 : 1;
             const signY = best.signY === -1 ? -1 : 1;
-            const vectorDetections = vectorizeBlindDetections(detections, options, f1, radialAlpha, du, dv, signX, signY);
+            const vectorDetections = vectorizeBlindDetections(detections, options, f1, radialAlpha, du, dv, signX, signY, model);
             if (vectorDetections.length < 6) {
                 return null;
             }
@@ -942,6 +978,7 @@
                 dv,
                 signX,
                 signY,
+                preflattenModel: model,
                 vectorDetections,
                 detectionTriangleCount: candidate.detectionTriangleCount,
             };
@@ -1529,6 +1566,9 @@
             options.preflattenDvCandidates : [0.0, 0.04, 0.08, -0.04, -0.08];
         const signCandidates = Array.isArray(options.preflattenSignCandidates) ?
             options.preflattenSignCandidates : [[1, 1], [-1, -1]];
+        const modelCandidates = Array.isArray(options.preflattenModelCandidates) ?
+            options.preflattenModelCandidates :
+            ["fisheye"];
         const signatureRadius = Number.isFinite(options.blindTriangleSignatureRadius) ?
             options.blindTriangleSignatureRadius : 0.018;
         const maxNeighborTriangles = Number.isFinite(options.maxBlindNeighborTriangles) ?
@@ -1560,106 +1600,116 @@
         let preflattenCount = 0;
         let earlyAccepted = false;
         const seen = new Set();
-        for (const signPair of signCandidates) {
-            const signX = Array.isArray(signPair) && signPair[0] === -1 ? -1 : 1;
-            const signY = Array.isArray(signPair) && signPair[1] === -1 ? -1 : 1;
-            let signScored = 0;
-            for (const f1 of f1Candidates) {
-                for (const radialAlpha of radialCandidates) {
-                    for (const du of duCandidates) {
-                        for (const dv of dvCandidates) {
-                            const vectorOptions = {
-                                ...options,
-                                preflattenDu: du,
-                                preflattenDv: dv,
-                                preflattenSignX: signX,
-                                preflattenSignY: signY,
-                            };
-                            const vectorDetections = normalizedDetections
-                                .map((detection, index) => ({
-                                    ...detection,
-                                    vector: optmod2DetectionVector(detection, vectorOptions, f1, radialAlpha),
-                                    rank: index + 1,
-                                }))
-                                .filter(detection => detection.vector);
-                            if (vectorDetections.length < 6) {
-                                continue;
-                            }
-                            preflattenCount += 1;
-                            const detectionTriangles = sphericalTriangleRecords(vectorDetections, {
-                                maxTriangles: Number.isFinite(options.maxDetectionTriangles) ? options.maxDetectionTriangles : 1400,
-                                maxTrianglePoints: Number.isFinite(options.maxDetectionTriangleStars) ? options.maxDetectionTriangleStars : 40,
-                            });
-                            for (const detectionTriangle of detectionTriangles) {
-                                const neighbors = catalogTriangleTree.range(detectionTriangle.x, detectionTriangle.y, signatureRadius)
-                                    .slice(0, maxNeighborTriangles);
-                                for (const neighbor of neighbors) {
-                                    if (scored >= maxCandidateRotationsTotal ||
-                                            signScored >= maxCandidateRotationsPerSign) {
-                                        break;
-                                    }
-                                    const catalogTriangle = neighbor.payload;
-                                    const rot = rotationFromVectorPairs(
-                                        detectionTriangle.points[0].vector,
-                                        detectionTriangle.points[1].vector,
-                                        catalogTriangle.points[0].vector,
-                                        catalogTriangle.points[1].vector,
-                                    );
-                                    if (!rot) {
-                                        continue;
-                                    }
-                                    const thirdError = angularDistance(
-                                        applyRot3(rot, detectionTriangle.points[2].vector),
-                                        catalogTriangle.points[2].vector,
-                                    );
-                                    if (thirdError > (Number.isFinite(options.maxBlindTriangleThirdErrorDeg) ?
-                                            options.maxBlindTriangleThirdErrorDeg : 1.2) * Math.PI / 180) {
-                                        continue;
-                                    }
-                                    const key = [
-                                        signX,
-                                        signY,
-                                        Math.round(f1 * 100),
-                                        Math.round(radialAlpha * 100),
-                                        Math.round(du * 1000),
-                                        Math.round(dv * 1000),
-                                    ].concat(rot.map(value => Math.round(value * 200))).join(",");
-                                    if (seen.has(key)) {
-                                        continue;
-                                    }
-                                    seen.add(key);
-                                    let candidate = scoreBlindRotation(catalog, vectorDetections, rot, {
-                                        ...options,
-                                        ambiguityCatalog,
-                                    });
-                                    const seedMedian = candidate.matches.length ?
-                                        median(candidate.matches.map(match => match.distance)) : Infinity;
-                                    if (candidate.matches.length >= 5 && seedMedian <= 1.6) {
-                                        candidate = refineBlindRotation(catalog, vectorDetections, rot, options);
-                                    }
-                                    scored += 1;
-                                    signScored += 1;
-                                    if (!best || candidate.score > best.score) {
-                                        best = {
-                                            ...candidate,
-                                            rotation: candidate.rotation || rot,
-                                            f1,
-                                            radialAlpha,
-                                            du,
-                                            dv,
+        for (const modelCandidate of modelCandidates) {
+            const preflattenModel = modelCandidate === "pinhole" ? "pinhole" : "fisheye";
+            for (const signPair of signCandidates) {
+                const signX = Array.isArray(signPair) && signPair[0] === -1 ? -1 : 1;
+                const signY = Array.isArray(signPair) && signPair[1] === -1 ? -1 : 1;
+                let signScored = 0;
+                for (const f1 of f1Candidates) {
+                    for (const radialAlpha of radialCandidates) {
+                        for (const du of duCandidates) {
+                            for (const dv of dvCandidates) {
+                                const vectorOptions = {
+                                    ...options,
+                                    preflattenDu: du,
+                                    preflattenDv: dv,
+                                    preflattenSignX: signX,
+                                    preflattenSignY: signY,
+                                    preflattenModel,
+                                };
+                                const vectorDetections = normalizedDetections
+                                    .map((detection, index) => ({
+                                        ...detection,
+                                        vector: preflattenDetectionVector(detection, vectorOptions, f1, radialAlpha, preflattenModel),
+                                        rank: index + 1,
+                                    }))
+                                    .filter(detection => detection.vector);
+                                if (vectorDetections.length < 6) {
+                                    continue;
+                                }
+                                preflattenCount += 1;
+                                const detectionTriangles = sphericalTriangleRecords(vectorDetections, {
+                                    maxTriangles: Number.isFinite(options.maxDetectionTriangles) ? options.maxDetectionTriangles : 1400,
+                                    maxTrianglePoints: Number.isFinite(options.maxDetectionTriangleStars) ? options.maxDetectionTriangleStars : 40,
+                                });
+                                for (const detectionTriangle of detectionTriangles) {
+                                    const neighbors = catalogTriangleTree.range(detectionTriangle.x, detectionTriangle.y, signatureRadius)
+                                        .slice(0, maxNeighborTriangles);
+                                    for (const neighbor of neighbors) {
+                                        if (scored >= maxCandidateRotationsTotal ||
+                                                signScored >= maxCandidateRotationsPerSign) {
+                                            break;
+                                        }
+                                        const catalogTriangle = neighbor.payload;
+                                        const rot = rotationFromVectorPairs(
+                                            detectionTriangle.points[0].vector,
+                                            detectionTriangle.points[1].vector,
+                                            catalogTriangle.points[0].vector,
+                                            catalogTriangle.points[1].vector,
+                                        );
+                                        if (!rot) {
+                                            continue;
+                                        }
+                                        const thirdError = angularDistance(
+                                            applyRot3(rot, detectionTriangle.points[2].vector),
+                                            catalogTriangle.points[2].vector,
+                                        );
+                                        if (thirdError > (Number.isFinite(options.maxBlindTriangleThirdErrorDeg) ?
+                                                options.maxBlindTriangleThirdErrorDeg : 1.2) * Math.PI / 180) {
+                                            continue;
+                                        }
+                                        const key = [
+                                            preflattenModel,
                                             signX,
                                             signY,
-                                            vectorDetections,
-                                            detectionTriangleCount: detectionTriangles.length,
-                                        };
+                                            Math.round(f1 * 100),
+                                            Math.round(radialAlpha * 100),
+                                            Math.round(du * 1000),
+                                            Math.round(dv * 1000),
+                                        ].concat(rot.map(value => Math.round(value * 200))).join(",");
+                                        if (seen.has(key)) {
+                                            continue;
+                                        }
+                                        seen.add(key);
+                                        let candidate = scoreBlindRotation(catalog, vectorDetections, rot, {
+                                            ...options,
+                                            ambiguityCatalog,
+                                        });
+                                        const seedMedian = candidate.matches.length ?
+                                            median(candidate.matches.map(match => match.distance)) : Infinity;
+                                        if (candidate.matches.length >= 5 && seedMedian <= 1.6) {
+                                            candidate = refineBlindRotation(catalog, vectorDetections, rot, options);
+                                        }
+                                        scored += 1;
+                                        signScored += 1;
+                                        if (!best || candidate.score > best.score) {
+                                            best = {
+                                                ...candidate,
+                                                rotation: candidate.rotation || rot,
+                                                f1,
+                                                radialAlpha,
+                                                du,
+                                                dv,
+                                                signX,
+                                                signY,
+                                                preflattenModel,
+                                                vectorDetections,
+                                                detectionTriangleCount: detectionTriangles.length,
+                                            };
+                                        }
+                                        const candidateMedian = candidate.matches.length ?
+                                            median(candidate.matches.map(match => match.distance)) : Infinity;
+                                        if (candidate.matches.length >=
+                                                (Number.isFinite(options.blindEarlyAcceptMatches) ? options.blindEarlyAcceptMatches : 14) &&
+                                                candidateMedian <=
+                                                (Number.isFinite(options.blindEarlyAcceptMedianDeg) ? options.blindEarlyAcceptMedianDeg : 0.5)) {
+                                            earlyAccepted = true;
+                                            break;
+                                        }
                                     }
-                                    const candidateMedian = candidate.matches.length ?
-                                        median(candidate.matches.map(match => match.distance)) : Infinity;
-                                    if (candidate.matches.length >=
-                                            (Number.isFinite(options.blindEarlyAcceptMatches) ? options.blindEarlyAcceptMatches : 14) &&
-                                            candidateMedian <=
-                                            (Number.isFinite(options.blindEarlyAcceptMedianDeg) ? options.blindEarlyAcceptMedianDeg : 0.5)) {
-                                        earlyAccepted = true;
+                                    if (earlyAccepted || scored >= maxCandidateRotationsTotal ||
+                                            signScored >= maxCandidateRotationsPerSign) {
                                         break;
                                     }
                                 }
@@ -1683,8 +1733,7 @@
                         break;
                     }
                 }
-                if (earlyAccepted || scored >= maxCandidateRotationsTotal ||
-                        signScored >= maxCandidateRotationsPerSign) {
+                if (earlyAccepted || scored >= maxCandidateRotationsTotal) {
                     break;
                 }
             }

@@ -1,0 +1,47 @@
+{
+  "id": "IMG-9948-heic-brown-conrady",
+  "title": "IMG_9948 HEIC Brown-Conrady",
+  "image": "IMG_9948.png",
+  "sourceImage": "IMG_9948.HEIC",
+  "width": 4032,
+  "height": 3024,
+  "timestampUtc": "2024-12-18T18:05:56.000Z",
+  "latDeg": 69.691519,
+  "lonDeg": 18.802783,
+  "altM": 130.3,
+  "optpar": [
+    20,
+    0.690428,
+    0.918992,
+    -71.8,
+    27.9,
+    80.4,
+    -0.005235,
+    -0.000513,
+    0.165823,
+    -0.427766,
+    0.367047,
+    -0.001158,
+    -0.001537
+  ],
+  "maxMag": 7,
+  "matchRadiusPx": 22,
+  "sweepCounts": [
+    8,
+    10,
+    12,
+    14,
+    16,
+    18,
+    20
+  ],
+  "detectorOptions": {
+    "maxDetections": 180,
+    "thresholdSigma": 1.8,
+    "localThresholdSigma": 1.8,
+    "requireGlobalThreshold": false,
+    "maxRadiusPx": 5,
+    "maxElongation": 4
+  },
+  "startMode": "perturbed"
+}

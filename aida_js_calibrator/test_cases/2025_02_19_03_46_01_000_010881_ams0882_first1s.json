@@ -1,0 +1,51 @@
+{
+  "id": "2025_02_19_03_46_01_000_010881_ams0882_first1s",
+  "title": "2025_02_19_03_46_01_000_010881_ams0882_first1s optmod 2",
+  "image": "2025_02_19_03_46_01_000_010881_ams0882_first1s.png",
+  "sourceH5": "allsky7/2025_02_19_03_46_01_000_010881_ams0882_first1s.h5",
+  "width": 1920,
+  "height": 1080,
+  "timestampUtc": "2025-02-19T03:46:01.000Z",
+  "latDeg": 51.4492,
+  "lonDeg": 14.27944,
+  "altM": 0,
+  "optpar": [
+    2,
+    -0.7842680260364753,
+    -1.392219013590239,
+    63.454468073870316,
+    26.148372555014234,
+    99.31899552616744,
+    0.006599313262847991,
+    0.07104341635604206,
+    0.8954913316989456
+  ],
+  "maxMag": 7,
+  "matchRadiusPx": 18,
+  "sweepCounts": [
+    8,
+    10,
+    12,
+    14,
+    16,
+    18,
+    20,
+    24,
+    28,
+    32,
+    40,
+    50
+  ],
+  "detectorOptions": {
+    "maxDetections": 120,
+    "thresholdSigma": 3.1,
+    "localThresholdSigma": 3.2,
+    "requireGlobalThreshold": false,
+    "maxElongation": 3.1
+  },
+  "startMode": "perturbed",
+  "humanReview": {
+    "status": "good",
+    "note": "human review: automatic detection and fit look good"
+  }
+}

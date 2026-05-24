@@ -43,6 +43,7 @@ test("optpar array generators support every language and model", () => {
             assert.equal(typeof text, "string");
             assert.ok(!text.includes("undefined"), `${language} optmod ${optmod} optpar contains undefined`);
             assert.ok(!text.includes("[object Object]"), `${language} optmod ${optmod} optpar contains object stringification`);
+            assert.ok(text.includes(String(optmod)), `${language} optmod ${optmod} optpar should include model number`);
             if (language === "c") {
                 assert.match(text, /^static const double optpar\[\d+\] = \{/);
                 assert.ok(text.endsWith("};"));

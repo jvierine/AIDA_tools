@@ -144,12 +144,18 @@
             alignment is close. This adds star pairings only; it does not fit
             the lens model. The browser first runs the conservative top-50
             magnitude-4 bright-star bootstrap used in the test reports, using
-            spherical asterisms and KD-tree lookup so it does not depend
-            strongly on the current lens parameters. If that does not add
-            enough pairs, it tries broader detector settings with the current
+            spherical asterisms and KD-tree lookup, a small browser-local
+            variant of the blind pattern-matching idea used by Astrometry.net
+            [1], so it does not depend strongly on the current lens parameters.
+            If that conservative seed is not accepted, the browser retries the
+            blind bootstrap with the top 100 image detections to cope better
+            with non-star detections such as city lights. Once a seed is
+            accepted, it tries broader detector settings with the current
             projected lens state and, finally, a deeper projected pass for
-            fainter stars allowed by the limiting-magnitude setting. It is not
-            run automatically on image load.
+            fainter stars allowed by the limiting-magnitude setting. For deeper
+            phone images and narrower fields, it also has a slower fallback
+            that searches more detections and catalogue stars down to magnitude
+            6 to 7. It is not run automatically on image load.
         </li>
         <li>
             For a hands-off attempt, press <kbd>L</kbd> or the
@@ -182,8 +188,9 @@
         </li>
         <li>
             Use the export buttons to copy either the fitted
-            <code>optpar = [...]</code> Python array or a Python
-            <code>image_to_az_el(x, y)</code> helper function.
+            <code>optpar = [...]</code> array, mapper code, or a terminal
+            command that writes the current calibration into the test-case
+            directory.
         </li>
     </ol>
 
@@ -203,6 +210,7 @@
         <li><kbd>Cmd/Ctrl Z</kbd>: undo the most recent accepted fit.</li>
         <li><kbd>D</kbd> + click: delete the nearest matched star pairing.</li>
         <li><kbd>R</kbd>: show or hide residual view.</li>
+        <li>Copy test case command button: copy a terminal command that writes the current image metadata, <code>[optmod, ...optpar]</code>, and manual pairings into <code>aida_js_calibrator/test_cases/</code>.</li>
         <li><kbd>Esc</kbd>: cancel the current star selection or close the density popup.</li>
         <li>Left mouse drag: move the field of view by shifting the 90 degree elevation point.</li>
         <li>Right mouse drag: rotate the field of view around the 90 degree elevation point.</li>
@@ -335,15 +343,31 @@
         depending on the sign of \(a_r\).
     </p>
 
+    <h2>Test cases</h2>
+    <p>
+        The graphical test report reads JSON files from
+        <code>aida_js_calibrator/test_cases/</code>. Each file uses the same
+        browser-copy format: image name, UTC timestamp, site coordinates,
+        optional manually paired stars, and an <code>optpar</code> array whose
+        first element is always the optical model number. To add a new case from
+        the browser, copy the test-case command, paste it in a terminal at the
+        repository checkout, and place the image file in
+        <code>aida_js_calibrator/calibration_images/</code> if it is not already
+        there.
+    </p>
+
     <h2>Export notes</h2>
     <p>
-        The copied <code>optpar</code> array contains
-        <code>[f1, f2, alpha, beta, gamma, du, dv, radial_alpha]</code>.
+        The copied <code>optpar</code> array always starts with the optical
+        model number. For AIDA radial models it contains
+        <code>[optmod, f1, f2, alpha, beta, gamma, du, dv, radial_alpha]</code>.
         For the Brown-Conrady model (browser <code>optmod 20</code>), it contains
-        <code>[f1, f2, alpha, beta, gamma, du, dv, k1, k2, k3, p1, p2]</code>.
+        <code>[20, f1, f2, alpha, beta, gamma, du, dv, k1, k2, k3, p1, p2]</code>.
         The export language selector can copy the array and mapper code as
-        Python, Julia, C, or MATLAB. The Python mapper includes the existing
-        numerical <code>image_to_az_el</code> inverse; the Julia, C, and MATLAB
+        Python, Julia, C, or MATLAB. The generated mapper code reads the model
+        number from the first element before applying the parameter vector. The
+        Python mapper includes the existing numerical
+        <code>image_to_az_el</code> inverse; the Julia, C, and MATLAB
         exports provide the same forward <code>az_el_to_image</code> projection
         so they can be embedded in analysis code and inverted numerically when
         needed.
@@ -353,6 +377,22 @@
         field of view and above the horizon. If the lens model is poorly
         constrained, add or remove star pairs and refit before exporting.
     </p>
+
+    <h2>References</h2>
+    <ol>
+        <li>
+            Lang, D., Hogg, D. W., Mierle, K., Blanton, M., and Roweis, S.
+            (2010). Astrometry.net: Blind astrometric calibration of arbitrary
+            astronomical images. <em>The Astronomical Journal</em>,
+            139(5), 1782--1800.
+        </li>
+        <li>
+            Nowakowski, A. and Skarbek, W. (2013). Analysis of Brown camera
+            distortion model. In <em>Photonics Applications in Astronomy,
+            Communications, Industry, and High-Energy Physics Experiments
+            2013</em>, SPIE volume 8903, pages 248--257.
+        </li>
+    </ol>
 
     <p><a href="index.html">Back to the calibrator</a></p>
 </main>

@@ -72,6 +72,7 @@
         exportLanguage: document.getElementById("exportLanguage"),
         copyOptpar: document.getElementById("copyOptpar"),
         copyPythonMapper: document.getElementById("copyPythonMapper"),
+        copyTestCaseCommand: document.getElementById("copyTestCaseCommand"),
         toggleFitResiduals: document.getElementById("toggleFitResiduals"),
         clearMatches: document.getElementById("clearMatches"),
     };
@@ -772,7 +773,8 @@
 
     function optparPythonArrayText() {
         const optpar = currentOptpar();
-        return `optpar = [${optpar.map(pythonFloat).join(", ")}]`;
+        const optmod = Number(controls.optmod.value) || 2;
+        return `optpar = [${[optmod, ...optpar].map(pythonFloat).join(", ")}]`;
     }
 
     function selectedExportLanguage() {
@@ -781,6 +783,55 @@
 
     function optparArrayText(language = selectedExportLanguage()) {
         return window.AidaExportGenerators.optparArrayText(exportContext(), language);
+    }
+
+    function safeCaseId(value) {
+        return String(value || "aida_case")
+            .replace(/\.[^.]*$/, "")
+            .replace(/[^A-Za-z0-9_-]+/g, "-")
+            .replace(/^-+|-+$/g, "") || "aida_case";
+    }
+
+    function currentTestCaseJsonText() {
+        const date = AidaTools.datetimeLocalToDate(controls.timestampUtc.value);
+        const optmod = Number(controls.optmod.value) || 2;
+        const optpar = [optmod, ...currentOptpar()];
+        const testCase = {
+            id: safeCaseId(state.imageName),
+            title: `${safeCaseId(state.imageName)} manual browser calibration`,
+            image: state.imageName || "replace-with-image-file.png",
+            width: state.image ? state.image.width : null,
+            height: state.image ? state.image.height : null,
+            timestampUtc: date.toISOString(),
+            latDeg: Number(controls.latDeg.value) || 0,
+            lonDeg: Number(controls.lonDeg.value) || 0,
+            altM: Number(controls.altM.value) || 0,
+            optpar,
+            maxMag: Number(controls.maxMag.value) || 7,
+            matchRadiusPx: 22,
+            matches: state.matches.map(match => ({
+                image: {
+                    x: match.image.x,
+                    y: match.image.y,
+                    method: match.image.method || "manual",
+                },
+                catalog: {
+                    key: match.catalog.key,
+                    name: match.catalog.name,
+                    raHours: match.catalog.raHours,
+                    decDeg: match.catalog.decDeg,
+                    mag: match.catalog.mag,
+                },
+            })),
+        };
+        return JSON.stringify(testCase, null, 2);
+    }
+
+    function copyTestCaseCommandText() {
+        const id = safeCaseId(state.imageName);
+        const filename = `${id}.json`;
+        const json = currentTestCaseJsonText();
+        return `cd /Users/j/src/AIDA_tools && mkdir -p aida_js_calibrator/test_cases && cat > aida_js_calibrator/test_cases/${filename} <<'EOF'\n${json}\nEOF`;
     }
 
     function exportFunctionText(language = selectedExportLanguage()) {
@@ -818,8 +869,9 @@
         return `import numpy as np
 from scipy.optimize import least_squares
 
-optpar = np.array([${optpar.map(pythonFloat).join(", ")}], dtype=float)
-optmod = ${optmod}
+optpar = np.array([${[optmod, ...optpar].map(pythonFloat).join(", ")}], dtype=float)
+optmod = int(round(optpar[0]))
+optpar = optpar[1:]
 image_width = ${width}
 image_height = ${height}
 
@@ -1592,7 +1644,7 @@ end
         const currentMaxMagnitude = autoIdentifyCurrentMaxMagnitude();
         return [
             {
-                label: "Auto-identify 1/3 bright bootstrap",
+                label: "Auto-identify 1/5 bright bootstrap",
                 summaryLabel: "bright bootstrap",
                 maxDetections: 50,
                 maxMagnitude: autoIdentifyStageMagnitude(4.0, currentMaxMagnitude),
@@ -1601,10 +1653,11 @@ end
                 minProjectedMatches: 4,
                 seedFromBlind: true,
                 detectorOptions: {
-                    thresholdSigma: 4.417,
-                    localThresholdSigma: 4.417,
-                    requireGlobalThreshold: true,
-                    maxElongation: 2.7,
+                    thresholdSigma: 2.2,
+                    localThresholdSigma: 2.2,
+                    requireGlobalThreshold: false,
+                    maxRadiusPx: 5,
+                    maxElongation: 4.0,
                 },
                 blindOptions: {
                     maxDetections: 50,
@@ -1627,7 +1680,94 @@ end
                 methodLabel: "auto star finder bright bootstrap",
             },
             {
-                label: "Auto-identify 2/3 alignment fallback",
+                label: "Auto-identify 2/5 extended bootstrap",
+                summaryLabel: "extended bootstrap",
+                maxDetections: 100,
+                maxMagnitude: autoIdentifyStageMagnitude(4.0, currentMaxMagnitude),
+                minBlindMatches: 6,
+                minAsterismMatches: 4,
+                minProjectedMatches: 4,
+                seedFromBlind: true,
+                runOnlyWithoutSeed: true,
+                detectorOptions: {
+                    thresholdSigma: 2.2,
+                    localThresholdSigma: 2.2,
+                    requireGlobalThreshold: false,
+                    maxRadiusPx: 5,
+                    maxElongation: 4.0,
+                },
+                blindOptions: {
+                    maxDetections: 100,
+                    maxBlindVerifyDetections: 100,
+                    maxCatalogStars: 220,
+                    maxCatalogTriangleStars: 220,
+                    maxCatalogTriangles: 30000,
+                    maxDetectionTriangleStars: 80,
+                    maxDetectionTriangles: 2800,
+                    preflattenModelCandidates: ["pinhole", "fisheye"],
+                    maxCatalogLocalNeighbors: 20,
+                    maxBlindNeighborTriangles: 8,
+                    blindEarlyAcceptMatches: 12,
+                    maxBlindCandidateRotations: 12000,
+                    rejectAmbiguousBlindMatches: true,
+                    blindAmbiguityRadiusDeg: 1.0,
+                    blindAmbiguityDistanceSlackDeg: 0.35,
+                    blindPixelAmbiguityRadiusPx: 18,
+                    blindPixelAmbiguityDistanceSlackPx: 8,
+                    ambiguityMaxMagnitude: 6.0,
+                },
+                maxAddDistancePx: 0.8,
+                maxMedianDistance: 0.42,
+                methodLabel: "auto star finder extended bootstrap",
+            },
+            {
+                label: "Auto-identify 3/5 phone deep bootstrap",
+                summaryLabel: "phone deep bootstrap",
+                maxDetections: 140,
+                maxMagnitude: autoIdentifyStageMagnitude(6.0, currentMaxMagnitude),
+                minBlindMatches: 6,
+                minAsterismMatches: 4,
+                minProjectedMatches: 4,
+                seedFromBlind: true,
+                runOnlyWithoutSeed: true,
+                detectorOptions: {
+                    thresholdSigma: 1.8,
+                    localThresholdSigma: 1.8,
+                    requireGlobalThreshold: false,
+                    maxRadiusPx: 5,
+                    maxElongation: 4.0,
+                },
+                blindOptions: {
+                    maxDetections: 140,
+                    maxBlindVerifyDetections: 140,
+                    maxCatalogStars: 420,
+                    maxCatalogTriangleStars: 360,
+                    maxCatalogTriangles: 50000,
+                    maxAmbiguityCatalogStars: 520,
+                    maxDetectionTriangleStars: 100,
+                    maxDetectionTriangles: 5200,
+                    preflattenModelCandidates: ["pinhole", "fisheye"],
+                    preflattenF1Candidates: [0.55, 0.65, 0.75, 0.85, 0.95, 1.10],
+                    preflattenRadialAlphaCandidates: [0.20, 0.35, 0.55, 0.75, 0.95, 1.15],
+                    maxCatalogLocalNeighbors: 24,
+                    maxBlindNeighborTriangles: 10,
+                    blindEarlyAcceptMatches: 11,
+                    blindEarlyAcceptMedianDeg: 0.75,
+                    maxBlindCandidateRotations: 18000,
+                    rejectAmbiguousBlindMatches: true,
+                    blindAmbiguityRadiusDeg: 0.9,
+                    blindAmbiguityDistanceSlackDeg: 0.3,
+                    blindPixelMatchRadiusPx: 58,
+                    blindPixelAmbiguityRadiusPx: 16,
+                    blindPixelAmbiguityDistanceSlackPx: 8,
+                    ambiguityMaxMagnitude: 7.0,
+                },
+                maxAddDistancePx: 1.2,
+                maxMedianDistance: 0.42,
+                methodLabel: "auto star finder phone deep bootstrap",
+            },
+            {
+                label: "Auto-identify 4/5 alignment fallback",
                 summaryLabel: "alignment fallback",
                 maxDetections: 90,
                 maxMagnitude: autoIdentifyStageMagnitude(5.0, currentMaxMagnitude),
@@ -1658,7 +1798,7 @@ end
                 methodLabel: "auto star finder alignment fallback",
             },
             {
-                label: "Auto-identify 3/3 deeper projection",
+                label: "Auto-identify 5/5 deeper projection",
                 summaryLabel: "deeper projection",
                 maxDetections: 120,
                 maxMagnitude: autoIdentifyStageMagnitude(6.0, currentMaxMagnitude),
@@ -1702,6 +1842,10 @@ end
                 break;
             }
             const stage = stages[i];
+            if (stage.runOnlyWithoutSeed === true && totalAdded > 0) {
+                stageSummaries.push(`${stage.summaryLabel}: skipped because a blind seed was already accepted`);
+                continue;
+            }
             if (stage.includeBlind === false && totalAdded === 0) {
                 stageSummaries.push(`${stage.summaryLabel}: skipped because no blind seed was accepted`);
                 continue;
@@ -2481,12 +2625,17 @@ end
         matchInstructions.textContent = matchInstructionText();
         const date = AidaTools.datetimeLocalToDate(controls.timestampUtc.value);
         const optpar = currentOptpar();
-        updateLensEquation(optpar, Number(controls.optmod.value));
+        const optmod = Number(controls.optmod.value) || 2;
+        const optparWithModel = [optmod, ...optpar].map(value =>
+            Number.isFinite(value) ? value.toPrecision(12) : String(value)
+        ).join(", ");
+        updateLensEquation(optpar, optmod);
         drawRotationVisualization();
         statusEl.textContent =
             `image: ${state.imageName || "none"}\n` +
             `timestamp: ${date.toISOString()}\n` +
             `site: lat ${controls.latDeg.value} deg, lon ${controls.lonDeg.value} deg, alt ${controls.altM.value} m\n` +
+            `optpar: [${optparWithModel}]\n` +
             `image high-pass: ${controls.highPassImage.checked ? `${controls.highPassWidth.value} px Gaussian` : "off"}\n` +
             `catalog stars <= mag ${controls.maxMag.value}: ` +
             `${state.projected.filter(star => star.mag <= Number(controls.maxMag.value)).length}\n` +
@@ -4648,10 +4797,11 @@ end
                 includeBlind: true,
                 includeAsterisms: true,
                 detectorOptions: {
-                    thresholdSigma: 4.417,
-                    localThresholdSigma: 4.417,
-                    requireGlobalThreshold: true,
-                    maxElongation: 2.7,
+                    thresholdSigma: 2.2,
+                    localThresholdSigma: 2.2,
+                    requireGlobalThreshold: false,
+                    maxRadiusPx: 5,
+                    maxElongation: 4.0,
                 },
                 blindOptions: {
                     maxDetections: 50,
@@ -4670,6 +4820,87 @@ end
                     ambiguityMaxMagnitude: 6.0,
                 },
                 maxAddDistancePx: 0.8,
+                maxMedianDistance: 0.42,
+            },
+            {
+                maxDetections: 100,
+                maxMagnitude: 4.0,
+                phase: "extended blind bright-star bootstrap",
+                seedFromBlind: true,
+                includeBlind: true,
+                includeAsterisms: true,
+                runOnlyWithoutSeed: true,
+                detectorOptions: {
+                    thresholdSigma: 2.2,
+                    localThresholdSigma: 2.2,
+                    requireGlobalThreshold: false,
+                    maxRadiusPx: 5,
+                    maxElongation: 4.0,
+                },
+                blindOptions: {
+                    maxDetections: 100,
+                    maxBlindVerifyDetections: 100,
+                    maxCatalogStars: 220,
+                    maxCatalogTriangleStars: 220,
+                    maxCatalogTriangles: 30000,
+                    maxDetectionTriangleStars: 80,
+                    maxDetectionTriangles: 2800,
+                    preflattenModelCandidates: ["pinhole", "fisheye"],
+                    maxCatalogLocalNeighbors: 20,
+                    maxBlindNeighborTriangles: 8,
+                    blindEarlyAcceptMatches: 12,
+                    maxBlindCandidateRotations: 12000,
+                    rejectAmbiguousBlindMatches: true,
+                    blindAmbiguityRadiusDeg: 1.0,
+                    blindAmbiguityDistanceSlackDeg: 0.35,
+                    blindPixelAmbiguityRadiusPx: 18,
+                    blindPixelAmbiguityDistanceSlackPx: 8,
+                    ambiguityMaxMagnitude: 6.0,
+                },
+                maxAddDistancePx: 0.8,
+                maxMedianDistance: 0.42,
+            },
+            {
+                maxDetections: 140,
+                maxMagnitude: 6.0,
+                phase: "phone deep blind bootstrap",
+                seedFromBlind: true,
+                includeBlind: true,
+                includeAsterisms: true,
+                runOnlyWithoutSeed: true,
+                detectorOptions: {
+                    thresholdSigma: 1.8,
+                    localThresholdSigma: 1.8,
+                    requireGlobalThreshold: false,
+                    maxRadiusPx: 5,
+                    maxElongation: 4.0,
+                },
+                blindOptions: {
+                    maxDetections: 140,
+                    maxBlindVerifyDetections: 140,
+                    maxCatalogStars: 420,
+                    maxCatalogTriangleStars: 360,
+                    maxCatalogTriangles: 50000,
+                    maxAmbiguityCatalogStars: 520,
+                    maxDetectionTriangleStars: 100,
+                    maxDetectionTriangles: 5200,
+                    preflattenModelCandidates: ["pinhole", "fisheye"],
+                    preflattenF1Candidates: [0.55, 0.65, 0.75, 0.85, 0.95, 1.10],
+                    preflattenRadialAlphaCandidates: [0.20, 0.35, 0.55, 0.75, 0.95, 1.15],
+                    maxCatalogLocalNeighbors: 24,
+                    maxBlindNeighborTriangles: 10,
+                    blindEarlyAcceptMatches: 11,
+                    blindEarlyAcceptMedianDeg: 0.75,
+                    maxBlindCandidateRotations: 18000,
+                    rejectAmbiguousBlindMatches: true,
+                    blindAmbiguityRadiusDeg: 0.9,
+                    blindAmbiguityDistanceSlackDeg: 0.3,
+                    blindPixelMatchRadiusPx: 58,
+                    blindPixelAmbiguityRadiusPx: 16,
+                    blindPixelAmbiguityDistanceSlackPx: 8,
+                    ambiguityMaxMagnitude: 7.0,
+                },
+                maxAddDistancePx: 1.2,
                 maxMedianDistance: 0.42,
             },
             {
@@ -4751,6 +4982,9 @@ end
         let seeded = false;
         try {
             for (let i = 0; i < stages.length; i += 1) {
+                if (stages[i].runOnlyWithoutSeed === true && totalAdded > 0) {
+                    continue;
+                }
                 const rmsBeforeStage = currentFitRmsPx();
                 const pass = await runLuckyFitStage(stages[i], i + 1, stages.length);
                 stagesRun += 1;
@@ -5793,6 +6027,10 @@ end
         playInteractionSound("click");
         const language = selectedExportLanguage();
         copyTextToClipboard(exportFunctionText(language), `${language} mapper code`);
+    });
+    controls.copyTestCaseCommand.addEventListener("click", () => {
+        playInteractionSound("click");
+        copyTextToClipboard(copyTestCaseCommandText(), "test case terminal command");
     });
     controls.clearMatches.addEventListener("click", () => {
         playInteractionSound("delete");

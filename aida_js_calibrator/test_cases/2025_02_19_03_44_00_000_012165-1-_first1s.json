@@ -1,0 +1,47 @@
+{
+  "id": "2025_02_19_03_44_00_000_012165-1-_first1s",
+  "title": "2025_02_19_03_44_00_000_012165 (1)_first1s optmod 2",
+  "image": "2025_02_19_03_44_00_000_012165 (1)_first1s.png",
+  "sourceH5": "allsky7/2025_02_19_03_44_00_000_012165 (1)_first1s.h5",
+  "width": 1920,
+  "height": 1080,
+  "timestampUtc": "2025-02-19T03:44:00.000Z",
+  "latDeg": 51.463056,
+  "lonDeg": 7.221944,
+  "altM": 0,
+  "optpar": [
+    2,
+    0.7856272695837321,
+    1.3947936219614965,
+    -60.376611091753354,
+    23.114608564300845,
+    76.45950460978284,
+    0.032212206101522124,
+    -0.001399397385768213,
+    0.894787865356764
+  ],
+  "maxMag": 7,
+  "matchRadiusPx": 18,
+  "sweepCounts": [
+    8,
+    10,
+    12,
+    14,
+    16,
+    18,
+    20,
+    24,
+    28,
+    32,
+    40,
+    50
+  ],
+  "detectorOptions": {
+    "maxDetections": 120,
+    "thresholdSigma": 3.1,
+    "localThresholdSigma": 3.2,
+    "requireGlobalThreshold": false,
+    "maxElongation": 3.1
+  },
+  "startMode": "perturbed"
+}
