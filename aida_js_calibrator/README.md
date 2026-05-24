@@ -13,6 +13,9 @@ Open `index.html` directly in a browser. No local web server is needed.
 - Reads UTC time and observer position from EXIF metadata when available.
 - Falls back to known allsky7 filename/station metadata when possible.
 - Uses the embedded bright-star catalog and AIDA camera projection code.
+- Provides an opt-in automatic star identifier that runs the browser star
+  finder, compares detections with projected Yale bright-star catalog positions,
+  and adds plausible pairings after the field of view is roughly aligned.
 - Supports the self-contained parametric AIDA/MATLAB lens models (`optmod 1`,
   `2`, `3`, `4`, `5`, and `12`) plus a Brown-Conrady radial/tangential
   distortion model under browser `optmod 20`; the selected optical model is
@@ -39,14 +42,16 @@ Open `index.html` directly in a browser. No local web server is needed.
    - left-drag to move the zenith point,
    - right-drag to rotate the field,
    - mouse wheel to scale `f1` and `f2` together.
-6. Hold `S` and click an image star. The local star position is refined with
+6. Optionally click `Auto identify stars` after the rough alignment is close.
+   This is a user-requested action, not a startup default.
+7. Hold `S` and click an image star. The local star position is refined with
    the interpolated density estimate.
-7. Release `S`, then click the matching red catalog star.
-8. Repeat until several well-spread star pairs are available.
-9. Press `F` for robust randomized Nelder-Mead, or `G` for
+8. Release `S`, then click the matching red catalog star.
+9. Repeat until several well-spread star pairs are available.
+10. Press `F` for robust randomized Nelder-Mead, or `G` for
    Levenberg-Marquardt.
-10. Press `R` to inspect residuals and remove bad pairs if needed.
-11. Export the fitted model with the copy buttons.
+11. Press `R` to inspect residuals and remove bad pairs if needed.
+12. Export the fitted model with the copy buttons.
 
 ## Views And Controls
 
@@ -62,10 +67,11 @@ Open `index.html` directly in a browser. No local web server is needed.
 - `Z`: show the zoom/magnifier view.
 - `Cmd/Ctrl Z`: undo the most recent accepted fit.
 - `Esc`: cancel the current interaction or close the density popup.
+- `Auto identify stars`: run the opt-in detector/catalog matcher and add normal
+  star pairings for the selected limiting magnitude.
 
-The star finder implementation is still present in the codebase, but the GUI is
-currently centered on manual KDE-based star picking rather than automatic
-detections.
+The automatic identifier is deliberately not run by default. Manual KDE-based
+star picking remains the most controlled way to add or correct pairings.
 
 ## Image Display
 

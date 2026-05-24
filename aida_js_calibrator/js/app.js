@@ -48,6 +48,7 @@
         toggleAzElGrid: document.getElementById("toggleAzElGrid"),
         toggleDetectionCircles: document.getElementById("toggleDetectionCircles"),
         toggleStarNames: document.getElementById("toggleStarNames"),
+        autoIdentifyStars: document.getElementById("autoIdentifyStars"),
         toggleAmbientMusic: document.getElementById("toggleAmbientMusic"),
         resetOffset: document.getElementById("resetOffset"),
         optmod: document.getElementById("optmod"),
@@ -116,6 +117,7 @@
         autoMatches: [],
         detectorCache: null,
         detectorStatus: "detector: no image",
+        autoIdentificationStatus: "auto-identify: not run",
         pendingMatch: null,
         centroidPreview: null,
         centroidDensity: null,
@@ -1311,6 +1313,93 @@ end
         }
     }
 
+    function projectedStarsForAutoIdentification() {
+        return state.projected.map(star => {
+            const [rawX, rawY] = rawImagePixelFromModelImagePixel(star.x, star.y);
+            return {
+                ...star,
+                x: rawX,
+                y: rawY,
+                key: catalogKey(star),
+            };
+        });
+    }
+
+    function autoIdentifyStarsFromDetector() {
+        if (!state.image || !state.imagePixels) {
+            state.fitMessage = "auto-identify: load an image with readable pixels first";
+            render();
+            return;
+        }
+        if (!window.AidaAutoIdentifier || typeof window.AidaAutoIdentifier.identifyStars !== "function") {
+            state.fitMessage = "auto-identify: matcher module is unavailable";
+            render();
+            return;
+        }
+        detectImageStars();
+        const maxMag = Number(controls.maxMag.value) || 4;
+        const existingCatalogKeys = new Set(state.matches.map(match => match.catalog.key));
+        const existingDetectionIds = new Set(
+            state.matches
+                .filter(match => match.detectionId !== null && match.detectionId !== undefined)
+                .map(match => match.detectionId)
+        );
+        const matchRadius = Math.max(22, Math.min(48, 0.018 * Math.hypot(state.image.width, state.image.height)));
+        const result = window.AidaAutoIdentifier.identifyStars(
+            projectedStarsForAutoIdentification(),
+            state.detectedStars,
+            {
+                imageWidth: state.image.width,
+                imageHeight: state.image.height,
+                maxMagnitude: maxMag,
+                existingCatalogKeys,
+                existingDetectionIds,
+                deletedDetectionIds: state.deletedDetectionIds,
+                maxDistancePx: matchRadius,
+                translationSearchRadiusPx: Math.max(80, Math.min(240, 0.10 * Math.hypot(state.image.width, state.image.height))),
+                minMatches: 4,
+            }
+        );
+        let added = 0;
+        for (const match of result.matches) {
+            if (existingCatalogKeys.has(match.star.key) || existingDetectionIds.has(match.detection.id)) {
+                continue;
+            }
+            state.matches.push({
+                id: state.matches.length + 1,
+                image: {
+                    x: match.detection.x,
+                    y: match.detection.y,
+                    method: "auto star finder",
+                },
+                detectionId: match.detection.id,
+                catalog: {
+                    key: match.star.key,
+                    raHours: match.star.raHours,
+                    decDeg: match.star.decDeg,
+                    mag: match.star.mag,
+                    name: match.star.name,
+                    az: match.star.az,
+                    ze: match.star.ze,
+                },
+            });
+            existingCatalogKeys.add(match.star.key);
+            existingDetectionIds.add(match.detection.id);
+            added += 1;
+        }
+        state.pendingMatch = null;
+        clearDensityEstimate();
+        state.showPickedMatchMarkers = true;
+        state.lastFitVector = null;
+        state.autoIdentificationStatus = `${result.status}; added ${added}`;
+        state.fitMessage = added > 0
+            ? `auto-identify: added ${added} star pairing${added === 1 ? "" : "s"}; inspect or fit next`
+            : result.status;
+        updateAutoMatches();
+        playInteractionSound(added > 0 ? "fit" : "click");
+        recomputeAndRender();
+    }
+
     function drawImage() {
         if (!state.texture || !state.image) {
             return;
@@ -2043,6 +2132,8 @@ end
             `fit residuals: ${state.showFitResiduals ? "on" : "off"}\n` +
             `star pairing armed: ${state.starMatchMode ? "on" : "off"}${state.pendingMatch ? " (select catalog star)" : ""}\n` +
             `matched star pairs: ${state.matches.length}\n` +
+            `${state.autoIdentificationStatus}\n` +
+            `${autoDetectionStatusText()}\n` +
             `${fitResidualStatusText()}\n` +
             state.fitMessage;
     }
@@ -3933,6 +4024,7 @@ end
         state.pendingMatch = null;
         state.showPickedMatchMarkers = true;
         state.lastFitVector = null;
+        state.autoIdentificationStatus = "auto-identify: not run";
         state.fitMessage = "lens fit: not run";
     }
 
@@ -4833,6 +4925,7 @@ end
     });
     controls.toggleDetectionCircles.addEventListener("click", toggleDetectionCircles);
     controls.toggleStarNames.addEventListener("click", toggleStarNames);
+    controls.autoIdentifyStars.addEventListener("click", autoIdentifyStarsFromDetector);
     controls.toggleAmbientMusic.addEventListener("click", toggleAmbientMusic);
     controls.toggleFitResiduals.addEventListener("click", toggleFitResiduals);
     densityPopupClose.addEventListener("click", () => {

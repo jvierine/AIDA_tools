@@ -140,6 +140,13 @@
             horizontal and vertical focal lengths together.
         </li>
         <li>
+            Optional: press the Auto identify stars button after the rough
+            alignment is close. This runs the image star finder, compares the
+            detections with the projected Yale bright-star catalog, estimates a
+            small translation between the two lists, and adds plausible pairings.
+            It is not run automatically on image load.
+        </li>
+        <li>
             Hold <kbd>S</kbd> and click an image star. The local star position is
             refined with an interpolated Gaussian-smoothed density estimate.
             Release <kbd>S</kbd>, then click the matching red catalog star.
@@ -173,6 +180,7 @@
         <li>Play/stop button next to Help: start or stop the evolving generated planetarium score and subtle interaction blips.</li>
         <li><kbd>K</kbd>: show or hide tiny KDE subpixel dots at the picked image-star positions.</li>
         <li><kbd>A</kbd>: show or hide the az/el grid.</li>
+        <li>Auto identify stars button: run the opt-in star finder plus Yale-catalog matcher.</li>
         <li><kbd>F</kbd>: fit the selected model parameters with robust Nelder-Mead.</li>
         <li><kbd>G</kbd>: fit the selected model parameters with Levenberg-Marquardt.</li>
         <li><kbd>Cmd/Ctrl Z</kbd>: undo the most recent accepted fit.</li>
