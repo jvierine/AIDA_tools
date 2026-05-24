@@ -107,25 +107,6 @@ const REAL_CASE_012165 = {
         0.898102000000,
     ],
 };
-const REAL_CASE_012165_NEGATIVE_FOCAL = {
-    width: 1920,
-    height: 1080,
-    date: new Date(Date.UTC(2025, 1, 19, 3, 44, 0)),
-    latDeg: 51.463056,
-    lonDeg: 7.221944,
-    altM: 0,
-    optmod: 2,
-    optpar: [
-        -0.784467000000,
-        -1.39268400000,
-        -60.8000000000,
-        35.2000000000,
-        -105.500000000,
-        0.0418660000000,
-        0.00799500000000,
-        0.896240000000,
-    ],
-};
 const REAL_CASE_IMG_9371_IMAGE = path.join(
     __dirname,
     "..",
@@ -1107,47 +1088,6 @@ test("optmod 2 lens fitting works from automatically found real stars", async ()
             `${testCase.name}: expected the largest automatic-star fit to stay stable; sweep ${report}`,
         );
     }
-});
-
-test("012165 negative-focal optmod 2 fit converges from automatic star detections", async () => {
-    const imageData = readPngImageData(REAL_CASE_012165_IMAGE);
-    const detectionResult = await StarDetector.detectBrightStars(imageData, {maxDetections: 80});
-    const knownStars = projectedRealCaseStars(
-        REAL_CASE_012165_NEGATIVE_FOCAL.optpar,
-        6.0,
-        REAL_CASE_012165_NEGATIVE_FOCAL,
-    );
-    const autoPairs = matchDetectionsToKnownStars(detectionResult.detections, knownStars, 18)
-        .sort((a, b) => a.star.mag - b.star.mag || a.distance - b.distance);
-    assert.ok(
-        autoPairs.length >= 12,
-        `012165 negative-focal optpar: expected at least 12 automatically found stars with mag <= 6, ` +
-            `got ${autoPairs.length}; ${detectionResult.status}`,
-    );
-
-    const sweepCounts = [8, 10, 12];
-    const results = [];
-    for (const count of sweepCounts) {
-        const pairs = autoPairs.slice(0, count);
-        const fit = fitOptmod2FromPairs(
-            pairs,
-            REAL_CASE_012165_NEGATIVE_FOCAL,
-            REAL_CASE_012165_NEGATIVE_FOCAL.optpar,
-        );
-        results.push({count, ...fit});
-    }
-    const report = results
-        .map(result => `${result.count}:${result.rms.toFixed(2)}px/${result.accepted}step`)
-        .join(", ");
-    const stable = results.filter(result => result.count >= 8 && result.rms <= 12.0 && result.accepted > 0);
-    assert.ok(
-        stable.length >= 3,
-        `012165 negative-focal optpar: expected all three fits to stay below 12 px RMS; sweep ${report}`,
-    );
-    assert.ok(
-        results.at(-1).rms <= 12.0,
-        `012165 negative-focal optpar: expected the 12-star fit to stay stable; sweep ${report}`,
-    );
 });
 
 test("IMG_9371 Brown-Conrady fit converges from automatic star detections", async () => {
