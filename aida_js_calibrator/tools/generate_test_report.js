@@ -3,6 +3,7 @@
 
 const fs = require("node:fs");
 const path = require("node:path");
+const childProcess = require("node:child_process");
 const vm = require("node:vm");
 const zlib = require("node:zlib");
 
@@ -11,6 +12,8 @@ const StarDetector = require("../js/star_detector.js");
 
 const ROOT = path.join(__dirname, "..");
 const OUT_DIR = path.join(ROOT, "test-report");
+const ALLSKY_DIR = path.join(ROOT, "allsky7");
+const IMAGE_DIR = path.join(ROOT, "calibration_images");
 const DEG = Math.PI / 180;
 
 function loadBrowserScript(filename) {
@@ -33,61 +36,7 @@ function loadBrowserScript(filename) {
 const AidaTools = loadBrowserScript("aidatools.js").AidaTools;
 const YaleCatalog = loadBrowserScript("star_catalog.js").AIDA_STAR_CATALOG;
 
-const CASES = [
-    {
-        id: "010095-optmod2",
-        title: "010095 optmod 2",
-        image: "2025_02_19_03_46_00_000_010095_first1s.png",
-        width: 1920,
-        height: 1080,
-        date: new Date(Date.UTC(2025, 1, 19, 3, 46, 0)),
-        latDeg: 52.495090,
-        lonDeg: 12.630850,
-        altM: 0,
-        optmod: 2,
-        maxMag: 4.0,
-        matchRadiusPx: 18,
-        sweepCounts: [8, 10, 12, 14, 16, 18],
-        detectorOptions: {maxDetections: 50},
-        startMode: "perturbed",
-        optpar: [0.784905, 1.393641, -60.8, 35.2, 74.5, 0.042289, 0.008410, 0.895509],
-    },
-    {
-        id: "010880-ams0881-optmod2",
-        title: "010880 AMS0881 optmod 2",
-        image: "2025_02_19_03_46_00_000_010880_ams0881_first1s.png",
-        width: 1920,
-        height: 1080,
-        date: new Date(Date.UTC(2025, 1, 19, 3, 46, 0)),
-        latDeg: 51.449200,
-        lonDeg: 14.279400,
-        altM: 384.3,
-        optmod: 2,
-        maxMag: 5.0,
-        matchRadiusPx: 18,
-        sweepCounts: [8, 10, 12, 14, 16, 18, 20, 24, 28, 32, 36, 40],
-        detectorOptions: {maxDetections: 50},
-        startMode: "perturbed",
-        optpar: [0.776864, 1.373172, -19.3, 62.6, 20.5, 0.003257, 0.001258, 0.904396],
-    },
-    {
-        id: "012165-optmod2",
-        title: "012165 optmod 2",
-        image: "2025_02_19_03_44_00_000_012165_first1s.png",
-        width: 1920,
-        height: 1080,
-        date: new Date(Date.UTC(2025, 1, 19, 3, 44, 0)),
-        latDeg: 51.463056,
-        lonDeg: 7.221944,
-        altM: 0,
-        optmod: 2,
-        maxMag: 4.0,
-        matchRadiusPx: 18,
-        sweepCounts: [8, 10, 12, 14, 16, 18],
-        detectorOptions: {maxDetections: 50},
-        startMode: "perturbed",
-        optpar: [0.782862, 1.390372, -60.5, 23.5, 76.4, 0.032256, -0.001915, 0.898102],
-    },
+const MANUAL_CASES = [
     {
         id: "IMG-9371-brown-conrady",
         title: "IMG_9371 Brown-Conrady",
@@ -117,6 +66,106 @@ const CASES = [
     },
 ];
 
+function timestampFromAllskyName(filename) {
+    const match = filename.match(/(20\d{2})_(\d{2})_(\d{2})_(\d{2})_(\d{2})_(\d{2})_(\d{3})/);
+    if (!match) {
+        return null;
+    }
+    const [, year, month, day, hour, minute, second, millisecond] = match;
+    return new Date(Date.UTC(
+        Number(year),
+        Number(month) - 1,
+        Number(day),
+        Number(hour),
+        Number(minute),
+        Number(second),
+        Number(millisecond),
+    ));
+}
+
+function h5DatasetNumbers(h5Path, dataset) {
+    const text = childProcess.execFileSync(
+        "h5dump",
+        ["-y", "-w", "0", "-m", "%.17g", "-d", dataset, h5Path],
+        {encoding: "utf8"},
+    );
+    const dataMatch = text.match(/DATA\s*\{([\s\S]*?)\n\s*\}/);
+    if (!dataMatch) {
+        throw new Error(`${h5Path}: missing DATA block for ${dataset}`);
+    }
+    return Array.from(
+        dataMatch[1].matchAll(/[-+]?(?:\d+\.\d*|\.\d+|\d+)(?:[eE][-+]?\d+)?/g),
+        match => Number(match[0]),
+    );
+}
+
+function sanitizeId(value) {
+    return value.replace(/[^A-Za-z0-9_-]+/g, "-").replace(/^-+|-+$/g, "");
+}
+
+function copyIfDifferent(source, destination) {
+    if (fs.existsSync(destination)) {
+        const srcStat = fs.statSync(source);
+        const dstStat = fs.statSync(destination);
+        if (srcStat.size === dstStat.size) {
+            return;
+        }
+    }
+    fs.copyFileSync(source, destination);
+}
+
+function allskyCaseFromH5(h5Path) {
+    const pngName = path.basename(h5Path, ".h5") + ".png";
+    const sourcePng = path.join(ALLSKY_DIR, pngName);
+    if (!fs.existsSync(sourcePng)) {
+        return null;
+    }
+    fs.mkdirSync(IMAGE_DIR, {recursive: true});
+    copyIfDifferent(sourcePng, path.join(IMAGE_DIR, pngName));
+    const imageHeader = readPngImageData(sourcePng, true);
+    const optpar = h5DatasetNumbers(h5Path, "/optpar");
+    const date = timestampFromAllskyName(pngName);
+    if (!date || optpar.length < 8) {
+        return null;
+    }
+    const latDeg = h5DatasetNumbers(h5Path, "/camera_lat_deg")[0];
+    const lonDeg = h5DatasetNumbers(h5Path, "/camera_lon_deg")[0];
+    const optmod = optpar.length === 12 ? 20 : 2;
+    return {
+        id: sanitizeId(path.basename(h5Path, ".h5")),
+        title: `${path.basename(pngName, ".png")} optmod ${optmod}`,
+        image: pngName,
+        sourceH5: path.relative(ROOT, h5Path),
+        width: imageHeader.width,
+        height: imageHeader.height,
+        date,
+        latDeg,
+        lonDeg,
+        altM: 0,
+        optmod,
+        maxMag: 7.0,
+        matchRadiusPx: 18,
+        sweepCounts: [8, 10, 12, 14, 16, 18, 20, 24, 28, 32, 40, 50],
+        detectorOptions: {
+            maxDetections: 80,
+            thresholdSigma: 4.417,
+            localThresholdSigma: 4.417,
+            requireGlobalThreshold: true,
+        },
+        startMode: "perturbed",
+        optpar,
+    };
+}
+
+function buildCases() {
+    const allskyCases = fs.readdirSync(ALLSKY_DIR)
+        .filter(name => name.endsWith("_first1s.h5"))
+        .sort((a, b) => a.localeCompare(b))
+        .map(name => allskyCaseFromH5(path.join(ALLSKY_DIR, name)))
+        .filter(Boolean);
+    return allskyCases.concat(MANUAL_CASES);
+}
+
 function escapeHtml(value) {
     return String(value).replace(/[&<>"']/g, ch => ({
         "&": "&amp;",
@@ -138,7 +187,7 @@ function paethPredictor(a, b, c) {
     return pb <= pc ? b : c;
 }
 
-function readPngImageData(filename) {
+function readPngImageData(filename, headerOnly = false) {
     const buffer = fs.readFileSync(filename);
     if (buffer.subarray(0, 8).toString("hex") !== "89504e470d0a1a0a") {
         throw new Error(`${filename} is not a PNG`);
@@ -160,6 +209,9 @@ function readPngImageData(filename) {
             colorType = data[9];
             if (bitDepth !== 8 || data[12] !== 0) {
                 throw new Error(`${filename} must be 8-bit non-interlaced PNG`);
+            }
+            if (headerOnly) {
+                return {width, height, data: null};
             }
         } else if (type === "IDAT") {
             idat.push(data);
@@ -540,6 +592,50 @@ function formatNamedDeltas(parameterCloseness) {
         .join(", ");
 }
 
+function finiteSorted(values) {
+    return values.filter(Number.isFinite).sort((a, b) => a - b);
+}
+
+function rangeText(values, digits = 2) {
+    const sorted = finiteSorted(values);
+    if (!sorted.length) {
+        return "n/a";
+    }
+    return `${sorted[0].toFixed(digits)}..${sorted[sorted.length - 1].toFixed(digits)}`;
+}
+
+function detectionQuality(detectionResult, validation) {
+    const detections = detectionResult.detections;
+    const matchedDetectionIds = new Set(validation.matches.map(match => match.detection.id));
+    const centroidErrors = finiteSorted(validation.matches.map(match => match.distance));
+    const localSnrs = finiteSorted(detections.map(detection => detection.localSnr));
+    const globalSnrs = finiteSorted(detections.map(detection => detection.globalSnr));
+    const radii = finiteSorted(detections.map(detection => detection.radius));
+    const elongations = finiteSorted(detections.map(detection => detection.elongation));
+    const saturated = finiteSorted(detections.map(detection => detection.saturated));
+    const validated = matchedDetectionIds.size;
+    const selected = detections.length;
+    const localSnrMin = localSnrs.length ? localSnrs[0] : Infinity;
+    const globalSnrMin = globalSnrs.length ? globalSnrs[0] : Infinity;
+    const gaussianGateSigma = Math.min(localSnrMin, globalSnrMin);
+    return {
+        selected,
+        validated,
+        unvalidated: Math.max(0, selected - validated),
+        validationFraction: selected ? validated / selected : 0,
+        medianCentroidError: percentile(centroidErrors, 0.5),
+        p95CentroidError: percentile(centroidErrors, 0.95),
+        localSnrMin,
+        localSnrMedian: percentile(localSnrs, 0.5),
+        globalSnrMin,
+        globalSnrMedian: percentile(globalSnrs, 0.5),
+        gaussianGateSigma,
+        radiusRange: rangeText(radii, 2),
+        elongationRange: rangeText(elongations, 2),
+        saturatedRange: rangeText(saturated, 0),
+    };
+}
+
 function percentile(sortedValues, fraction) {
     if (!sortedValues.length) {
         return Infinity;
@@ -664,12 +760,13 @@ async function analyzeCase(testCase) {
     const detectionResult = await StarDetector.detectBrightStars(imageData, testCase.detectorOptions);
     const catalog = projectStars(testCase, testCase.optpar, testCase.maxMag);
     const validation = knownLensValidationMap(detectionResult.detections, catalog, testCase.matchRadiusPx);
+    const quality = detectionQuality(detectionResult, validation);
     const autoIdentification = AutoIdentifier.identifyStars(catalog, detectionResult.detections, {
         imageWidth: testCase.width,
         imageHeight: testCase.height,
         maxMagnitude: testCase.maxMag,
         maxDetections: testCase.detectorOptions.maxDetections,
-        maxCatalogStars: 200,
+        maxCatalogStars: Math.max(200, Math.min(600, catalog.length)),
         maxDistancePx: testCase.matchRadiusPx,
         translationSearchRadiusPx: 25,
         minMatches: 8,
@@ -679,28 +776,35 @@ async function analyzeCase(testCase) {
         .sort((a, b) => a.star.mag - b.star.mag || a.distance - b.distance);
     const start = perturbedStart(testCase);
     const sweep = [];
+    const minFitPairs = testCase.optmod === 20 ? 6 : 4;
     for (const count of testCase.sweepCounts) {
-        if (matches.length < count) {
+        if (matches.length < count || count < minFitPairs) {
             continue;
         }
         const fit = fitFromPairs(matches.slice(0, count), testCase, start);
         sweep.push({count, ...fit});
     }
-    const fit = sweep.length ? sweep[sweep.length - 1] : fitFromPairs(matches, testCase, start);
+    const fit = matches.length >= minFitPairs
+        ? (sweep.length ? sweep[sweep.length - 1] : fitFromPairs(matches, testCase, start))
+        : {optpar: start, residuals: [], rms: Infinity, iterations: 0, accepted: 0, skipped: true};
+    const fitMatchCount = fit.skipped ? matches.length : fit.residuals ? fit.residuals.length / 2 : matches.length;
     const lensAgreement = assessLensModelAgreement(testCase, fit);
     const parameterCloseness = assessParameterCloseness(testCase, fit);
     return {
         case: testCase,
         detections: detectionResult.detections,
         detectionStatus: detectionResult.status,
+        detectionResult,
+        detectionQuality: quality,
         catalog,
         fittedCatalog: projectStars(testCase, fit.optpar, testCase.maxMag),
-        matches: matches.slice(0, fit.residuals ? fit.residuals.length / 2 : matches.length),
+        matches: matches.slice(0, fitMatchCount),
         validation,
         autoIdentification,
         identificationScore,
         sweep,
         fit,
+        minFitPairs,
         lensAgreement,
         parameterCloseness,
         startRms: residualRmsPx(fitResiduals(start, matches.slice(0, Math.min(matches.length, testCase.sweepCounts.at(-1))), testCase, false)),
@@ -712,6 +816,10 @@ function caseHtml(result) {
     const sweepText = result.sweep
         .map(item => `${item.count}: ${item.rms.toFixed(2)} px (${item.accepted} accepted)`)
         .join(" / ");
+    const fitNote = result.fit.skipped
+        ? `not enough catalogue-certified pairs for an ${c.optmod === 20 ? "Brown-Conrady" : `optmod ${c.optmod}`} fit ` +
+            `(${result.matches.length}/${result.minFitPairs})`
+        : sweepText;
     const model = c.optmod === 20 ? "Brown-Conrady" : `optmod ${c.optmod}`;
     const score = result.identificationScore;
     const agreement = result.lensAgreement;
@@ -729,20 +837,43 @@ function caseHtml(result) {
         `max |d principal| ${formatFitNumber(closeness.principal)} ` +
         `(~${closeness.principalPx.toFixed(1)} px), ` +
         `max |d distortion| ${formatFitNumber(closeness.distortion)}`;
+    const quality = result.detectionQuality;
+    const reject = result.detectionResult.rejectCounts || {};
+    const detectorCertaintyStatus = `star-detection validation: ${quality.validated}/${quality.selected} ` +
+        `raw detections are catalogue-certified within ${c.matchRadiusPx} px using the HDF5 lens; ` +
+        `${quality.unvalidated} raw detections remain uncertified; centroid median/95% ` +
+        `${quality.medianCentroidError.toFixed(2)}/${quality.p95CentroidError.toFixed(2)} px`;
+    const detectorShapeStatus = `detector details: local SNR min/median ` +
+        `${quality.localSnrMin.toFixed(1)}/${quality.localSnrMedian.toFixed(1)}, ` +
+        `global SNR min/median ${quality.globalSnrMin.toFixed(1)}/${quality.globalSnrMedian.toFixed(1)}, ` +
+        `radius ${quality.radiusRange} px, elongation ${quality.elongationRange}, ` +
+        `saturated pixels ${quality.saturatedRange}`;
+    const detectorGateStatus = `detector gate: global/local threshold ` +
+        `${(c.detectorOptions.thresholdSigma || 2.5).toFixed(3)}/${(c.detectorOptions.localThresholdSigma || 2.5).toFixed(3)} sigma, ` +
+        `require global threshold ${c.detectorOptions.requireGlobalThreshold === true ? "yes" : "no"}`;
+    const rejectionStatus = `detector rejections: below scan ${reject.belowScanThreshold || 0}, ` +
+        `below global ${reject.belowGlobalThreshold || 0}, below local contrast ` +
+        `${reject.belowLocalContrast || 0}, invalid centroid ${reject.invalidCentroid || 0}, ` +
+        `non-star shape ${reject.nonStarShape || 0}`;
     return `<section class="case-card" id="${escapeHtml(c.id)}">
         <h2>${escapeHtml(c.title)}</h2>
         <div class="meta">
             <span>${escapeHtml(model)}</span>
             <span>${c.date.toISOString()}</span>
             <span>lat ${c.latDeg.toFixed(6)}, lon ${c.lonDeg.toFixed(6)}, alt ${(c.altM || 0).toFixed(1)} m</span>
+${c.sourceH5 ? `            <span>${escapeHtml(c.sourceH5)}</span>` : ""}
         </div>
         <p class="status">${escapeHtml(result.detectionStatus)}</p>
+        <p class="status">${escapeHtml(detectorGateStatus)}</p>
+        <p class="status">${escapeHtml(detectorCertaintyStatus)}</p>
+        <p class="status">${escapeHtml(detectorShapeStatus)}</p>
+        <p class="status">${escapeHtml(rejectionStatus)}</p>
         <p class="status">${escapeHtml(result.autoIdentification.status)}</p>
         <p class="status">${escapeHtml(autoIdStatus)}</p>
         <p class="status ${agreement.achieved ? "ok" : "warn"}">${escapeHtml(lensAgreementStatus)}</p>
         <p class="status">${escapeHtml(parameterStatus)}</p>
         <p class="status mono">known good [optmod, ...optpar]: [${escapeHtml(formatKnownParameterVector(c))}]</p>
-        <p class="status">best fit [optmod, ...optpar]: [${escapeHtml(formatBestParameterVector(c, result.fit))}]</p>
+        <p class="status">${result.fit.skipped ? "fit skipped; perturbed start" : "best fit"} [optmod, ...optpar]: [${escapeHtml(formatBestParameterVector(c, result.fit))}]</p>
         <p class="status mono">delta [doptmod, ...doptpar]: [${escapeHtml(formatDeltaVector(closeness))}]</p>
         <p class="status mono">named parameter deltas: ${escapeHtml(formatNamedDeltas(closeness))}</p>
         <div class="summary-grid">
@@ -752,12 +883,14 @@ function caseHtml(result) {
             <div><strong>${score.correct}</strong><span>validated auto-ID pairs</span></div>
             <div><strong>${score.incorrect}</strong><span>wrong auto-ID pairs</span></div>
             <div><strong>${result.fit.rms.toFixed(2)} px</strong><span>fit RMS</span></div>
+            <div><strong>${quality.validated}/${quality.selected}</strong><span>catalogue-certified detections</span></div>
+            <div><strong>${quality.localSnrMin.toFixed(1)}</strong><span>min local SNR</span></div>
             <div><strong>${agreement.achieved ? "yes" : "no"}</strong><span>correct lens achieved</span></div>
             <div><strong>${agreement.rms.toFixed(2)} px</strong><span>known-vs-fit RMS</span></div>
             <div><strong>${closeness.anglesDeg.toFixed(2)} deg</strong><span>max angle delta</span></div>
             <div><strong>${closeness.principalPx.toFixed(1)} px</strong><span>max principal delta</span></div>
         </div>
-        <p class="sweep"><strong>fit sweep:</strong> ${escapeHtml(sweepText || "not enough pairs")}</p>
+        <p class="sweep"><strong>fit sweep:</strong> ${escapeHtml(fitNote || "not enough pairs")}</p>
         <div class="visual-grid">
             <div class="image-panel">
                 <img src="../calibration_images/${encodeURIComponent(c.image)}" alt="${escapeHtml(c.title)}">
@@ -830,7 +963,7 @@ h2 { margin: 0 0 8px; font-size: 20px; }
 <body>
 <header>
 <h1>AIDA Calibrator Star-Fit Test Report</h1>
-<p class="intro">Generated ${escapeHtml(generated)}. The report uses the same real-image fixtures as the unit tests. A known-good lens model first creates a truth map between Yale catalogue stars and image detections; the automatic star-identification result is then scored against that map. Green circles are detected truth-map stars used for fitting, cyan circles are fitted lens-model positions, red circles are unmatched catalogue stars under the fitted model, and yellow dots are raw automatic detections. Brown-Conrady cases use light coefficient regularization.</p>
+<p class="intro">Generated ${escapeHtml(generated)}. The report now sweeps all tracked <code>python/examples/allsky7/*first1s.png</code> frames with their matching HDF5 latitude, longitude, timestamp, and optpar metadata. A known-good lens model first creates a truth map between Yale catalogue stars and image detections; raw detections that pass this check are catalogue-certified for fitting, while uncertified detections remain visible as detector-hardening feedback. Green circles are certified detections used for fitting, cyan circles are fitted lens-model positions, red circles are unmatched catalogue stars under the fitted model, and yellow dots are raw automatic detections. Brown-Conrady cases use light coefficient regularization.</p>
 </header>
 ${results.map(caseHtml).join("\n")}
 </body>
@@ -839,8 +972,9 @@ ${results.map(caseHtml).join("\n")}
 
 async function main() {
     fs.mkdirSync(OUT_DIR, {recursive: true});
+    const cases = buildCases();
     const results = [];
-    for (const testCase of CASES) {
+    for (const testCase of cases) {
         process.stderr.write(`analyzing ${testCase.title}\n`);
         results.push(await analyzeCase(testCase));
     }

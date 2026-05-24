@@ -215,6 +215,7 @@
 
         await maybeYield(options, 25, "Scanning image for local star peaks...", true);
         let lastYield = typeof performance === "object" && performance.now ? performance.now() : Date.now();
+        let scannedLocalPeaks = 0;
         for (let y = 2; y < height - 2; y += scanStep) {
             for (let x = 2; x < width - 2; x += scanStep) {
                 if (maskPredicate && maskPredicate(x, y)) {
@@ -224,6 +225,7 @@
                 if (value < scanThreshold || !isStrictLocalMaximum(data, width, x, y, value)) {
                     continue;
                 }
+                scannedLocalPeaks += 1;
                 const cellIndex = Math.floor(y / cellSize) * cellsX + Math.floor(x / cellSize);
                 if (value > cellPeaks[cellIndex].value) {
                     cellPeaks[cellIndex] = {value, x, y};
@@ -246,18 +248,35 @@
         const maxRadius = Number.isFinite(options.maxRadiusPx) ? options.maxRadiusPx : 3.0;
         const maxElongation = Number.isFinite(options.maxElongation) ? options.maxElongation : 2.7;
         const maxSaturated = Number.isFinite(options.maxSaturatedPixels) ? options.maxSaturatedPixels : 12;
+        const requireGlobalThreshold = options.requireGlobalThreshold === true;
+        const rejectCounts = {
+            belowScanThreshold: 0,
+            belowGlobalThreshold: 0,
+            belowLocalContrast: 0,
+            invalidCentroid: 0,
+            nonStarShape: 0,
+        };
 
         for (const peak of cellPeaks) {
             if (!Number.isFinite(peak.value) || peak.value < scanThreshold) {
+                rejectCounts.belowScanThreshold += 1;
+                continue;
+            }
+            if (requireGlobalThreshold && peak.value < globalThreshold) {
+                rejectCounts.belowGlobalThreshold += 1;
                 continue;
             }
             const annulus = localAnnulusStats(pixelData, peak.x, peak.y, annulusInner, annulusOuter, maskPredicate);
             const contrast = peak.value - annulus.background;
+            const localSnr = contrast / Math.max(1e-9, annulus.sigma);
+            const globalSnr = (peak.value - bg) / Math.max(1e-9, sigma);
             if (contrast < Math.max(5, minLocalSigma * annulus.sigma)) {
+                rejectCounts.belowLocalContrast += 1;
                 continue;
             }
             const centroid = weightedCentroid(pixelData, peak.x, peak.y, centroidRadius, annulus.background, maskPredicate);
             if (!Number.isFinite(centroid.x) || !Number.isFinite(centroid.y)) {
+                rejectCounts.invalidCentroid += 1;
                 continue;
             }
             const cx = Math.round(centroid.x);
@@ -265,6 +284,7 @@
             const shape = apertureShape(pixelData, cx, cy, apertureRadius, annulus.background, maskPredicate);
             if (!shape || shape.radius < 0.25 || shape.radius > maxRadius ||
                     shape.elongation > maxElongation || shape.saturated > maxSaturated) {
+                rejectCounts.nonStarShape += 1;
                 continue;
             }
             const compactness = contrast / Math.pow(Math.max(1, shape.radius), 2.2);
@@ -277,6 +297,8 @@
                 peakValue: peak.value,
                 peakContrast: contrast,
                 localSigma: annulus.sigma,
+                localSnr,
+                globalSnr,
                 peak: peak.value,
                 flux: shape.flux,
                 background: annulus.background,
@@ -298,9 +320,12 @@
             sigma,
             globalThreshold,
             scanThreshold,
+            scannedLocalPeaks,
+            rejectCounts,
             status: `bright-star detector: bg ${bg.toFixed(1)}, sigma ${sigma.toFixed(1)}, ` +
-                `${candidates.length} candidates, selected top ${detections.length}/${maxDetections}, ` +
-                `suppression radius ${suppressionRadius.toFixed(0)} px`,
+                `thresholds scan/global ${scanThreshold.toFixed(1)}/${globalThreshold.toFixed(1)}, ` +
+                `${scannedLocalPeaks} local peaks, ${candidates.length} star-like candidates, ` +
+                `selected top ${detections.length}/${maxDetections}, suppression radius ${suppressionRadius.toFixed(0)} px`,
         };
     }
 
