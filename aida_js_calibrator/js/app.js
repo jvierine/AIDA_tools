@@ -641,47 +641,34 @@
     }
 
     function optparArrayText(language = selectedExportLanguage()) {
-        const optpar = currentOptpar();
-        const values = optpar.map(pythonFloat);
-        if (language === "julia") {
-            return `optpar = [${values.join(", ")}]`;
-        }
-        if (language === "c") {
-            return `static const double optpar[${values.length}] = {${values.join(", ")}};`;
-        }
-        if (language === "matlab") {
-            return `optpar = [${values.join(", ")}];`;
-        }
-        return `optpar = [${values.join(", ")}]`;
+        return window.AidaExportGenerators.optparArrayText(exportContext(), language);
     }
 
     function exportFunctionText(language = selectedExportLanguage()) {
-        if (language === "julia") {
-            return juliaMapperFunctionText();
-        }
-        if (language === "c") {
-            return cMapperFunctionText();
-        }
-        if (language === "matlab") {
-            return matlabMapperFunctionText();
-        }
-        return pythonImageToAzElFunctionText();
+        return window.AidaExportGenerators.mapperCode(exportContext(), language);
+    }
+
+    function exportContext() {
+        return {
+            optpar: currentOptpar(),
+            optmod: Number(controls.optmod.value) || 2,
+            width: state.image ? state.image.width : 1920,
+            height: state.image ? state.image.height : 1080,
+        };
     }
 
     function exportHeaderComment(language, inverseIncluded = false) {
-        const optmod = Number(controls.optmod.value) || 2;
-        const width = state.image ? state.image.width : 1920;
-        const height = state.image ? state.image.height : 1080;
-        const inverseNote = inverseIncluded ?
+        const context = exportContext();
+        const note = inverseIncluded ?
             "Includes a numerical image_to_az_el inverse." :
             "Forward az_el_to_image export; invert numerically if image_to_az_el is needed.";
         if (language === "matlab") {
-            return `% AIDA browser calibrator export. optmod=${optmod}, image ${width}x${height}. ${inverseNote}\n`;
+            return `% AIDA browser calibrator export. optmod=${context.optmod}, image ${context.width}x${context.height}. ${note}\n`;
         }
         if (language === "c") {
-            return `/* AIDA browser calibrator export. optmod=${optmod}, image ${width}x${height}. ${inverseNote} */\n`;
+            return `/* AIDA browser calibrator export. optmod=${context.optmod}, image ${context.width}x${context.height}. ${note} */\n`;
         }
-        return `# AIDA browser calibrator export. optmod=${optmod}, image ${width}x${height}. ${inverseNote}\n`;
+        return `# AIDA browser calibrator export. optmod=${context.optmod}, image ${context.width}x${context.height}. ${note}\n`;
     }
 
     function pythonImageToAzElFunctionText() {
