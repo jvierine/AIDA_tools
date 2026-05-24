@@ -1487,7 +1487,12 @@ end
             );
             await yieldToBrowser();
             result = window.AidaAutoIdentifier.identifyStarsBlind(
-                visibleStarsForMatching(maxMag),
+                visibleStarsForMatching(Math.max(
+                    maxMag,
+                    Number.isFinite(options.blindOptions && options.blindOptions.ambiguityMaxMagnitude) ?
+                        options.blindOptions.ambiguityMaxMagnitude :
+                        maxMag
+                )),
                 state.detectedStars,
                 {
                     ...commonOptions,
@@ -1594,6 +1599,7 @@ end
                 minBlindMatches: 6,
                 minAsterismMatches: 4,
                 minProjectedMatches: 4,
+                seedFromBlind: true,
                 detectorOptions: {
                     thresholdSigma: 4.417,
                     localThresholdSigma: 4.417,
@@ -1609,6 +1615,12 @@ end
                     maxBlindNeighborTriangles: 8,
                     blindEarlyAcceptMatches: 12,
                     maxBlindCandidateRotations: 12000,
+                    rejectAmbiguousBlindMatches: true,
+                    blindAmbiguityRadiusDeg: 1.0,
+                    blindAmbiguityDistanceSlackDeg: 0.35,
+                    blindPixelAmbiguityRadiusPx: 18,
+                    blindPixelAmbiguityDistanceSlackPx: 8,
+                    ambiguityMaxMagnitude: 6.0,
                 },
                 maxAddDistancePx: 0.8,
                 maxMedianDistance: 0.42,
@@ -1639,7 +1651,8 @@ end
                     maxDistancePx: 34,
                     translationSearchRadiusPx: 90,
                     rejectAmbiguousMatches: true,
-                    ambiguityRadiusPx: 8,
+                    ambiguityRadiusPx: 18,
+                    ambiguityDistanceSlackPx: 16,
                 },
                 maxAddDistancePx: 8,
                 methodLabel: "auto star finder alignment fallback",
@@ -1664,7 +1677,8 @@ end
                     maxDistancePx: 24,
                     translationSearchRadiusPx: 55,
                     rejectAmbiguousMatches: true,
-                    ambiguityRadiusPx: 8,
+                    ambiguityRadiusPx: 18,
+                    ambiguityDistanceSlackPx: 16,
                 },
                 maxAddDistancePx: 8,
                 methodLabel: "auto star finder deeper projection",
@@ -1698,6 +1712,9 @@ end
                 maxAdditions: remaining,
                 reuseExistingMatchesForTransform: true,
             });
+            if (stage.seedFromBlind && pass.added > 0 && pass.result && pass.result.rotation) {
+                seedCurrentModelFromBlindIdentification(pass.result);
+            }
             totalAdded += pass.added;
             totalDetections = Math.max(totalDetections, pass.detections);
             lastResult = pass.result;
@@ -4638,10 +4655,22 @@ end
                 },
                 blindOptions: {
                     maxDetections: 50,
-                    maxCatalogStars: 70,
+                    maxCatalogStars: 220,
+                    maxCatalogTriangleStars: 220,
+                    maxCatalogTriangles: 30000,
+                    maxCatalogLocalNeighbors: 20,
+                    maxBlindNeighborTriangles: 8,
                     blindEarlyAcceptMatches: 12,
-                    maxBlindCandidateRotations: 4500,
+                    maxBlindCandidateRotations: 12000,
+                    rejectAmbiguousBlindMatches: true,
+                    blindAmbiguityRadiusDeg: 1.0,
+                    blindAmbiguityDistanceSlackDeg: 0.35,
+                    blindPixelAmbiguityRadiusPx: 18,
+                    blindPixelAmbiguityDistanceSlackPx: 8,
+                    ambiguityMaxMagnitude: 6.0,
                 },
+                maxAddDistancePx: 0.8,
+                maxMedianDistance: 0.42,
             },
             {
                 maxDetections: 90,
@@ -4660,7 +4689,11 @@ end
                     maxCatalogStars: 130,
                     maxDistancePx: 34,
                     translationSearchRadiusPx: 90,
+                    rejectAmbiguousMatches: true,
+                    ambiguityRadiusPx: 18,
+                    ambiguityDistanceSlackPx: 16,
                 },
+                maxAddDistancePx: 8,
             },
             {
                 maxDetections: 120,
@@ -4679,7 +4712,11 @@ end
                     maxCatalogStars: 180,
                     maxDistancePx: 24,
                     translationSearchRadiusPx: 55,
+                    rejectAmbiguousMatches: true,
+                    ambiguityRadiusPx: 18,
+                    ambiguityDistanceSlackPx: 16,
                 },
+                maxAddDistancePx: 8,
             },
             {
                 maxDetections: 150,
@@ -4699,7 +4736,11 @@ end
                     maxDistancePx: 18,
                     translationSearchRadiusPx: 35,
                     minMatches: 6,
+                    rejectAmbiguousMatches: true,
+                    ambiguityRadiusPx: 18,
+                    ambiguityDistanceSlackPx: 16,
                 },
+                maxAddDistancePx: 6,
             },
         ];
 

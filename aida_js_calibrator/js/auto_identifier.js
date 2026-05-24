@@ -612,9 +612,12 @@
         const candidates = [];
         const maxTest = Number.isFinite(options.maxBlindVerifyDetections) ? options.maxBlindVerifyDetections : 55;
         const dets = detections.slice(0, maxTest);
+        const verificationCatalog = Array.isArray(options.ambiguityCatalog) && options.ambiguityCatalog.length ?
+            catalog.concat(options.ambiguityCatalog) :
+            catalog;
         for (const detection of dets) {
             const transformed = applyRot3(rot, detection.vector);
-            for (const star of catalog) {
+            for (const star of verificationCatalog) {
                 const similarity = dot3(transformed, star.vector);
                 if (similarity < cosRadius) {
                     continue;
@@ -635,13 +638,39 @@
         }
         candidates.sort((a, b) => a.cost - b.cost || a.angularDistanceRad - b.angularDistanceRad);
 
+        const rejectAmbiguous = options.rejectAmbiguousBlindMatches === true;
+        const ambiguityRadiusRad = (Number.isFinite(options.blindAmbiguityRadiusDeg) ?
+            options.blindAmbiguityRadiusDeg : 1.0) * Math.PI / 180;
+        const ambiguityCostSlack = Number.isFinite(options.blindAmbiguityCostSlack) ?
+            options.blindAmbiguityCostSlack : 0.55;
+        const ambiguityDistanceSlackRad = (Number.isFinite(options.blindAmbiguityDistanceSlackDeg) ?
+            options.blindAmbiguityDistanceSlackDeg : 0.35) * Math.PI / 180;
+        const isAmbiguous = candidate => rejectAmbiguous && candidates.some(other =>
+            other !== candidate &&
+            other.detection.id === candidate.detection.id &&
+            other.star.key !== candidate.star.key &&
+            other.angularDistanceRad <= ambiguityRadiusRad &&
+            (
+                other.cost <= candidate.cost + ambiguityCostSlack ||
+                other.angularDistanceRad <= candidate.angularDistanceRad + ambiguityDistanceSlackRad
+            )
+        );
+
         let conflicts = 0;
         for (const candidate of candidates) {
+            if (candidate.star.ambiguityOnly) {
+                continue;
+            }
             if (usedStars.has(candidate.star.key)) {
                 conflicts += 1;
                 continue;
             }
             if (usedDetections.has(candidate.detection.id)) {
+                conflicts += 1;
+                continue;
+            }
+            if (isAmbiguous(candidate)) {
+                usedDetections.add(candidate.detection.id);
                 conflicts += 1;
                 continue;
             }
@@ -768,7 +797,10 @@
         const maxDistancePx = Number.isFinite(options.blindPixelMatchRadiusPx) ?
             options.blindPixelMatchRadiusPx : 70;
         const projected = [];
-        for (const star of catalog) {
+        const projectionCatalog = Array.isArray(options.ambiguityCatalog) && options.ambiguityCatalog.length ?
+            catalog.concat(options.ambiguityCatalog) :
+            catalog;
+        for (const star of projectionCatalog) {
             const xy = projectBlindCatalogStar(star, candidate.rotation, {
                 ...options,
                 f1: candidate.f1,
@@ -795,11 +827,35 @@
             }
         }
         pairs.sort((a, b) => a.cost - b.cost || a.distancePx - b.distancePx);
+        const rejectAmbiguous = options.rejectAmbiguousBlindMatches === true;
+        const ambiguityRadiusPx = Number.isFinite(options.blindPixelAmbiguityRadiusPx) ?
+            options.blindPixelAmbiguityRadiusPx : Math.min(maxDistancePx, 18);
+        const ambiguityCostSlack = Number.isFinite(options.blindPixelAmbiguityCostSlack) ?
+            options.blindPixelAmbiguityCostSlack : 0.45;
+        const ambiguityDistanceSlackPx = Number.isFinite(options.blindPixelAmbiguityDistanceSlackPx) ?
+            options.blindPixelAmbiguityDistanceSlackPx : 8;
+        const isAmbiguous = pair => rejectAmbiguous && pairs.some(other =>
+            other !== pair &&
+            other.detection.id === pair.detection.id &&
+            other.star.key !== pair.star.key &&
+            other.distancePx <= ambiguityRadiusPx &&
+            (
+                other.cost <= pair.cost + ambiguityCostSlack ||
+                other.distancePx <= pair.distancePx + ambiguityDistanceSlackPx
+            )
+        );
         const usedStars = new Set();
         const usedDetections = new Set();
         const matches = [];
         for (const pair of pairs) {
+            if (pair.star.ambiguityOnly) {
+                continue;
+            }
             if (usedStars.has(pair.star.key) || usedDetections.has(pair.detection.id)) {
+                continue;
+            }
+            if (isAmbiguous(pair)) {
+                usedDetections.add(pair.detection.id);
                 continue;
             }
             usedStars.add(pair.star.key);
@@ -1187,12 +1243,17 @@
             options.ambiguityRadiusPx : Math.min(radius, 8);
         const ambiguityScoreSlack = Number.isFinite(options.ambiguityScoreSlack) ?
             options.ambiguityScoreSlack : 1.5;
+        const ambiguityDistanceSlack = Number.isFinite(options.ambiguityDistanceSlackPx) ?
+            options.ambiguityDistanceSlackPx : 8;
         const isAmbiguous = candidate => rejectAmbiguous && candidates.some(other =>
             other !== candidate &&
             other.detection.id === candidate.detection.id &&
             other.star.key !== candidate.star.key &&
             other.distance <= ambiguityRadius &&
-            other.score <= candidate.score + ambiguityScoreSlack
+            (
+                other.score <= candidate.score + ambiguityScoreSlack ||
+                other.distance <= candidate.distance + ambiguityDistanceSlack
+            )
         );
 
         const usedStars = new Set();
@@ -1421,6 +1482,29 @@
             .sort((a, b) => a.mag - b.mag || a.key.localeCompare(b.key))
             .slice(0, Number.isFinite(options.maxCatalogStars) ? options.maxCatalogStars : 220)
             .map((star, index) => ({...star, rank: index + 1}));
+        const catalogKeys = new Set(catalog.map(star => star.key));
+        const ambiguityMagnitude = Number.isFinite(options.ambiguityMaxMagnitude) ?
+            Math.max(maxMagnitude, options.ambiguityMaxMagnitude) :
+            maxMagnitude;
+        const ambiguityCatalog = ambiguityMagnitude > maxMagnitude ?
+            catalogStars
+                .filter((star, index) =>
+                    Number.isFinite(star.az) && Number.isFinite(star.ze) &&
+                    Number.isFinite(star.mag) && star.mag <= ambiguityMagnitude &&
+                    !setHas(options.existingCatalogKeys, starKey(star, index))
+                )
+                .map((star, index) => ({
+                    ...star,
+                    key: starKey(star, index),
+                    vector: skyVector(star),
+                    rank: index + 1,
+                    ambiguityOnly: !catalogKeys.has(starKey(star, index)),
+                }))
+                .filter(star => star.vector && !catalogKeys.has(star.key))
+                .sort((a, b) => a.mag - b.mag || a.key.localeCompare(b.key))
+                .slice(0, Number.isFinite(options.maxAmbiguityCatalogStars) ?
+                    options.maxAmbiguityCatalogStars : 260) :
+            [];
         const normalizedDetections = normalizeDetections(detections, {
             ...options,
             maxDetections: Number.isFinite(options.maxDetections) ? options.maxDetections : 80,
@@ -1544,7 +1628,10 @@
                                         continue;
                                     }
                                     seen.add(key);
-                                    let candidate = scoreBlindRotation(catalog, vectorDetections, rot, options);
+                                    let candidate = scoreBlindRotation(catalog, vectorDetections, rot, {
+                                        ...options,
+                                        ambiguityCatalog,
+                                    });
                                     const seedMedian = candidate.matches.length ?
                                         median(candidate.matches.map(match => match.distance)) : Infinity;
                                     if (candidate.matches.length >= 5 && seedMedian <= 1.6) {
@@ -1617,8 +1704,14 @@
                 preflattenCount,
             };
         }
-        best = refineBlindPreflatten(catalog, normalizedDetections, best, options);
-        best = expandBlindPixelMatches(catalog, best.vectorDetections || normalizedDetections, best, options);
+        best = refineBlindPreflatten(catalog, normalizedDetections, best, {
+            ...options,
+            ambiguityCatalog,
+        });
+        best = expandBlindPixelMatches(catalog, best.vectorDetections || normalizedDetections, best, {
+            ...options,
+            ambiguityCatalog,
+        });
         const minMatches = Number.isFinite(options.minMatches) ? options.minMatches : 6;
         const medianDistance = best.matches.length ? median(best.matches.map(match => match.distance)) : Infinity;
         const status = best.matches.length >= minMatches ?

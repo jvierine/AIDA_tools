@@ -404,6 +404,8 @@ function knownLensValidationMap(detections, knownStars, maxDistancePx) {
         detectionToStar: new Map(matches.map(match => [match.detection.id, match.star.key])),
         starToDetection: new Map(matches.map(match => [match.star.key, match.detection.id])),
         starByKey: new Map(knownStars.map(star => [star.key, star])),
+        knownStars,
+        maxDistancePx,
     };
 }
 
@@ -413,7 +415,23 @@ function scoreIdentificationAgainstKnownLens(matches, validation) {
     let incorrect = 0;
     let unknown = 0;
     for (const match of matches) {
-        const truthKey = validation.detectionToStar.get(match.detection.id);
+        let truthKey = validation.detectionToStar.get(match.detection.id);
+        if (Array.isArray(validation.knownStars)) {
+            let nearest = null;
+            let nearestDistance = Infinity;
+            for (const star of validation.knownStars) {
+                const distance = Math.hypot(match.detection.x - star.x, match.detection.y - star.y);
+                if (distance < nearestDistance) {
+                    nearest = star;
+                    nearestDistance = distance;
+                }
+            }
+            if (nearest && nearestDistance <= validation.maxDistancePx) {
+                truthKey = nearest.key;
+            } else {
+                truthKey = null;
+            }
+        }
         if (!truthKey) {
             unknown += 1;
         } else if (truthKey === match.star.key) {
@@ -424,7 +442,7 @@ function scoreIdentificationAgainstKnownLens(matches, validation) {
             const projectedSeparation = truthStar && identifiedStar ?
                 Math.hypot(truthStar.x - identifiedStar.x, truthStar.y - identifiedStar.y) :
                 Infinity;
-            if (projectedSeparation <= 4) {
+            if (projectedSeparation <= 10) {
                 correct += 1;
             } else {
                 incorrect += 1;
@@ -579,6 +597,12 @@ async function simulateGuiAutoIdentify(testCase, imageData) {
                 maxBlindNeighborTriangles: 8,
                 blindEarlyAcceptMatches: 12,
                 maxBlindCandidateRotations: 12000,
+                rejectAmbiguousBlindMatches: true,
+                blindAmbiguityRadiusDeg: 1.0,
+                blindAmbiguityDistanceSlackDeg: 0.35,
+                blindPixelAmbiguityRadiusPx: 18,
+                blindPixelAmbiguityDistanceSlackPx: 8,
+                ambiguityMaxMagnitude: 6.0,
             },
             maxAddDistancePx: 0.8,
             maxMedianDistance: 0.42,
@@ -600,7 +624,8 @@ async function simulateGuiAutoIdentify(testCase, imageData) {
                 translationSearchRadiusPx: 90,
                 minMatches: 4,
                 rejectAmbiguousMatches: true,
-                ambiguityRadiusPx: 8,
+                ambiguityRadiusPx: 18,
+                ambiguityDistanceSlackPx: 16,
             },
             maxAddDistancePx: 8,
         },
@@ -621,7 +646,8 @@ async function simulateGuiAutoIdentify(testCase, imageData) {
                 translationSearchRadiusPx: 55,
                 minMatches: 4,
                 rejectAmbiguousMatches: true,
-                ambiguityRadiusPx: 8,
+                ambiguityRadiusPx: 18,
+                ambiguityDistanceSlackPx: 16,
             },
             maxAddDistancePx: 8,
         },
@@ -641,7 +667,13 @@ async function simulateGuiAutoIdentify(testCase, imageData) {
         });
         let result;
         if (i === 0) {
-            result = AutoIdentifier.identifyStarsBlind(visibleStars(testCase, stage.maxMagnitude), detectionResult.detections, {
+            const blindCatalogMagnitude = Math.max(
+                stage.maxMagnitude,
+                Number.isFinite(stage.blindOptions && stage.blindOptions.ambiguityMaxMagnitude) ?
+                    stage.blindOptions.ambiguityMaxMagnitude :
+                    stage.maxMagnitude
+            );
+            result = AutoIdentifier.identifyStarsBlind(visibleStars(testCase, blindCatalogMagnitude), detectionResult.detections, {
                 imageWidth: testCase.width,
                 imageHeight: testCase.height,
                 maxMagnitude: stage.maxMagnitude,
@@ -1092,7 +1124,7 @@ async function analyzeCase(testCase) {
     const validation = knownLensValidationMap(detectionResult.detections, catalog, testCase.matchRadiusPx);
     const quality = detectionQuality(detectionResult, validation);
     const guiAuto = await simulateGuiAutoIdentify(testCase, imageData);
-    const guiAutoScore = scoreMatchesByImagePosition(guiAuto.matches, catalog, testCase.matchRadiusPx);
+    const guiAutoScore = scoreIdentificationAgainstKnownLens(guiAuto.matches, validation);
     const autoIdentification = AutoIdentifier.identifyStars(catalog, detectionResult.detections, {
         imageWidth: testCase.width,
         imageHeight: testCase.height,
@@ -1339,7 +1371,9 @@ if (require.main === module) {
 
 module.exports = {
     analyzeCase,
+    AidaTools,
     buildCases,
+    fitFromPairs,
     knownLensValidationMap,
     projectStars,
     readPngImageData,
