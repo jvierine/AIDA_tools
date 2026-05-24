@@ -319,6 +319,38 @@ function matchDetectionsToKnownStars(detections, knownStars, maxDistancePx = 18)
     return matches;
 }
 
+function knownLensValidationMap(detections, knownStars, maxDistancePx = 18) {
+    const matches = matchDetectionsToKnownStars(detections, knownStars, maxDistancePx);
+    return {
+        matches,
+        detectionToStar: new Map(matches.map(match => [match.detection.id, match.star.key])),
+        starToDetection: new Map(matches.map(match => [match.star.key, match.detection.id])),
+    };
+}
+
+function scoreIdentificationAgainstKnownLens(matches, validation) {
+    const wrong = [];
+    let correct = 0;
+    let incorrect = 0;
+    let unknown = 0;
+    for (const match of matches) {
+        const truthKey = validation.detectionToStar.get(match.detection.id);
+        if (!truthKey) {
+            unknown += 1;
+        } else if (truthKey === match.star.key) {
+            correct += 1;
+        } else {
+            incorrect += 1;
+            wrong.push({
+                detectionId: match.detection.id,
+                identified: match.star.key,
+                truth: truthKey,
+            });
+        }
+    }
+    return {total: matches.length, correct, incorrect, unknown, wrong};
+}
+
 function solveLinearSystem(a, b) {
     const n = b.length;
     const m = a.map((row, i) => row.slice().concat([b[i]]));
@@ -873,6 +905,100 @@ test("automatic star finder detects real bright stars without catalogue matching
     }
 });
 
+test("known lens model maps Yale catalogue stars to image detections for auto-ID validation", async () => {
+    const cases = [
+        {
+            name: "010095",
+            image: REAL_CASE_IMAGE,
+            realCase: REAL_CASE,
+            maxMag: 4.0,
+            matchRadiusPx: 18,
+            detectorOptions: {maxDetections: 50},
+            minTruthMatches: 18,
+            minCorrect: 20,
+            maxIncorrect: 1,
+            maxUnknown: 0,
+        },
+        {
+            name: "012165 high-pass",
+            image: REAL_CASE_012165_IMAGE,
+            realCase: REAL_CASE_012165,
+            maxMag: 4.0,
+            matchRadiusPx: 18,
+            detectorOptions: {maxDetections: 50},
+            minTruthMatches: 16,
+            minCorrect: 16,
+            maxIncorrect: 0,
+            maxUnknown: 0,
+        },
+        {
+            name: "IMG_9371 Brown-Conrady",
+            image: REAL_CASE_IMG_9371_IMAGE,
+            realCase: REAL_CASE_IMG_9371,
+            maxMag: 7.0,
+            matchRadiusPx: 18,
+            detectorOptions: {
+                maxDetections: 120,
+                thresholdSigma: 2,
+                localThresholdSigma: 2,
+                maxRadiusPx: 4,
+                maxElongation: 3.5,
+            },
+            minTruthMatches: 14,
+            minCorrect: 14,
+            maxIncorrect: 0,
+            maxUnknown: 0,
+        },
+    ];
+
+    for (const testCase of cases) {
+        const imageData = readPngImageData(testCase.image);
+        const detectionResult = await StarDetector.detectBrightStars(imageData, testCase.detectorOptions);
+        const knownStars = projectedRealCaseStars(
+            testCase.realCase.optpar,
+            testCase.maxMag,
+            testCase.realCase,
+        );
+        const validation = knownLensValidationMap(
+            detectionResult.detections,
+            knownStars,
+            testCase.matchRadiusPx,
+        );
+        assert.ok(
+            validation.matches.length >= testCase.minTruthMatches,
+            `${testCase.name}: expected the known lens model to map at least ` +
+                `${testCase.minTruthMatches} Yale stars to image detections, got ` +
+                `${validation.matches.length}; ${detectionResult.status}`,
+        );
+
+        const identification = AutoIdentifier.identifyStars(knownStars, detectionResult.detections, {
+            imageWidth: testCase.realCase.width,
+            imageHeight: testCase.realCase.height,
+            maxMagnitude: testCase.maxMag,
+            maxDetections: testCase.detectorOptions.maxDetections,
+            maxCatalogStars: 200,
+            maxDistancePx: testCase.matchRadiusPx,
+            translationSearchRadiusPx: 25,
+            minMatches: 8,
+        });
+        const score = scoreIdentificationAgainstKnownLens(identification.matches, validation);
+        const report = `${score.correct}/${score.total} correct, ${score.incorrect} incorrect, ` +
+            `${score.unknown} unknown; ${identification.status}`;
+        assert.ok(
+            score.correct >= testCase.minCorrect,
+            `${testCase.name}: expected at least ${testCase.minCorrect} correct known-lens-validated IDs; ${report}`,
+        );
+        assert.ok(
+            score.incorrect <= testCase.maxIncorrect,
+            `${testCase.name}: expected at most ${testCase.maxIncorrect} incorrect IDs; ${report}`,
+        );
+        assert.ok(
+            score.unknown <= testCase.maxUnknown,
+            `${testCase.name}: expected at most ${testCase.maxUnknown} IDs outside the known-lens truth map; ${report}`,
+        );
+    }
+});
+
 test("optmod 2 lens fitting works from automatically found real stars", async () => {
     const cases = [
         {
@@ -1084,24 +1210,10 @@ test("blind spherical matcher identifies 010095 stars from image-load initial le
     const detectionResult = await StarDetector.detectBrightStars(imageData, {maxDetections: 50});
     const knownStars = projectedRealCaseStars(REAL_CASE.optpar, 4.0);
     const knownByKey = new Map(knownStars.map(star => [star.key, star]));
-    const truthByDetection = new Map();
-    for (const detection of detectionResult.detections) {
-        let best = null;
-        let bestDistance = Infinity;
-        for (const star of knownStars) {
-            const distance = Math.hypot(detection.x - star.x, detection.y - star.y);
-            if (distance < bestDistance) {
-                best = star;
-                bestDistance = distance;
-            }
-        }
-        if (best && bestDistance <= 18) {
-            truthByDetection.set(detection.id, best.key);
-        }
-    }
+    const validation = knownLensValidationMap(detectionResult.detections, knownStars, 18);
     assert.ok(
-        truthByDetection.size >= 18,
-        `expected at least 18 real bright-star detections, got ${truthByDetection.size}; ${detectionResult.status}`,
+        validation.matches.length >= 18,
+        `expected at least 18 real bright-star detections, got ${validation.matches.length}; ${detectionResult.status}`,
     );
     const result = AutoIdentifier.identifyStarsBlind(
         visibleRealCaseStars(4.0),
@@ -1116,7 +1228,7 @@ test("blind spherical matcher identifies 010095 stars from image-load initial le
         },
     );
     const correct = result.matches.filter(match => {
-        if (truthByDetection.get(match.detection.id) === match.star.key) {
+        if (validation.detectionToStar.get(match.detection.id) === match.star.key) {
             return true;
         }
         const known = knownByKey.get(match.star.key);

@@ -6,6 +6,7 @@ const path = require("node:path");
 const vm = require("node:vm");
 const zlib = require("node:zlib");
 
+const AutoIdentifier = require("../js/auto_identifier.js");
 const StarDetector = require("../js/star_detector.js");
 
 const ROOT = path.join(__dirname, "..");
@@ -255,6 +256,34 @@ function matchDetectionsToKnownStars(detections, knownStars, maxDistancePx) {
         matches.push(pair);
     }
     return matches;
+}
+
+function knownLensValidationMap(detections, knownStars, maxDistancePx) {
+    const matches = matchDetectionsToKnownStars(detections, knownStars, maxDistancePx);
+    return {
+        matches,
+        detectionToStar: new Map(matches.map(match => [match.detection.id, match.star.key])),
+        starToDetection: new Map(matches.map(match => [match.star.key, match.detection.id])),
+    };
+}
+
+function scoreIdentificationAgainstKnownLens(matches, validation) {
+    const wrong = [];
+    let correct = 0;
+    let incorrect = 0;
+    let unknown = 0;
+    for (const match of matches) {
+        const truthKey = validation.detectionToStar.get(match.detection.id);
+        if (!truthKey) {
+            unknown += 1;
+        } else if (truthKey === match.star.key) {
+            correct += 1;
+        } else {
+            incorrect += 1;
+            wrong.push({match, truth: truthKey});
+        }
+    }
+    return {total: matches.length, correct, incorrect, unknown, wrong};
 }
 
 function solveLinearSystem(a, b) {
@@ -524,7 +553,19 @@ async function analyzeCase(testCase) {
     }
     const detectionResult = await StarDetector.detectBrightStars(imageData, testCase.detectorOptions);
     const catalog = projectStars(testCase, testCase.optpar, testCase.maxMag);
-    const matches = matchDetectionsToKnownStars(detectionResult.detections, catalog, testCase.matchRadiusPx)
+    const validation = knownLensValidationMap(detectionResult.detections, catalog, testCase.matchRadiusPx);
+    const autoIdentification = AutoIdentifier.identifyStars(catalog, detectionResult.detections, {
+        imageWidth: testCase.width,
+        imageHeight: testCase.height,
+        maxMagnitude: testCase.maxMag,
+        maxDetections: testCase.detectorOptions.maxDetections,
+        maxCatalogStars: 200,
+        maxDistancePx: testCase.matchRadiusPx,
+        translationSearchRadiusPx: 25,
+        minMatches: 8,
+    });
+    const identificationScore = scoreIdentificationAgainstKnownLens(autoIdentification.matches, validation);
+    const matches = validation.matches
         .sort((a, b) => a.star.mag - b.star.mag || a.distance - b.distance);
     const start = perturbedStart(testCase);
     const sweep = [];
@@ -543,6 +584,9 @@ async function analyzeCase(testCase) {
         catalog,
         fittedCatalog: projectStars(testCase, fit.optpar, testCase.maxMag),
         matches: matches.slice(0, fit.residuals ? fit.residuals.length / 2 : matches.length),
+        validation,
+        autoIdentification,
+        identificationScore,
         sweep,
         fit,
         startRms: residualRmsPx(fitResiduals(start, matches.slice(0, Math.min(matches.length, testCase.sweepCounts.at(-1))), testCase, false)),
@@ -555,6 +599,9 @@ function caseHtml(result) {
         .map(item => `${item.count}: ${item.rms.toFixed(2)} px (${item.accepted} accepted)`)
         .join(" / ");
     const model = c.optmod === 20 ? "Brown-Conrady" : `optmod ${c.optmod}`;
+    const score = result.identificationScore;
+    const autoIdStatus = `known-lens validation: ${score.correct}/${score.total} auto-ID pairs correct, ` +
+        `${score.incorrect} wrong, ${score.unknown} outside truth map`;
     return `<section class="case-card" id="${escapeHtml(c.id)}">
         <h2>${escapeHtml(c.title)}</h2>
         <div class="meta">
@@ -563,10 +610,14 @@ function caseHtml(result) {
             <span>lat ${c.latDeg.toFixed(6)}, lon ${c.lonDeg.toFixed(6)}, alt ${(c.altM || 0).toFixed(1)} m</span>
         </div>
         <p class="status">${escapeHtml(result.detectionStatus)}</p>
+        <p class="status">${escapeHtml(result.autoIdentification.status)}</p>
+        <p class="status">${escapeHtml(autoIdStatus)}</p>
         <div class="summary-grid">
             <div><strong>${result.detections.length}</strong><span>detections</span></div>
             <div><strong>${result.catalog.length}</strong><span>catalog stars</span></div>
-            <div><strong>${result.matches.length}</strong><span>matched stars</span></div>
+            <div><strong>${result.validation.matches.length}</strong><span>known-lens truth pairs</span></div>
+            <div><strong>${score.correct}</strong><span>validated auto-ID pairs</span></div>
+            <div><strong>${score.incorrect}</strong><span>wrong auto-ID pairs</span></div>
             <div><strong>${result.fit.rms.toFixed(2)} px</strong><span>fit RMS</span></div>
         </div>
         <p class="sweep"><strong>fit sweep:</strong> ${escapeHtml(sweepText || "not enough pairs")}</p>
@@ -578,7 +629,7 @@ function caseHtml(result) {
             <div class="plot-panel">
                 ${residualPlotSvg(result)}
                 <ul class="legend">
-                    <li><span class="swatch matched"></span> matched automatic detections</li>
+                    <li><span class="swatch matched"></span> known-lens truth-map detections</li>
                     <li><span class="swatch fit"></span> fitted model positions</li>
                     <li><span class="swatch catalog"></span> other catalogue stars under fitted model</li>
                     <li><span class="swatch detected"></span> raw automatic detections</li>
@@ -606,7 +657,7 @@ h2 { margin: 0 0 8px; font-size: 20px; }
 .meta { display: flex; flex-wrap: wrap; gap: 10px; color: #aeb8c8; margin-bottom: 10px; }
 .meta span { padding: 3px 8px; border: 1px solid #3b4657; border-radius: 999px; }
 .status, .sweep { color: #b9c4d4; }
-.summary-grid { display: grid; grid-template-columns: repeat(4, minmax(120px, 1fr)); gap: 10px; margin: 14px 0; }
+.summary-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(145px, 1fr)); gap: 10px; margin: 14px 0; }
 .summary-grid div { padding: 10px; background: #202633; border: 1px solid #394457; border-radius: 6px; }
 .summary-grid strong { display: block; font-size: 20px; color: #ffffff; }
 .summary-grid span { color: #98a6ba; }
@@ -639,7 +690,7 @@ h2 { margin: 0 0 8px; font-size: 20px; }
 <body>
 <header>
 <h1>AIDA Calibrator Star-Fit Test Report</h1>
-<p class="intro">Generated ${escapeHtml(generated)}. The report uses the same real-image fixtures as the unit tests. Green circles are automatically detected and matched stars, cyan circles are fitted lens-model positions, red circles are unmatched catalogue stars under the fitted model, and yellow dots are raw automatic detections. Brown-Conrady cases use light coefficient regularization.</p>
+<p class="intro">Generated ${escapeHtml(generated)}. The report uses the same real-image fixtures as the unit tests. A known-good lens model first creates a truth map between Yale catalogue stars and image detections; the automatic star-identification result is then scored against that map. Green circles are detected truth-map stars used for fitting, cyan circles are fitted lens-model positions, red circles are unmatched catalogue stars under the fitted model, and yellow dots are raw automatic detections. Brown-Conrady cases use light coefficient regularization.</p>
 </header>
 ${results.map(caseHtml).join("\n")}
 </body>

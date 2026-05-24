@@ -14,7 +14,7 @@ h2 { margin: 0 0 8px; font-size: 20px; }
 .meta { display: flex; flex-wrap: wrap; gap: 10px; color: #aeb8c8; margin-bottom: 10px; }
 .meta span { padding: 3px 8px; border: 1px solid #3b4657; border-radius: 999px; }
 .status, .sweep { color: #b9c4d4; }
-.summary-grid { display: grid; grid-template-columns: repeat(4, minmax(120px, 1fr)); gap: 10px; margin: 14px 0; }
+.summary-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(145px, 1fr)); gap: 10px; margin: 14px 0; }
 .summary-grid div { padding: 10px; background: #202633; border: 1px solid #394457; border-radius: 6px; }
 .summary-grid strong { display: block; font-size: 20px; color: #ffffff; }
 .summary-grid span { color: #98a6ba; }
@@ -47,7 +47,7 @@ h2 { margin: 0 0 8px; font-size: 20px; }
 <body>
 <header>
 <h1>AIDA Calibrator Star-Fit Test Report</h1>
-<p class="intro">Generated 2026-05-24T13:16:20.833Z. The report uses the same real-image fixtures as the unit tests. Green circles are automatically detected and matched stars, cyan circles are fitted lens-model positions, red circles are unmatched catalogue stars under the fitted model, and yellow dots are raw automatic detections. Brown-Conrady cases use light coefficient regularization.</p>
+<p class="intro">Generated 2026-05-24T13:25:35.166Z. The report uses the same real-image fixtures as the unit tests. A known-good lens model first creates a truth map between Yale catalogue stars and image detections; the automatic star-identification result is then scored against that map. Green circles are detected truth-map stars used for fitting, cyan circles are fitted lens-model positions, red circles are unmatched catalogue stars under the fitted model, and yellow dots are raw automatic detections. Brown-Conrady cases use light coefficient regularization.</p>
 </header>
 <section class="case-card" id="010095-optmod2">
         <h2>010095 optmod 2</h2>
@@ -57,10 +57,14 @@ h2 { margin: 0 0 8px; font-size: 20px; }
             <span>lat 52.495090, lon 12.630850, alt 0.0 m</span>
         </div>
         <p class="status">bright-star detector: bg 41.0, sigma 17.9, 1458 candidates, selected top 50/50, suppression radius 22 px</p>
+        <p class="status">auto-identify: 22 star pairs, median residual 0.4 px, translation dx/dy -0.3/-0.2 px</p>
+        <p class="status">known-lens validation: 21/22 auto-ID pairs correct, 1 wrong, 0 outside truth map</p>
         <div class="summary-grid">
             <div><strong>50</strong><span>detections</span></div>
             <div><strong>41</strong><span>catalog stars</span></div>
-            <div><strong>18</strong><span>matched stars</span></div>
+            <div><strong>22</strong><span>known-lens truth pairs</span></div>
+            <div><strong>21</strong><span>validated auto-ID pairs</span></div>
+            <div><strong>1</strong><span>wrong auto-ID pairs</span></div>
             <div><strong>0.45 px</strong><span>fit RMS</span></div>
         </div>
         <p class="sweep"><strong>fit sweep:</strong> 8: 0.28 px (10 accepted) / 10: 0.27 px (11 accepted) / 12: 0.48 px (6 accepted) / 14: 0.47 px (7 accepted) / 16: 0.46 px (10 accepted) / 18: 0.45 px (9 accepted)</p>
@@ -224,7 +228,7 @@ h2 { margin: 0 0 8px; font-size: 20px; }
         <text class="plot-title" x="210" y="24" text-anchor="middle">Residuals +/-5 px</text>
     </svg>
                 <ul class="legend">
-                    <li><span class="swatch matched"></span> matched automatic detections</li>
+                    <li><span class="swatch matched"></span> known-lens truth-map detections</li>
                     <li><span class="swatch fit"></span> fitted model positions</li>
                     <li><span class="swatch catalog"></span> other catalogue stars under fitted model</li>
                     <li><span class="swatch detected"></span> raw automatic detections</li>
@@ -240,10 +244,14 @@ h2 { margin: 0 0 8px; font-size: 20px; }
             <span>lat 51.463056, lon 7.221944, alt 0.0 m</span>
         </div>
         <p class="status">bright-star detector: bg 71.3, sigma 27.6, 993 candidates, selected top 50/50, suppression radius 22 px</p>
+        <p class="status">auto-identify: 18 star pairs, median residual 0.4 px, translation dx/dy 0.3/-0.0 px</p>
+        <p class="status">known-lens validation: 18/18 auto-ID pairs correct, 0 wrong, 0 outside truth map</p>
         <div class="summary-grid">
             <div><strong>50</strong><span>detections</span></div>
             <div><strong>43</strong><span>catalog stars</span></div>
-            <div><strong>18</strong><span>matched stars</span></div>
+            <div><strong>18</strong><span>known-lens truth pairs</span></div>
+            <div><strong>18</strong><span>validated auto-ID pairs</span></div>
+            <div><strong>0</strong><span>wrong auto-ID pairs</span></div>
             <div><strong>0.43 px</strong><span>fit RMS</span></div>
         </div>
         <p class="sweep"><strong>fit sweep:</strong> 8: 0.19 px (10 accepted) / 10: 0.43 px (8 accepted) / 12: 0.42 px (12 accepted) / 14: 0.43 px (8 accepted) / 16: 0.41 px (8 accepted) / 18: 0.43 px (9 accepted)</p>
@@ -409,7 +417,7 @@ h2 { margin: 0 0 8px; font-size: 20px; }
         <text class="plot-title" x="210" y="24" text-anchor="middle">Residuals +/-5 px</text>
     </svg>
                 <ul class="legend">
-                    <li><span class="swatch matched"></span> matched automatic detections</li>
+                    <li><span class="swatch matched"></span> known-lens truth-map detections</li>
                     <li><span class="swatch fit"></span> fitted model positions</li>
                     <li><span class="swatch catalog"></span> other catalogue stars under fitted model</li>
                     <li><span class="swatch detected"></span> raw automatic detections</li>
@@ -425,10 +433,14 @@ h2 { margin: 0 0 8px; font-size: 20px; }
             <span>lat 51.463056, lon 7.221944, alt 0.0 m</span>
         </div>
         <p class="status">bright-star detector: bg 71.3, sigma 27.6, 993 candidates, selected top 80/80, suppression radius 22 px</p>
+        <p class="status">auto-identify: 13 star pairs, median residual 12.5 px, translation dx/dy 20.1/-7.8 px</p>
+        <p class="status">known-lens validation: 4/13 auto-ID pairs correct, 0 wrong, 9 outside truth map</p>
         <div class="summary-grid">
             <div><strong>80</strong><span>detections</span></div>
             <div><strong>265</strong><span>catalog stars</span></div>
-            <div><strong>12</strong><span>matched stars</span></div>
+            <div><strong>12</strong><span>known-lens truth pairs</span></div>
+            <div><strong>4</strong><span>validated auto-ID pairs</span></div>
+            <div><strong>0</strong><span>wrong auto-ID pairs</span></div>
             <div><strong>10.31 px</strong><span>fit RMS</span></div>
         </div>
         <p class="sweep"><strong>fit sweep:</strong> 8: 9.71 px (11 accepted) / 10: 10.24 px (12 accepted) / 12: 10.31 px (12 accepted)</p>
@@ -837,7 +849,7 @@ h2 { margin: 0 0 8px; font-size: 20px; }
         <text class="plot-title" x="210" y="24" text-anchor="middle">Residuals +/-18 px</text>
     </svg>
                 <ul class="legend">
-                    <li><span class="swatch matched"></span> matched automatic detections</li>
+                    <li><span class="swatch matched"></span> known-lens truth-map detections</li>
                     <li><span class="swatch fit"></span> fitted model positions</li>
                     <li><span class="swatch catalog"></span> other catalogue stars under fitted model</li>
                     <li><span class="swatch detected"></span> raw automatic detections</li>
@@ -853,10 +865,14 @@ h2 { margin: 0 0 8px; font-size: 20px; }
             <span>lat 69.600625, lon 18.961947, alt 384.3 m</span>
         </div>
         <p class="status">bright-star detector: bg 60.2, sigma 54.5, 237 candidates, selected top 106/120, suppression radius 50 px</p>
+        <p class="status">auto-identify: 14 star pairs, median residual 2.9 px, translation dx/dy 0.4/0.2 px</p>
+        <p class="status">known-lens validation: 14/14 auto-ID pairs correct, 0 wrong, 0 outside truth map</p>
         <div class="summary-grid">
             <div><strong>106</strong><span>detections</span></div>
             <div><strong>156</strong><span>catalog stars</span></div>
-            <div><strong>14</strong><span>matched stars</span></div>
+            <div><strong>14</strong><span>known-lens truth pairs</span></div>
+            <div><strong>14</strong><span>validated auto-ID pairs</span></div>
+            <div><strong>0</strong><span>wrong auto-ID pairs</span></div>
             <div><strong>2.43 px</strong><span>fit RMS</span></div>
         </div>
         <p class="sweep"><strong>fit sweep:</strong> 8: 1.56 px (16 accepted) / 10: 2.64 px (17 accepted) / 12: 2.54 px (24 accepted) / 14: 2.43 px (21 accepted)</p>
@@ -1179,7 +1195,7 @@ h2 { margin: 0 0 8px; font-size: 20px; }
         <text class="plot-title" x="210" y="24" text-anchor="middle">Residuals +/-6 px</text>
     </svg>
                 <ul class="legend">
-                    <li><span class="swatch matched"></span> matched automatic detections</li>
+                    <li><span class="swatch matched"></span> known-lens truth-map detections</li>
                     <li><span class="swatch fit"></span> fitted model positions</li>
                     <li><span class="swatch catalog"></span> other catalogue stars under fitted model</li>
                     <li><span class="swatch detected"></span> raw automatic detections</li>
