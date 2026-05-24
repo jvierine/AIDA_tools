@@ -189,6 +189,31 @@ function drawCircle(imageData, cx, cy, radius, color) {
     }
 }
 
+function drawFilledSquare(imageData, cx, cy, halfWidth, color) {
+    const h = Math.max(1, Math.round(halfWidth));
+    for (let y = -h; y <= h; y += 1) {
+        for (let x = -h; x <= h; x += 1) {
+            setPixel(imageData, cx + x, cy + y, color[0], color[1], color[2], color[3] === undefined ? 255 : color[3]);
+        }
+    }
+}
+
+function drawLine(imageData, x0, y0, x1, y1, color) {
+    const steps = Math.max(1, Math.ceil(Math.hypot(x1 - x0, y1 - y0)));
+    for (let i = 0; i <= steps; i += 1) {
+        const t = i / steps;
+        setPixel(
+            imageData,
+            x0 + t * (x1 - x0),
+            y0 + t * (y1 - y0),
+            color[0],
+            color[1],
+            color[2],
+            color[3] === undefined ? 255 : color[3],
+        );
+    }
+}
+
 function drawCrosshair(imageData, cx, cy, radius, color) {
     const r = Math.max(2, Math.round(radius));
     const gap = Math.max(2, Math.floor(r * 0.35));
@@ -210,7 +235,54 @@ function magnitudeRadius(mag) {
     return 5;
 }
 
-function writeOverlay(testCase, imageData, stars, detections, overlayDir) {
+function escapeXml(value) {
+    return String(value)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;");
+}
+
+function circleSvg(x, y, radius, stroke, fill = "none", title = "") {
+    const maybeTitle = title ? `<title>${escapeXml(title)}</title>` : "";
+    return `<circle cx="${x.toFixed(2)}" cy="${y.toFixed(2)}" r="${radius.toFixed(2)}" ` +
+        `fill="${fill}" stroke="${stroke}" stroke-width="2" vector-effect="non-scaling-stroke">${maybeTitle}</circle>`;
+}
+
+function lineSvg(x0, y0, x1, y1, stroke) {
+    return `<line x1="${x0.toFixed(2)}" y1="${y0.toFixed(2)}" x2="${x1.toFixed(2)}" y2="${y1.toFixed(2)}" ` +
+        `stroke="${stroke}" stroke-width="1.5" vector-effect="non-scaling-stroke" />`;
+}
+
+function writeOverlaySvg(testCase, stars, detections, overlayDir) {
+    fs.mkdirSync(overlayDir, {recursive: true});
+    const items = [];
+    const imageHref = path.relative(overlayDir, path.join(IMAGE_DIR, testCase.image)).replace(/\\/g, "/");
+    items.push(`<image href="${escapeXml(imageHref)}" x="0" y="0" width="${testCase.width}" height="${testCase.height}" />`);
+    for (const detection of detections) {
+        items.push(circleSvg(detection.x, detection.y, 4, "#000"));
+        items.push(circleSvg(detection.x, detection.y, 3, "#ffd940"));
+    }
+    for (const star of stars) {
+        const radius = magnitudeRadius(star.mag);
+        const nearest = nearestPoint(star, detections, 30);
+        if (nearest) {
+            items.push(lineSvg(star.x, star.y, nearest.x, nearest.y, "#40ff80"));
+        }
+        items.push(circleSvg(star.x, star.y, radius + 1, "#000"));
+        items.push(circleSvg(star.x, star.y, radius, "#ff4040",
+            "none", `${star.name || "star"} mag ${star.mag.toFixed(1)}`));
+        items.push(`<rect x="${(star.x - 1.5).toFixed(2)}" y="${(star.y - 1.5).toFixed(2)}" ` +
+            `width="3" height="3" fill="#ff4040" />`);
+    }
+    const out = path.join(overlayDir, `${safeName(testCase.id)}_stars_overlay.svg`);
+    fs.writeFileSync(out, `<svg xmlns="http://www.w3.org/2000/svg" ` +
+        `viewBox="0 0 ${testCase.width} ${testCase.height}" width="${testCase.width}" height="${testCase.height}">\n` +
+        `${items.join("\n")}\n</svg>\n`);
+    return out;
+}
+
+function writeOverlayPng(testCase, imageData, stars, detections, overlayDir) {
     fs.mkdirSync(overlayDir, {recursive: true});
     const overlay = copyImageData(imageData);
     for (const detection of detections) {
@@ -219,8 +291,13 @@ function writeOverlay(testCase, imageData, stars, detections, overlayDir) {
     }
     for (const star of stars) {
         const radius = magnitudeRadius(star.mag);
+        const nearest = nearestPoint(star, detections, 30);
+        if (nearest) {
+            drawLine(overlay, star.x, star.y, nearest.x, nearest.y, [64, 255, 128, 255]);
+        }
         drawCircle(overlay, star.x, star.y, radius + 1, [0, 0, 0, 255]);
         drawCircle(overlay, star.x, star.y, radius, [255, 64, 64, 255]);
+        drawFilledSquare(overlay, star.x, star.y, 1, [255, 64, 64, 255]);
     }
     const out = path.join(overlayDir, `${safeName(testCase.id)}_stars_overlay.png`);
     writePngRgba(out, overlay.width, overlay.height, overlay.data);
@@ -405,10 +482,12 @@ async function buildOverlay(testCase, options) {
         suppressionRadiusPx: 18,
     });
     const stars = projectStars(testCase, testCase.optpar, Math.max(7, testCase.maxMag || 7));
-    const outfile = writeOverlay(testCase, imageData, stars, detectionResult.detections, options.overlayDir);
+    const outfile = writeOverlaySvg(testCase, stars, detectionResult.detections, options.overlayDir);
+    const pngOutfile = writeOverlayPng(testCase, imageData, stars, detectionResult.detections, options.overlayDir);
     return {
         caseId: testCase.id,
         outfile,
+        pngOutfile,
         stars: stars.length,
         detections: detectionResult.detections.length,
     };
@@ -428,6 +507,7 @@ async function main() {
         }
         for (const summary of summaries) {
             process.stdout.write(`${summary.outfile} (${summary.stars} stars, ${summary.detections} detections)\n`);
+            process.stdout.write(`${summary.pngOutfile} (raster copy, same markers)\n`);
         }
         return;
     }
