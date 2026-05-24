@@ -16,6 +16,8 @@ h2 { margin: 0 0 8px; font-size: 20px; }
 .status, .sweep { color: #b9c4d4; }
 .status.ok { color: #8ef0a1; }
 .status.warn { color: #ffb86b; }
+.review-good { color: #9ff6b1; font-weight: 700; }
+.review-outliers { color: #ffd37a; font-weight: 700; }
 .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace; font-size: 12px; overflow-wrap: anywhere; }
 .summary-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(145px, 1fr)); gap: 10px; margin: 14px 0; }
 .summary-grid div { padding: 10px; background: #202633; border: 1px solid #394457; border-radius: 6px; }
@@ -50,7 +52,7 @@ h2 { margin: 0 0 8px; font-size: 20px; }
 <body>
 <header>
 <h1>AIDA Calibrator Star-Fit Test Report</h1>
-<p class="intro">Generated 2026-05-24T13:56:43.031Z. The report now sweeps all tracked <code>python/examples/allsky7/*first1s.png</code> frames with their matching HDF5 latitude, longitude, timestamp, and optpar metadata. A known-good lens model first creates a truth map between Yale catalogue stars and image detections; raw detections that pass this check are catalogue-certified for fitting, while uncertified detections remain visible as detector-hardening feedback. Green circles are certified detections used for fitting, cyan circles are fitted lens-model positions, red circles are unmatched catalogue stars under the fitted model, and yellow dots are raw automatic detections. Brown-Conrady cases use light coefficient regularization.</p>
+<p class="intro">Generated 2026-05-24T14:15:20.240Z. The report now sweeps all tracked <code>python/examples/allsky7/*first1s.png</code> frames with their matching HDF5 latitude, longitude, timestamp, and optpar metadata. A known-good lens model first creates a truth map between Yale catalogue stars and image detections; raw detections that pass this check are catalogue-certified for fitting, while uncertified detections remain visible as detector-hardening feedback. Green circles are certified detections used for fitting, cyan circles are fitted lens-model positions, red circles are unmatched catalogue stars under the fitted model, and yellow dots are raw automatic detections. Brown-Conrady cases use light coefficient regularization.</p>
 </header>
 <section class="case-card" id="2025_02_19_03_44_00_000_010760_first1s">
         <h2>2025_02_19_03_44_00_000_010760_first1s optmod 2</h2>
@@ -60,6 +62,7 @@ h2 { margin: 0 0 8px; font-size: 20px; }
             <span>lat 50.992480, lon 7.185111, alt 0.0 m</span>
             <span>allsky7/2025_02_19_03_44_00_000_010760_first1s.h5</span>
         </div>
+
         <p class="status">bright-star detector: bg 112.8, sigma 21.8, thresholds scan/global 123.7/209.1, 35666 local peaks, 83 star-like candidates, selected top 67/80, suppression radius 22 px</p>
         <p class="status">detector gate: global/local threshold 4.417/4.417 sigma, require global threshold yes</p>
         <p class="status">star-detection validation: 6/67 raw detections are catalogue-certified within 18 px using the HDF5 lens; 61 raw detections remain uncertified; centroid median/95% 13.17/15.73 px</p>
@@ -574,6 +577,7 @@ h2 { margin: 0 0 8px; font-size: 20px; }
             <span>lat 51.463056, lon 7.221944, alt 0.0 m</span>
             <span>allsky7/2025_02_19_03_44_00_000_012165 (1)_first1s.h5</span>
         </div>
+
         <p class="status">bright-star detector: bg 71.3, sigma 27.6, thresholds scan/global 85.1/193.4, 34163 local peaks, 4 star-like candidates, selected top 4/80, suppression radius 22 px</p>
         <p class="status">detector gate: global/local threshold 4.417/4.417 sigma, require global threshold yes</p>
         <p class="status">star-detection validation: 3/4 raw detections are catalogue-certified within 18 px using the HDF5 lens; 1 raw detections remain uncertified; centroid median/95% 8.97/8.97 px</p>
@@ -1016,6 +1020,7 @@ h2 { margin: 0 0 8px; font-size: 20px; }
             <span>lat 51.463056, lon 7.221944, alt 0.0 m</span>
             <span>allsky7/2025_02_19_03_44_00_000_012165_first1s.h5</span>
         </div>
+
         <p class="status">bright-star detector: bg 71.3, sigma 27.6, thresholds scan/global 85.1/193.4, 34163 local peaks, 4 star-like candidates, selected top 4/80, suppression radius 22 px</p>
         <p class="status">detector gate: global/local threshold 4.417/4.417 sigma, require global threshold yes</p>
         <p class="status">star-detection validation: 3/4 raw detections are catalogue-certified within 18 px using the HDF5 lens; 1 raw detections remain uncertified; centroid median/95% 8.97/8.97 px</p>
@@ -1458,6 +1463,8 @@ h2 { margin: 0 0 8px; font-size: 20px; }
             <span>lat 52.495090, lon 12.630850, alt 0.0 m</span>
             <span>allsky7/2025_02_19_03_45_00_000_010095_first1s.h5</span>
         </div>
+        <p class="status review-good">human review: automatic detection and fit look good</p>
+
         <p class="status">bright-star detector: bg 40.7, sigma 17.2, thresholds scan/global 49.3/116.5, 52187 local peaks, 15 star-like candidates, selected top 13/80, suppression radius 22 px</p>
         <p class="status">detector gate: global/local threshold 4.417/4.417 sigma, require global threshold yes</p>
         <p class="status">star-detection validation: 8/13 raw detections are catalogue-certified within 18 px using the HDF5 lens; 5 raw detections remain uncertified; centroid median/95% 6.92/7.50 px</p>
@@ -1897,6 +1904,8 @@ h2 { margin: 0 0 8px; font-size: 20px; }
             <span>lat 52.123639, lon 8.701778, alt 0.0 m</span>
             <span>allsky7/2025_02_19_03_45_00_000_010125_first1s.h5</span>
         </div>
+        <p class="status review-good">human review: automatic detection and fit look good</p>
+
         <p class="status">bright-star detector: bg 62.1, sigma 7.5, thresholds scan/global 66.1/95.4, 26844 local peaks, 87 star-like candidates, selected top 64/80, suppression radius 22 px</p>
         <p class="status">detector gate: global/local threshold 4.417/4.417 sigma, require global threshold yes</p>
         <p class="status">star-detection validation: 11/64 raw detections are catalogue-certified within 18 px using the HDF5 lens; 53 raw detections remain uncertified; centroid median/95% 7.05/7.61 px</p>
@@ -2397,6 +2406,8 @@ h2 { margin: 0 0 8px; font-size: 20px; }
             <span>lat 50.377308, lon 11.189844, alt 0.0 m</span>
             <span>allsky7/2025_02_19_03_45_01_000_010314_cam5_first1s.h5</span>
         </div>
+        <p class="status review-good">human review: automatic detection and fit look good</p>
+
         <p class="status">bright-star detector: bg 112.3, sigma 29.9, thresholds scan/global 127.3/244.2, 72085 local peaks, 45 star-like candidates, selected top 41/80, suppression radius 22 px</p>
         <p class="status">detector gate: global/local threshold 4.417/4.417 sigma, require global threshold yes</p>
         <p class="status">star-detection validation: 21/41 raw detections are catalogue-certified within 18 px using the HDF5 lens; 20 raw detections remain uncertified; centroid median/95% 7.70/9.19 px</p>
@@ -2859,6 +2870,7 @@ h2 { margin: 0 0 8px; font-size: 20px; }
             <span>lat 52.495090, lon 12.630850, alt 0.0 m</span>
             <span>allsky7/2025_02_19_03_46_00_000_010095_first1s.h5</span>
         </div>
+
         <p class="status">bright-star detector: bg 41.0, sigma 17.9, thresholds scan/global 49.9/120.0, 49572 local peaks, 21 star-like candidates, selected top 19/80, suppression radius 22 px</p>
         <p class="status">detector gate: global/local threshold 4.417/4.417 sigma, require global threshold yes</p>
         <p class="status">star-detection validation: 9/19 raw detections are catalogue-certified within 18 px using the HDF5 lens; 10 raw detections remain uncertified; centroid median/95% 6.80/7.45 px</p>
@@ -3304,6 +3316,8 @@ h2 { margin: 0 0 8px; font-size: 20px; }
             <span>lat 52.495090, lon 12.630850, alt 0.0 m</span>
             <span>allsky7/2025_02_19_03_46_00_000_010096_first1s.h5</span>
         </div>
+        <p class="status review-outliers">human review: fit is useful, but a few stars are wrongly identified; use this as outlier-pruning feedback</p>
+
         <p class="status">bright-star detector: bg 163.4, sigma 9.7, thresholds scan/global 168.3/206.4, 21009 local peaks, 124 star-like candidates, selected top 80/80, suppression radius 22 px</p>
         <p class="status">detector gate: global/local threshold 4.417/4.417 sigma, require global threshold yes</p>
         <p class="status">star-detection validation: 47/80 raw detections are catalogue-certified within 18 px using the HDF5 lens; 33 raw detections remain uncertified; centroid median/95% 2.93/15.43 px</p>
@@ -3848,6 +3862,8 @@ h2 { margin: 0 0 8px; font-size: 20px; }
             <span>lat 51.449200, lon 14.279440, alt 0.0 m</span>
             <span>allsky7/2025_02_19_03_46_00_000_010880_ams0881_first1s.h5</span>
         </div>
+        <p class="status review-good">human review: automatic detection and fit look good</p>
+
         <p class="status">bright-star detector: bg 76.4, sigma 7.2, thresholds scan/global 80.4/108.2, 30367 local peaks, 42 star-like candidates, selected top 41/80, suppression radius 22 px</p>
         <p class="status">detector gate: global/local threshold 4.417/4.417 sigma, require global threshold yes</p>
         <p class="status">star-detection validation: 29/41 raw detections are catalogue-certified within 18 px using the HDF5 lens; 12 raw detections remain uncertified; centroid median/95% 5.03/7.27 px</p>
@@ -4336,6 +4352,8 @@ h2 { margin: 0 0 8px; font-size: 20px; }
             <span>lat 51.449200, lon 14.279440, alt 0.0 m</span>
             <span>allsky7/2025_02_19_03_46_00_000_010880_first1s.h5</span>
         </div>
+        <p class="status review-good">human review: automatic detection and fit look good</p>
+
         <p class="status">bright-star detector: bg 76.4, sigma 7.2, thresholds scan/global 80.4/108.2, 30367 local peaks, 42 star-like candidates, selected top 41/80, suppression radius 22 px</p>
         <p class="status">detector gate: global/local threshold 4.417/4.417 sigma, require global threshold yes</p>
         <p class="status">star-detection validation: 29/41 raw detections are catalogue-certified within 18 px using the HDF5 lens; 12 raw detections remain uncertified; centroid median/95% 5.03/7.27 px</p>
@@ -4824,6 +4842,8 @@ h2 { margin: 0 0 8px; font-size: 20px; }
             <span>lat 52.208667, lon 14.121517, alt 0.0 m</span>
             <span>allsky7/2025_02_19_03_46_01_000_010028_ams0228_first1s.h5</span>
         </div>
+        <p class="status review-good">human review: automatic detection and fit look good</p>
+
         <p class="status">bright-star detector: bg 146.6, sigma 15.2, thresholds scan/global 154.2/214.0, 17178 local peaks, 47 star-like candidates, selected top 43/80, suppression radius 22 px</p>
         <p class="status">detector gate: global/local threshold 4.417/4.417 sigma, require global threshold yes</p>
         <p class="status">star-detection validation: 19/43 raw detections are catalogue-certified within 18 px using the HDF5 lens; 24 raw detections remain uncertified; centroid median/95% 4.62/8.10 px</p>
@@ -5353,6 +5373,8 @@ h2 { margin: 0 0 8px; font-size: 20px; }
             <span>lat 52.208667, lon 14.121517, alt 0.0 m</span>
             <span>allsky7/2025_02_19_03_46_01_000_010028_first1s.h5</span>
         </div>
+        <p class="status review-good">human review: automatic detection and fit look good</p>
+
         <p class="status">bright-star detector: bg 146.6, sigma 15.2, thresholds scan/global 154.2/214.0, 17178 local peaks, 47 star-like candidates, selected top 43/80, suppression radius 22 px</p>
         <p class="status">detector gate: global/local threshold 4.417/4.417 sigma, require global threshold yes</p>
         <p class="status">star-detection validation: 19/43 raw detections are catalogue-certified within 18 px using the HDF5 lens; 24 raw detections remain uncertified; centroid median/95% 4.62/8.10 px</p>
@@ -5882,6 +5904,8 @@ h2 { margin: 0 0 8px; font-size: 20px; }
             <span>lat 52.208667, lon 14.121517, alt 0.0 m</span>
             <span>allsky7/2025_02_19_03_46_01_000_010031_ams0221_first1s.h5</span>
         </div>
+        <p class="status review-good">human review: automatic detection and fit look good</p>
+
         <p class="status">bright-star detector: bg 57.1, sigma 7.8, thresholds scan/global 61.1/91.7, 16882 local peaks, 49 star-like candidates, selected top 47/80, suppression radius 22 px</p>
         <p class="status">detector gate: global/local threshold 4.417/4.417 sigma, require global threshold yes</p>
         <p class="status">star-detection validation: 22/47 raw detections are catalogue-certified within 18 px using the HDF5 lens; 25 raw detections remain uncertified; centroid median/95% 7.28/7.71 px</p>
@@ -6400,6 +6424,8 @@ h2 { margin: 0 0 8px; font-size: 20px; }
             <span>lat 52.208667, lon 14.121517, alt 0.0 m</span>
             <span>allsky7/2025_02_19_03_46_01_000_010031_first1s.h5</span>
         </div>
+        <p class="status review-good">human review: automatic detection and fit look good</p>
+
         <p class="status">bright-star detector: bg 57.1, sigma 7.8, thresholds scan/global 61.1/91.7, 16882 local peaks, 49 star-like candidates, selected top 47/80, suppression radius 22 px</p>
         <p class="status">detector gate: global/local threshold 4.417/4.417 sigma, require global threshold yes</p>
         <p class="status">star-detection validation: 22/47 raw detections are catalogue-certified within 18 px using the HDF5 lens; 25 raw detections remain uncertified; centroid median/95% 7.28/7.71 px</p>
@@ -6918,6 +6944,8 @@ h2 { margin: 0 0 8px; font-size: 20px; }
             <span>lat 51.449200, lon 14.279440, alt 0.0 m</span>
             <span>allsky7/2025_02_19_03_46_01_000_010881_ams0882_first1s.h5</span>
         </div>
+        <p class="status review-good">human review: automatic detection and fit look good</p>
+
         <p class="status">bright-star detector: bg 141.3, sigma 11.7, thresholds scan/global 147.1/192.8, 35741 local peaks, 74 star-like candidates, selected top 69/80, suppression radius 22 px</p>
         <p class="status">detector gate: global/local threshold 4.417/4.417 sigma, require global threshold yes</p>
         <p class="status">star-detection validation: 39/69 raw detections are catalogue-certified within 18 px using the HDF5 lens; 30 raw detections remain uncertified; centroid median/95% 4.16/12.18 px</p>
@@ -7528,6 +7556,8 @@ h2 { margin: 0 0 8px; font-size: 20px; }
             <span>lat 52.208667, lon 14.121517, alt 0.0 m</span>
             <span>allsky7/2025_02_19_03_47_01_000_010028_ams0228_first1s.h5</span>
         </div>
+        <p class="status review-good">human review: automatic detection and fit look good</p>
+
         <p class="status">bright-star detector: bg 147.6, sigma 11.4, thresholds scan/global 153.3/198.1, 17332 local peaks, 51 star-like candidates, selected top 47/80, suppression radius 22 px</p>
         <p class="status">detector gate: global/local threshold 4.417/4.417 sigma, require global threshold yes</p>
         <p class="status">star-detection validation: 24/47 raw detections are catalogue-certified within 18 px using the HDF5 lens; 23 raw detections remain uncertified; centroid median/95% 4.92/9.19 px</p>
@@ -8080,6 +8110,8 @@ h2 { margin: 0 0 8px; font-size: 20px; }
             <span>lat 51.449200, lon 14.279440, alt 0.0 m</span>
             <span>allsky7/2025_02_19_03_47_01_000_010881_ams0882_first1s.h5</span>
         </div>
+        <p class="status review-good">human review: automatic detection and fit look good</p>
+
         <p class="status">bright-star detector: bg 137.8, sigma 10.1, thresholds scan/global 142.8/182.3, 36118 local peaks, 93 star-like candidates, selected top 80/80, suppression radius 22 px</p>
         <p class="status">detector gate: global/local threshold 4.417/4.417 sigma, require global threshold yes</p>
         <p class="status">star-detection validation: 47/80 raw detections are catalogue-certified within 18 px using the HDF5 lens; 33 raw detections remain uncertified; centroid median/95% 4.76/15.35 px</p>
@@ -8723,6 +8755,7 @@ h2 { margin: 0 0 8px; font-size: 20px; }
             <span>lat 69.600625, lon 18.961947, alt 384.3 m</span>
 
         </div>
+
         <p class="status">bright-star detector: bg 60.2, sigma 54.5, thresholds scan/global 87.5/169.3, 25109 local peaks, 237 star-like candidates, selected top 106/120, suppression radius 50 px</p>
         <p class="status">detector gate: global/local threshold 2.000/2.000 sigma, require global threshold no</p>
         <p class="status">star-detection validation: 14/106 raw detections are catalogue-certified within 18 px using the HDF5 lens; 92 raw detections remain uncertified; centroid median/95% 3.10/5.35 px</p>

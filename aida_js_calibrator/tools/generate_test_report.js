@@ -36,6 +36,61 @@ function loadBrowserScript(filename) {
 const AidaTools = loadBrowserScript("aidatools.js").AidaTools;
 const YaleCatalog = loadBrowserScript("star_catalog.js").AIDA_STAR_CATALOG;
 
+const HUMAN_REVIEW_NOTES = new Map([
+    ["2025_02_19_03_47_01_000_010881_ams0882_first1s", {
+        status: "good",
+        note: "human review: automatic detection and fit look good",
+    }],
+    ["2025_02_19_03_47_01_000_010028_ams0228_first1s", {
+        status: "good",
+        note: "human review: automatic detection and fit look good",
+    }],
+    ["2025_02_19_03_46_01_000_010881_ams0882_first1s", {
+        status: "good",
+        note: "human review: automatic detection and fit look good",
+    }],
+    ["2025_02_19_03_46_01_000_010031_first1s", {
+        status: "good",
+        note: "human review: automatic detection and fit look good",
+    }],
+    ["2025_02_19_03_46_01_000_010031_ams0221_first1s", {
+        status: "good",
+        note: "human review: automatic detection and fit look good",
+    }],
+    ["2025_02_19_03_46_01_000_010028_first1s", {
+        status: "good",
+        note: "human review: automatic detection and fit look good",
+    }],
+    ["2025_02_19_03_46_01_000_010028_ams0228_first1s", {
+        status: "good",
+        note: "human review: automatic detection and fit look good",
+    }],
+    ["2025_02_19_03_46_00_000_010880_first1s", {
+        status: "good",
+        note: "human review: automatic detection and fit look good",
+    }],
+    ["2025_02_19_03_46_00_000_010880_ams0881_first1s", {
+        status: "good",
+        note: "human review: automatic detection and fit look good",
+    }],
+    ["2025_02_19_03_45_01_000_010314_cam5_first1s", {
+        status: "good",
+        note: "human review: automatic detection and fit look good",
+    }],
+    ["2025_02_19_03_45_00_000_010125_first1s", {
+        status: "good",
+        note: "human review: automatic detection and fit look good",
+    }],
+    ["2025_02_19_03_45_00_000_010095_first1s", {
+        status: "good",
+        note: "human review: automatic detection and fit look good",
+    }],
+    ["2025_02_19_03_46_00_000_010096_first1s", {
+        status: "outliers",
+        note: "human review: fit is useful, but a few stars are wrongly identified; use this as outlier-pruning feedback",
+    }],
+]);
+
 const MANUAL_CASES = [
     {
         id: "IMG-9371-brown-conrady",
@@ -131,8 +186,9 @@ function allskyCaseFromH5(h5Path) {
     const latDeg = h5DatasetNumbers(h5Path, "/camera_lat_deg")[0];
     const lonDeg = h5DatasetNumbers(h5Path, "/camera_lon_deg")[0];
     const optmod = optpar.length === 12 ? 20 : 2;
+    const id = sanitizeId(path.basename(h5Path, ".h5"));
     return {
-        id: sanitizeId(path.basename(h5Path, ".h5")),
+        id,
         title: `${path.basename(pngName, ".png")} optmod ${optmod}`,
         image: pngName,
         sourceH5: path.relative(ROOT, h5Path),
@@ -154,6 +210,7 @@ function allskyCaseFromH5(h5Path) {
         },
         startMode: "perturbed",
         optpar,
+        humanReview: HUMAN_REVIEW_NOTES.get(id) || null,
     };
 }
 
@@ -837,6 +894,10 @@ function caseHtml(result) {
         `max |d principal| ${formatFitNumber(closeness.principal)} ` +
         `(~${closeness.principalPx.toFixed(1)} px), ` +
         `max |d distortion| ${formatFitNumber(closeness.distortion)}`;
+    const review = c.humanReview;
+    const reviewHtml = review
+        ? `        <p class="status review-${escapeHtml(review.status)}">${escapeHtml(review.note)}</p>\n`
+        : "";
     const quality = result.detectionQuality;
     const reject = result.detectionResult.rejectCounts || {};
     const detectorCertaintyStatus = `star-detection validation: ${quality.validated}/${quality.selected} ` +
@@ -863,6 +924,7 @@ function caseHtml(result) {
             <span>lat ${c.latDeg.toFixed(6)}, lon ${c.lonDeg.toFixed(6)}, alt ${(c.altM || 0).toFixed(1)} m</span>
 ${c.sourceH5 ? `            <span>${escapeHtml(c.sourceH5)}</span>` : ""}
         </div>
+${reviewHtml}
         <p class="status">${escapeHtml(result.detectionStatus)}</p>
         <p class="status">${escapeHtml(detectorGateStatus)}</p>
         <p class="status">${escapeHtml(detectorCertaintyStatus)}</p>
@@ -929,6 +991,8 @@ h2 { margin: 0 0 8px; font-size: 20px; }
 .status, .sweep { color: #b9c4d4; }
 .status.ok { color: #8ef0a1; }
 .status.warn { color: #ffb86b; }
+.review-good { color: #9ff6b1; font-weight: 700; }
+.review-outliers { color: #ffd37a; font-weight: 700; }
 .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace; font-size: 12px; overflow-wrap: anywhere; }
 .summary-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(145px, 1fr)); gap: 10px; margin: 14px 0; }
 .summary-grid div { padding: 10px; background: #202633; border: 1px solid #394457; border-radius: 6px; }

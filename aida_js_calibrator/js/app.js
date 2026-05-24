@@ -4239,6 +4239,43 @@ end
         return Math.sqrt(residualSumSquares(residuals) / fitCount);
     }
 
+    function autoAddedMatch(match) {
+        const method = String(match && match.image && match.image.method || "").toLowerCase();
+        return method.includes("auto") || match.detectionGeneration !== undefined;
+    }
+
+    function pruneLuckyAutoOutliers() {
+        const rows = matchResidualRows().filter(row => autoAddedMatch(row.match));
+        if (rows.length < 6) {
+            return {removed: 0, threshold: Infinity, medianDistance: Infinity};
+        }
+        const medianDx = median(rows.map(row => row.dx));
+        const medianDy = median(rows.map(row => row.dy));
+        const modeDistances = rows.map(row => Math.hypot(row.dx - medianDx, row.dy - medianDy));
+        const medianDistance = median(modeDistances);
+        const mad = median(modeDistances.map(distance => Math.abs(distance - medianDistance)));
+        const sigma = Math.max(0.5, 1.4826 * mad);
+        const threshold = Math.max(8, medianDistance + 4.5 * sigma);
+        const candidates = rows
+            .map((row, index) => ({...row, modeDistance: modeDistances[index]}))
+            .filter(row => row.modeDistance > threshold && row.r > Math.max(6, threshold * 0.75))
+            .sort((a, b) => b.modeDistance - a.modeDistance);
+        if (candidates.length === 0) {
+            return {removed: 0, threshold, medianDistance};
+        }
+        const maxRemove = Math.max(1, Math.floor(rows.length * 0.25));
+        const removeIds = new Set(candidates.slice(0, maxRemove).map(row => row.match.id));
+        state.matches = state.matches.filter(match => !removeIds.has(match.id));
+        state.pendingMatch = null;
+        state.lastFitVector = null;
+        updateAutoMatches();
+        return {
+            removed: removeIds.size,
+            threshold,
+            medianDistance,
+        };
+    }
+
     function setLuckyMaxMagnitude(maxMag) {
         const clipped = Math.max(2, Math.min(7, maxMag));
         controls.maxMag.value = clipped.toFixed(1);
@@ -4409,6 +4446,7 @@ end
         ];
 
         let totalAdded = 0;
+        let totalPruned = 0;
         let acceptedFits = 0;
         let seeded = false;
         try {
@@ -4418,6 +4456,19 @@ end
                 seeded = seeded || pass.seeded;
                 const fitResult = await runLuckySelectedModelFits(`I'm feeling lucky ${i + 1}/${stages.length}`);
                 acceptedFits += fitResult.accepted;
+                if (!fitResult.skipped) {
+                    const prune = pruneLuckyAutoOutliers();
+                    totalPruned += prune.removed;
+                    if (prune.removed > 0) {
+                        setLoadingProgress(
+                            94,
+                            `I'm feeling lucky ${i + 1}/${stages.length}: pruned ${prune.removed} automatic outlier${prune.removed === 1 ? "" : "s"} and refitting...`
+                        );
+                        await yieldToBrowser();
+                        const refit = await runLuckySelectedModelFits(`I'm feeling lucky ${i + 1}/${stages.length} after outlier pruning`);
+                        acceptedFits += refit.accepted;
+                    }
+                }
                 if (fitResult.skipped && i === 0 && pass.added === 0) {
                     break;
                 }
@@ -4430,10 +4481,12 @@ end
                 : `only ${fitCount}/${state.matches.length} usable pairs`;
             state.autoIdentificationStatus =
                 `I'm feeling lucky: added ${totalAdded} pairings in ${stages.length} staged passes; ` +
-                `${seeded ? "seeded from blind asterisms" : "no blind seed"}; ${acceptedFits} accepted fits`;
+                `${seeded ? "seeded from blind asterisms" : "no blind seed"}; ` +
+                `pruned ${totalPruned} automatic outlier${totalPruned === 1 ? "" : "s"}; ${acceptedFits} accepted fits`;
             state.fitMessage =
                 `I'm feeling lucky: ${modelName}, ${summary}; ` +
                 `${totalAdded} new pairings (${startingMatchCount} -> ${state.matches.length}), ` +
+                `${totalPruned} pruned, ` +
                 `${acceptedFits} accepted fit step${acceptedFits === 1 ? "" : "s"}`;
             playInteractionSound(acceptedFits > 0 ? "fit" : "click");
             recomputeAndRender();

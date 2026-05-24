@@ -156,7 +156,9 @@
             then a blind spherical asterism match to seed the selected optical
             model's rotation and coarse focal scale, then repeated
             detect-match-fit passes that add fainter stars and refit only the
-            currently selected optical model.
+            currently selected optical model. After each accepted fit, obvious
+            automatic outliers are pruned from the residual pattern and the
+            selected model is refit.
         </li>
         <li>
             Hold <kbd>S</kbd> and click an image star. The local star position is
