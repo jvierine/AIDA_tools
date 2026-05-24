@@ -236,26 +236,15 @@
         model", SPIE volume 8903.
     </p>
     <div class="equation-block">
-        <strong>AIDA sinusoidal radial model (<code>optmod 2</code>)</strong>
+        <strong>AIDA radial models (<code>optmod 2</code> and <code>optmod 3</code>)</strong>
         \[
         \begin{aligned}
-        \mathbf{o}_2&=[f_1,f_2,\alpha,\beta,\gamma,d_u,d_v,a_r]\\
+        \mathbf{o}_{\mathrm{AIDA}}&=[f_1,f_2,\alpha,\beta,\gamma,d_u,d_v,a_r]\\
         \theta&=\tan^{-1}\!\left(\frac{\sqrt{s_1^2+s_2^2}}{s_3}\right)\\
         q_2(\theta)&=\sin(a_r\theta)\\
-        x&=W\left(f_1\frac{s_1}{\sqrt{s_1^2+s_2^2}}q_2(\theta)+\frac{1}{2}+d_u\right)-1\\
-        y&=H\left(f_2\frac{s_2}{\sqrt{s_1^2+s_2^2}}q_2(\theta)+\frac{1}{2}+d_v\right)-1
-        \end{aligned}
-        \]
-    </div>
-    <div class="equation-block">
-        <strong>AIDA hybrid tan/theta radial model (<code>optmod 3</code>)</strong>
-        \[
-        \begin{aligned}
-        \mathbf{o}_3&=[f_1,f_2,\alpha,\beta,\gamma,d_u,d_v,a_r]\\
-        \theta&=\tan^{-1}\!\left(\frac{\sqrt{s_1^2+s_2^2}}{s_3}\right)\\
         q_3(\theta)&=a_r\theta+(1-a_r)\tan\theta\\
-        x&=W\left(f_1\frac{s_1}{\sqrt{s_1^2+s_2^2}}q_3(\theta)+\frac{1}{2}+d_u\right)-1\\
-        y&=H\left(f_2\frac{s_2}{\sqrt{s_1^2+s_2^2}}q_3(\theta)+\frac{1}{2}+d_v\right)-1
+        x&=W\left(f_1\frac{s_1}{\sqrt{s_1^2+s_2^2}}q(\theta)+\frac{1}{2}+d_u\right)-1\\
+        y&=H\left(f_2\frac{s_2}{\sqrt{s_1^2+s_2^2}}q(\theta)+\frac{1}{2}+d_v\right)-1
         \end{aligned}
         \]
     </div>
