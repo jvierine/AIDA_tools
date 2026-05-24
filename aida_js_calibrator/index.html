@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>AIDA Browser Star Calibration Prototype</title>
-<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="style.css?v=20260524a">
 </head>
 <body>
 <header class="topbar">
@@ -22,6 +22,7 @@
             <kbd>X</kbd> pure image/Stellarium,
             <kbd>N</kbd> star names,
             <kbd>K</kbd> KDE dots,
+            <kbd>A</kbd> az/el grid,
             <kbd>R</kbd> residuals,
             <kbd>Cmd/Ctrl Z</kbd> undo fit,
             <kbd>Left drag</kbd> move view,
@@ -171,7 +172,6 @@
                 </label>
             </div>
             <div id="lensEquation" class="lens-equation"></div>
-            <div id="lensEquationLegend" class="lens-equation-legend"></div>
             <button id="fitLens" type="button">Fit lens with Nelder-Mead (F)</button>
             <button id="fitLensLm" type="button">Fit lens with Levenberg-Marquardt (G)</button>
             <button id="undoFit" type="button" disabled>Undo fit</button>
@@ -206,6 +206,6 @@ window.MathJax = {
 <script src="https://cdn.jsdelivr.net/npm/heic2any@0.0.4/dist/heic2any.min.js"></script>
 <script src="js/aidatools.js?v=20260523a"></script>
 <script src="js/centroid.js?v=20260523a"></script>
-<script src="js/app.js?v=20260523a"></script>
+<script src="js/app.js?v=20260524a"></script>
 </body>
 </html>

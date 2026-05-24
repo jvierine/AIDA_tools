@@ -60,6 +60,34 @@
         font-size: 0.95em;
     }
 
+    .equation-block {
+        overflow-x: auto;
+        margin: 12px 0;
+        padding: 12px;
+        border: 1px solid #dbeafe;
+        border-radius: 6px;
+        background: #eff6ff;
+        color: #1e3a8a;
+    }
+
+    .symbol-list {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 6px 14px;
+        margin: 12px 0;
+        padding: 12px;
+        border: 1px solid #dbeafe;
+        border-radius: 6px;
+        background: #ffffff;
+    }
+
+    .symbol-list span {
+        display: inline-block;
+        min-width: 92px;
+        color: #1d4ed8;
+        font-weight: 700;
+    }
+
     a {
         color: #1d4ed8;
     }
@@ -197,7 +225,7 @@
         the fit undo history.
     </p>
 
-    <h2>Export notes</h2>
+    <h2>Lens models</h2>
     <p>
         The model selector names the two AIDA-specific lens models as
         AIDA sinusoidal radial (<code>optmod 2</code>) and AIDA hybrid
@@ -207,6 +235,57 @@
         Nowakowski and Skarbek (2013), "Analysis of Brown camera distortion
         model", SPIE volume 8903.
     </p>
+    <div class="equation-block">
+        \[
+        \begin{aligned}
+        \mathbf{o}_{\mathrm{AIDA}}&=[f_1,f_2,\alpha,\beta,\gamma,d_u,d_v,a_r]\\
+        \theta&=\tan^{-1}\!\left(\frac{\sqrt{s_1^2+s_2^2}}{s_3}\right)\\
+        q_2(\theta)&=\sin(a_r\theta)\\
+        q_3(\theta)&=a_r\theta+(1-a_r)\tan\theta\\
+        x&=W\left(f_1\frac{s_1}{\sqrt{s_1^2+s_2^2}}q(\theta)+\frac{1}{2}+d_u\right)-1\\
+        y&=H\left(f_2\frac{s_2}{\sqrt{s_1^2+s_2^2}}q(\theta)+\frac{1}{2}+d_v\right)-1
+        \end{aligned}
+        \]
+    </div>
+    <div class="equation-block">
+        \[
+        \begin{aligned}
+        \mathbf{o}_{\mathrm{BC}}&=[f_1,f_2,\alpha,\beta,\gamma,d_u,d_v,k_1,k_2,k_3,p_1,p_2]\\
+        x_n&=s_1/s_3,\quad y_n=s_2/s_3,\quad r^2=x_n^2+y_n^2\\
+        L(r)&=1+k_1r^2+k_2r^4+k_3r^6\\
+        x_d&=x_nL(r)+2p_1x_ny_n+p_2(r^2+2x_n^2)\\
+        y_d&=y_nL(r)+p_1(r^2+2y_n^2)+2p_2x_ny_n\\
+        x&=W\left(f_1x_d+\frac{1}{2}+d_u\right)-1\\
+        y&=H\left(f_2y_d+\frac{1}{2}+d_v\right)-1
+        \end{aligned}
+        \]
+    </div>
+    <div class="symbol-list">
+        <div><span>\(f_1, f_2\)</span> horizontal and vertical focal scale factors.</div>
+        <div><span>\(\alpha,\beta,\gamma\)</span> camera rotation angles in degrees.</div>
+        <div><span>\(d_u, d_v\)</span> principal-point offsets in normalized image coordinates.</div>
+        <div><span>\(s_1,s_2,s_3\)</span> star direction vector after camera rotation.</div>
+        <div><span>\(W,H\)</span> image width and height in pixels.</div>
+        <div><span>\(x,y\)</span> 0-based image pixel coordinates.</div>
+        <div><span>\(\theta\)</span> off-axis angle from the camera boresight.</div>
+        <div><span>\(q(\theta)\)</span> radial projection law for the selected AIDA model.</div>
+        <div><span>\(a_r\)</span> AIDA radial model parameter.</div>
+        <div><span>\(x_n,y_n\)</span> normalized pinhole image coordinates.</div>
+        <div><span>\(r\)</span> radius in normalized pinhole coordinates.</div>
+        <div><span>\(k_1,k_2,k_3\)</span> Brown-Conrady radial distortion coefficients.</div>
+        <div><span>\(p_1,p_2\)</span> Brown-Conrady tangential distortion coefficients.</div>
+        <div><span>\(x_d,y_d\)</span> distorted normalized image coordinates.</div>
+    </div>
+    <p>
+        The rotation angles are calibration parameters for the camera attitude.
+        In practical use, \(\alpha\) and \(\beta\) tilt the optical axis so the
+        projected zenith point moves across the image, while \(\gamma\) rolls
+        the star field around that optical axis. The implementation applies the
+        same rotation convention in the browser, the copied Python export, and
+        the AIDA reference camera model.
+    </p>
+
+    <h2>Export notes</h2>
     <p>
         The copied <code>optpar</code> array contains
         <code>[f1, f2, alpha, beta, gamma, du, dv, radial_alpha]</code>.
@@ -224,5 +303,11 @@
 
     <p><a href="index.html">Back to the calibrator</a></p>
 </main>
+<script>
+window.MathJax = {
+    tex: {inlineMath: [["\\(", "\\)"], ["$", "$"]]}
+};
+</script>
+<script defer src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js"></script>
 </body>
 </html>
