@@ -65,6 +65,7 @@
         fitLens: document.getElementById("fitLens"),
         fitLensLm: document.getElementById("fitLensLm"),
         undoFit: document.getElementById("undoFit"),
+        exportLanguage: document.getElementById("exportLanguage"),
         copyOptpar: document.getElementById("copyOptpar"),
         copyPythonMapper: document.getElementById("copyPythonMapper"),
         toggleFitResiduals: document.getElementById("toggleFitResiduals"),
@@ -635,6 +636,54 @@
         return `optpar = [${optpar.map(pythonFloat).join(", ")}]`;
     }
 
+    function selectedExportLanguage() {
+        return controls.exportLanguage ? controls.exportLanguage.value : "python";
+    }
+
+    function optparArrayText(language = selectedExportLanguage()) {
+        const optpar = currentOptpar();
+        const values = optpar.map(pythonFloat);
+        if (language === "julia") {
+            return `optpar = [${values.join(", ")}]`;
+        }
+        if (language === "c") {
+            return `static const double optpar[${values.length}] = {${values.join(", ")}};`;
+        }
+        if (language === "matlab") {
+            return `optpar = [${values.join(", ")}];`;
+        }
+        return `optpar = [${values.join(", ")}]`;
+    }
+
+    function exportFunctionText(language = selectedExportLanguage()) {
+        if (language === "julia") {
+            return juliaMapperFunctionText();
+        }
+        if (language === "c") {
+            return cMapperFunctionText();
+        }
+        if (language === "matlab") {
+            return matlabMapperFunctionText();
+        }
+        return pythonImageToAzElFunctionText();
+    }
+
+    function exportHeaderComment(language, inverseIncluded = false) {
+        const optmod = Number(controls.optmod.value) || 2;
+        const width = state.image ? state.image.width : 1920;
+        const height = state.image ? state.image.height : 1080;
+        const inverseNote = inverseIncluded ?
+            "Includes a numerical image_to_az_el inverse." :
+            "Forward az_el_to_image export; invert numerically if image_to_az_el is needed.";
+        if (language === "matlab") {
+            return `% AIDA browser calibrator export. optmod=${optmod}, image ${width}x${height}. ${inverseNote}\n`;
+        }
+        if (language === "c") {
+            return `/* AIDA browser calibrator export. optmod=${optmod}, image ${width}x${height}. ${inverseNote} */\n`;
+        }
+        return `# AIDA browser calibrator export. optmod=${optmod}, image ${width}x${height}. ${inverseNote}\n`;
+    }
+
     function pythonImageToAzElFunctionText() {
         const optpar = currentOptpar();
         const optmod = Number(controls.optmod.value) || 2;
@@ -766,6 +815,181 @@ def image_to_az_el(x, y, optpar=optpar, optmod=optmod,
     az_deg = best[1][0] % 360.0
     el_deg = best[1][1]
     return az_deg, el_deg
+`;
+    }
+
+    function juliaMapperFunctionText() {
+        const optpar = currentOptpar();
+        const optmod = Number(controls.optmod.value) || 2;
+        const width = state.image ? state.image.width : 1920;
+        const height = state.image ? state.image.height : 1080;
+        return `${exportHeaderComment("julia")}${optparArrayText("julia")}
+optmod = ${optmod}
+image_width = ${width}
+image_height = ${height}
+
+function camera_rot(alpha_deg, beta_deg, gamma_deg)
+    a = deg2rad(alpha_deg); b = deg2rad(beta_deg); g = deg2rad(gamma_deg)
+    rot1 = [cos(g) -sin(g) 0.0; sin(g) cos(g) 0.0; 0.0 0.0 1.0]
+    rot2 = [cos(a) 0.0 sin(a); 0.0 1.0 0.0; -sin(a) 0.0 cos(a)]
+    rot3 = [1.0 0.0 0.0; 0.0 cos(b) sin(b); 0.0 -sin(b) cos(b)]
+    return rot2 * rot3 * rot1
+end
+
+function az_el_to_image(az_deg, el_deg; optpar=optpar, optmod=optmod,
+                        width=image_width, height=image_height)
+    az = deg2rad(az_deg)
+    ze = deg2rad(90.0 - el_deg)
+    rot = camera_rot(optpar[3], optpar[4], optpar[5])
+    sinze = sin(ze)
+    es = [sinze * sin(az), sinze * cos(az), cos(ze)]
+    s1, s2, s3 = es' * rot
+    radial = hypot(s1, s2)
+    f1, f2, du, dv, radial_alpha = optpar[1], optpar[2], optpar[6], optpar[7], optpar[8]
+    if radial <= 1e-12
+        u_norm = 0.5 + du; v_norm = 0.5 + dv
+    elseif optmod == 1
+        safe_s3 = abs(s3) > 1e-12 ? s3 : 1e-12
+        u_norm = f1 * s1 / safe_s3 + 0.5 + du
+        v_norm = f2 * s2 / safe_s3 + 0.5 + dv
+    elseif optmod == 2
+        theta = atan(radial, s3); r = sin(radial_alpha * theta)
+        u_norm = f1 * s1 / radial * r + 0.5 + du
+        v_norm = f2 * s2 / radial * r + 0.5 + dv
+    elseif optmod == 3
+        theta = atan(radial, s3); safe_s3 = max(s3, 1e-12)
+        u_norm = f1 * (1.0 - radial_alpha) * s1 / safe_s3 + f1 * radial_alpha * s1 / radial * theta + 0.5 + du
+        v_norm = f2 * (1.0 - radial_alpha) * s2 / safe_s3 + f2 * radial_alpha * s2 / radial * theta + 0.5 + dv
+    elseif optmod == 4
+        theta = atan(radial, s3); r = abs(theta) ^ radial_alpha
+        u_norm = f1 * s1 / radial * r + 0.5 + du
+        v_norm = f2 * s2 / radial * r + 0.5 + dv
+    elseif optmod == 5
+        theta = atan(radial, s3); r = tan(radial_alpha * theta)
+        u_norm = f1 * s1 / radial * r + 0.5 + du
+        v_norm = f2 * s2 / radial * r + 0.5 + dv
+    elseif optmod == 12
+        theta = atan(radial, s3)
+        r = radial_alpha > 0 ? tan(radial_alpha * theta) / radial_alpha :
+            radial_alpha < 0 ? sin(radial_alpha * theta) / radial_alpha : abs(theta)
+        u_norm = f1 * s1 / radial * r + 0.5 + du
+        v_norm = f2 * s2 / radial * r + 0.5 + dv
+    elseif optmod == ${BROWN_CONRADY_OPTMOD}
+        safe_s3 = abs(s3) > 1e-12 ? s3 : 1e-12
+        xn = s1 / safe_s3; yn = s2 / safe_s3
+        r2 = xn*xn + yn*yn; r4 = r2*r2; r6 = r4*r2
+        k1 = optpar[8]; k2 = optpar[9]; k3 = optpar[10]; p1 = optpar[11]; p2 = optpar[12]
+        L = 1.0 + k1*r2 + k2*r4 + k3*r6
+        xd = xn*L + 2.0*p1*xn*yn + p2*(r2 + 2.0*xn*xn)
+        yd = yn*L + p1*(r2 + 2.0*yn*yn) + 2.0*p2*xn*yn
+        u_norm = f1 * xd + 0.5 + du
+        v_norm = f2 * yd + 0.5 + dv
+    else
+        error("unsupported optmod")
+    end
+    return (u_norm * width - 1.0, v_norm * height - 1.0)
+end
+`;
+    }
+
+    function cMapperFunctionText() {
+        const optpar = currentOptpar();
+        const optmod = Number(controls.optmod.value) || 2;
+        const width = state.image ? state.image.width : 1920;
+        const height = state.image ? state.image.height : 1080;
+        return `${exportHeaderComment("c")}#include <math.h>
+${optparArrayText("c")}
+static const int optmod = ${optmod};
+static const double image_width = ${pythonFloat(width)};
+static const double image_height = ${pythonFloat(height)};
+
+static void camera_rot(double alpha_deg, double beta_deg, double gamma_deg, double rot[9]) {
+    double a = alpha_deg * M_PI / 180.0, b = beta_deg * M_PI / 180.0, g = gamma_deg * M_PI / 180.0;
+    double rot1[9] = {cos(g), -sin(g), 0, sin(g), cos(g), 0, 0, 0, 1};
+    double rot2[9] = {cos(a), 0, sin(a), 0, 1, 0, -sin(a), 0, cos(a)};
+    double rot3[9] = {1, 0, 0, 0, cos(b), sin(b), 0, -sin(b), cos(b)};
+    double tmp[9];
+    for (int r = 0; r < 3; r++) for (int c = 0; c < 3; c++) tmp[3*r+c] = rot2[3*r+0]*rot3[c] + rot2[3*r+1]*rot3[3+c] + rot2[3*r+2]*rot3[6+c];
+    for (int r = 0; r < 3; r++) for (int c = 0; c < 3; c++) rot[3*r+c] = tmp[3*r+0]*rot1[c] + tmp[3*r+1]*rot1[3+c] + tmp[3*r+2]*rot1[6+c];
+}
+
+void aida_az_el_to_image(double az_deg, double el_deg, double *x, double *y) {
+    double rot[9]; camera_rot(optpar[2], optpar[3], optpar[4], rot);
+    double az = az_deg * M_PI / 180.0, ze = (90.0 - el_deg) * M_PI / 180.0;
+    double sinze = sin(ze);
+    double es1 = sinze * sin(az), es2 = sinze * cos(az), es3 = cos(ze);
+    double s1 = es1*rot[0] + es2*rot[3] + es3*rot[6];
+    double s2 = es1*rot[1] + es2*rot[4] + es3*rot[7];
+    double s3 = es1*rot[2] + es2*rot[5] + es3*rot[8];
+    double f1 = optpar[0], f2 = optpar[1], du = optpar[5], dv = optpar[6], radial_alpha = optpar[7];
+    double radial = hypot(s1, s2), u_norm, v_norm;
+    if (radial <= 1e-12) { u_norm = 0.5 + du; v_norm = 0.5 + dv; }
+    else if (optmod == 1) { double ss3 = fabs(s3) > 1e-12 ? s3 : 1e-12; u_norm = f1*s1/ss3 + 0.5 + du; v_norm = f2*s2/ss3 + 0.5 + dv; }
+    else if (optmod == 2) { double theta = atan2(radial, s3), rr = sin(radial_alpha*theta); u_norm = f1*s1/radial*rr + 0.5 + du; v_norm = f2*s2/radial*rr + 0.5 + dv; }
+    else if (optmod == 3) { double theta = atan2(radial, s3), ss3 = fmax(s3, 1e-12); u_norm = f1*(1.0-radial_alpha)*s1/ss3 + f1*radial_alpha*s1/radial*theta + 0.5 + du; v_norm = f2*(1.0-radial_alpha)*s2/ss3 + f2*radial_alpha*s2/radial*theta + 0.5 + dv; }
+    else if (optmod == 4) { double theta = atan2(radial, s3), rr = pow(fabs(theta), radial_alpha); u_norm = f1*s1/radial*rr + 0.5 + du; v_norm = f2*s2/radial*rr + 0.5 + dv; }
+    else if (optmod == 5) { double theta = atan2(radial, s3), rr = tan(radial_alpha*theta); u_norm = f1*s1/radial*rr + 0.5 + du; v_norm = f2*s2/radial*rr + 0.5 + dv; }
+    else if (optmod == 12) { double theta = atan2(radial, s3), rr = radial_alpha > 0 ? tan(radial_alpha*theta)/radial_alpha : (radial_alpha < 0 ? sin(radial_alpha*theta)/radial_alpha : fabs(theta)); u_norm = f1*s1/radial*rr + 0.5 + du; v_norm = f2*s2/radial*rr + 0.5 + dv; }
+    else {
+        double ss3 = fabs(s3) > 1e-12 ? s3 : 1e-12, xn = s1/ss3, yn = s2/ss3;
+        double r2 = xn*xn + yn*yn, r4 = r2*r2, r6 = r4*r2;
+        double k1 = optpar[7], k2 = optpar[8], k3 = optpar[9], p1 = optpar[10], p2 = optpar[11];
+        double L = 1.0 + k1*r2 + k2*r4 + k3*r6;
+        double xd = xn*L + 2.0*p1*xn*yn + p2*(r2 + 2.0*xn*xn);
+        double yd = yn*L + p1*(r2 + 2.0*yn*yn) + 2.0*p2*xn*yn;
+        u_norm = f1*xd + 0.5 + du; v_norm = f2*yd + 0.5 + dv;
+    }
+    *x = u_norm * image_width - 1.0; *y = v_norm * image_height - 1.0;
+}
+`;
+    }
+
+    function matlabMapperFunctionText() {
+        const optpar = currentOptpar();
+        const optmod = Number(controls.optmod.value) || 2;
+        const width = state.image ? state.image.width : 1920;
+        const height = state.image ? state.image.height : 1080;
+        return `${exportHeaderComment("matlab")}${optparArrayText("matlab")}
+optmod = ${optmod};
+image_width = ${width};
+image_height = ${height};
+
+function [x, y] = az_el_to_image(az_deg, el_deg, optpar, optmod, width, height)
+if nargin < 3, optpar = evalin('base','optpar'); end
+if nargin < 4, optmod = evalin('base','optmod'); end
+if nargin < 5, width = evalin('base','image_width'); height = evalin('base','image_height'); end
+a=deg2rad(optpar(3)); b=deg2rad(optpar(4)); g=deg2rad(optpar(5));
+rot1=[cos(g) -sin(g) 0; sin(g) cos(g) 0; 0 0 1];
+rot2=[cos(a) 0 sin(a); 0 1 0; -sin(a) 0 cos(a)];
+rot3=[1 0 0; 0 cos(b) sin(b); 0 -sin(b) cos(b)];
+rot=rot2*rot3*rot1;
+az=deg2rad(az_deg); ze=deg2rad(90-el_deg); sinze=sin(ze);
+es=[sinze*sin(az), sinze*cos(az), cos(ze)];
+s=es*rot; s1=s(1); s2=s(2); s3=s(3); radial=hypot(s1,s2);
+f1=optpar(1); f2=optpar(2); du=optpar(6); dv=optpar(7); ar=optpar(8);
+if radial <= 1e-12
+    u=0.5+du; v=0.5+dv;
+elseif optmod == 1
+    ss3=max(abs(s3),1e-12)*sign(s3 + (s3==0)); u=f1*s1/ss3+0.5+du; v=f2*s2/ss3+0.5+dv;
+elseif optmod == 2
+    theta=atan2(radial,s3); rr=sin(ar*theta); u=f1*s1/radial*rr+0.5+du; v=f2*s2/radial*rr+0.5+dv;
+elseif optmod == 3
+    theta=atan2(radial,s3); ss3=max(s3,1e-12); u=f1*(1-ar)*s1/ss3+f1*ar*s1/radial*theta+0.5+du; v=f2*(1-ar)*s2/ss3+f2*ar*s2/radial*theta+0.5+dv;
+elseif optmod == 4
+    theta=atan2(radial,s3); rr=abs(theta)^ar; u=f1*s1/radial*rr+0.5+du; v=f2*s2/radial*rr+0.5+dv;
+elseif optmod == 5
+    theta=atan2(radial,s3); rr=tan(ar*theta); u=f1*s1/radial*rr+0.5+du; v=f2*s2/radial*rr+0.5+dv;
+elseif optmod == 12
+    theta=atan2(radial,s3); if ar>0, rr=tan(ar*theta)/ar; elseif ar<0, rr=sin(ar*theta)/ar; else, rr=abs(theta); end
+    u=f1*s1/radial*rr+0.5+du; v=f2*s2/radial*rr+0.5+dv;
+else
+    ss3=max(abs(s3),1e-12)*sign(s3 + (s3==0)); xn=s1/ss3; yn=s2/ss3; r2=xn*xn+yn*yn; r4=r2*r2; r6=r4*r2;
+    k1=optpar(8); k2=optpar(9); k3=optpar(10); p1=optpar(11); p2=optpar(12);
+    L=1+k1*r2+k2*r4+k3*r6; xd=xn*L+2*p1*xn*yn+p2*(r2+2*xn*xn); yd=yn*L+p1*(r2+2*yn*yn)+2*p2*xn*yn;
+    u=f1*xd+0.5+du; v=f2*yd+0.5+dv;
+end
+x=u*width-1; y=v*height-1;
+end
 `;
     }
 
@@ -4456,7 +4680,8 @@ def image_to_az_el(x, y, optpar=optpar, optmod=optmod,
     for (const el of document.querySelectorAll(".controls input, .controls select")) {
         if (el !== controls.file &&
                 el !== controls.highPassImage && el !== controls.highPassWidth &&
-                el !== controls.maxMag && el !== controls.optmod) {
+                el !== controls.maxMag && el !== controls.optmod &&
+                el !== controls.exportLanguage) {
             el.addEventListener("input", recomputeAndRender);
         }
     }
@@ -4537,11 +4762,13 @@ def image_to_az_el(x, y, optpar=optpar, optmod=optmod,
     });
     controls.copyOptpar.addEventListener("click", () => {
         playInteractionSound("click");
-        copyTextToClipboard(optparPythonArrayText(), "optpar Python array");
+        const language = selectedExportLanguage();
+        copyTextToClipboard(optparArrayText(language), `optpar ${language} array`);
     });
     controls.copyPythonMapper.addEventListener("click", () => {
         playInteractionSound("click");
-        copyTextToClipboard(pythonImageToAzElFunctionText(), "image-to-az/el Python function");
+        const language = selectedExportLanguage();
+        copyTextToClipboard(exportFunctionText(language), `${language} mapper code`);
     });
     controls.clearMatches.addEventListener("click", () => {
         playInteractionSound("delete");

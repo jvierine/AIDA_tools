@@ -179,9 +179,17 @@
             <button id="fitLens" type="button">Fit lens with Nelder-Mead (F)</button>
             <button id="fitLensLm" type="button">Fit lens with Levenberg-Marquardt (G)</button>
             <button id="undoFit" type="button" disabled>Undo fit</button>
+            <label>Export language
+                <select id="exportLanguage">
+                    <option value="python" selected>Python</option>
+                    <option value="julia">Julia</option>
+                    <option value="c">C</option>
+                    <option value="matlab">MATLAB</option>
+                </select>
+            </label>
             <div class="button-row button-row-2">
-                <button id="copyOptpar" type="button">Copy optpar Python array</button>
-                <button id="copyPythonMapper" type="button">Copy image-to-az/el Python function</button>
+                <button id="copyOptpar" type="button">Copy optpar</button>
+                <button id="copyPythonMapper" type="button">Copy mapper code</button>
             </div>
             <button id="toggleFitResiduals" type="button">Show fit residual view (R)</button>
             <button id="clearMatches" type="button">Remove star pairings</button>

@@ -21,8 +21,7 @@ Open `index.html` directly in a browser. No local web server is needed.
   estimate and pair them with catalog stars.
 - Fits the model-specific `optpar` vector: eight parameters for AIDA radial
   models, and twelve for Brown-Conrady with `k1`, `k2`, `k3`, `p1`, and `p2`.
-- Exports the fitted `optpar` as a Python array or a Python image-to-az/el
-  helper function.
+- Exports the fitted `optpar` and mapper code as Python, Julia, C, or MATLAB.
 - Provides residual inspection, including 20x exaggerated on-image residual
   vectors so subpixel offsets are visible.
 - Includes pure image and pure Stellarium views for visual checking.

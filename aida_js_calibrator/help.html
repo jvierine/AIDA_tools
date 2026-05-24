@@ -316,9 +316,12 @@
         <code>[f1, f2, alpha, beta, gamma, du, dv, radial_alpha]</code>.
         For the Brown-Conrady model (browser <code>optmod 20</code>), it contains
         <code>[f1, f2, alpha, beta, gamma, du, dv, k1, k2, k3, p1, p2]</code>.
-        The copied Python mapper uses the same forward model and numerically
-        searches for the azimuth and elevation whose projected image coordinate
-        matches the supplied pixel.
+        The export language selector can copy the array and mapper code as
+        Python, Julia, C, or MATLAB. The Python mapper includes the existing
+        numerical <code>image_to_az_el</code> inverse; the Julia, C, and MATLAB
+        exports provide the same forward <code>az_el_to_image</code> projection
+        so they can be embedded in analysis code and inverted numerically when
+        needed.
     </p>
     <p>
         The inverse mapping is most meaningful for pixels inside the calibrated
