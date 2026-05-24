@@ -3153,13 +3153,98 @@ def image_to_az_el(x, y, optpar=optpar, optmod=optmod,
         return weighted;
     }
 
+    function regularizationResiduals(x, optmod = Number(controls.optmod.value) || 2) {
+        if (!state.image) {
+            return [];
+        }
+        const optpar = optparFromFitVector(x);
+        const width = state.image.width;
+        const height = state.image.height;
+        const cx = (width - 1) / 2;
+        const cy = (height - 1) / 2;
+        const maxRadius = Math.hypot(width, height) * 1.35;
+        const residuals = [];
+        for (let el = 0; el <= 90; el += 15) {
+            for (let az = 0; az < 360; az += 45) {
+                const xy = AidaTools.cameraModel(
+                    az * AidaTools.DEG,
+                    (90 - el) * AidaTools.DEG,
+                    optpar,
+                    optmod,
+                    width,
+                    height
+                );
+                if (!Number.isFinite(xy.x) || !Number.isFinite(xy.y)) {
+                    residuals.push(1e4);
+                    continue;
+                }
+                const radius = Math.hypot(xy.x - cx, xy.y - cy);
+                if (radius > maxRadius) {
+                    residuals.push((radius - maxRadius) * 0.08);
+                }
+            }
+        }
+        if (optmod === BROWN_CONRADY_OPTMOD) {
+            const f1 = Math.max(Math.abs(x[0]), 1e-6);
+            const f2 = Math.max(Math.abs(x[1]), 1e-6);
+            const du = x[5] || 0;
+            const dv = x[6] || 0;
+            const k1 = x[7] || 0;
+            const k2 = x[8] || 0;
+            const k3 = x[9] || 0;
+            const p1 = x[10] || 0;
+            const p2 = x[11] || 0;
+            const corners = [
+                [0, 0],
+                [width - 1, 0],
+                [0, height - 1],
+                [width - 1, height - 1],
+            ];
+            let cornerRadius = 0.5;
+            for (const [px, py] of corners) {
+                const xn = (px / width - 0.5 - du) / f1;
+                const yn = (py / height - 0.5 - dv) / f2;
+                cornerRadius = Math.max(cornerRadius, Math.hypot(xn, yn));
+            }
+            const maxR = Math.min(2.0, cornerRadius * 1.15);
+            for (let i = 1; i <= 16; i++) {
+                const r = maxR * i / 16;
+                const r2 = r * r;
+                const r4 = r2 * r2;
+                const r6 = r4 * r2;
+                const derivative = 1 + 3 * k1 * r2 + 5 * k2 * r4 + 7 * k3 * r6;
+                if (!Number.isFinite(derivative)) {
+                    residuals.push(1e4);
+                } else if (derivative < 0.05) {
+                    residuals.push((0.05 - derivative) * 60);
+                }
+            }
+            residuals.push(k1 * 2, k2 * 4, k3 * 8, p1 * 30, p2 * 30);
+        }
+        return residuals;
+    }
+
+    function regularizationSumSquares(x, optmod = Number(controls.optmod.value) || 2) {
+        return residualSumSquares(regularizationResiduals(x, optmod));
+    }
+
+    function regularizedResidualFactory(rawResidualFn, optmod = Number(controls.optmod.value) || 2) {
+        return x => {
+            const raw = rawResidualFn(x);
+            if (!raw) {
+                return null;
+            }
+            return raw.concat(regularizationResiduals(x, optmod));
+        };
+    }
+
     function matchObjectiveFactory(residualFn = matchResidualFactory(), optmod = Number(controls.optmod.value) || 2) {
         return x => {
             const penalty = fitPenalty(x, optmod);
             if (penalty > 0) {
                 return penalty;
             }
-            return robustLoss(residualFn(x));
+            return robustLoss(residualFn(x)) + regularizationSumSquares(x, optmod);
         };
     }
 
@@ -3467,7 +3552,7 @@ def image_to_az_el(x, y, optpar=optpar, optmod=optmod,
             "Nelder-Mead lens fit",
             `${starts.length} starts including random perturbations, ${totalIterations} iterations`,
             fitCount,
-            "robust Huber objective"
+            "regularized robust Huber objective"
         );
     }
 
@@ -3482,14 +3567,15 @@ def image_to_az_el(x, y, optpar=optpar, optmod=optmod,
             return;
         }
         const residualFn = matchResidualFactory();
-        const objective = leastSquaresObjectiveFactory(residualFn, optmod);
+        const regularizedResidualFn = regularizedResidualFactory(residualFn, optmod);
+        const objective = leastSquaresObjectiveFactory(regularizedResidualFn, optmod);
         const start = currentFitVector();
         const starts = fitStartCandidates(objective, start, optmod).slice(0, 12);
         let result = null;
         let totalIterations = 0;
         let accepted = 0;
         for (const candidate of starts) {
-            const candidateResult = levenbergMarquardt(residualFn, candidate.x, 80, optmod);
+            const candidateResult = levenbergMarquardt(regularizedResidualFn, candidate.x, 80, optmod);
             totalIterations += candidateResult.iterations;
             accepted += candidateResult.accepted;
             if (!result || candidateResult.fx < result.fx) {
@@ -3508,7 +3594,7 @@ def image_to_az_el(x, y, optpar=optpar, optmod=optmod,
             "Levenberg-Marquardt lens fit",
             `${starts.length} starts, ${totalIterations} iterations, ${accepted} accepted steps`,
             fitCount,
-            "ordinary least-squares objective"
+            "regularized ordinary least-squares objective"
         );
     }
 
