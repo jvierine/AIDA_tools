@@ -188,9 +188,10 @@
         </li>
         <li>
             Use the export buttons to copy either the fitted
-            <code>optpar = [...]</code> array, mapper code, or a terminal
-            command that writes the current calibration into the test-case
-            directory.
+            <code>optpar = [...]</code> array or mapper code. When running from
+            the local server, use <em>Submit as test case</em> to store the
+            calibrated image, picked star locations, residuals, timestamp,
+            coordinates, and best-fit lens model under <code>test_cases/</code>.
         </li>
     </ol>
 
@@ -210,7 +211,7 @@
         <li><kbd>Cmd/Ctrl Z</kbd>: undo the most recent accepted fit.</li>
         <li><kbd>D</kbd> + click: delete the nearest matched star pairing.</li>
         <li><kbd>R</kbd>: show or hide residual view.</li>
-        <li>Copy test case command button: copy a terminal command that writes the current image metadata, <code>[optmod, ...optpar]</code>, and manual pairings into <code>aida_js_calibrator/test_cases/</code>.</li>
+        <li>Submit as test case button: save the current image metadata, <code>[optmod, ...optpar]</code>, residuals, and manual or automatic pairings into <code>aida_js_calibrator/test_cases/</code> when using the local server.</li>
         <li><kbd>Esc</kbd>: cancel the current star selection or close the density popup.</li>
         <li>Left mouse drag: move the field of view by shifting the 90 degree elevation point.</li>
         <li>Right mouse drag: rotate the field of view around the 90 degree elevation point.</li>
@@ -345,15 +346,14 @@
 
     <h2>Test cases</h2>
     <p>
-        The graphical test report reads JSON files from
-        <code>aida_js_calibrator/test_cases/</code>. Each file uses the same
-        browser-copy format: image name, UTC timestamp, site coordinates,
-        optional manually paired stars, and an <code>optpar</code> array whose
-        first element is always the optical model number. To add a new case from
-        the browser, copy the test-case command, paste it in a terminal at the
-        repository checkout, and place the image file in
-        <code>aida_js_calibrator/calibration_images/</code> if it is not already
-        there.
+        Saved test cases live under <code>aida_js_calibrator/test_cases/</code>.
+        Each case directory contains the calibrated image and a
+        <code>metadata.json</code> file with image name, UTC timestamp, site
+        coordinates, manually or automatically paired stars, residuals, and an
+        <code>[optmod, ...optpar]</code> array whose first element is always the
+        optical model number. To add a new case from the browser, run
+        <code>npm run serve</code>, calibrate an image, and press
+        <em>Submit as test case</em>.
     </p>
 
     <h2>Export notes</h2>

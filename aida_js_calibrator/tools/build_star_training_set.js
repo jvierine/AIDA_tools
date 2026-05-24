@@ -10,10 +10,10 @@ const {
     buildCases,
     projectStars,
     readPngImageData,
+    testCaseImagePath,
 } = require("./generate_test_report.js");
 
 const ROOT = path.join(__dirname, "..");
-const IMAGE_DIR = path.join(ROOT, "calibration_images");
 const DEFAULT_DATASET_DIR = path.join(ROOT, "star_training");
 const CROP_SIZE = 64;
 
@@ -216,7 +216,7 @@ function circleSvg(x, y, radius, stroke, fill = "none", title = "") {
 function writeOverlaySvg(testCase, stars, detections, overlayDir) {
     fs.mkdirSync(overlayDir, {recursive: true});
     const items = [];
-    const imageHref = path.relative(overlayDir, path.join(IMAGE_DIR, testCase.image)).replace(/\\/g, "/");
+    const imageHref = path.relative(overlayDir, testCaseImagePath(testCase)).replace(/\\/g, "/");
     items.push(`<image href="${escapeXml(imageHref)}" x="0" y="0" width="${testCase.width}" height="${testCase.height}" />`);
     for (const detection of detections) {
         items.push(circleSvg(detection.x, detection.y, 8, "#000"));
@@ -314,7 +314,7 @@ function randomPoint(seed, width, height, margin) {
 }
 
 async function buildCase(testCase, options, manifest) {
-    const imagePath = path.join(IMAGE_DIR, testCase.image);
+    const imagePath = testCaseImagePath(testCase);
     const imageData = readPngImageData(imagePath);
     const detectionResult = await StarDetector.detectBrightStars(imageData, {
         maxDetections: Math.max(240, options.yesPerCase + options.noPerCase),
@@ -399,7 +399,7 @@ async function buildCase(testCase, options, manifest) {
 }
 
 async function buildOverlay(testCase, options) {
-    const imagePath = path.join(IMAGE_DIR, testCase.image);
+    const imagePath = testCaseImagePath(testCase);
     const imageData = readPngImageData(imagePath);
     const detectionResult = await StarDetector.detectBrightStars(imageData, {
         maxDetections: 240,

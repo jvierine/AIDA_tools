@@ -1,6 +1,7 @@
 (function () {
     "use strict";
 
+    const APP_VERSION = "20260525d-update-test-case";
     const canvas = document.getElementById("glCanvas");
     const rotationCanvas = document.getElementById("rotationCanvas");
     const rotationContext = rotationCanvas.getContext("2d");
@@ -9,6 +10,7 @@
     const hint = document.getElementById("canvasHint");
     const cardinalLayer = document.getElementById("cardinalLayer");
     const statusEl = document.getElementById("status");
+    const appVersionEl = document.getElementById("appVersion");
     const matchInstructions = document.getElementById("matchInstructions");
     const residualHistogram = document.getElementById("residualHistogram");
     const lensEquation = document.getElementById("lensEquation");
@@ -20,6 +22,9 @@
     const loadingOverlay = document.getElementById("loadingOverlay");
     const loadingBar = document.getElementById("loadingBar");
     const loadingText = document.getElementById("loadingText");
+    if (appVersionEl) {
+        appVersionEl.textContent = APP_VERSION;
+    }
     const defaultImage = {
         url: "calibration_images/2025_02_19_03_47_01_000_010881_ams0882_first1s.png",
         name: "2025_02_19_03_47_01_000_010881_ams0882_first1s.png",
@@ -72,7 +77,10 @@
         exportLanguage: document.getElementById("exportLanguage"),
         copyOptpar: document.getElementById("copyOptpar"),
         copyPythonMapper: document.getElementById("copyPythonMapper"),
-        copyTestCaseCommand: document.getElementById("copyTestCaseCommand"),
+        submitTestCase: document.getElementById("submitTestCase"),
+        saveFeedback: document.getElementById("saveFeedback"),
+        testCaseSelect: document.getElementById("testCaseSelect"),
+        loadTestCase: document.getElementById("loadTestCase"),
         toggleFitResiduals: document.getElementById("toggleFitResiduals"),
         clearMatches: document.getElementById("clearMatches"),
     };
@@ -92,6 +100,8 @@
         imageName: "",
         localImageUrl: null,
         baseOptpar: null,
+        modelOptpar: null,
+        loadedTestCaseId: "",
         imageLoadId: 0,
         flipX: false,
         flipY: false,
@@ -132,6 +142,7 @@
         showFitResiduals: false,
         fitMessage: "lens fit: not run",
         lastFitVector: null,
+        lastAcceptedFitVector: null,
         fitUndoStack: [],
         lastLensEquation: "",
         activeOptmod: Number(controls.optmod.value) || 2,
@@ -385,7 +396,7 @@
         return true;
     }
 
-    function currentOptpar() {
+    function optparFromControls() {
         const optmod = Number(controls.optmod.value) || 2;
         const common = [
             Number(controls.fScaleX.value) || 1.0,
@@ -406,6 +417,19 @@
             Number(controls.brownP1.value) || 0,
             Number(controls.brownP2.value) || 0,
         ]);
+    }
+
+    function currentOptpar() {
+        const optmod = Number(controls.optmod.value) || 2;
+        const requiredLength = requiredOptparLength(optmod);
+        if (state && Array.isArray(state.modelOptpar) && state.modelOptpar.length >= requiredLength) {
+            return state.modelOptpar.slice(0, requiredLength);
+        }
+        return optparFromControls();
+    }
+
+    function syncModelOptparFromControls() {
+        state.modelOptpar = optparFromControls();
     }
 
     function isMacPlatform() {
@@ -480,6 +504,17 @@
         return currentOptpar();
     }
 
+    function fitVectorMaxAbsDiff(a, b) {
+        if (!Array.isArray(a) || !Array.isArray(b) || a.length !== b.length) {
+            return Infinity;
+        }
+        let maxDiff = 0;
+        for (let i = 0; i < a.length; i++) {
+            maxDiff = Math.max(maxDiff, Math.abs((Number(a[i]) || 0) - (Number(b[i]) || 0)));
+        }
+        return maxDiff;
+    }
+
     function updateOptmodUi() {
         const optmod = Number(controls.optmod.value) || 2;
         const previousOptmod = state.activeOptmod;
@@ -491,6 +526,7 @@
             applyOptpar(defaultOptparForImage(state.image, optmod));
         } else if (!radialAlphaIsValidForOptmod(Number(controls.radialAlpha.value), optmod)) {
             controls.radialAlpha.value = defaultRadialAlphaForOptmod(optmod).toFixed(6);
+            syncModelOptparFromControls();
         }
     }
 
@@ -502,24 +538,40 @@
     }
 
     function applyFitVector(x) {
-        controls.fScaleX.value = x[0].toFixed(6);
-        controls.fScaleY.value = x[1].toFixed(6);
-        controls.rotAlpha.value = Math.max(-90, Math.min(90, x[2])).toFixed(3);
-        controls.rotBeta.value = Math.max(-90, Math.min(90, x[3])).toFixed(3);
-        controls.rotGamma.value = wrapDegrees180(x[4]).toFixed(3);
-        controls.du.value = Math.max(-0.5, Math.min(0.5, x[5])).toFixed(6);
-        controls.dv.value = Math.max(-0.5, Math.min(0.5, x[6])).toFixed(6);
         const optmod = Number(controls.optmod.value) || 2;
-        controls.radialAlpha.value = (optmod === BROWN_CONRADY_OPTMOD ?
+        const applied = x.slice(0, requiredOptparLength(optmod));
+        applied[0] = x[0];
+        applied[1] = x[1];
+        applied[2] = Math.max(-90, Math.min(90, x[2]));
+        applied[3] = Math.max(-90, Math.min(90, x[3]));
+        applied[4] = wrapDegrees180(x[4]);
+        applied[5] = Math.max(-0.5, Math.min(0.5, x[5]));
+        applied[6] = Math.max(-0.5, Math.min(0.5, x[6]));
+        applied[7] = optmod === BROWN_CONRADY_OPTMOD ?
             Math.max(-5.0, Math.min(5.0, x[7] || 0)) :
             optmod === 12 ?
                 Math.max(-2.5, Math.min(2.5, x[7])) :
-                Math.max(0.05, Math.min(2.5, x[7]))).toFixed(6);
+                Math.max(0.05, Math.min(2.5, x[7]));
         if (optmod === BROWN_CONRADY_OPTMOD) {
-            controls.brownK2.value = Math.max(-5.0, Math.min(5.0, x[8] || 0)).toFixed(6);
-            controls.brownK3.value = Math.max(-5.0, Math.min(5.0, x[9] || 0)).toFixed(6);
-            controls.brownP1.value = Math.max(-1.0, Math.min(1.0, x[10] || 0)).toFixed(6);
-            controls.brownP2.value = Math.max(-1.0, Math.min(1.0, x[11] || 0)).toFixed(6);
+            applied[8] = Math.max(-5.0, Math.min(5.0, x[8] || 0));
+            applied[9] = Math.max(-5.0, Math.min(5.0, x[9] || 0));
+            applied[10] = Math.max(-1.0, Math.min(1.0, x[10] || 0));
+            applied[11] = Math.max(-1.0, Math.min(1.0, x[11] || 0));
+        }
+        state.modelOptpar = applied.slice();
+        controls.fScaleX.value = applied[0].toPrecision(12);
+        controls.fScaleY.value = applied[1].toPrecision(12);
+        controls.rotAlpha.value = applied[2].toPrecision(12);
+        controls.rotBeta.value = applied[3].toPrecision(12);
+        controls.rotGamma.value = applied[4].toPrecision(12);
+        controls.du.value = applied[5].toPrecision(12);
+        controls.dv.value = applied[6].toPrecision(12);
+        controls.radialAlpha.value = applied[7].toPrecision(12);
+        if (optmod === BROWN_CONRADY_OPTMOD) {
+            controls.brownK2.value = applied[8].toPrecision(12);
+            controls.brownK3.value = applied[9].toPrecision(12);
+            controls.brownP1.value = applied[10].toPrecision(12);
+            controls.brownP2.value = applied[11].toPrecision(12);
         }
     }
 
@@ -556,6 +608,7 @@
         }
         applyFitVector(previous.optpar);
         state.lastFitVector = previous.optpar.slice();
+        state.lastAcceptedFitVector = previous.optpar.slice();
         state.pendingMatch = null;
         state.showPickedMatchMarkers = false;
         state.fitMessage = `undo fit: restored parameters before ${previous.label}`;
@@ -567,34 +620,12 @@
         if (!optpar || optpar.length < 8) {
             state.baseOptpar = null;
             const defaults = defaultOptparForImage();
-            controls.fScaleX.value = defaults[0].toFixed(4);
-            controls.fScaleY.value = defaults[1].toFixed(4);
-            controls.rotAlpha.value = defaults[2].toFixed(3);
-            controls.rotBeta.value = defaults[3].toFixed(3);
-            controls.rotGamma.value = defaults[4].toFixed(3);
-            controls.du.value = defaults[5].toFixed(6);
-            controls.dv.value = defaults[6].toFixed(6);
-            controls.radialAlpha.value = defaultRadialAlphaForOptmod().toFixed(6);
-            controls.brownK2.value = "0.000000";
-            controls.brownK3.value = "0.000000";
-            controls.brownP1.value = "0.000000";
-            controls.brownP2.value = "0.000000";
+            applyFitVector(defaults);
             updateOptmodUi();
             return;
         }
         state.baseOptpar = optpar.slice();
-        controls.fScaleX.value = optpar[0].toFixed(6);
-        controls.fScaleY.value = optpar[1].toFixed(6);
-        controls.rotAlpha.value = optpar[2].toFixed(3);
-        controls.rotBeta.value = optpar[3].toFixed(3);
-        controls.rotGamma.value = wrapDegrees180(optpar[4]).toFixed(3);
-        controls.du.value = optpar[5].toFixed(6);
-        controls.dv.value = optpar[6].toFixed(6);
-        controls.radialAlpha.value = optpar[7].toFixed(6);
-        controls.brownK2.value = (optpar[8] || 0).toFixed(6);
-        controls.brownK3.value = (optpar[9] || 0).toFixed(6);
-        controls.brownP1.value = (optpar[10] || 0).toFixed(6);
-        controls.brownP2.value = (optpar[11] || 0).toFixed(6);
+        applyFitVector(optpar);
     }
 
     function latexNumber(value, digits = 4) {
@@ -792,13 +823,69 @@
             .replace(/^-+|-+$/g, "") || "aida_case";
     }
 
-    function currentTestCaseJsonText() {
+    function residualRowsForMatches(matches) {
+        if (!state.image || !Array.isArray(matches) || matches.length === 0) {
+            return [];
+        }
+        const date = AidaTools.datetimeLocalToDate(controls.timestampUtc.value);
+        const lat = Number(controls.latDeg.value) || 0;
+        const lon = Number(controls.lonDeg.value) || 0;
+        const optmod = Number(controls.optmod.value);
+        const optpar = currentOptpar();
+        const rows = [];
+        for (const match of matches) {
+            const azze = AidaTools.radecToAzZe(match.catalog.raHours, match.catalog.decDeg, date, lat, lon);
+            const xy = AidaTools.cameraModel(azze.az, azze.ze, optpar, optmod, state.image.width, state.image.height);
+            if (!Number.isFinite(xy.x) || !Number.isFinite(xy.y)) {
+                continue;
+            }
+            const [rawX, rawY] = rawImagePixelFromModelImagePixel(xy.x, xy.y);
+            const dx = rawX - match.image.x;
+            const dy = rawY - match.image.y;
+            rows.push({
+                match,
+                model: {x: rawX, y: rawY},
+                dx,
+                dy,
+                r: Math.hypot(dx, dy),
+            });
+        }
+        return rows;
+    }
+
+    function residualSummary(rows) {
+        if (!rows.length) {
+            return {
+                count: 0,
+                rmsPx: null,
+                medianPx: null,
+                maxPx: null,
+                medianDxPx: null,
+                medianDyPx: null,
+            };
+        }
+        const sumR2 = rows.reduce((acc, row) => acc + row.r * row.r, 0);
+        const sortedR = rows.map(row => row.r).sort((a, b) => a - b);
+        return {
+            count: rows.length,
+            rmsPx: Math.sqrt(sumR2 / rows.length),
+            medianPx: sortedR[Math.floor(sortedR.length / 2)],
+            maxPx: sortedR[sortedR.length - 1],
+            medianDxPx: median(rows.map(row => row.dx)),
+            medianDyPx: median(rows.map(row => row.dy)),
+        };
+    }
+
+    function currentTestCaseObject() {
         const date = AidaTools.datetimeLocalToDate(controls.timestampUtc.value);
         const optmod = Number(controls.optmod.value) || 2;
         const optpar = [optmod, ...currentOptpar()];
-        const testCase = {
-            id: safeCaseId(state.imageName),
-            title: `${safeCaseId(state.imageName)} manual browser calibration`,
+        const caseId = state.loadedTestCaseId || safeCaseId(state.imageName);
+        const rows = residualRowsForMatches(state.matches);
+        const residualByMatchId = new Map(rows.map(row => [row.match.id, row]));
+        return {
+            id: caseId,
+            title: `${caseId} manual browser calibration`,
             image: state.imageName || "replace-with-image-file.png",
             width: state.image ? state.image.width : null,
             height: state.image ? state.image.height : null,
@@ -809,29 +896,240 @@
             optpar,
             maxMag: Number(controls.maxMag.value) || 7,
             matchRadiusPx: 22,
+            display: {
+                flipX: state.flipX,
+                flipY: state.flipY,
+                imageFlipX: state.imageFlipX,
+                imageFlipY: state.imageFlipY,
+                highPassImage: controls.highPassImage.checked,
+                highPassWidthPx: Number(controls.highPassWidth.value) || 0,
+                brightness: Number(controls.brightness.value) || 0,
+                contrast: Number(controls.contrast.value) || 1,
+            },
+            residual: residualSummary(rows),
             matches: state.matches.map(match => ({
+                id: match.id,
                 image: {
                     x: match.image.x,
                     y: match.image.y,
                     method: match.image.method || "manual",
                 },
+                residual: residualByMatchId.has(match.id) ? {
+                    modelX: residualByMatchId.get(match.id).model.x,
+                    modelY: residualByMatchId.get(match.id).model.y,
+                    dx: residualByMatchId.get(match.id).dx,
+                    dy: residualByMatchId.get(match.id).dy,
+                    r: residualByMatchId.get(match.id).r,
+                } : null,
                 catalog: {
                     key: match.catalog.key,
                     name: match.catalog.name,
                     raHours: match.catalog.raHours,
                     decDeg: match.catalog.decDeg,
                     mag: match.catalog.mag,
+                    az: match.catalog.az,
+                    ze: match.catalog.ze,
                 },
             })),
         };
-        return JSON.stringify(testCase, null, 2);
     }
 
-    function copyTestCaseCommandText() {
-        const id = safeCaseId(state.imageName);
-        const filename = `${id}.json`;
-        const json = currentTestCaseJsonText();
-        return `cd /Users/j/src/AIDA_tools && mkdir -p aida_js_calibrator/test_cases && cat > aida_js_calibrator/test_cases/${filename} <<'EOF'\n${json}\nEOF`;
+    function setSaveFeedback(message, isError = false) {
+        if (!controls.saveFeedback) {
+            return;
+        }
+        controls.saveFeedback.hidden = !message;
+        controls.saveFeedback.textContent = message || "";
+        controls.saveFeedback.classList.toggle("error", Boolean(isError));
+    }
+
+    function imagePixelsPngDataUrl() {
+        if (!state.imagePixels || !state.image) {
+            return Promise.resolve(null);
+        }
+        const imageCanvas = document.createElement("canvas");
+        imageCanvas.width = state.image.width;
+        imageCanvas.height = state.image.height;
+        const imageContext = imageCanvas.getContext("2d");
+        imageContext.putImageData(state.imagePixels, 0, 0);
+        return new Promise(resolve => {
+            imageCanvas.toBlob(blob => {
+                if (!blob) {
+                    resolve(null);
+                    return;
+                }
+                const reader = new FileReader();
+                reader.onload = () => resolve(reader.result);
+                reader.onerror = () => resolve(null);
+                reader.readAsDataURL(blob);
+            }, "image/png");
+        });
+    }
+
+    async function submitCurrentTestCase() {
+        if (!state.image || !state.imagePixels) {
+            state.fitMessage = "submit test case: load an image with readable pixels first";
+            render();
+            return;
+        }
+        if (state.matches.length === 0) {
+            state.fitMessage = "submit test case: no picked or automatically identified star pairings";
+            render();
+            return;
+        }
+        if (!controls.submitTestCase) {
+            return;
+        }
+        controls.submitTestCase.disabled = true;
+        try {
+            const testCase = currentTestCaseObject();
+            const imageDataUrl = await imagePixelsPngDataUrl();
+            const response = await fetch("/api/test-cases", {
+                method: "POST",
+                headers: {"content-type": "application/json"},
+                body: JSON.stringify({testCase, imageDataUrl}),
+            });
+            const result = await response.json();
+            if (!response.ok) {
+                throw new Error(result.error || "server rejected test case");
+            }
+            state.loadedTestCaseId = result.caseId;
+            setSaveFeedback(`${result.updated ? "Updated" : "Saved"} ${result.caseId}: ${result.metadata}`, false);
+            state.fitMessage = `submit test case: ${result.updated ? "updated" : "saved"} ${result.caseId} ` +
+                `with ${testCase.matches.length} star pairings; ` +
+                `metadata ${result.metadata}; image ${result.image}`;
+            await refreshTestCaseList(result.caseId);
+        } catch (error) {
+            setSaveFeedback(`Save failed: ${error.message || error}`, true);
+            state.fitMessage = `submit test case failed: ${error.message || error}. Start with npm run serve.`;
+        } finally {
+            controls.submitTestCase.disabled = false;
+            render();
+            focusImageWindowSoon();
+        }
+    }
+
+    async function refreshTestCaseList(selectId = "") {
+        if (!controls.testCaseSelect) {
+            return;
+        }
+        try {
+            const response = await fetch("/api/test-cases");
+            if (!response.ok) {
+                throw new Error("test-case API unavailable");
+            }
+            const cases = await response.json();
+            controls.testCaseSelect.replaceChildren();
+            const placeholder = document.createElement("option");
+            placeholder.value = "";
+            placeholder.textContent = cases.length ? "Select saved test case..." : "No saved test cases";
+            controls.testCaseSelect.appendChild(placeholder);
+            for (const testCase of cases) {
+                const option = document.createElement("option");
+                option.value = testCase.id;
+                option.textContent = `${testCase.id} (${testCase.matches || 0} stars)`;
+                controls.testCaseSelect.appendChild(option);
+            }
+            controls.testCaseSelect.value = selectId || "";
+        } catch (error) {
+            controls.testCaseSelect.replaceChildren();
+            const option = document.createElement("option");
+            option.value = "";
+            option.textContent = "Start with npm run serve";
+            controls.testCaseSelect.appendChild(option);
+        }
+    }
+
+    function restoreTestCaseState(testCase) {
+        state.loadedTestCaseId = safeCaseId(testCase.id || testCase.image || "");
+        const optpar = Array.isArray(testCase.optpar) ? testCase.optpar.map(Number) : [];
+        const optmod = Number.isFinite(optpar[0]) ? Math.round(optpar[0]) : Number(testCase.optmod) || 2;
+        controls.optmod.value = String(optmod);
+        updateOptmodUi();
+        applyOptpar(optpar.length > 1 ? optpar.slice(1) : null);
+        if (testCase.timestampUtc || testCase.date) {
+            const date = new Date(testCase.timestampUtc || testCase.date);
+            if (!Number.isNaN(date.getTime())) {
+                controls.timestampUtc.value = AidaTools.dateToDatetimeLocal(date);
+            }
+        }
+        if (Number.isFinite(Number(testCase.latDeg))) {
+            controls.latDeg.value = Number(testCase.latDeg).toFixed(6);
+        }
+        if (Number.isFinite(Number(testCase.lonDeg))) {
+            controls.lonDeg.value = Number(testCase.lonDeg).toFixed(6);
+        }
+        if (Number.isFinite(Number(testCase.altM))) {
+            controls.altM.value = String(Number(testCase.altM));
+        }
+        if (Number.isFinite(Number(testCase.maxMag))) {
+            controls.maxMag.value = Number(testCase.maxMag).toFixed(1);
+        }
+        const display = testCase.display || {};
+        state.flipX = Boolean(display.flipX);
+        state.flipY = Boolean(display.flipY);
+        state.imageFlipX = Boolean(display.imageFlipX);
+        state.imageFlipY = Boolean(display.imageFlipY);
+        controls.highPassImage.checked = display.highPassImage !== false;
+        controls.highPassWidth.value = Number.isFinite(Number(display.highPassWidthPx)) ?
+            String(Number(display.highPassWidthPx)) : "100";
+        controls.brightness.value = Number.isFinite(Number(display.brightness)) ?
+            String(Number(display.brightness)) : controls.brightness.value;
+        controls.contrast.value = Number.isFinite(Number(display.contrast)) ?
+            String(Number(display.contrast)) : controls.contrast.value;
+        state.matches = Array.isArray(testCase.matches) ? testCase.matches.map((match, index) => ({
+            id: Number.isFinite(Number(match.id)) ? Number(match.id) : index + 1,
+            image: {
+                x: Number(match.image && match.image.x) || 0,
+                y: Number(match.image && match.image.y) || 0,
+                method: match.image && match.image.method || "manual",
+            },
+            catalog: {
+                key: match.catalog && match.catalog.key || `${match.catalog && match.catalog.name || "star"}-${index}`,
+                name: match.catalog && match.catalog.name || "",
+                raHours: Number(match.catalog && match.catalog.raHours) || 0,
+                decDeg: Number(match.catalog && match.catalog.decDeg) || 0,
+                mag: Number(match.catalog && match.catalog.mag) || 0,
+                az: Number(match.catalog && match.catalog.az) || 0,
+                ze: Number(match.catalog && match.catalog.ze) || 0,
+            },
+        })) : [];
+        state.showPickedMatchMarkers = true;
+        state.showFitResiduals = true;
+        updateDetectionCircleButton();
+        updateStarNameButton();
+        updateFitResidualButton();
+        updateAutoMatches();
+        refreshDisplayImage();
+        state.fitMessage = `loaded test case ${testCase.id || ""} with ${state.matches.length} star pairings`;
+        setSaveFeedback(`Loaded ${testCase.id || "test case"}`, false);
+    }
+
+    async function loadSelectedTestCase() {
+        const id = controls.testCaseSelect && controls.testCaseSelect.value;
+        if (!id) {
+            setSaveFeedback("Select a saved test case first.", true);
+            return;
+        }
+        controls.loadTestCase.disabled = true;
+        try {
+            const response = await fetch(`/api/test-cases/${encodeURIComponent(id)}`);
+            const payload = await response.json();
+            if (!response.ok) {
+                throw new Error(payload.error || "failed to load test case");
+            }
+            resetForNewImage();
+            loadImageSource(payload.imageUrl, payload.testCase.image || `${id}.png`, () => {
+                restoreTestCaseState(payload.testCase);
+            }, false, null, payload.testCase.image || `${id}.png`);
+        } catch (error) {
+            setSaveFeedback(`Load failed: ${error.message || error}`, true);
+            state.fitMessage = `load test case failed: ${error.message || error}`;
+            render();
+        } finally {
+            controls.loadTestCase.disabled = false;
+            focusImageWindowSoon();
+        }
     }
 
     function exportFunctionText(language = selectedExportLanguage()) {
@@ -1221,8 +1519,8 @@ end
         const x = cosEl * Math.sin(az);
         const y = cosEl * Math.cos(az);
         const z = Math.sin(el);
-        controls.rotAlpha.value = (Math.atan2(x, z) * AidaTools.RAD).toFixed(3);
-        controls.rotBeta.value = (Math.asin(clamp(y, -1, 1)) * AidaTools.RAD).toFixed(3);
+        controls.rotAlpha.value = (Math.atan2(x, z) * AidaTools.RAD).toPrecision(12);
+        controls.rotBeta.value = (Math.asin(clamp(y, -1, 1)) * AidaTools.RAD).toPrecision(12);
     }
 
     function optparWithCameraAngles(alphaDeg, betaDeg, gammaDeg) {
@@ -1309,8 +1607,8 @@ end
             }
         }
 
-        controls.rotAlpha.value = bestAlpha.toFixed(3);
-        controls.rotBeta.value = bestBeta.toFixed(3);
+        controls.rotAlpha.value = bestAlpha.toPrecision(12);
+        controls.rotBeta.value = bestBeta.toPrecision(12);
         return Math.sqrt(bestError2);
     }
 
@@ -2187,33 +2485,7 @@ end
 
     function matchResidualRows() {
         const matches = fittingMatches();
-        if (!state.image || matches.length === 0) {
-            return [];
-        }
-        const date = AidaTools.datetimeLocalToDate(controls.timestampUtc.value);
-        const lat = Number(controls.latDeg.value) || 0;
-        const lon = Number(controls.lonDeg.value) || 0;
-        const optmod = Number(controls.optmod.value);
-        const optpar = currentOptpar();
-        const rows = [];
-        for (const match of matches) {
-            const azze = AidaTools.radecToAzZe(match.catalog.raHours, match.catalog.decDeg, date, lat, lon);
-            const xy = AidaTools.cameraModel(azze.az, azze.ze, optpar, optmod, state.image.width, state.image.height);
-            if (!Number.isFinite(xy.x) || !Number.isFinite(xy.y)) {
-                continue;
-            }
-            const [rawX, rawY] = rawImagePixelFromModelImagePixel(xy.x, xy.y);
-            const dx = rawX - match.image.x;
-            const dy = rawY - match.image.y;
-            rows.push({
-                match,
-                model: {x: rawX, y: rawY},
-                dx,
-                dy,
-                r: Math.hypot(dx, dy),
-            });
-        }
-        return rows;
+        return residualRowsForMatches(matches);
     }
 
     function drawFitResiduals(rows = matchResidualRows()) {
@@ -2629,9 +2901,17 @@ end
         const optparWithModel = [optmod, ...optpar].map(value =>
             Number.isFinite(value) ? value.toPrecision(12) : String(value)
         ).join(", ");
+        const currentFit = currentFitVector();
+        const lastFitDiff = fitVectorMaxAbsDiff(currentFit, state.lastAcceptedFitVector);
+        const fitStaleText = Number.isFinite(lastFitDiff) && lastFitDiff > 1e-8 ?
+            `last accepted fit: stale, current optpar differs by up to ${lastFitDiff.toExponential(2)}\n` :
+            Number.isFinite(lastFitDiff) ?
+                "last accepted fit: current\n" :
+                "last accepted fit: none\n";
         updateLensEquation(optpar, optmod);
         drawRotationVisualization();
         statusEl.textContent =
+            `AIDA calibrator version: ${APP_VERSION}\n` +
             `image: ${state.imageName || "none"}\n` +
             `timestamp: ${date.toISOString()}\n` +
             `site: lat ${controls.latDeg.value} deg, lon ${controls.lonDeg.value} deg, alt ${controls.altM.value} m\n` +
@@ -2640,9 +2920,9 @@ end
             `catalog stars <= mag ${controls.maxMag.value}: ` +
             `${state.projected.filter(star => star.mag <= Number(controls.maxMag.value)).length}\n` +
             `f1/f2: ${optpar[0].toFixed(6)}, ${optpar[1].toFixed(6)}\n` +
-            `boresight az/el: ${boresightAzElFromCameraAngles(Number(controls.rotAlpha.value) || 0, Number(controls.rotBeta.value) || 0).az.toFixed(2)}, ` +
-            `${boresightAzElFromCameraAngles(Number(controls.rotAlpha.value) || 0, Number(controls.rotBeta.value) || 0).el.toFixed(2)} deg\n` +
-            `du/dv: ${controls.du.value}, ${controls.dv.value}\n` +
+            `boresight az/el: ${boresightAzElFromCameraAngles(optpar[2], optpar[3]).az.toFixed(2)}, ` +
+            `${boresightAzElFromCameraAngles(optpar[2], optpar[3]).el.toFixed(2)} deg\n` +
+            `du/dv: ${optpar[5].toPrecision(12)}, ${optpar[6].toPrecision(12)}\n` +
             `mouse drag: edits lens parameters directly\n` +
             `overlay flip x/y: ${state.flipX}/${state.flipY}\n` +
             `image flip x/y: ${state.imageFlipX}/${state.imageFlipY}\n` +
@@ -2655,6 +2935,7 @@ end
             `fit residuals: ${state.showFitResiduals ? "on" : "off"}\n` +
             `star pairing armed: ${state.starMatchMode ? "on" : "off"}${state.pendingMatch ? " (select catalog star)" : ""}\n` +
             `matched star pairs: ${state.matches.length}\n` +
+            fitStaleText +
             `${state.autoIdentificationStatus}\n` +
             `${autoDetectionStatusText()}\n` +
             `${fitResidualStatusText()}\n` +
@@ -4080,6 +4361,93 @@ end
         return residuals.reduce((acc, value) => acc + value * value, 0);
     }
 
+    function residualVectorSummary(residuals) {
+        if (!residuals || residuals.length < 2) {
+            return {
+                count: 0,
+                sse: Infinity,
+                rms: Infinity,
+                meanDx: 0,
+                meanDy: 0,
+            };
+        }
+        let sumDx = 0;
+        let sumDy = 0;
+        let sse = 0;
+        const count = residuals.length / 2;
+        for (let i = 0; i < residuals.length; i += 2) {
+            sumDx += residuals[i];
+            sumDy += residuals[i + 1];
+            sse += residuals[i] * residuals[i] + residuals[i + 1] * residuals[i + 1];
+        }
+        return {
+            count,
+            sse,
+            rms: Math.sqrt(sse / count),
+            meanDx: sumDx / count,
+            meanDy: sumDy / count,
+        };
+    }
+
+    function recenterFitVectorOnResidualMean(x, residualFn) {
+        if (!state.image || x.length < 7) {
+            return {x: x.slice(), before: null, after: null, changed: false};
+        }
+        const startResiduals = residualFn(x);
+        const before = residualVectorSummary(startResiduals);
+        if (!Number.isFinite(before.sse) || before.count === 0) {
+            return {x: x.slice(), before, after: before, changed: false};
+        }
+        let centered = x.slice();
+        for (let pass = 0; pass < 3; pass++) {
+            const residuals = residualFn(centered);
+            const stats = residualVectorSummary(residuals);
+            if (!Number.isFinite(stats.sse) || Math.hypot(stats.meanDx, stats.meanDy) < 1e-4) {
+                break;
+            }
+            const duStep = 1e-6;
+            const dvStep = 1e-6;
+            const duProbe = centered.slice();
+            const dvProbe = centered.slice();
+            duProbe[5] += duStep;
+            dvProbe[6] += dvStep;
+            const duStats = residualVectorSummary(residualFn(duProbe));
+            const dvStats = residualVectorSummary(residualFn(dvProbe));
+            if (!Number.isFinite(duStats.sse) || !Number.isFinite(dvStats.sse)) {
+                break;
+            }
+            const j00 = (duStats.meanDx - stats.meanDx) / duStep;
+            const j10 = (duStats.meanDy - stats.meanDy) / duStep;
+            const j01 = (dvStats.meanDx - stats.meanDx) / dvStep;
+            const j11 = (dvStats.meanDy - stats.meanDy) / dvStep;
+            const det = j00 * j11 - j01 * j10;
+            if (Math.abs(det) < 1e-12) {
+                break;
+            }
+            const deltaDu = (-stats.meanDx * j11 + j01 * stats.meanDy) / det;
+            const deltaDv = (-j00 * stats.meanDy + stats.meanDx * j10) / det;
+            if (!Number.isFinite(deltaDu) || !Number.isFinite(deltaDv)) {
+                break;
+            }
+            centered[5] = Math.max(-0.5, Math.min(0.5, centered[5] + deltaDu));
+            centered[6] = Math.max(-0.5, Math.min(0.5, centered[6] + deltaDv));
+            if (fitPenalty(centered, Number(controls.optmod.value) || 2) > 0) {
+                centered = x.slice();
+                break;
+            }
+        }
+        const after = residualVectorSummary(residualFn(centered));
+        if (!Number.isFinite(after.sse) || after.sse > before.sse + 1e-6) {
+            return {x: x.slice(), before, after: before, changed: false};
+        }
+        return {
+            x: centered,
+            before,
+            after,
+            changed: Math.abs(centered[5] - x[5]) > 1e-12 || Math.abs(centered[6] - x[6]) > 1e-12,
+        };
+    }
+
     function robustResidualScale(residuals) {
         if (!residuals || residuals.length < 2) {
             return 8;
@@ -4435,7 +4803,9 @@ end
 
     function acceptFitResult(result, start, residualFn, methodLabel, detail, fitCount, objectiveLabel, fitScopeText = null) {
         const startSse = residualSumSquares(residualFn(start));
-        const resultSse = residualSumSquares(residualFn(result.x));
+        const recentered = recenterFitVectorOnResidualMean(result.x, residualFn);
+        const acceptedVector = recentered.x;
+        const resultSse = residualSumSquares(residualFn(acceptedVector));
         const rmsBefore = Math.sqrt(startSse / fitCount);
         const rmsAfter = Math.sqrt(resultSse / fitCount);
         if (!Number.isFinite(rmsAfter) || rmsAfter > Math.max(50, rmsBefore * 1.25)) {
@@ -4450,21 +4820,26 @@ end
             };
         }
         rememberFitState(methodLabel);
-        applyFitVector(result.x);
-        state.lastFitVector = result.x.slice();
+        applyFitVector(acceptedVector);
+        state.lastFitVector = acceptedVector.slice();
+        state.lastAcceptedFitVector = acceptedVector.slice();
         state.pendingMatch = null;
         state.showPickedMatchMarkers = false;
         const scopeText = fitScopeText || `with mag <= ${Number(controls.maxMag.value).toFixed(1)}`;
+        const recenterText = recentered.changed && recentered.before && recentered.after ?
+            `; recentered du/dv mean residual ${recentered.before.meanDx.toFixed(2)}/${recentered.before.meanDy.toFixed(2)} -> ` +
+            `${recentered.after.meanDx.toFixed(2)}/${recentered.after.meanDy.toFixed(2)} px` :
+            "";
         state.fitMessage = `${methodLabel}: RMS ${rmsBefore.toFixed(2)} -> ${rmsAfter.toFixed(2)} px, ` +
             `${detail}; ${objectiveLabel}; fitted all ${result.x.length} optpar values using ${fitCount}/${state.matches.length} pairs ` +
-            `${scopeText}`;
+            `${scopeText}${recenterText}`;
         recomputeAndRender();
         return {
             accepted: true,
             rmsBefore,
             rmsAfter,
             fitCount,
-            optpar: result.x.slice(),
+            optpar: acceptedVector.slice(),
             message: state.fitMessage,
         };
     }
@@ -5088,8 +5463,73 @@ end
         state.pendingMatch = null;
         state.showPickedMatchMarkers = true;
         state.lastFitVector = null;
+        state.lastAcceptedFitVector = null;
         state.autoIdentificationStatus = "auto-identify: not run";
         state.fitMessage = "lens fit: not run";
+    }
+
+    function resetForNewImage() {
+        resetInteractiveState();
+        clearFitUndoStack();
+        clearDensityEstimate();
+        hideZoomCanvas();
+        hideLoadingProgress();
+        state.baseOptpar = null;
+        state.loadedTestCaseId = "";
+        state.flipX = false;
+        state.flipY = false;
+        state.imageFlipX = false;
+        state.imageFlipY = false;
+        state.displayMode = "pairing";
+        state.previousAnnotatedDisplayMode = "pairing";
+        state.maxMagByMode = {stellarium: 6.0, pairing: 4.0, pureImage: 6.0, pureStellarium: 6.0};
+        state.starNamesByMode = {stellarium: false, pairing: true};
+        state.showRaDecGrid = false;
+        state.showAzElGrid = true;
+        state.showStarNames = true;
+        state.dragging = false;
+        state.lensDragMode = "none";
+        state.lastMouse = [0, 0];
+        state.projected = [];
+        state.starMatchMode = false;
+        state.deleteDetectionMode = false;
+        state.maskMode = false;
+        state.zoomMode = false;
+        state.maskRegions = [];
+        state.detectedStars = [];
+        state.deletedDetectionIds = new Set();
+        state.autoMatches = [];
+        state.detectorCache = null;
+        state.detectorStatus = "detector: no image";
+        state.detectionGeneration += 1;
+        state.autoIdentifyBusy = false;
+        state.luckyFitBusy = false;
+        state.centroidPreview = null;
+        state.centroidDensity = null;
+        state.showKdePositionDots = false;
+        state.showFitResiduals = false;
+        state.lastLensEquation = "";
+        controls.optmod.value = "2";
+        controls.autoIdentifyStars.disabled = false;
+        controls.luckyFit.disabled = false;
+        controls.fitLens.disabled = false;
+        controls.fitLensLm.disabled = false;
+        controls.submitTestCase.disabled = false;
+        controls.loadTestCase.disabled = false;
+        controls.highPassImage.checked = true;
+        controls.highPassWidth.value = "100";
+        controls.maxMag.value = "4";
+        controls.flipX.classList.remove("toggle-on");
+        controls.flipY.classList.remove("toggle-on");
+        controls.flipImageX.classList.remove("toggle-on");
+        controls.flipImageY.classList.remove("toggle-on");
+        controls.toggleRaDecGrid.textContent = "Show RA/Dec grid";
+        controls.toggleAzElGrid.textContent = "Hide az/el grid";
+        controls.toggleAzElGrid.classList.toggle("toggle-on", true);
+        controls.toggleStarNames.textContent = "Hide star names (N)";
+        controls.toggleStarNames.classList.toggle("toggle-on", true);
+        updateDetectionCircleButton();
+        updateFitResidualButton();
     }
 
     function metadataLooksLikeIphone(exifMetadata) {
@@ -5303,11 +5743,8 @@ end
     }
 
     async function loadImageFile(file) {
-        resetInteractiveState();
-        state.baseOptpar = null;
+        resetForNewImage();
         applyOptpar(null);
-        clearFitUndoStack();
-        state.fitMessage = "lens fit: not run";
         if (state.localImageUrl) {
             URL.revokeObjectURL(state.localImageUrl);
         }
@@ -5935,7 +6372,10 @@ end
                 el !== controls.highPassImage && el !== controls.highPassWidth &&
                 el !== controls.maxMag && el !== controls.optmod &&
                 el !== controls.exportLanguage) {
-            el.addEventListener("input", recomputeAndRender);
+            el.addEventListener("input", () => {
+                syncModelOptparFromControls();
+                recomputeAndRender();
+            });
         }
     }
     controls.highPassImage.addEventListener("change", refreshDisplayImage);
@@ -6003,6 +6443,7 @@ end
     });
     controls.resetOffset.addEventListener("click", () => {
         setCameraAnglesFromBoresightAzEl(0, 90);
+        syncModelOptparFromControls();
         playInteractionSound("mode");
         recomputeAndRender();
     });
@@ -6028,9 +6469,13 @@ end
         const language = selectedExportLanguage();
         copyTextToClipboard(exportFunctionText(language), `${language} mapper code`);
     });
-    controls.copyTestCaseCommand.addEventListener("click", () => {
+    controls.submitTestCase.addEventListener("click", () => {
         playInteractionSound("click");
-        copyTextToClipboard(copyTestCaseCommandText(), "test case terminal command");
+        submitCurrentTestCase();
+    });
+    controls.loadTestCase.addEventListener("click", () => {
+        playInteractionSound("click");
+        loadSelectedTestCase();
     });
     controls.clearMatches.addEventListener("click", () => {
         playInteractionSound("delete");
@@ -6092,6 +6537,7 @@ end
                 beta,
                 gamma
             );
+            syncModelOptparFromControls();
             recomputeAndRender();
         } else if (state.lensDragMode === "azimuthGridRoll") {
             const zenith = zenithCanvasPixelForCameraAngles(alpha, beta, gamma);
@@ -6099,8 +6545,9 @@ end
                 return;
             }
             const newGamma = wrapDegrees180(gamma + dxCss * 0.06);
-            controls.rotGamma.value = newGamma.toFixed(2);
+            controls.rotGamma.value = newGamma.toPrecision(12);
             solveCameraAnglesForZenithPixel(zenith, alpha, beta, newGamma);
+            syncModelOptparFromControls();
             recomputeAndRender();
         }
         state.lastMouse = [event.clientX, event.clientY];
@@ -6127,6 +6574,7 @@ end
         };
         controls.fScaleX.value = scaleFocal(currentX).toFixed(4);
         controls.fScaleY.value = scaleFocal(currentY).toFixed(4);
+        syncModelOptparFromControls();
         recomputeAndRender();
     }, {passive: false});
 
@@ -6260,11 +6708,10 @@ end
     window.addEventListener("load", () => {
         state.lastLensEquation = "";
         updateLensEquation(currentOptpar(), Number(controls.optmod.value));
+        refreshTestCaseList();
         if (!state.image) {
-            resetInteractiveState();
-            state.baseOptpar = null;
+            resetForNewImage();
             applyOptpar(null);
-            clearFitUndoStack();
             loadImageSource(defaultImage.url, defaultImage.name);
         }
     });

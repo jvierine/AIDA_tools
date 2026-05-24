@@ -374,36 +374,68 @@ function normalizeCase(testCase) {
     };
 }
 
+function testCaseImagePath(testCase) {
+    if (testCase && testCase.imagePath) {
+        return path.isAbsolute(testCase.imagePath) ?
+            testCase.imagePath :
+            path.join(ROOT, testCase.imagePath);
+    }
+    return path.join(IMAGE_DIR, testCase.image);
+}
+
+function jsonCaseFromFile(filename) {
+    const parsed = JSON.parse(fs.readFileSync(filename, "utf8"));
+    const imagePath = parsed.imagePath ?
+        path.resolve(path.dirname(filename), parsed.imagePath) :
+        parsed.image ?
+            path.resolve(path.dirname(filename), parsed.image) :
+            null;
+    let imageHeader = null;
+    if (imagePath && fs.existsSync(imagePath)) {
+        imageHeader = readPngImageData(imagePath, true);
+    }
+    return normalizeCase({
+        ...parsed,
+        id: sanitizeId(parsed.id || path.basename(filename, ".json")),
+        title: parsed.title || `${path.basename(filename, ".json")} browser test case`,
+        sourceJson: path.relative(ROOT, filename),
+        imagePath: imagePath ? path.relative(ROOT, imagePath) : undefined,
+        width: Number.isFinite(parsed.width) ? parsed.width : imageHeader ? imageHeader.width : parsed.width,
+        height: Number.isFinite(parsed.height) ? parsed.height : imageHeader ? imageHeader.height : parsed.height,
+        date: new Date(parsed.timestampUtc || parsed.date),
+        detectorOptions: parsed.detectorOptions || {
+            maxDetections: 180,
+            thresholdSigma: 1.8,
+            localThresholdSigma: 1.8,
+            requireGlobalThreshold: false,
+            maxRadiusPx: 5,
+            maxElongation: 4.0,
+        },
+        maxMag: Number.isFinite(parsed.maxMag) ? parsed.maxMag : 7.0,
+        matchRadiusPx: Number.isFinite(parsed.matchRadiusPx) ? parsed.matchRadiusPx : 22,
+        sweepCounts: parsed.sweepCounts || [8, 10, 12, 14, 16, 18, 20],
+        startMode: parsed.startMode || "perturbed",
+    });
+}
+
 function jsonTestCases() {
     if (!fs.existsSync(TEST_CASE_DIR)) {
         return [];
     }
-    return fs.readdirSync(TEST_CASE_DIR)
-        .filter(name => name.endsWith(".json"))
-        .sort((a, b) => a.localeCompare(b))
-        .map(name => {
-            const filename = path.join(TEST_CASE_DIR, name);
-            const parsed = JSON.parse(fs.readFileSync(filename, "utf8"));
-            return normalizeCase({
-                ...parsed,
-                id: sanitizeId(parsed.id || path.basename(name, ".json")),
-                title: parsed.title || `${path.basename(name, ".json")} browser test case`,
-                sourceJson: path.relative(ROOT, filename),
-                date: new Date(parsed.timestampUtc || parsed.date),
-                detectorOptions: parsed.detectorOptions || {
-                    maxDetections: 180,
-                    thresholdSigma: 1.8,
-                    localThresholdSigma: 1.8,
-                    requireGlobalThreshold: false,
-                    maxRadiusPx: 5,
-                    maxElongation: 4.0,
-                },
-                maxMag: Number.isFinite(parsed.maxMag) ? parsed.maxMag : 7.0,
-                matchRadiusPx: Number.isFinite(parsed.matchRadiusPx) ? parsed.matchRadiusPx : 22,
-                sweepCounts: parsed.sweepCounts || [8, 10, 12, 14, 16, 18, 20],
-                startMode: parsed.startMode || "perturbed",
-            });
-        });
+    const files = [];
+    for (const name of fs.readdirSync(TEST_CASE_DIR).sort((a, b) => a.localeCompare(b))) {
+        const item = path.join(TEST_CASE_DIR, name);
+        const stat = fs.statSync(item);
+        if (stat.isFile() && name.endsWith(".json")) {
+            files.push(item);
+        } else if (stat.isDirectory() && name !== "rejected") {
+            const metadata = path.join(item, "metadata.json");
+            if (fs.existsSync(metadata)) {
+                files.push(metadata);
+            }
+        }
+    }
+    return files.map(jsonCaseFromFile);
 }
 
 function buildCases() {
@@ -1360,7 +1392,7 @@ function residualPlotSvg(result) {
 }
 
 async function analyzeCase(testCase) {
-    const imagePath = path.join(ROOT, "calibration_images", testCase.image);
+    const imagePath = testCaseImagePath(testCase);
     const imageData = readPngImageData(imagePath);
     if (imageData.width !== testCase.width || imageData.height !== testCase.height) {
         throw new Error(`${testCase.image}: expected ${testCase.width}x${testCase.height}, got ${imageData.width}x${imageData.height}`);
@@ -1669,5 +1701,6 @@ module.exports = {
     readPngImageData,
     scoreIdentificationAgainstKnownLens,
     simulateGuiAutoIdentify,
+    testCaseImagePath,
     visibleStars,
 };

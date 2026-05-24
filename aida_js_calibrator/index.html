@@ -10,6 +10,7 @@
 <header class="topbar">
     <div>
         <h1>AIDA Browser Star Calibration</h1>
+        <div class="version-line">Version <span id="appVersion">loading...</span></div>
         <div class="subtle">
             Shortcuts:
             <kbd>S</kbd> star picking,
@@ -145,13 +146,13 @@
                 </label>
             </div>
             <label>Alpha deg
-                <input id="rotAlpha" type="range" min="-90" max="90" value="0" step="0.1">
+            <input id="rotAlpha" type="range" min="-90" max="90" value="0" step="0.001">
             </label>
             <label>Beta deg
-                <input id="rotBeta" type="range" min="-90" max="90" value="0" step="0.1">
+            <input id="rotBeta" type="range" min="-90" max="90" value="0" step="0.001">
             </label>
             <label>Gamma deg
-                <input id="rotGamma" type="range" min="-180" max="180" value="0" step="0.1">
+            <input id="rotGamma" type="range" min="-180" max="180" value="0" step="0.001">
             </label>
             <div class="rotation-widget">
                 <canvas id="rotationCanvas" width="280" height="180" aria-label="3D camera rotation visualization"></canvas>
@@ -197,7 +198,14 @@
                 <button id="copyOptpar" type="button">Copy optpar</button>
                 <button id="copyPythonMapper" type="button">Copy mapper code</button>
             </div>
-            <button id="copyTestCaseCommand" type="button">Copy test case command</button>
+            <button id="submitTestCase" type="button">Submit as test case</button>
+            <div id="saveFeedback" class="save-feedback" aria-live="polite" hidden></div>
+            <label>Load test case
+                <select id="testCaseSelect">
+                    <option value="">Select saved test case...</option>
+                </select>
+            </label>
+            <button id="loadTestCase" type="button">Load selected test case</button>
             <button id="toggleFitResiduals" type="button">Show fit residual view (R)</button>
             <button id="clearMatches" type="button">Remove star pairings</button>
         </section>
@@ -228,6 +236,6 @@ window.MathJax = {
 <script src="js/export_generators.js?v=20260524b"></script>
 <script src="js/star_detector.js?v=20260524a"></script>
 <script src="js/auto_identifier.js?v=20260524h"></script>
-<script src="js/app.js?v=20260524o"></script>
+<script src="js/app.js?v=20260525d"></script>
 </body>
 </html>

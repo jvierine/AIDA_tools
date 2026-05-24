@@ -89,6 +89,14 @@ h1 {
     font-size: 20px;
 }
 
+.version-line {
+    margin-top: 2px;
+    color: #047857;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 12px;
+    font-weight: 700;
+}
+
 h2 {
     margin: 0 0 10px;
     font-size: 15px;
@@ -604,6 +612,24 @@ button.primary-action {
 
 button.primary-action:hover {
     background: #166534;
+}
+
+.save-feedback {
+    margin-top: 8px;
+    padding: 8px 10px;
+    border: 1px solid #86efac;
+    border-radius: 6px;
+    background: #dcfce7;
+    color: #14532d;
+    font-size: 12px;
+    font-weight: 700;
+    overflow-wrap: anywhere;
+}
+
+.save-feedback.error {
+    border-color: #fca5a5;
+    background: #fee2e2;
+    color: #7f1d1d;
 }
 
 .file-button {
