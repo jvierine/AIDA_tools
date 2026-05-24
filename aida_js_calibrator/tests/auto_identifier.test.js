@@ -57,6 +57,31 @@ const REAL_CASE = {
         0.895509000000,
     ],
 };
+const REAL_CASE_012165_IMAGE = path.join(
+    __dirname,
+    "..",
+    "calibration_images",
+    "2025_02_19_03_44_00_000_012165_first1s.png",
+);
+const REAL_CASE_012165 = {
+    width: 1920,
+    height: 1080,
+    date: new Date(Date.UTC(2025, 1, 19, 3, 44, 0)),
+    latDeg: 51.463056,
+    lonDeg: 7.221944,
+    altM: 0,
+    optmod: 2,
+    optpar: [
+        0.782862000000,
+        1.39037200000,
+        -60.5000000000,
+        23.5000000000,
+        76.4000000000,
+        0.0322560000000,
+        -0.00191500000000,
+        0.898102000000,
+    ],
+};
 const SCENARIOS = [
     {name: "centered", f1: 0.52, f2: 0.92, alpha: 0, beta: 0, gamma: 0, du: 0, dv: 0},
     {name: "tilted", f1: 0.48, f2: 0.84, alpha: 8, beta: -5, gamma: 18, du: 0.03, dv: -0.02},
@@ -188,21 +213,21 @@ function projectedYaleStars(optmod, maxMag = 6.5, scenario = SCENARIOS[0]) {
     return projected;
 }
 
-function projectedRealCaseStars(optpar = REAL_CASE.optpar, maxMag = 4.0) {
-    const visible = visibleRealCaseStars(maxMag);
+function projectedRealCaseStars(optpar = REAL_CASE.optpar, maxMag = 4.0, realCase = REAL_CASE) {
+    const visible = visibleRealCaseStars(maxMag, realCase);
     const projected = [];
     for (const star of visible) {
         const xy = AidaTools.cameraModel(
             star.az,
             star.ze,
             optpar,
-            REAL_CASE.optmod,
-            REAL_CASE.width,
-            REAL_CASE.height,
+            realCase.optmod,
+            realCase.width,
+            realCase.height,
         );
         if (Number.isFinite(xy.x) && Number.isFinite(xy.y) &&
-                xy.x >= 0 && xy.x < REAL_CASE.width &&
-                xy.y >= 0 && xy.y < REAL_CASE.height) {
+                xy.x >= 0 && xy.x < realCase.width &&
+                xy.y >= 0 && xy.y < realCase.height) {
             projected.push({...star, x: xy.x, y: xy.y, key: catalogKey(star)});
         }
     }
@@ -210,12 +235,12 @@ function projectedRealCaseStars(optpar = REAL_CASE.optpar, maxMag = 4.0) {
     return projected;
 }
 
-function visibleRealCaseStars(maxMag = 4.0) {
+function visibleRealCaseStars(maxMag = 4.0, realCase = REAL_CASE) {
     return AidaTools.visibleStars(
         YaleCatalog,
-        REAL_CASE.date,
-        REAL_CASE.latDeg,
-        REAL_CASE.lonDeg,
+        realCase.date,
+        realCase.latDeg,
+        realCase.lonDeg,
         maxMag,
         88,
     ).map(star => ({...star, key: catalogKey(star)}));
@@ -442,6 +467,37 @@ test("bright-star detector finds known 010095 stars with calibrated optmod 2", a
     const identification = AutoIdentifier.identifyStars(projected, detectionResult.detections, {
         imageWidth: REAL_CASE.width,
         imageHeight: REAL_CASE.height,
+        maxMagnitude: 4.0,
+        maxDetections: 50,
+        maxCatalogStars: 80,
+        maxDistancePx: 12,
+        translationSearchRadiusPx: 20,
+        minMatches: 6,
+    });
+    assert.ok(
+        identification.matches.length >= 10,
+        `expected at least 10 known-model matches, got ${identification.matches.length}; ${detectionResult.status}`,
+    );
+    assert.ok(
+        identification.medianDistance < 7,
+        `expected known-model median residual below 7 px, got ${identification.medianDistance}`,
+    );
+});
+
+test("bright-star detector finds known 012165 stars with calibrated optmod 2", async () => {
+    const imageData = readPngImageData(REAL_CASE_012165_IMAGE);
+    assert.equal(imageData.width, REAL_CASE_012165.width);
+    assert.equal(imageData.height, REAL_CASE_012165.height);
+    const detectionResult = await StarDetector.detectBrightStars(imageData, {
+        maxDetections: 50,
+        thresholdSigma: 3.5,
+        localThresholdSigma: 2.5,
+    });
+    const projected = projectedRealCaseStars(REAL_CASE_012165.optpar, 4.0, REAL_CASE_012165);
+    assert.ok(projected.length >= 20, `expected projected bright stars, got ${projected.length}`);
+    const identification = AutoIdentifier.identifyStars(projected, detectionResult.detections, {
+        imageWidth: REAL_CASE_012165.width,
+        imageHeight: REAL_CASE_012165.height,
         maxMagnitude: 4.0,
         maxDetections: 50,
         maxCatalogStars: 80,
