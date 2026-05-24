@@ -214,7 +214,8 @@ function writeOverlay(testCase, imageData, stars, detections, overlayDir) {
     fs.mkdirSync(overlayDir, {recursive: true});
     const overlay = copyImageData(imageData);
     for (const detection of detections) {
-        drawCrosshair(overlay, detection.x, detection.y, 5, [255, 220, 64, 255]);
+        drawCircle(overlay, detection.x, detection.y, 4, [0, 0, 0, 255]);
+        drawCircle(overlay, detection.x, detection.y, 3, [255, 220, 64, 255]);
     }
     for (const star of stars) {
         const radius = magnitudeRadius(star.mag);

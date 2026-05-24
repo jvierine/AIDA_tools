@@ -24,7 +24,7 @@ npm run build:star-training -- IMG-9953 --yes 40 --no 80 --random-no 20
 ```
 
 Quickly check known lens models by drawing red catalogue star circles and
-yellow detector crosshairs over the source images:
+yellow detector circles over the source images:
 
 ```sh
 npm run build:star-training -- --overlay-only 010095
