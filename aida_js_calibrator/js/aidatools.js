@@ -316,6 +316,15 @@
         const exifIfd = exifIfdOffset ? readIfd(view, app1Offset, app1Offset + exifIfdOffset.value, little) : new Map();
         const gpsIfd = gpsIfdOffset ? readIfd(view, app1Offset, app1Offset + gpsIfdOffset.value, little) : new Map();
 
+        const makeEntry = ifd0.get(0x010f);
+        const modelEntry = ifd0.get(0x0110);
+        if (makeEntry && typeof makeEntry.value === "string") {
+            metadata.cameraMake = cleanExifText(makeEntry.value);
+        }
+        if (modelEntry && typeof modelEntry.value === "string") {
+            metadata.cameraModel = cleanExifText(modelEntry.value);
+        }
+
         const dateEntry = exifIfd.get(0x9003) || exifIfd.get(0x9004) || ifd0.get(0x0132);
         const offsetEntry = exifIfd.get(0x9011) || exifIfd.get(0x9012);
         if (dateEntry) {
@@ -397,6 +406,10 @@
         }
     }
 
+    function cleanExifText(value) {
+        return String(value || "").replace(/\0+$/g, "").trim();
+    }
+
     function readAscii(view, offset, count) {
         let out = "";
         for (let i = 0; i < count && offset + i < view.byteLength; i++) {
@@ -431,6 +444,14 @@
             return null;
         }
         const metadata = {};
+        const make = cleanExifText(raw.Make || raw.make || raw.CameraMake || raw.cameraMake || "");
+        const model = cleanExifText(raw.Model || raw.model || raw.CameraModel || raw.cameraModel || "");
+        if (make) {
+            metadata.cameraMake = make;
+        }
+        if (model) {
+            metadata.cameraModel = model;
+        }
         const timestamp = coerceExifDate(
             raw.DateTimeOriginal || raw.CreateDate || raw.DateTimeDigitized || raw.ModifyDate,
             raw.OffsetTimeOriginal || raw.OffsetTimeDigitized || raw.OffsetTime

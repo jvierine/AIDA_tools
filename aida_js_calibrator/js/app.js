@@ -3553,6 +3553,15 @@ def image_to_az_el(x, y, optpar=optpar, optmod=optmod,
         state.fitMessage = "lens fit: not run";
     }
 
+    function metadataLooksLikeIphone(exifMetadata) {
+        if (!exifMetadata) {
+            return false;
+        }
+        const make = String(exifMetadata.cameraMake || "");
+        const model = String(exifMetadata.cameraModel || "");
+        return /apple/i.test(make) && /iphone/i.test(model) || /iphone/i.test(`${make} ${model}`);
+    }
+
     function applyImageMetadata(name, exifMetadata = null) {
         const guessed = AidaTools.guessTimestampFromAllsky7Name(name);
         if (guessed) {
@@ -3640,10 +3649,17 @@ def image_to_az_el(x, y, optpar=optpar, optmod=optmod,
                     gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, img);
                 }
                 hint.style.display = "none";
+                if (metadataLooksLikeIphone(exifMetadata)) {
+                    controls.optmod.value = String(BROWN_CONRADY_OPTMOD);
+                    state.baseOptpar = null;
+                }
                 if (!state.baseOptpar) {
                     applyOptpar(null);
                 }
                 const appliedExif = applyImageMetadata(metadataName, exifMetadata);
+                if (metadataLooksLikeIphone(exifMetadata) && !appliedExif.includes("iPhone camera")) {
+                    appliedExif.push("iPhone camera");
+                }
                 if (appliedExif.length > 0) {
                     state.fitMessage = `image metadata: used EXIF ${appliedExif.join(", ")}`;
                 }

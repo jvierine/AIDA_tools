@@ -293,6 +293,8 @@ test("EXIF parser extracts GPS position, altitude, and timestamp", () => {
 
 test("external EXIF metadata normalizer handles HEIC-style fields", () => {
     const metadata = AidaTools.normalizeExternalExifMetadata({
+        Make: "Apple",
+        Model: "iPhone 15 Pro",
         DateTimeOriginal: "2025:02:19 03:47:01",
         OffsetTimeOriginal: "+02:00",
         latitude: 51.4492,
@@ -303,6 +305,8 @@ test("external EXIF metadata normalizer handles HEIC-style fields", () => {
     assertNear(metadata.latDeg, 51.4492);
     assertNear(metadata.lonDeg, 14.2794);
     assertNear(metadata.altM, 123.4);
+    assert.equal(metadata.cameraMake, "Apple");
+    assert.equal(metadata.cameraModel, "iPhone 15 Pro");
 });
 
 test("star catalog preserves negative zero-degree declinations", () => {
