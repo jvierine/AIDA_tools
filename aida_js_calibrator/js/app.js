@@ -3163,17 +3163,19 @@ def image_to_az_el(x, y, optpar=optpar, optmod=optmod,
         const cx = (width - 1) / 2;
         const cy = (height - 1) / 2;
         const maxRadius = Math.hypot(width, height) * 1.35;
+        const maxLocalStep = Math.max(width, height) * 0.035;
         const residuals = [];
+        const project = (azDeg, elDeg) => AidaTools.cameraModel(
+            azDeg * AidaTools.DEG,
+            (90 - elDeg) * AidaTools.DEG,
+            optpar,
+            optmod,
+            width,
+            height
+        );
         for (let el = 0; el <= 90; el += 15) {
             for (let az = 0; az < 360; az += 45) {
-                const xy = AidaTools.cameraModel(
-                    az * AidaTools.DEG,
-                    (90 - el) * AidaTools.DEG,
-                    optpar,
-                    optmod,
-                    width,
-                    height
-                );
+                const xy = project(az, el);
                 if (!Number.isFinite(xy.x) || !Number.isFinite(xy.y)) {
                     residuals.push(1e4);
                     continue;
@@ -3181,6 +3183,23 @@ def image_to_az_el(x, y, optpar=optpar, optmod=optmod,
                 const radius = Math.hypot(xy.x - cx, xy.y - cy);
                 if (radius > maxRadius) {
                     residuals.push((radius - maxRadius) * 0.08);
+                }
+            }
+        }
+        for (let el = 0; el <= 45; el += 7.5) {
+            for (let az = 0; az < 360; az += 30) {
+                const xy = project(az, el);
+                const xyAz = project(az + 1, el);
+                const xyEl = project(az, Math.min(90, el + 1));
+                if (![xy, xyAz, xyEl].every(p => Number.isFinite(p.x) && Number.isFinite(p.y))) {
+                    residuals.push(1e4);
+                    continue;
+                }
+                const azStep = Math.hypot(xyAz.x - xy.x, xyAz.y - xy.y);
+                const elStep = Math.hypot(xyEl.x - xy.x, xyEl.y - xy.y);
+                const localStep = Math.max(azStep, elStep);
+                if (localStep > maxLocalStep) {
+                    residuals.push((localStep - maxLocalStep) * 0.25);
                 }
             }
         }
