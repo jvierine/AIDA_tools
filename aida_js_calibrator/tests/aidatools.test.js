@@ -323,6 +323,11 @@ test("optmod 2 projects zenith to the calibrated image center", () => {
     assertNear(projected.y, 383.0);
 });
 
+test("cameraRot is exported for rotation visualization", () => {
+    const rot = AidaTools.cameraRot(0, 0, 0);
+    assert.deepEqual(rot, [1, 0, 0, 0, 1, 0, 0, 0, 1]);
+});
+
 test("optmod 2 follows the sin(alpha * theta) radial model", () => {
     const optpar = [0.8, 0.6, 0, 0, 0, 0.02, -0.03, 0.9];
     const az = Math.PI / 2;

@@ -179,6 +179,20 @@ h2 {
     display: block;
 }
 
+.rotation-widget {
+    margin: 8px 0 12px;
+    padding: 8px;
+    border: 1px solid #d1d5db;
+    border-radius: 7px;
+    background: #f8fafc;
+}
+
+#rotationCanvas {
+    display: block;
+    width: 100%;
+    aspect-ratio: 14 / 9;
+}
+
 .density-popup {
     position: absolute;
     z-index: 35;

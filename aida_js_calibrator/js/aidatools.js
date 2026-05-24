@@ -530,6 +530,7 @@
         guessTimestampFromAllsky7Name,
         parseExifMetadata,
         normalizeExternalExifMetadata,
+        cameraRot,
         cameraModel,
         radecToAzZe: starAzZe,
         visibleStars,

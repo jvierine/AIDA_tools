@@ -2,6 +2,8 @@
     "use strict";
 
     const canvas = document.getElementById("glCanvas");
+    const rotationCanvas = document.getElementById("rotationCanvas");
+    const rotationContext = rotationCanvas.getContext("2d");
     const zoomCanvas = document.getElementById("zoomCanvas");
     const zoomContext = zoomCanvas.getContext("2d", {willReadFrequently: true});
     const hint = document.getElementById("canvasHint");
@@ -622,6 +624,113 @@
         if (window.MathJax && MathJax.typesetPromise) {
             MathJax.typesetPromise([lensEquation]).catch(() => {});
         }
+    }
+
+    function projectRotationPoint(point, scale, centerX, centerY) {
+        const distance = 3.4;
+        const z = point[2] + distance;
+        return [
+            centerX + point[0] / z * scale,
+            centerY - point[1] / z * scale,
+        ];
+    }
+
+    function drawRotationLine(ctx, a, b, color, width, scale, centerX, centerY) {
+        const pa = projectRotationPoint(a, scale, centerX, centerY);
+        const pb = projectRotationPoint(b, scale, centerX, centerY);
+        ctx.strokeStyle = color;
+        ctx.lineWidth = width;
+        ctx.beginPath();
+        ctx.moveTo(pa[0], pa[1]);
+        ctx.lineTo(pb[0], pb[1]);
+        ctx.stroke();
+        return pb;
+    }
+
+    function drawRotationVisualization() {
+        if (!rotationCanvas || !rotationContext) {
+            return;
+        }
+        const dpr = window.devicePixelRatio || 1;
+        const rect = rotationCanvas.getBoundingClientRect();
+        const w = Math.max(1, Math.floor(rect.width * dpr));
+        const h = Math.max(1, Math.floor(rect.height * dpr));
+        if (rotationCanvas.width !== w || rotationCanvas.height !== h) {
+            rotationCanvas.width = w;
+            rotationCanvas.height = h;
+        }
+        const ctx = rotationContext;
+        ctx.clearRect(0, 0, w, h);
+        const gradient = ctx.createLinearGradient(0, 0, 0, h);
+        gradient.addColorStop(0, "#ffffff");
+        gradient.addColorStop(1, "#eef2f7");
+        ctx.fillStyle = gradient;
+        ctx.fillRect(0, 0, w, h);
+        const cx = w * 0.5;
+        const cy = h * 0.56;
+        const scale = Math.min(w, h) * 2.25;
+        const rot = AidaTools.cameraRot(
+            Number(controls.rotAlpha.value) || 0,
+            Number(controls.rotBeta.value) || 0,
+            Number(controls.rotGamma.value) || 0
+        );
+        const transform = p => [
+            p[0] * rot[0] + p[1] * rot[1] + p[2] * rot[2],
+            p[0] * rot[3] + p[1] * rot[4] + p[2] * rot[5],
+            p[0] * rot[6] + p[1] * rot[7] + p[2] * rot[8],
+        ];
+        const bodyPoints = [
+            [-0.46, -0.32, 0],
+            [0.46, -0.32, 0],
+            [0.46, 0.32, 0],
+            [-0.46, 0.32, 0],
+        ].map(transform).map(p => projectRotationPoint(p, scale, cx, cy));
+        const nose = projectRotationPoint(transform([0, 0, 0.7]), scale, cx, cy);
+        const center = projectRotationPoint(transform([0, 0, 0]), scale, cx, cy);
+        ctx.fillStyle = "rgba(15, 23, 42, 0.10)";
+        ctx.strokeStyle = "rgba(15, 23, 42, 0.55)";
+        ctx.lineWidth = 1.5 * dpr;
+        ctx.beginPath();
+        ctx.moveTo(bodyPoints[0][0], bodyPoints[0][1]);
+        for (let i = 1; i < bodyPoints.length; i++) {
+            ctx.lineTo(bodyPoints[i][0], bodyPoints[i][1]);
+        }
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+        ctx.strokeStyle = "rgba(15, 23, 42, 0.35)";
+        for (const p of bodyPoints) {
+            ctx.beginPath();
+            ctx.moveTo(p[0], p[1]);
+            ctx.lineTo(nose[0], nose[1]);
+            ctx.stroke();
+        }
+        ctx.fillStyle = "#111827";
+        ctx.beginPath();
+        ctx.arc(nose[0], nose[1], 3.5 * dpr, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = "rgba(15, 23, 42, 0.45)";
+        ctx.beginPath();
+        ctx.ellipse(center[0], center[1] + 0.34 * scale / 3.4, 0.20 * scale / 3.4, 0.06 * scale / 3.4, 0, 0, Math.PI * 2);
+        ctx.fill();
+        const axes = [
+            {label: "x", color: "#dc2626", end: transform([0.82, 0, 0])},
+            {label: "y", color: "#16a34a", end: transform([0, 0.82, 0])},
+            {label: "z", color: "#2563eb", end: transform([0, 0, 0.95])},
+        ];
+        for (const axis of axes) {
+            const end = drawRotationLine(ctx, transform([0, 0, 0]), axis.end, axis.color, 2.4 * dpr, scale, cx, cy);
+            ctx.fillStyle = axis.color;
+            ctx.font = `${11 * dpr}px ui-monospace, Menlo, Consolas, monospace`;
+            ctx.fillText(axis.label, end[0] + 4 * dpr, end[1] - 4 * dpr);
+        }
+        ctx.fillStyle = "#475569";
+        ctx.font = `${10 * dpr}px system-ui, sans-serif`;
+        ctx.fillText(
+            `alpha ${Number(controls.rotAlpha.value || 0).toFixed(1)}  beta ${Number(controls.rotBeta.value || 0).toFixed(1)}  gamma ${Number(controls.rotGamma.value || 0).toFixed(1)}`,
+            8 * dpr,
+            h - 9 * dpr
+        );
     }
 
     function pythonFloat(value) {
@@ -1910,6 +2019,7 @@ end
         const date = AidaTools.datetimeLocalToDate(controls.timestampUtc.value);
         const optpar = currentOptpar();
         updateLensEquation(optpar, Number(controls.optmod.value));
+        drawRotationVisualization();
         statusEl.textContent =
             `image: ${state.imageName || "none"}\n` +
             `timestamp: ${date.toISOString()}\n` +
