@@ -246,6 +246,31 @@ function visibleRealCaseStars(maxMag = 4.0, realCase = REAL_CASE) {
     ).map(star => ({...star, key: catalogKey(star)}));
 }
 
+function matchDetectionsToKnownStars(detections, knownStars, maxDistancePx = 18) {
+    const pairs = [];
+    for (const detection of detections) {
+        for (const star of knownStars) {
+            const distance = Math.hypot(detection.x - star.x, detection.y - star.y);
+            if (distance <= maxDistancePx) {
+                pairs.push({detection, star, distance});
+            }
+        }
+    }
+    pairs.sort((a, b) => a.distance - b.distance);
+    const usedDetections = new Set();
+    const usedStars = new Set();
+    const matches = [];
+    for (const pair of pairs) {
+        if (usedDetections.has(pair.detection.id) || usedStars.has(pair.star.key)) {
+            continue;
+        }
+        usedDetections.add(pair.detection.id);
+        usedStars.add(pair.star.key);
+        matches.push(pair);
+    }
+    return matches;
+}
+
 function pseudoNoise(index, salt = 0) {
     const value = Math.sin((index + 1) * 12.9898 + salt * 78.233) * 43758.5453;
     return value - Math.floor(value);
@@ -482,6 +507,44 @@ test("bright-star detector finds known 010095 stars with calibrated optmod 2", a
         identification.medianDistance < 7,
         `expected known-model median residual below 7 px, got ${identification.medianDistance}`,
     );
+});
+
+test("automatic star finder detects real bright stars without catalogue matching", async () => {
+    const cases = [
+        {
+            name: "010095",
+            image: REAL_CASE_IMAGE,
+            realCase: REAL_CASE,
+            minTrueDetections: 18,
+            maxMedianCentroidErrorPx: 8,
+        },
+        {
+            name: "012165 high-pass",
+            image: REAL_CASE_012165_IMAGE,
+            realCase: REAL_CASE_012165,
+            minTrueDetections: 16,
+            maxMedianCentroidErrorPx: 8,
+        },
+    ];
+    for (const testCase of cases) {
+        const imageData = readPngImageData(testCase.image);
+        const detectionResult = await StarDetector.detectBrightStars(imageData, {maxDetections: 50});
+        const knownStars = projectedRealCaseStars(testCase.realCase.optpar, 4.0, testCase.realCase);
+        const matches = matchDetectionsToKnownStars(detectionResult.detections, knownStars, 18);
+        const sortedErrors = matches.map(match => match.distance).sort((a, b) => a - b);
+        const medianCentroidError = sortedErrors.length ?
+            sortedErrors[Math.floor(sortedErrors.length / 2)] : Infinity;
+        assert.ok(
+            matches.length >= testCase.minTrueDetections,
+            `${testCase.name}: expected at least ${testCase.minTrueDetections} raw star detections, ` +
+                `got ${matches.length}; ${detectionResult.status}`,
+        );
+        assert.ok(
+            medianCentroidError <= testCase.maxMedianCentroidErrorPx,
+            `${testCase.name}: expected median detector centroid error below ` +
+                `${testCase.maxMedianCentroidErrorPx} px, got ${medianCentroidError}`,
+        );
+    }
 });
 
 test("bright-star detector finds known 012165 stars with calibrated optmod 2", async () => {
