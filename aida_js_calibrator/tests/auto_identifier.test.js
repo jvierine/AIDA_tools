@@ -3,8 +3,10 @@ const fs = require("node:fs");
 const path = require("node:path");
 const test = require("node:test");
 const vm = require("node:vm");
+const zlib = require("node:zlib");
 
 const AutoIdentifier = require("../js/auto_identifier.js");
+const StarDetector = require("../js/star_detector.js");
 
 function loadBrowserScript(filename) {
     const source = fs.readFileSync(path.join(__dirname, "..", "js", filename), "utf8");
@@ -31,6 +33,30 @@ const DATE = new Date(Date.UTC(2025, 1, 19, 3, 47, 1));
 const LAT_DEG = 51.4492;
 const LON_DEG = 14.2794;
 const MODELS = [1, 2, 3, 4, 5, 12, 20];
+const REAL_CASE_IMAGE = path.join(
+    __dirname,
+    "..",
+    "calibration_images",
+    "2025_02_19_03_46_00_000_010095_first1s.png",
+);
+const REAL_CASE = {
+    width: 1920,
+    height: 1080,
+    date: new Date(Date.UTC(2025, 1, 19, 3, 46, 0)),
+    latDeg: 52.495090,
+    lonDeg: 12.630850,
+    optmod: 2,
+    optpar: [
+        0.784905000000,
+        1.39364100000,
+        -60.8000000000,
+        35.2000000000,
+        74.5000000000,
+        0.0422890000000,
+        0.00841000000000,
+        0.895509000000,
+    ],
+};
 const SCENARIOS = [
     {name: "centered", f1: 0.52, f2: 0.92, alpha: 0, beta: 0, gamma: 0, du: 0, dv: 0},
     {name: "tilted", f1: 0.48, f2: 0.84, alpha: 8, beta: -5, gamma: 18, du: 0.03, dv: -0.02},
@@ -39,6 +65,87 @@ const SCENARIOS = [
 
 function catalogKey(star) {
     return `${star.name}|${star.raHours.toFixed(7)}|${star.decDeg.toFixed(7)}`;
+}
+
+function paethPredictor(a, b, c) {
+    const p = a + b - c;
+    const pa = Math.abs(p - a);
+    const pb = Math.abs(p - b);
+    const pc = Math.abs(p - c);
+    if (pa <= pb && pa <= pc) {
+        return a;
+    }
+    return pb <= pc ? b : c;
+}
+
+function readPngImageData(filename) {
+    const buffer = fs.readFileSync(filename);
+    assert.equal(buffer.subarray(0, 8).toString("hex"), "89504e470d0a1a0a");
+    let offset = 8;
+    let width = 0;
+    let height = 0;
+    let bitDepth = 0;
+    let colorType = 0;
+    const idat = [];
+    while (offset < buffer.length) {
+        const length = buffer.readUInt32BE(offset);
+        const type = buffer.subarray(offset + 4, offset + 8).toString("ascii");
+        const data = buffer.subarray(offset + 8, offset + 8 + length);
+        if (type === "IHDR") {
+            width = data.readUInt32BE(0);
+            height = data.readUInt32BE(4);
+            bitDepth = data[8];
+            colorType = data[9];
+            const interlace = data[12];
+            assert.equal(bitDepth, 8, "test PNG decoder expects 8-bit images");
+            assert.equal(interlace, 0, "test PNG decoder expects non-interlaced images");
+        } else if (type === "IDAT") {
+            idat.push(data);
+        } else if (type === "IEND") {
+            break;
+        }
+        offset += 12 + length;
+    }
+    const channels = colorType === 2 ? 3 : colorType === 6 ? 4 : 0;
+    assert.ok(channels > 0, `unsupported PNG color type ${colorType}`);
+    const inflated = zlib.inflateSync(Buffer.concat(idat));
+    const stride = width * channels;
+    const raw = Buffer.alloc(height * stride);
+    let src = 0;
+    for (let y = 0; y < height; y += 1) {
+        const filter = inflated[src];
+        src += 1;
+        const row = raw.subarray(y * stride, (y + 1) * stride);
+        const prev = y > 0 ? raw.subarray((y - 1) * stride, y * stride) : null;
+        for (let x = 0; x < stride; x += 1) {
+            const value = inflated[src + x];
+            const left = x >= channels ? row[x - channels] : 0;
+            const up = prev ? prev[x] : 0;
+            const upLeft = prev && x >= channels ? prev[x - channels] : 0;
+            if (filter === 0) {
+                row[x] = value;
+            } else if (filter === 1) {
+                row[x] = (value + left) & 0xff;
+            } else if (filter === 2) {
+                row[x] = (value + up) & 0xff;
+            } else if (filter === 3) {
+                row[x] = (value + Math.floor((left + up) / 2)) & 0xff;
+            } else if (filter === 4) {
+                row[x] = (value + paethPredictor(left, up, upLeft)) & 0xff;
+            } else {
+                throw new Error(`unsupported PNG filter ${filter}`);
+            }
+        }
+        src += stride;
+    }
+    const rgba = new Uint8ClampedArray(width * height * 4);
+    for (let i = 0, j = 0; i < raw.length; i += channels, j += 4) {
+        rgba[j] = raw[i];
+        rgba[j + 1] = raw[i + 1];
+        rgba[j + 2] = raw[i + 2];
+        rgba[j + 3] = channels === 4 ? raw[i + 3] : 255;
+    }
+    return {width, height, data: rgba};
 }
 
 function optparForModel(optmod, scenario = SCENARIOS[0]) {
@@ -79,6 +186,39 @@ function projectedYaleStars(optmod, maxMag = 6.5, scenario = SCENARIOS[0]) {
     }
     projected.sort((a, b) => a.mag - b.mag || a.key.localeCompare(b.key));
     return projected;
+}
+
+function projectedRealCaseStars(optpar = REAL_CASE.optpar, maxMag = 4.0) {
+    const visible = visibleRealCaseStars(maxMag);
+    const projected = [];
+    for (const star of visible) {
+        const xy = AidaTools.cameraModel(
+            star.az,
+            star.ze,
+            optpar,
+            REAL_CASE.optmod,
+            REAL_CASE.width,
+            REAL_CASE.height,
+        );
+        if (Number.isFinite(xy.x) && Number.isFinite(xy.y) &&
+                xy.x >= 0 && xy.x < REAL_CASE.width &&
+                xy.y >= 0 && xy.y < REAL_CASE.height) {
+            projected.push({...star, x: xy.x, y: xy.y, key: catalogKey(star)});
+        }
+    }
+    projected.sort((a, b) => a.mag - b.mag || a.key.localeCompare(b.key));
+    return projected;
+}
+
+function visibleRealCaseStars(maxMag = 4.0) {
+    return AidaTools.visibleStars(
+        YaleCatalog,
+        REAL_CASE.date,
+        REAL_CASE.latDeg,
+        REAL_CASE.lonDeg,
+        maxMag,
+        88,
+    ).map(star => ({...star, key: catalogKey(star)}));
 }
 
 function pseudoNoise(index, salt = 0) {
@@ -285,5 +425,126 @@ test("asterism matcher identifies bright Yale stars without current lens project
     assert.ok(
         correct.length / result.matches.length >= 0.95,
         `expected >=95% correct asterism matches, got ${correct.length}/${result.matches.length}`,
+    );
+});
+
+test("bright-star detector finds known 010095 stars with calibrated optmod 2", async () => {
+    const imageData = readPngImageData(REAL_CASE_IMAGE);
+    assert.equal(imageData.width, REAL_CASE.width);
+    assert.equal(imageData.height, REAL_CASE.height);
+    const detectionResult = await StarDetector.detectBrightStars(imageData, {
+        maxDetections: 50,
+        thresholdSigma: 3.5,
+        localThresholdSigma: 2.5,
+    });
+    const projected = projectedRealCaseStars(REAL_CASE.optpar, 4.0);
+    assert.ok(projected.length >= 20, `expected projected bright stars, got ${projected.length}`);
+    const identification = AutoIdentifier.identifyStars(projected, detectionResult.detections, {
+        imageWidth: REAL_CASE.width,
+        imageHeight: REAL_CASE.height,
+        maxMagnitude: 4.0,
+        maxDetections: 50,
+        maxCatalogStars: 80,
+        maxDistancePx: 12,
+        translationSearchRadiusPx: 20,
+        minMatches: 6,
+    });
+    assert.ok(
+        identification.matches.length >= 10,
+        `expected at least 10 known-model matches, got ${identification.matches.length}; ${detectionResult.status}`,
+    );
+    assert.ok(
+        identification.medianDistance < 7,
+        `expected known-model median residual below 7 px, got ${identification.medianDistance}`,
+    );
+});
+
+test("real 010095 detections stay useful as the lens start moves away", async () => {
+    const imageData = readPngImageData(REAL_CASE_IMAGE);
+    const detectionResult = await StarDetector.detectBrightStars(imageData, {maxDetections: 50});
+    const perturbations = [
+        {label: "calibrated", dAlpha: 0, dBeta: 0, dGamma: 0, f: 1, minMatches: 10},
+        {label: "mild", dAlpha: 1.5, dBeta: -1.0, dGamma: 2.0, f: 1.02, minMatches: 8},
+        {label: "rough", dAlpha: 3.0, dBeta: -2.0, dGamma: 4.0, f: 1.05, minMatches: 6},
+    ];
+    for (const perturbation of perturbations) {
+        const optpar = REAL_CASE.optpar.slice();
+        optpar[0] *= perturbation.f;
+        optpar[1] *= perturbation.f;
+        optpar[2] += perturbation.dAlpha;
+        optpar[3] += perturbation.dBeta;
+        optpar[4] += perturbation.dGamma;
+        const projected = projectedRealCaseStars(optpar, 4.0);
+        const result = AutoIdentifier.identifyStars(projected, detectionResult.detections, {
+            imageWidth: REAL_CASE.width,
+            imageHeight: REAL_CASE.height,
+            maxMagnitude: 4.0,
+            maxDetections: 50,
+            maxCatalogStars: 80,
+            maxDistancePx: perturbation.label === "calibrated" ? 12 : 35,
+            translationSearchRadiusPx: 160,
+            minMatches: 5,
+        });
+        assert.ok(
+            result.matches.length >= perturbation.minMatches,
+            `${perturbation.label}: expected at least ${perturbation.minMatches} matches, got ${result.matches.length}`,
+        );
+    }
+});
+
+test("blind spherical matcher identifies 010095 stars from image-load initial lens values", async () => {
+    const imageData = readPngImageData(REAL_CASE_IMAGE);
+    const detectionResult = await StarDetector.detectBrightStars(imageData, {maxDetections: 50});
+    const knownStars = projectedRealCaseStars(REAL_CASE.optpar, 4.0);
+    const knownByKey = new Map(knownStars.map(star => [star.key, star]));
+    const truthByDetection = new Map();
+    for (const detection of detectionResult.detections) {
+        let best = null;
+        let bestDistance = Infinity;
+        for (const star of knownStars) {
+            const distance = Math.hypot(detection.x - star.x, detection.y - star.y);
+            if (distance < bestDistance) {
+                best = star;
+                bestDistance = distance;
+            }
+        }
+        if (best && bestDistance <= 18) {
+            truthByDetection.set(detection.id, best.key);
+        }
+    }
+    assert.ok(
+        truthByDetection.size >= 18,
+        `expected at least 18 real bright-star detections, got ${truthByDetection.size}; ${detectionResult.status}`,
+    );
+    const result = AutoIdentifier.identifyStarsBlind(
+        visibleRealCaseStars(4.0),
+        detectionResult.detections,
+        {
+            imageWidth: REAL_CASE.width,
+            imageHeight: REAL_CASE.height,
+            maxMagnitude: 4.0,
+            maxDetections: 50,
+            maxCatalogStars: 80,
+            minMatches: 8,
+        },
+    );
+    const correct = result.matches.filter(match => {
+        if (truthByDetection.get(match.detection.id) === match.star.key) {
+            return true;
+        }
+        const known = knownByKey.get(match.star.key);
+        return known && Math.hypot(match.detection.x - known.x, match.detection.y - known.y) <= 18;
+    });
+    assert.ok(
+        result.matches.length >= 8,
+        `expected at least 8 blind matches, got ${result.matches.length}; ${result.status}`,
+    );
+    assert.ok(
+        correct.length >= 8,
+        `expected at least 8 correct blind matches, got ${correct.length}/${result.matches.length}; ${result.status}`,
+    );
+    assert.ok(
+        result.medianDistance < 2.0,
+        `expected median blind angular residual below 2 deg, got ${result.medianDistance}`,
     );
 });

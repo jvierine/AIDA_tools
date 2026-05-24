@@ -1326,11 +1326,16 @@ end
         });
     }
 
-    function skyPlaneStarsForAsterismIdentification(maxMag) {
+    function visibleStarsForMatching(maxMag) {
         const date = AidaTools.datetimeLocalToDate(controls.timestampUtc.value);
         const lat = Number(controls.latDeg.value) || 0;
         const lon = Number(controls.lonDeg.value) || 0;
         return AidaTools.visibleStars(window.AIDA_STAR_CATALOG, date, lat, lon, maxMag, 88)
+            .map(star => ({...star, key: catalogKey(star)}));
+    }
+
+    function skyPlaneStarsForAsterismIdentification(maxMag) {
+        return visibleStarsForMatching(maxMag)
             .map(star => {
                 const r = star.ze / (Math.PI / 2);
                 return {
@@ -1350,7 +1355,8 @@ end
         }
         if (!window.AidaAutoIdentifier ||
                 typeof window.AidaAutoIdentifier.identifyStars !== "function" ||
-                typeof window.AidaAutoIdentifier.identifyStarsByAsterisms !== "function") {
+                typeof window.AidaAutoIdentifier.identifyStarsByAsterisms !== "function" ||
+                typeof window.AidaAutoIdentifier.identifyStarsBlind !== "function") {
             state.fitMessage = "auto-identify: matcher module is unavailable";
             render();
             return;
@@ -1373,8 +1379,9 @@ end
             );
             setLoadingProgress(74, "Auto-identify: matching bright asterisms with the Yale catalog...");
             await yieldToBrowser();
-            let result = window.AidaAutoIdentifier.identifyStarsByAsterisms(
-                skyPlaneStarsForAsterismIdentification(maxMag),
+            const visibleCatalogStars = visibleStarsForMatching(maxMag);
+            let result = window.AidaAutoIdentifier.identifyStarsBlind(
+                visibleCatalogStars,
                 state.detectedStars,
                 {
                     imageWidth: state.image.width,
@@ -1383,12 +1390,31 @@ end
                     existingCatalogKeys,
                     existingDetectionIds,
                     deletedDetectionIds: state.deletedDetectionIds,
-                    maxDetections: 50,
-                    maxCatalogStars: 90,
-                    asterismMatchRadiusPx: Math.max(32, Math.min(70, 0.012 * Math.hypot(state.image.width, state.image.height))),
-                    minMatches: 4,
+                    maxDetections: 80,
+                    maxCatalogStars: 80,
+                    minMatches: 6,
                 }
             );
+            if (result.matches.length < 6) {
+                setLoadingProgress(82, "Auto-identify: trying bright asterisms in the sky plane...");
+                await yieldToBrowser();
+                result = window.AidaAutoIdentifier.identifyStarsByAsterisms(
+                    skyPlaneStarsForAsterismIdentification(maxMag),
+                    state.detectedStars,
+                    {
+                        imageWidth: state.image.width,
+                        imageHeight: state.image.height,
+                        maxMagnitude: maxMag,
+                        existingCatalogKeys,
+                        existingDetectionIds,
+                        deletedDetectionIds: state.deletedDetectionIds,
+                        maxDetections: 50,
+                        maxCatalogStars: 90,
+                        asterismMatchRadiusPx: Math.max(32, Math.min(70, 0.012 * Math.hypot(state.image.width, state.image.height))),
+                        minMatches: 4,
+                    }
+                );
+            }
             if (result.matches.length < 4) {
                 setLoadingProgress(86, "Auto-identify: trying current lens projection as fallback...");
                 await yieldToBrowser();
@@ -2657,153 +2683,26 @@ end
         applyDetectorThreshold(state.detectorCache);
     }
 
-    function grayFromPixelData(data, width, x, y) {
-        const k = 4 * (y * width + x);
-        return 0.2126 * data[k] + 0.7152 * data[k + 1] + 0.0722 * data[k + 2];
-    }
-
-    function centroidFromPixelData(pixelData, cx, cy, radius, background) {
-        const width = state.image.width;
-        const height = state.image.height;
-        const data = pixelData.data;
-        let sum = 0;
-        let sx = 0;
-        let sy = 0;
-        for (let dy = -radius; dy <= radius; dy += 1) {
-            const y = Math.max(0, Math.min(height - 1, cy + dy));
-            for (let dx = -radius; dx <= radius; dx += 1) {
-                if (dx * dx + dy * dy > radius * radius) {
-                    continue;
-                }
-                const x = Math.max(0, Math.min(width - 1, cx + dx));
-                const r2 = dx * dx + dy * dy;
-                const value = grayFromPixelData(data, width, x, y);
-                const weight = Math.max(0, value - background) * Math.exp(-0.5 * r2 / 9.0);
-                sum += weight;
-                sx += weight * x;
-                sy += weight * y;
-            }
-        }
-        return sum > 1e-9 ? {x: sx / sum, y: sy / sum} : {x: cx, y: cy};
-    }
-
     async function detectBrightImageStarsForAutoIdentify(maxDetections = 50) {
         state.detectedStars = [];
         state.autoMatches = [];
         state.deletedDetectionIds = new Set();
-        if (!state.imagePixels || !state.image) {
+        if (!state.imagePixels || !state.image || !window.AidaStarDetector) {
             state.detectorCache = null;
             state.detectorStatus = "fast detector: image readback unavailable";
             return [];
         }
 
-        setLoadingProgress(18, "Preparing high-pass image for bright-star detection...");
-        await yieldToBrowser();
-        const pixelData = controls.highPassImage.checked ? displayImagePixels() : state.imagePixels;
-        const data = pixelData.data;
-        const width = state.image.width;
-        const height = state.image.height;
-        const cellSize = 20;
-        const scanStep = width * height >= 8000000 ? 2 : 1;
-        const cellsX = Math.ceil(width / cellSize);
-        const cellsY = Math.ceil(height / cellSize);
-        const cellPeaks = Array.from({length: cellsX * cellsY}, () => ({value: -Infinity, x: 0, y: 0}));
-        const samples = [];
-        for (let y = 4; y < height; y += 8) {
-            for (let x = 4; x < width; x += 8) {
-                if (!isMaskedImagePixel(x, y)) {
-                    samples.push(grayFromPixelData(data, width, x, y));
-                }
-            }
-        }
-        const bg = median(samples);
-        const sigma = Math.max(1, 1.4826 * median(samples.map(value => Math.abs(value - bg))));
-
-        setLoadingProgress(28, "Scanning image cells for bright local peaks...");
-        await yieldToBrowser();
-        let lastYield = performance.now();
-        for (let y = 2; y < height - 2; y += scanStep) {
-            for (let x = 2; x < width - 2; x += scanStep) {
-                if (isMaskedImagePixel(x, y)) {
-                    continue;
-                }
-                const value = grayFromPixelData(data, width, x, y);
-                const cellIndex = Math.floor(y / cellSize) * cellsX + Math.floor(x / cellSize);
-                if (value > cellPeaks[cellIndex].value) {
-                    cellPeaks[cellIndex] = {value, x, y};
-                }
-            }
-            if (performance.now() - lastYield > 35) {
-                setLoadingProgress(28 + 34 * y / height, `Scanning bright peaks: ${Math.round(100 * y / height)}%`);
+        const result = await window.AidaStarDetector.detectBrightStars(state.imagePixels, {
+            maxDetections,
+            maskPredicate: (x, y) => isMaskedImagePixel(x, y),
+            onProgress: (percent, text) => setLoadingProgress(18 + 52 * percent / 100, text),
+            yieldFn: async () => {
                 await yieldToBrowser();
-                lastYield = performance.now();
-            }
-        }
-
-        setLoadingProgress(66, "Ranking the 50 brightest star-like peaks...");
-        await yieldToBrowser();
-        const threshold = bg + Math.max(4, 5 * sigma);
-        const candidates = [];
-        for (const peak of cellPeaks) {
-            if (!Number.isFinite(peak.value) || peak.value < threshold) {
-                continue;
-            }
-            const localBgSamples = [];
-            for (let dy = -10; dy <= 10; dy += 5) {
-                for (let dx = -10; dx <= 10; dx += 5) {
-                    if (Math.abs(dx) < 8 && Math.abs(dy) < 8) {
-                        continue;
-                    }
-                    const x = Math.max(0, Math.min(width - 1, peak.x + dx));
-                    const y = Math.max(0, Math.min(height - 1, peak.y + dy));
-                    localBgSamples.push(grayFromPixelData(data, width, x, y));
-                }
-            }
-            const localBg = localBgSamples.length ? median(localBgSamples) : bg;
-            const contrast = peak.value - localBg;
-            if (contrast < Math.max(4, 3.5 * sigma)) {
-                continue;
-            }
-            const centroid = centroidFromPixelData(pixelData, peak.x, peak.y, 5, localBg);
-            candidates.push({
-                x: centroid.x,
-                y: centroid.y,
-                peakValue: peak.value,
-                peakContrast: contrast,
-                localSigma: sigma,
-                peak: peak.value,
-                flux: Math.max(1, contrast),
-                background: localBg,
-                radius: 2.5,
-                elongation: 1,
-                score: contrast * Math.sqrt(Math.max(1, peak.value)),
-            });
-        }
-        candidates.sort((a, b) => b.score - a.score);
-        const selected = [];
-        const suppressionRadius = Math.max(24, Math.min(70, 0.012 * Math.hypot(width, height)));
-        const suppression2 = suppressionRadius * suppressionRadius;
-        for (const candidate of candidates) {
-            let tooClose = false;
-            for (const existing of selected) {
-                const dx = existing.x - candidate.x;
-                const dy = existing.y - candidate.y;
-                if (dx * dx + dy * dy < suppression2) {
-                    tooClose = true;
-                    break;
-                }
-            }
-            if (!tooClose) {
-                selected.push({...candidate, id: selected.length + 1});
-            }
-            if (selected.length >= maxDetections) {
-                break;
-            }
-        }
-        state.detectedStars = selected.map((det, i) => ({...det, rank: i + 1}));
-        state.detectorStatus = `fast bright-star detector: bg ${bg.toFixed(1)}, sigma ${sigma.toFixed(1)}, ` +
-            `${candidates.length} bright cell peaks, selected top ${state.detectedStars.length}/${maxDetections}, ` +
-            `suppression radius ${suppressionRadius.toFixed(0)} px`;
+            },
+        });
+        state.detectedStars = result.detections;
+        state.detectorStatus = result.status;
         updateAutoMatches();
         return state.detectedStars;
     }

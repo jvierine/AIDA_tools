@@ -261,6 +261,249 @@
         };
     }
 
+    function dot3(a, b) {
+        return a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
+    }
+
+    function cross3(a, b) {
+        return [
+            a[1] * b[2] - a[2] * b[1],
+            a[2] * b[0] - a[0] * b[2],
+            a[0] * b[1] - a[1] * b[0],
+        ];
+    }
+
+    function norm3(a) {
+        return Math.sqrt(dot3(a, a));
+    }
+
+    function normalize3(a) {
+        const n = norm3(a);
+        return n > 1e-12 ? [a[0] / n, a[1] / n, a[2] / n] : null;
+    }
+
+    function sub3(a, b) {
+        return [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
+    }
+
+    function scale3(a, s) {
+        return [a[0] * s, a[1] * s, a[2] * s];
+    }
+
+    function angularDistance(a, b) {
+        return Math.acos(clamp(dot3(a, b), -1, 1));
+    }
+
+    function skyVector(star) {
+        const sinze = Math.sin(star.ze);
+        return [
+            sinze * Math.sin(star.az),
+            sinze * Math.cos(star.az),
+            Math.cos(star.ze),
+        ];
+    }
+
+    function optmod2DetectionVector(detection, options, f1, radialAlpha) {
+        const width = finiteNumber(options.imageWidth, 0);
+        const height = finiteNumber(options.imageHeight, 0);
+        if (!(width > 0 && height > 0 && f1 > 0 && radialAlpha > 0)) {
+            return null;
+        }
+        const f2 = Number.isFinite(options.preflattenF2) ? options.preflattenF2 : f1 * width / height;
+        const du = Number.isFinite(options.preflattenDu) ? options.preflattenDu : 0;
+        const dv = Number.isFinite(options.preflattenDv) ? options.preflattenDv : 0;
+        const xn = ((detection.x + 1) / width - 0.5 - du) / f1;
+        const yn = ((detection.y + 1) / height - 0.5 - dv) / f2;
+        const rho = Math.hypot(xn, yn);
+        if (!Number.isFinite(rho) || rho > 0.999999) {
+            return null;
+        }
+        if (rho <= 1e-12) {
+            return [0, 0, 1];
+        }
+        const theta = Math.asin(rho) / radialAlpha;
+        const sint = Math.sin(theta);
+        const cost = Math.cos(theta);
+        return normalize3([sint * xn / rho, sint * yn / rho, cost]);
+    }
+
+    function sphericalTriangleRecord(points, i, j, k) {
+        const a = points[i];
+        const b = points[j];
+        const c = points[k];
+        const dAB = angularDistance(a.vector, b.vector);
+        const dBC = angularDistance(b.vector, c.vector);
+        const dCA = angularDistance(c.vector, a.vector);
+        const longest = Math.max(dAB, dBC, dCA);
+        const shortest = Math.min(dAB, dBC, dCA);
+        if (!Number.isFinite(longest) || longest <= 1e-6 || shortest / longest < 0.16) {
+            return null;
+        }
+        if (longest < 2.0 * Math.PI / 180 || longest > 65.0 * Math.PI / 180) {
+            return null;
+        }
+        let apex;
+        let end1;
+        let end2;
+        let side1;
+        let side2;
+        if (longest === dAB) {
+            apex = c;
+            end1 = a;
+            end2 = b;
+            side1 = dCA;
+            side2 = dBC;
+        } else if (longest === dBC) {
+            apex = a;
+            end1 = b;
+            end2 = c;
+            side1 = dAB;
+            side2 = dCA;
+        } else {
+            apex = b;
+            end1 = c;
+            end2 = a;
+            side1 = dBC;
+            side2 = dAB;
+        }
+        if (side2 < side1) {
+            const tmpEnd = end1;
+            end1 = end2;
+            end2 = tmpEnd;
+            const tmpSide = side1;
+            side1 = side2;
+            side2 = tmpSide;
+        }
+        const area = norm3(cross3(sub3(end1.vector, apex.vector), sub3(end2.vector, apex.vector)));
+        if (area < 1e-4) {
+            return null;
+        }
+        return {
+            x: side1 / longest,
+            y: side2 / longest,
+            points: [apex, end1, end2],
+            rankScore: apex.rank + end1.rank + end2.rank,
+            area,
+        };
+    }
+
+    function sphericalTriangleRecords(points, options = {}) {
+        const maxTriangles = Number.isFinite(options.maxTriangles) ? options.maxTriangles : 4000;
+        const maxPoints = Number.isFinite(options.maxTrianglePoints) ? options.maxTrianglePoints : points.length;
+        const p = points.slice(0, maxPoints);
+        const records = [];
+        for (let i = 0; i < p.length - 2; i += 1) {
+            for (let j = i + 1; j < p.length - 1; j += 1) {
+                for (let k = j + 1; k < p.length; k += 1) {
+                    const record = sphericalTriangleRecord(p, i, j, k);
+                    if (record) {
+                        records.push(record);
+                    }
+                }
+            }
+        }
+        records.sort((a, b) => a.rankScore - b.rankScore || b.area - a.area);
+        return records.slice(0, maxTriangles);
+    }
+
+    function triadBasis(a, b) {
+        const e1 = normalize3(a);
+        if (!e1) {
+            return null;
+        }
+        const bPerp = sub3(b, scale3(e1, dot3(b, e1)));
+        const e2 = normalize3(bPerp);
+        if (!e2) {
+            return null;
+        }
+        const e3 = normalize3(cross3(e1, e2));
+        return e3 ? [e1, e2, e3] : null;
+    }
+
+    function rotationFromVectorPairs(src0, src1, dst0, dst1) {
+        const src = triadBasis(src0, src1);
+        const dst = triadBasis(dst0, dst1);
+        if (!src || !dst) {
+            return null;
+        }
+        const r = new Array(9).fill(0);
+        for (let row = 0; row < 3; row += 1) {
+            for (let col = 0; col < 3; col += 1) {
+                r[row * 3 + col] =
+                    dst[0][row] * src[0][col] +
+                    dst[1][row] * src[1][col] +
+                    dst[2][row] * src[2][col];
+            }
+        }
+        return r;
+    }
+
+    function applyRot3(rot, vector) {
+        return [
+            rot[0] * vector[0] + rot[1] * vector[1] + rot[2] * vector[2],
+            rot[3] * vector[0] + rot[4] * vector[1] + rot[5] * vector[2],
+            rot[6] * vector[0] + rot[7] * vector[1] + rot[8] * vector[2],
+        ];
+    }
+
+    function scoreBlindRotation(catalog, detections, rot, options = {}) {
+        const radius = (Number.isFinite(options.blindMatchRadiusDeg) ? options.blindMatchRadiusDeg : 2.2) * Math.PI / 180;
+        const radius2 = radius * radius;
+        const usedStars = new Set();
+        const matches = [];
+        let distractors = 0;
+        let conflicts = 0;
+        let score = 0;
+        const maxTest = Number.isFinite(options.maxBlindVerifyDetections) ? options.maxBlindVerifyDetections : 55;
+        const dets = detections.slice(0, maxTest);
+        for (const detection of dets) {
+            const transformed = applyRot3(rot, detection.vector);
+            let best = null;
+            let bestD = Infinity;
+            let secondD = Infinity;
+            for (const star of catalog) {
+                const d = angularDistance(transformed, star.vector);
+                if (d < bestD) {
+                    secondD = bestD;
+                    bestD = d;
+                    best = star;
+                } else if (d < secondD) {
+                    secondD = d;
+                }
+            }
+            if (!best || bestD * bestD > radius2) {
+                distractors += 1;
+                score -= 0.20;
+                continue;
+            }
+            if (usedStars.has(best.key)) {
+                conflicts += 1;
+                score -= 1.5;
+                continue;
+            }
+            usedStars.add(best.key);
+            const bright = Math.max(0, 4.2 - best.mag) / 4.2;
+            const detRank = Number.isFinite(detection.rank) ? detection.rank : 99;
+            const rankAgreement = 1 - Math.min(1, Math.abs(best.rank - detRank) / 55);
+            const ambiguityPenalty = secondD < radius * 1.8 ? 0.35 : 0;
+            score += 4.0 + 5.0 * bright + 1.2 * rankAgreement - 2.5 * bestD / radius - ambiguityPenalty;
+            matches.push({
+                star: best,
+                detection,
+                distance: bestD * 180 / Math.PI,
+                angularDistanceRad: bestD,
+                projectedX: detection.x,
+                projectedY: detection.y,
+                correctedX: detection.x,
+                correctedY: detection.y,
+                residualDx: 0,
+                residualDy: 0,
+            });
+        }
+        matches.sort((a, b) => a.star.mag - b.star.mag || a.angularDistanceRad - b.angularDistanceRad);
+        return {score, matches, distractors, conflicts};
+    }
+
     function triangleRecords(points, options = {}) {
         const maxTriangles = Number.isFinite(options.maxTriangles) ? options.maxTriangles : 4000;
         const maxPoints = Number.isFinite(options.maxTrianglePoints) ? options.maxTrianglePoints : points.length;
@@ -724,9 +967,211 @@
         };
     }
 
+    function identifyStarsBlind(catalogStars, detections, options = {}) {
+        const maxMagnitude = Number.isFinite(options.maxMagnitude) ? options.maxMagnitude : 4.0;
+        const catalog = catalogStars
+            .filter((star, index) =>
+                Number.isFinite(star.az) && Number.isFinite(star.ze) &&
+                Number.isFinite(star.mag) && star.mag <= maxMagnitude &&
+                !setHas(options.existingCatalogKeys, starKey(star, index))
+            )
+            .map((star, index) => ({
+                ...star,
+                key: starKey(star, index),
+                vector: skyVector(star),
+                rank: index + 1,
+            }))
+            .sort((a, b) => a.mag - b.mag || a.key.localeCompare(b.key))
+            .slice(0, Number.isFinite(options.maxCatalogStars) ? options.maxCatalogStars : 80)
+            .map((star, index) => ({...star, rank: index + 1}));
+        const normalizedDetections = normalizeDetections(detections, {
+            ...options,
+            maxDetections: Number.isFinite(options.maxDetections) ? options.maxDetections : 80,
+        });
+        if (catalog.length < 6 || normalizedDetections.length < 6) {
+            return {
+                matches: [],
+                rawMatches: [],
+                catalog,
+                detections: normalizedDetections,
+                status: "auto-identify: not enough bright stars for blind spherical matching",
+            };
+        }
+
+        const f1Candidates = Array.isArray(options.preflattenF1Candidates) ?
+            options.preflattenF1Candidates : [0.80, 0.70, 0.90, 1.00, 0.60];
+        const radialCandidates = Array.isArray(options.preflattenRadialAlphaCandidates) ?
+            options.preflattenRadialAlphaCandidates : [0.90, 0.75, 1.05, 0.60];
+        const duCandidates = Array.isArray(options.preflattenDuCandidates) ?
+            options.preflattenDuCandidates : [0.04, 0.0, -0.04];
+        const dvCandidates = Array.isArray(options.preflattenDvCandidates) ?
+            options.preflattenDvCandidates : [0.0, 0.04, -0.04];
+        const signatureRadius = Number.isFinite(options.blindTriangleSignatureRadius) ?
+            options.blindTriangleSignatureRadius : 0.018;
+        const maxNeighborTriangles = Number.isFinite(options.maxBlindNeighborTriangles) ?
+            options.maxBlindNeighborTriangles : 4;
+        const maxCandidateRotations = Number.isFinite(options.maxBlindCandidateRotations) ?
+            options.maxBlindCandidateRotations : 6000;
+
+        const catalogTriangles = sphericalTriangleRecords(catalog, {
+            maxTriangles: Number.isFinite(options.maxCatalogTriangles) ? options.maxCatalogTriangles : 7000,
+            maxTrianglePoints: Number.isFinite(options.maxCatalogTriangleStars) ? options.maxCatalogTriangleStars : 55,
+        });
+        const catalogTriangleTree = new KdTree2(catalogTriangles.map((triangle, index) => ({
+            x: triangle.x,
+            y: triangle.y,
+            payload: {...triangle, index},
+        })));
+
+        let best = null;
+        let scored = 0;
+        let preflattenCount = 0;
+        let earlyAccepted = false;
+        const seen = new Set();
+        for (const f1 of f1Candidates) {
+            for (const radialAlpha of radialCandidates) {
+                for (const du of duCandidates) {
+                    for (const dv of dvCandidates) {
+                        const vectorOptions = {...options, preflattenDu: du, preflattenDv: dv};
+                        const vectorDetections = normalizedDetections
+                            .map((detection, index) => ({
+                                ...detection,
+                                vector: optmod2DetectionVector(detection, vectorOptions, f1, radialAlpha),
+                                rank: index + 1,
+                            }))
+                            .filter(detection => detection.vector);
+                        if (vectorDetections.length < 6) {
+                            continue;
+                        }
+                        preflattenCount += 1;
+                        const detectionTriangles = sphericalTriangleRecords(vectorDetections, {
+                            maxTriangles: Number.isFinite(options.maxDetectionTriangles) ? options.maxDetectionTriangles : 1400,
+                            maxTrianglePoints: Number.isFinite(options.maxDetectionTriangleStars) ? options.maxDetectionTriangleStars : 40,
+                        });
+                        for (const detectionTriangle of detectionTriangles) {
+                            const neighbors = catalogTriangleTree.range(detectionTriangle.x, detectionTriangle.y, signatureRadius)
+                                .slice(0, maxNeighborTriangles);
+                            for (const neighbor of neighbors) {
+                                if (scored >= maxCandidateRotations) {
+                                    break;
+                                }
+                                const catalogTriangle = neighbor.payload;
+                                const rot = rotationFromVectorPairs(
+                                    detectionTriangle.points[0].vector,
+                                    detectionTriangle.points[1].vector,
+                                    catalogTriangle.points[0].vector,
+                                    catalogTriangle.points[1].vector,
+                                );
+                                if (!rot) {
+                                    continue;
+                                }
+                                const thirdError = angularDistance(
+                                    applyRot3(rot, detectionTriangle.points[2].vector),
+                                    catalogTriangle.points[2].vector,
+                                );
+                                if (thirdError > (Number.isFinite(options.maxBlindTriangleThirdErrorDeg) ?
+                                        options.maxBlindTriangleThirdErrorDeg : 1.2) * Math.PI / 180) {
+                                    continue;
+                                }
+                                const key = [
+                                    Math.round(f1 * 100),
+                                    Math.round(radialAlpha * 100),
+                                    Math.round(du * 1000),
+                                    Math.round(dv * 1000),
+                                ].concat(rot.map(value => Math.round(value * 200))).join(",");
+                                if (seen.has(key)) {
+                                    continue;
+                                }
+                                seen.add(key);
+                                const candidate = scoreBlindRotation(catalog, vectorDetections, rot, options);
+                                scored += 1;
+                                if (!best || candidate.score > best.score) {
+                                    best = {
+                                        ...candidate,
+                                        rotation: rot,
+                                        f1,
+                                        radialAlpha,
+                                        du,
+                                        dv,
+                                        detectionTriangleCount: detectionTriangles.length,
+                                    };
+                                }
+                                const candidateMedian = candidate.matches.length ?
+                                    median(candidate.matches.map(match => match.distance)) : Infinity;
+                                if (candidate.matches.length >=
+                                        (Number.isFinite(options.blindEarlyAcceptMatches) ? options.blindEarlyAcceptMatches : 8) &&
+                                        candidateMedian <=
+                                        (Number.isFinite(options.blindEarlyAcceptMedianDeg) ? options.blindEarlyAcceptMedianDeg : 0.8)) {
+                                    earlyAccepted = true;
+                                    break;
+                                }
+                            }
+                            if (earlyAccepted || scored >= maxCandidateRotations) {
+                                break;
+                            }
+                        }
+                        if (earlyAccepted || scored >= maxCandidateRotations) {
+                            break;
+                        }
+                    }
+                    if (earlyAccepted || scored >= maxCandidateRotations) {
+                        break;
+                    }
+                }
+                if (earlyAccepted || scored >= maxCandidateRotations) {
+                    break;
+                }
+            }
+            if (earlyAccepted || scored >= maxCandidateRotations) {
+                break;
+            }
+        }
+
+        if (!best) {
+            return {
+                matches: [],
+                rawMatches: [],
+                catalog,
+                detections: normalizedDetections,
+                status: "auto-identify: blind spherical matcher found no candidate rotations",
+                scoredRotations: scored,
+                preflattenCount,
+            };
+        }
+        const minMatches = Number.isFinite(options.minMatches) ? options.minMatches : 6;
+        const medianDistance = best.matches.length ? median(best.matches.map(match => match.distance)) : Infinity;
+        const status = best.matches.length >= minMatches ?
+            `auto-identify: blind spherical matched ${best.matches.length} stars <= mag ${maxMagnitude.toFixed(1)}, ` +
+                `median angular residual ${medianDistance.toFixed(2)} deg, preflatten f1 ${best.f1.toFixed(2)}, ` +
+                `a ${best.radialAlpha.toFixed(2)}, du/dv ${best.du.toFixed(2)}/${best.dv.toFixed(2)}, ` +
+                `scored ${scored} rotations` :
+            `auto-identify: blind spherical matcher found only ${best.matches.length} plausible stars`;
+        return {
+            matches: best.matches,
+            rawMatches: best.matches,
+            catalog,
+            detections: normalizedDetections,
+            rotation: best.rotation,
+            f1: best.f1,
+            radialAlpha: best.radialAlpha,
+            du: best.du,
+            dv: best.dv,
+            medianDistance,
+            score: best.score,
+            distractors: best.distractors,
+            conflicts: best.conflicts,
+            status,
+            scoredRotations: scored,
+            preflattenCount,
+            catalogTriangleCount: catalogTriangles.length,
+            detectionTriangleCount: best.detectionTriangleCount,
+        };
+    }
+
     return {
         identifyStars,
         identifyStarsByAsterisms,
+        identifyStarsBlind,
         estimateTranslation,
         normalizeProjectedStars,
         normalizeDetections,
