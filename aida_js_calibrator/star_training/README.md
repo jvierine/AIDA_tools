@@ -37,6 +37,16 @@ Overlay images are written to `star_training/overlays/` by default. Use
 `star_training/overlays/index.html`, which can be opened directly in a browser
 to flip through all generated SVG overlays with the arrow keys.
 
+To reject bad overlay test cases interactively, launch the local overlay QA
+server:
+
+```sh
+npm run review:overlays
+```
+
+Then open `http://127.0.0.1:8791/`. The delete button moves the current JSON
+test case to `test_cases/rejected/`, so the removal is reversible.
+
 Launch the browser reviewer:
 
 ```sh
