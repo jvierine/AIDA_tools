@@ -1401,11 +1401,23 @@ end
         });
     }
 
-    function addAutoIdentificationMatches(result, methodLabel = "auto star finder") {
+    function addAutoIdentificationMatches(result, methodLabel = "auto star finder", options = {}) {
         const existingCatalogKeys = new Set(state.matches.map(match => match.catalog.key));
         const existingDetectionIds = currentGenerationDetectionIdsFromMatches();
+        const maxAddDistancePx = Number.isFinite(options.maxAddDistancePx) ?
+            options.maxAddDistancePx :
+            Infinity;
+        const maxAdditions = Number.isFinite(options.maxAdditions) ?
+            Math.max(0, Math.floor(options.maxAdditions)) :
+            Infinity;
         let added = 0;
         for (const match of result.matches || []) {
+            if (added >= maxAdditions) {
+                break;
+            }
+            if (Number.isFinite(match.distance) && match.distance > maxAddDistancePx) {
+                continue;
+            }
             if (existingCatalogKeys.has(match.star.key) ||
                     existingDetectionIds.has(match.detection.id) ||
                     imagePointAlreadyMatched(match.detection.x, match.detection.y)) {
@@ -1445,7 +1457,9 @@ end
         const minBlindMatches = Number.isFinite(options.minBlindMatches) ? options.minBlindMatches : 6;
         const minAsterismMatches = Number.isFinite(options.minAsterismMatches) ? options.minAsterismMatches : 4;
         const minProjectedMatches = Number.isFinite(options.minProjectedMatches) ? options.minProjectedMatches : 4;
-        const existingCatalogKeys = new Set(state.matches.map(match => match.catalog.key));
+        const existingCatalogKeys = options.reuseExistingMatchesForTransform === true ?
+            null :
+            new Set(state.matches.map(match => match.catalog.key));
         const existingDetectionIds = currentGenerationDetectionIdsFromMatches();
         const commonOptions = {
             imageWidth: state.image.width,
@@ -1541,7 +1555,10 @@ end
             `${label}: adding matched star pairings...`
         );
         await yieldToBrowser();
-        const added = addAutoIdentificationMatches(result, options.methodLabel || "auto star finder");
+        const added = addAutoIdentificationMatches(result, options.methodLabel || "auto star finder", {
+            maxAddDistancePx: options.maxAddDistancePx,
+            maxAdditions: options.maxAdditions,
+        });
         state.pendingMatch = null;
         clearDensityEstimate();
         state.showPickedMatchMarkers = true;
@@ -1579,10 +1596,15 @@ end
                 },
                 blindOptions: {
                     maxDetections: 50,
-                    maxCatalogStars: 70,
+                    maxCatalogStars: 220,
+                    maxCatalogTriangleStars: 220,
+                    maxCatalogTriangles: 30000,
+                    maxCatalogLocalNeighbors: 20,
+                    maxBlindNeighborTriangles: 8,
                     blindEarlyAcceptMatches: 12,
-                    maxBlindCandidateRotations: 4500,
+                    maxBlindCandidateRotations: 12000,
                 },
+                maxAddDistancePx: 0.8,
                 methodLabel: "auto star finder bright bootstrap",
             },
             {
@@ -1591,7 +1613,7 @@ end
                 maxDetections: 90,
                 maxMagnitude: autoIdentifyStageMagnitude(5.0, currentMaxMagnitude),
                 includeBlind: false,
-                includeAsterisms: true,
+                includeAsterisms: false,
                 minAsterismMatches: 4,
                 minProjectedMatches: 4,
                 detectorOptions: {
@@ -1610,6 +1632,7 @@ end
                     maxDistancePx: 34,
                     translationSearchRadiusPx: 90,
                 },
+                maxAddDistancePx: 8,
                 methodLabel: "auto star finder alignment fallback",
             },
             {
@@ -1632,6 +1655,7 @@ end
                     maxDistancePx: 24,
                     translationSearchRadiusPx: 55,
                 },
+                maxAddDistancePx: 8,
                 methodLabel: "auto star finder deeper projection",
             },
         ];
@@ -1639,7 +1663,9 @@ end
 
     async function runStagedAutoIdentifyFromDetector() {
         const optmod = Number(controls.optmod.value) || 2;
-        const desiredNewPairings = Math.max(6, Math.ceil(requiredOptparLength(optmod) / 2));
+        const desiredNewPairings = optmod === BROWN_CONRADY_OPTMOD ?
+            Math.max(24, Math.min(36, requiredOptparLength(optmod) * 3)) :
+            Math.max(18, Math.min(22, Math.ceil(requiredOptparLength(optmod) * 2.5)));
         const stages = autoIdentifyButtonStages();
         let totalAdded = 0;
         let totalDetections = 0;
@@ -1651,7 +1677,12 @@ end
                 break;
             }
             const stage = stages[i];
-            const pass = await runAutoIdentifyPass(stage);
+            const remaining = Math.max(0, desiredNewPairings - totalAdded);
+            const pass = await runAutoIdentifyPass({
+                ...stage,
+                maxAdditions: remaining,
+                reuseExistingMatchesForTransform: true,
+            });
             totalAdded += pass.added;
             totalDetections = Math.max(totalDetections, pass.detections);
             lastResult = pass.result;
@@ -4446,8 +4477,10 @@ end
         const width = state.image.width;
         const height = state.image.height;
         const f1 = Number.isFinite(result.f1) ? Math.max(0.12, Math.min(6.0, Math.abs(result.f1))) : seed[0];
-        seed[0] = f1;
-        seed[1] = Math.max(0.12, Math.min(6.0, f1 * width / Math.max(1, height)));
+        const signX = result.signX === -1 ? -1 : 1;
+        const signY = result.signY === -1 ? -1 : 1;
+        seed[0] = signX * f1;
+        seed[1] = signY * Math.max(0.12, Math.min(6.0, f1 * width / Math.max(1, height)));
         seed[2] = Math.max(-89.5, Math.min(89.5, angles.alpha));
         seed[3] = Math.max(-89.5, Math.min(89.5, angles.beta));
         seed[4] = angles.gamma;
@@ -4485,6 +4518,8 @@ end
             blindOptions: stage.blindOptions,
             asterismOptions: stage.asterismOptions,
             projectedOptions: stage.projectedOptions,
+            reuseExistingMatchesForTransform: true,
+            maxAddDistancePx: stage.maxAddDistancePx,
             methodLabel: "lucky auto star finder",
         });
         let seeded = false;

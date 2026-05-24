@@ -91,6 +91,26 @@ const HUMAN_REVIEW_NOTES = new Map([
     }],
 ]);
 
+const KNOWN_CASE_OVERRIDES = new Map([
+    ["2025_02_19_03_44_00_000_010760_first1s", {
+        latDeg: 50.992500,
+        lonDeg: 7.185110,
+        altM: 0,
+        optmod: 2,
+        optpar: [
+            0.780325000000,
+            1.37950600000,
+            -22.5000000000,
+            60.3000000000,
+            25.6000000000,
+            0.0371770000000,
+            0.0252550000000,
+            0.904231000000,
+        ],
+        note: "known-good optpar supplied manually; HDF5 optpar is not used for this case",
+    }],
+]);
+
 const MANUAL_CASES = [
     {
         id: "IMG-9371-brown-conrady",
@@ -178,14 +198,21 @@ function allskyCaseFromH5(h5Path) {
     fs.mkdirSync(IMAGE_DIR, {recursive: true});
     copyIfDifferent(sourcePng, path.join(IMAGE_DIR, pngName));
     const imageHeader = readPngImageData(sourcePng, true);
-    const optpar = h5DatasetNumbers(h5Path, "/optpar");
+    const override = KNOWN_CASE_OVERRIDES.get(sanitizeId(path.basename(h5Path, ".h5"))) || null;
+    const optpar = override && Array.isArray(override.optpar) ?
+        override.optpar.slice() :
+        h5DatasetNumbers(h5Path, "/optpar");
     const date = timestampFromAllskyName(pngName);
     if (!date || optpar.length < 8) {
         return null;
     }
-    const latDeg = h5DatasetNumbers(h5Path, "/camera_lat_deg")[0];
-    const lonDeg = h5DatasetNumbers(h5Path, "/camera_lon_deg")[0];
-    const optmod = optpar.length === 12 ? 20 : 2;
+    const latDeg = override && Number.isFinite(override.latDeg) ?
+        override.latDeg :
+        h5DatasetNumbers(h5Path, "/camera_lat_deg")[0];
+    const lonDeg = override && Number.isFinite(override.lonDeg) ?
+        override.lonDeg :
+        h5DatasetNumbers(h5Path, "/camera_lon_deg")[0];
+    const optmod = override && Number.isFinite(override.optmod) ? override.optmod : optpar.length === 12 ? 20 : 2;
     const id = sanitizeId(path.basename(h5Path, ".h5"));
     return {
         id,
@@ -197,20 +224,23 @@ function allskyCaseFromH5(h5Path) {
         date,
         latDeg,
         lonDeg,
-        altM: 0,
+        altM: override && Number.isFinite(override.altM) ? override.altM : 0,
         optmod,
         maxMag: 7.0,
         matchRadiusPx: 18,
         sweepCounts: [8, 10, 12, 14, 16, 18, 20, 24, 28, 32, 40, 50],
         detectorOptions: {
-            maxDetections: 80,
-            thresholdSigma: 4.417,
-            localThresholdSigma: 4.417,
-            requireGlobalThreshold: true,
+            maxDetections: 120,
+            thresholdSigma: 3.1,
+            localThresholdSigma: 3.2,
+            requireGlobalThreshold: false,
+            maxElongation: 3.1,
         },
         startMode: "perturbed",
         optpar,
-        humanReview: HUMAN_REVIEW_NOTES.get(id) || null,
+        humanReview: override && override.note ?
+            {status: "good", note: override.note} :
+            HUMAN_REVIEW_NOTES.get(id) || null,
     };
 }
 
@@ -393,6 +423,223 @@ function scoreIdentificationAgainstKnownLens(matches, validation) {
         }
     }
     return {total: matches.length, correct, incorrect, unknown, wrong};
+}
+
+function defaultRadialAlphaForOptmod(optmod) {
+    if (optmod === 20 || optmod === 12) {
+        return 0;
+    }
+    if (optmod === 1 || optmod === 4) {
+        return 1;
+    }
+    if (optmod === 5) {
+        return 0.5;
+    }
+    return 0.35;
+}
+
+function defaultOptparForCase(testCase) {
+    const common = [
+        1.0,
+        testCase.width / Math.max(1, testCase.height),
+        0,
+        0,
+        0,
+        0,
+        0,
+        defaultRadialAlphaForOptmod(testCase.optmod),
+    ];
+    return testCase.optmod === 20 ? common.concat([0, 0, 0, 0]) : common;
+}
+
+function seedOptparFromBlindIdentification(testCase, result) {
+    const angles = result && result.rotation &&
+        typeof AidaTools.cameraAnglesFromRotation === "function" ?
+        AidaTools.cameraAnglesFromRotation(result.rotation) :
+        null;
+    if (!angles) {
+        return null;
+    }
+    const seed = defaultOptparForCase(testCase);
+    const f1 = Number.isFinite(result.f1) ? Math.max(0.12, Math.min(6.0, Math.abs(result.f1))) : seed[0];
+    const signX = result.signX === -1 ? -1 : 1;
+    const signY = result.signY === -1 ? -1 : 1;
+    seed[0] = signX * f1;
+    seed[1] = signY * Math.max(0.12, Math.min(6.0, f1 * testCase.width / Math.max(1, testCase.height)));
+    seed[2] = Math.max(-89.5, Math.min(89.5, angles.alpha));
+    seed[3] = Math.max(-89.5, Math.min(89.5, angles.beta));
+    seed[4] = angles.gamma;
+    if (Number.isFinite(result.du)) {
+        seed[5] = Math.max(-0.25, Math.min(0.25, result.du));
+    }
+    if (Number.isFinite(result.dv)) {
+        seed[6] = Math.max(-0.25, Math.min(0.25, result.dv));
+    }
+    if (testCase.optmod !== 20 && Number.isFinite(result.radialAlpha)) {
+        seed[7] = Math.max(testCase.optmod === 12 ? -2.5 : 0.05, Math.min(2.5, result.radialAlpha));
+    }
+    return seed;
+}
+
+function imagePointAlreadyInMatches(matches, x, y, radiusPx = 7) {
+    return matches.some(match => Math.hypot(match.detection.x - x, match.detection.y - y) <= radiusPx);
+}
+
+function addGuiSimulationMatches(matches, result, options = {}) {
+    const existingKeys = new Set(matches.map(match => match.star.key));
+    const maxDistance = Number.isFinite(options.maxDistancePx) ? options.maxDistancePx : Infinity;
+    const maxAdd = Number.isFinite(options.maxAdd) ? Math.max(0, Math.floor(options.maxAdd)) : Infinity;
+    let added = 0;
+    for (const match of result.matches || []) {
+        if (added >= maxAdd) {
+            break;
+        }
+        if (Number.isFinite(match.distance) && match.distance > maxDistance) {
+            continue;
+        }
+        if (existingKeys.has(match.star.key) ||
+                imagePointAlreadyInMatches(matches, match.detection.x, match.detection.y)) {
+            continue;
+        }
+        matches.push({
+            star: match.star,
+            detection: match.detection,
+            distance: match.distance,
+        });
+        existingKeys.add(match.star.key);
+        added += 1;
+    }
+    return added;
+}
+
+function scoreMatchesByImagePosition(matches, knownStars, radiusPx) {
+    let correct = 0;
+    let incorrect = 0;
+    let unknown = 0;
+    for (const match of matches) {
+        let best = null;
+        let bestDistance = Infinity;
+        for (const star of knownStars) {
+            const distance = Math.hypot(match.detection.x - star.x, match.detection.y - star.y);
+            if (distance < bestDistance) {
+                best = star;
+                bestDistance = distance;
+            }
+        }
+        if (!best || bestDistance > radiusPx) {
+            unknown += 1;
+        } else if (best.key === match.star.key) {
+            correct += 1;
+        } else {
+            incorrect += 1;
+        }
+    }
+    return {total: matches.length, correct, incorrect, unknown};
+}
+
+async function simulateGuiAutoIdentify(testCase, imageData) {
+    const targetPairs = testCase.optmod === 20 ?
+        Math.max(24, Math.min(36, 12 * 3)) :
+        Math.max(18, Math.min(22, Math.ceil(8 * 2.5)));
+    const stages = [
+        {
+            label: "bright blind bootstrap",
+            maxDetections: 50,
+            maxMagnitude: 4.0,
+            detectorOptions: {
+                thresholdSigma: 4.417,
+                localThresholdSigma: 4.417,
+                requireGlobalThreshold: true,
+                maxElongation: 2.7,
+            },
+            blindOptions: {
+                maxDetections: 50,
+                maxCatalogStars: 220,
+                maxCatalogTriangleStars: 220,
+                maxCatalogTriangles: 30000,
+                maxCatalogLocalNeighbors: 20,
+                maxBlindNeighborTriangles: 8,
+                blindEarlyAcceptMatches: 12,
+                maxBlindCandidateRotations: 12000,
+            },
+            maxAddDistancePx: 0.8,
+        },
+        {
+            label: "projected fallback",
+            maxDetections: 90,
+            maxMagnitude: 5.0,
+            detectorOptions: {
+                thresholdSigma: 3.6,
+                localThresholdSigma: 3.4,
+                requireGlobalThreshold: true,
+                maxElongation: 3.0,
+            },
+            projectedOptions: {
+                maxDetections: 90,
+                maxCatalogStars: 140,
+                maxDistancePx: 34,
+                translationSearchRadiusPx: 90,
+                minMatches: 4,
+            },
+            maxAddDistancePx: 8,
+        },
+        {
+            label: "deeper projected expansion",
+            maxDetections: 120,
+            maxMagnitude: 6.0,
+            detectorOptions: {
+                thresholdSigma: 3.1,
+                localThresholdSigma: 3.2,
+                requireGlobalThreshold: false,
+                maxElongation: 3.1,
+            },
+            projectedOptions: {
+                maxDetections: 120,
+                maxCatalogStars: 180,
+                maxDistancePx: 24,
+                translationSearchRadiusPx: 55,
+                minMatches: 4,
+            },
+            maxAddDistancePx: 8,
+        },
+    ];
+    let optpar = defaultOptparForCase(testCase);
+    const matches = [];
+    const summaries = [];
+    for (let i = 0; i < stages.length && matches.length < targetPairs; i += 1) {
+        const stage = stages[i];
+        const detectionResult = await StarDetector.detectBrightStars(imageData, {
+            maxDetections: stage.maxDetections,
+            ...stage.detectorOptions,
+        });
+        let result;
+        if (i === 0) {
+            result = AutoIdentifier.identifyStarsBlind(visibleStars(testCase, stage.maxMagnitude), detectionResult.detections, {
+                imageWidth: testCase.width,
+                imageHeight: testCase.height,
+                maxMagnitude: stage.maxMagnitude,
+                minMatches: 6,
+                ...stage.blindOptions,
+            });
+            const seed = seedOptparFromBlindIdentification(testCase, result);
+            if (seed) {
+                optpar = seed;
+            }
+        } else {
+            result = AutoIdentifier.identifyStars(projectStars(testCase, optpar, stage.maxMagnitude), detectionResult.detections, {
+                imageWidth: testCase.width,
+                imageHeight: testCase.height,
+                maxMagnitude: stage.maxMagnitude,
+                ...stage.projectedOptions,
+            });
+        }
+        const added = addGuiSimulationMatches(matches, result, {
+            maxDistancePx: stage.maxAddDistancePx,
+            maxAdd: targetPairs - matches.length,
+        });
+        summaries.push(`${stage.label}: ${added} added, ${result.status}`);
+    }
+    return {matches, optpar, summaries};
 }
 
 function solveLinearSystem(a, b) {
@@ -742,15 +989,13 @@ function assessLensModelAgreement(testCase, fit, maxMag = testCase.maxMag) {
 }
 
 function overlaySvg(result) {
-    const matchedKeys = new Set(result.matches.map(pair => pair.star.key));
     const fittedStars = new Map(projectStars(result.case, result.fit.optpar, result.case.maxMag + 0.01)
         .map(star => [star.key, star]));
+    const knownGoodCatalog = projectStars(result.case, result.case.optpar, result.case.maxMag + 0.01);
     const items = [];
-    for (const star of result.fittedCatalog) {
-        if (!matchedKeys.has(star.key)) {
-            items.push(circleSvg(star.x, star.y, magnitudeRadius(star.mag), "catalog-star",
-                `${star.name || "star"} mag ${star.mag.toFixed(1)}`));
-        }
+    for (const star of knownGoodCatalog) {
+        items.push(circleSvg(star.x, star.y, magnitudeRadius(star.mag), "catalog-star",
+            `${star.name || "star"} known-good optpar mag ${star.mag.toFixed(1)}`));
     }
     for (const detection of result.detections) {
         items.push(circleSvg(detection.x, detection.y, 3, "detected-star"));
@@ -818,6 +1063,8 @@ async function analyzeCase(testCase) {
     const catalog = projectStars(testCase, testCase.optpar, testCase.maxMag);
     const validation = knownLensValidationMap(detectionResult.detections, catalog, testCase.matchRadiusPx);
     const quality = detectionQuality(detectionResult, validation);
+    const guiAuto = await simulateGuiAutoIdentify(testCase, imageData);
+    const guiAutoScore = scoreMatchesByImagePosition(guiAuto.matches, catalog, testCase.matchRadiusPx);
     const autoIdentification = AutoIdentifier.identifyStars(catalog, detectionResult.detections, {
         imageWidth: testCase.width,
         imageHeight: testCase.height,
@@ -859,6 +1106,8 @@ async function analyzeCase(testCase) {
         validation,
         autoIdentification,
         identificationScore,
+        guiAuto,
+        guiAutoScore,
         sweep,
         fit,
         minFitPairs,
@@ -884,6 +1133,10 @@ function caseHtml(result) {
     const lensStatus = agreement.achieved ? "YES" : "NO";
     const autoIdStatus = `known-lens validation: ${score.correct}/${score.total} auto-ID pairs correct, ` +
         `${score.incorrect} wrong, ${score.unknown} outside truth map`;
+    const guiScore = result.guiAutoScore;
+    const guiAutoStatus = `GUI-style auto-identify from default/blind seed: ` +
+        `${guiScore.correct}/${guiScore.total} correct, ${guiScore.incorrect} wrong, ` +
+        `${guiScore.unknown} outside truth map; ${result.guiAuto.summaries.join(" / ")}`;
     const lensAgreementStatus = `correct lens model achieved: ${lensStatus}; ` +
         `known-vs-fit projection RMS ${agreement.rms.toFixed(2)} px, ` +
         `95% ${agreement.p95.toFixed(2)} px over ${agreement.comparedStars}/${agreement.checkedStars} catalogue stars ` +
@@ -932,6 +1185,7 @@ ${reviewHtml}
         <p class="status">${escapeHtml(rejectionStatus)}</p>
         <p class="status">${escapeHtml(result.autoIdentification.status)}</p>
         <p class="status">${escapeHtml(autoIdStatus)}</p>
+        <p class="status">${escapeHtml(guiAutoStatus)}</p>
         <p class="status ${agreement.achieved ? "ok" : "warn"}">${escapeHtml(lensAgreementStatus)}</p>
         <p class="status">${escapeHtml(parameterStatus)}</p>
         <p class="status mono">known good [optmod, ...optpar]: [${escapeHtml(formatKnownParameterVector(c))}]</p>
@@ -944,6 +1198,7 @@ ${reviewHtml}
             <div><strong>${result.validation.matches.length}</strong><span>known-lens truth pairs</span></div>
             <div><strong>${score.correct}</strong><span>validated auto-ID pairs</span></div>
             <div><strong>${score.incorrect}</strong><span>wrong auto-ID pairs</span></div>
+            <div><strong>${guiScore.correct}/${guiScore.total}</strong><span>GUI-style auto-ID correct</span></div>
             <div><strong>${result.fit.rms.toFixed(2)} px</strong><span>fit RMS</span></div>
             <div><strong>${quality.validated}/${quality.selected}</strong><span>catalogue-certified detections</span></div>
             <div><strong>${quality.localSnrMin.toFixed(1)}</strong><span>min local SNR</span></div>
@@ -963,7 +1218,7 @@ ${reviewHtml}
                 <ul class="legend">
                     <li><span class="swatch matched"></span> known-lens truth-map detections</li>
                     <li><span class="swatch fit"></span> fitted model positions</li>
-                    <li><span class="swatch catalog"></span> other catalogue stars under fitted model</li>
+                    <li><span class="swatch catalog"></span> catalogue stars under the known-good optpar model</li>
                     <li><span class="swatch detected"></span> raw automatic detections</li>
                 </ul>
             </div>
@@ -1027,7 +1282,7 @@ h2 { margin: 0 0 8px; font-size: 20px; }
 <body>
 <header>
 <h1>AIDA Calibrator Star-Fit Test Report</h1>
-<p class="intro">Generated ${escapeHtml(generated)}. The report now sweeps all tracked <code>python/examples/allsky7/*first1s.png</code> frames with their matching HDF5 latitude, longitude, timestamp, and optpar metadata. A known-good lens model first creates a truth map between Yale catalogue stars and image detections; raw detections that pass this check are catalogue-certified for fitting, while uncertified detections remain visible as detector-hardening feedback. Green circles are certified detections used for fitting, cyan circles are fitted lens-model positions, red circles are unmatched catalogue stars under the fitted model, and yellow dots are raw automatic detections. Brown-Conrady cases use light coefficient regularization.</p>
+<p class="intro">Generated ${escapeHtml(generated)}. The report sweeps the tracked <code>python/examples/allsky7/*first1s.png</code> frames with their matching latitude, longitude, timestamp, and optpar metadata. A known-good lens model creates an oracle truth map between Yale catalogue stars and image detections; this validates the detector and shows the best available fit if the star identities are known. Each case also reports a separate GUI-style auto-identify simulation that starts from the default lens state, uses blind asterisms to seed the model, and then expands with projected matching. Green circles are oracle-certified detections used for the validation fit, cyan circles are fitted lens-model positions, red circles are catalogue stars under the known-good optpar model, and yellow dots are raw automatic detections. Brown-Conrady cases use light coefficient regularization.</p>
 </header>
 ${results.map(caseHtml).join("\n")}
 </body>

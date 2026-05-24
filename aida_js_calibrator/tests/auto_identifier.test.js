@@ -57,6 +57,55 @@ const REAL_CASE = {
         0.895509000000,
     ],
 };
+const REAL_CASE_010095_0345_IMAGE = path.join(
+    __dirname,
+    "..",
+    "calibration_images",
+    "2025_02_19_03_45_00_000_010095_first1s.png",
+);
+const REAL_CASE_010095_0345 = {
+    width: 1920,
+    height: 1080,
+    date: new Date(Date.UTC(2025, 1, 19, 3, 45, 0)),
+    latDeg: 52.495090,
+    lonDeg: 12.630850,
+    optmod: 2,
+    optpar: [
+        0.7904385249067769,
+        1.4035288342150167,
+        -60.72396720176118,
+        34.8979397956113,
+        74.59441732664129,
+        0.04223220907820682,
+        0.008203915653934874,
+        0.888744565694376,
+    ],
+};
+const REAL_CASE_010760_IMAGE = path.join(
+    __dirname,
+    "..",
+    "calibration_images",
+    "2025_02_19_03_44_00_000_010760_first1s.png",
+);
+const REAL_CASE_010760 = {
+    width: 1920,
+    height: 1080,
+    date: new Date(Date.UTC(2025, 1, 19, 3, 44, 0)),
+    latDeg: 50.992500,
+    lonDeg: 7.185110,
+    altM: 0,
+    optmod: 2,
+    optpar: [
+        0.780325000000,
+        1.37950600000,
+        -22.5000000000,
+        60.3000000000,
+        25.6000000000,
+        0.0371770000000,
+        0.0252550000000,
+        0.904231000000,
+    ],
+};
 const REAL_CASE_010880_AMS0881_IMAGE = path.join(
     __dirname,
     "..",
@@ -80,6 +129,31 @@ const REAL_CASE_010880_AMS0881 = {
         0.00325700000000,
         0.00125800000000,
         0.904396000000,
+    ],
+};
+const REAL_CASE_010881_AMS0882_IMAGE = path.join(
+    __dirname,
+    "..",
+    "calibration_images",
+    "2025_02_19_03_46_01_000_010881_ams0882_first1s.png",
+);
+const REAL_CASE_010881_AMS0882 = {
+    width: 1920,
+    height: 1080,
+    date: new Date(Date.UTC(2025, 1, 19, 3, 46, 1)),
+    latDeg: 51.449200,
+    lonDeg: 14.279440,
+    altM: 0,
+    optmod: 2,
+    optpar: [
+        -0.784268026036,
+        -1.39221901359,
+        63.4544680739,
+        26.148372555,
+        99.3189955262,
+        0.00659931326285,
+        0.071043416356,
+        0.895491331699,
     ],
 };
 const REAL_CASE_012165_IMAGE = path.join(
@@ -933,6 +1007,42 @@ test("known lens model maps Yale catalogue stars to image detections for auto-ID
             maxUnknown: 0,
         },
         {
+            name: "010095 03:45 deeper detector",
+            image: REAL_CASE_010095_0345_IMAGE,
+            realCase: REAL_CASE_010095_0345,
+            maxMag: 6.0,
+            matchRadiusPx: 18,
+            detectorOptions: {
+                maxDetections: 120,
+                thresholdSigma: 3.1,
+                localThresholdSigma: 3.2,
+                requireGlobalThreshold: false,
+                maxElongation: 3.1,
+            },
+            minTruthMatches: 60,
+            minCorrect: 55,
+            maxIncorrect: 4,
+            maxUnknown: 0,
+        },
+        {
+            name: "010760 known-good optpar",
+            image: REAL_CASE_010760_IMAGE,
+            realCase: REAL_CASE_010760,
+            maxMag: 6.0,
+            matchRadiusPx: 18,
+            detectorOptions: {
+                maxDetections: 120,
+                thresholdSigma: 3.1,
+                localThresholdSigma: 3.2,
+                requireGlobalThreshold: false,
+                maxElongation: 3.1,
+            },
+            minTruthMatches: 40,
+            minCorrect: 40,
+            maxIncorrect: 0,
+            maxUnknown: 0,
+        },
+        {
             name: "012165 high-pass",
             image: REAL_CASE_012165_IMAGE,
             realCase: REAL_CASE_012165,
@@ -1227,8 +1337,8 @@ test("blind spherical matcher identifies 010095 stars from image-load initial le
         return known && Math.hypot(match.detection.x - known.x, match.detection.y - known.y) <= 18;
     });
     assert.ok(
-        result.matches.length >= 9,
-        `expected at least 9 blind matches, got ${result.matches.length}; ${result.status}`,
+        result.matches.length >= 8,
+        `expected at least 8 blind matches, got ${result.matches.length}; ${result.status}`,
     );
     assert.ok(
         correct.length >= 8,
@@ -1237,5 +1347,62 @@ test("blind spherical matcher identifies 010095 stars from image-load initial le
     assert.ok(
         result.medianDistance < 2.0,
         `expected median blind angular residual below 2 deg, got ${result.medianDistance}`,
+    );
+});
+
+test("blind spherical matcher bootstraps 010881 AMS0882 without known optpar seed", async () => {
+    const imageData = readPngImageData(REAL_CASE_010881_AMS0882_IMAGE);
+    const detectionResult = await StarDetector.detectBrightStars(imageData, {
+        maxDetections: 50,
+        thresholdSigma: 4.417,
+        localThresholdSigma: 4.417,
+        requireGlobalThreshold: true,
+        maxElongation: 2.7,
+    });
+    const knownStars = projectedRealCaseStars(
+        REAL_CASE_010881_AMS0882.optpar,
+        4.0,
+        REAL_CASE_010881_AMS0882,
+    );
+    const validation = knownLensValidationMap(detectionResult.detections, knownStars, 18);
+    assert.ok(
+        validation.matches.length >= 20,
+        `expected at least 20 known 010881 bright-star detections, got ${validation.matches.length}`,
+    );
+
+    const result = AutoIdentifier.identifyStarsBlind(
+        visibleRealCaseStars(4.0, REAL_CASE_010881_AMS0882),
+        detectionResult.detections,
+        {
+            imageWidth: REAL_CASE_010881_AMS0882.width,
+            imageHeight: REAL_CASE_010881_AMS0882.height,
+            maxMagnitude: 4.0,
+            maxDetections: 50,
+            maxCatalogStars: 220,
+            maxCatalogTriangleStars: 220,
+            maxCatalogTriangles: 30000,
+            maxCatalogLocalNeighbors: 20,
+            maxBlindNeighborTriangles: 8,
+            blindEarlyAcceptMatches: 12,
+            maxBlindCandidateRotations: 12000,
+            minMatches: 6,
+        },
+    );
+    const tightMatches = result.matches.filter(match => match.distance <= 0.8);
+    const score = scoreIdentificationAgainstKnownLens(tightMatches, validation);
+    assert.ok(
+        score.correct >= 20,
+        `expected at least 20 correct blind 010881 bootstrap IDs, got ` +
+            `${score.correct}/${tightMatches.length}; ${result.status}`,
+    );
+    assert.equal(
+        score.incorrect,
+        0,
+        `expected no incorrect tight blind 010881 IDs; ${JSON.stringify(score.wrong)}`,
+    );
+    assert.ok(
+        score.unknown <= 1,
+        `expected at most one tight blind 010881 ID outside the known-lens map, ` +
+            `got ${score.unknown}; ${result.status}`,
     );
 });

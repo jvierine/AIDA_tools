@@ -112,9 +112,10 @@ The generated PNG copies live in `calibration_images/`. The source HDF5/MATLAB
 references remain under the local `allsky7 -> ../python/examples/allsky7`
 symlink when present.
 
-The file `2025_02_19_03_44_00_000_010760_first1s.png` is intentionally excluded
-from the browser test cases because its image/star alignment is inconsistent
-with the other calibration frames.
+The file `2025_02_19_03_44_00_000_010760_first1s.png` is included in the
+graphical star-fit report with a manually supplied known-good optmod 2
+solution, because the optpar stored in its HDF5 file is not the accepted
+reference solution for this frame.
 
 Regenerate the bundled calibration cases with:
 
