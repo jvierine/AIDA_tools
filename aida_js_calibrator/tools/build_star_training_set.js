@@ -189,42 +189,6 @@ function drawCircle(imageData, cx, cy, radius, color) {
     }
 }
 
-function drawFilledSquare(imageData, cx, cy, halfWidth, color) {
-    const h = Math.max(1, Math.round(halfWidth));
-    for (let y = -h; y <= h; y += 1) {
-        for (let x = -h; x <= h; x += 1) {
-            setPixel(imageData, cx + x, cy + y, color[0], color[1], color[2], color[3] === undefined ? 255 : color[3]);
-        }
-    }
-}
-
-function drawLine(imageData, x0, y0, x1, y1, color) {
-    const steps = Math.max(1, Math.ceil(Math.hypot(x1 - x0, y1 - y0)));
-    for (let i = 0; i <= steps; i += 1) {
-        const t = i / steps;
-        setPixel(
-            imageData,
-            x0 + t * (x1 - x0),
-            y0 + t * (y1 - y0),
-            color[0],
-            color[1],
-            color[2],
-            color[3] === undefined ? 255 : color[3],
-        );
-    }
-}
-
-function drawCrosshair(imageData, cx, cy, radius, color) {
-    const r = Math.max(2, Math.round(radius));
-    const gap = Math.max(2, Math.floor(r * 0.35));
-    for (let d = -r; d <= r; d += 1) {
-        if (Math.abs(d) > gap) {
-            setPixel(imageData, cx + d, cy, color[0], color[1], color[2], color[3] === undefined ? 255 : color[3]);
-            setPixel(imageData, cx, cy + d, color[0], color[1], color[2], color[3] === undefined ? 255 : color[3]);
-        }
-    }
-}
-
 function magnitudeRadius(mag) {
     if (mag <= 2.0) {
         return 10;
@@ -249,11 +213,6 @@ function circleSvg(x, y, radius, stroke, fill = "none", title = "") {
         `fill="${fill}" stroke="${stroke}" stroke-width="2" vector-effect="non-scaling-stroke">${maybeTitle}</circle>`;
 }
 
-function lineSvg(x0, y0, x1, y1, stroke) {
-    return `<line x1="${x0.toFixed(2)}" y1="${y0.toFixed(2)}" x2="${x1.toFixed(2)}" y2="${y1.toFixed(2)}" ` +
-        `stroke="${stroke}" stroke-width="1.5" vector-effect="non-scaling-stroke" />`;
-}
-
 function writeOverlaySvg(testCase, stars, detections, overlayDir) {
     fs.mkdirSync(overlayDir, {recursive: true});
     const items = [];
@@ -265,42 +224,14 @@ function writeOverlaySvg(testCase, stars, detections, overlayDir) {
     }
     for (const star of stars) {
         const radius = magnitudeRadius(star.mag);
-        const nearest = nearestPoint(star, detections, 30);
-        if (nearest) {
-            items.push(lineSvg(star.x, star.y, nearest.x, nearest.y, "#40ff80"));
-        }
         items.push(circleSvg(star.x, star.y, radius + 1, "#000"));
         items.push(circleSvg(star.x, star.y, radius, "#ff4040",
             "none", `${star.name || "star"} mag ${star.mag.toFixed(1)}`));
-        items.push(`<rect x="${(star.x - 1.5).toFixed(2)}" y="${(star.y - 1.5).toFixed(2)}" ` +
-            `width="3" height="3" fill="#ff4040" />`);
     }
     const out = path.join(overlayDir, `${safeName(testCase.id)}_stars_overlay.svg`);
     fs.writeFileSync(out, `<svg xmlns="http://www.w3.org/2000/svg" ` +
         `viewBox="0 0 ${testCase.width} ${testCase.height}" width="${testCase.width}" height="${testCase.height}">\n` +
         `${items.join("\n")}\n</svg>\n`);
-    return out;
-}
-
-function writeOverlayPng(testCase, imageData, stars, detections, overlayDir) {
-    fs.mkdirSync(overlayDir, {recursive: true});
-    const overlay = copyImageData(imageData);
-    for (const detection of detections) {
-        drawCircle(overlay, detection.x, detection.y, 4, [0, 0, 0, 255]);
-        drawCircle(overlay, detection.x, detection.y, 3, [255, 220, 64, 255]);
-    }
-    for (const star of stars) {
-        const radius = magnitudeRadius(star.mag);
-        const nearest = nearestPoint(star, detections, 30);
-        if (nearest) {
-            drawLine(overlay, star.x, star.y, nearest.x, nearest.y, [64, 255, 128, 255]);
-        }
-        drawCircle(overlay, star.x, star.y, radius + 1, [0, 0, 0, 255]);
-        drawCircle(overlay, star.x, star.y, radius, [255, 64, 64, 255]);
-        drawFilledSquare(overlay, star.x, star.y, 1, [255, 64, 64, 255]);
-    }
-    const out = path.join(overlayDir, `${safeName(testCase.id)}_stars_overlay.png`);
-    writePngRgba(out, overlay.width, overlay.height, overlay.data);
     return out;
 }
 
@@ -483,14 +414,98 @@ async function buildOverlay(testCase, options) {
     });
     const stars = projectStars(testCase, testCase.optpar, Math.max(7, testCase.maxMag || 7));
     const outfile = writeOverlaySvg(testCase, stars, detectionResult.detections, options.overlayDir);
-    const pngOutfile = writeOverlayPng(testCase, imageData, stars, detectionResult.detections, options.overlayDir);
     return {
         caseId: testCase.id,
         outfile,
-        pngOutfile,
         stars: stars.length,
         detections: detectionResult.detections.length,
+        width: testCase.width,
+        height: testCase.height,
     };
+}
+
+function writeOverlayBrowser(summaries, overlayDir) {
+    fs.mkdirSync(overlayDir, {recursive: true});
+    const cases = summaries.map(summary => ({
+        id: summary.caseId,
+        file: path.basename(summary.outfile),
+        stars: summary.stars,
+        detections: summary.detections,
+        width: summary.width,
+        height: summary.height,
+    }));
+    const html = `<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AIDA star overlay QA</title>
+<style>
+html, body { margin: 0; min-height: 100%; background: #101217; color: #eef1f7; font-family: system-ui, sans-serif; }
+.bar { position: sticky; top: 0; z-index: 2; display: flex; gap: 10px; align-items: center; padding: 10px 12px; background: #191d26; border-bottom: 1px solid #303746; }
+button, select { color: #eef1f7; background: #252b38; border: 1px solid #485064; border-radius: 4px; padding: 7px 10px; }
+button { cursor: pointer; }
+.meta { color: #b8c0d4; font-size: 13px; white-space: nowrap; }
+.legend { margin-left: auto; display: flex; gap: 14px; align-items: center; color: #b8c0d4; font-size: 13px; }
+.swatch { display: inline-block; width: 12px; height: 12px; border: 2px solid currentColor; border-radius: 50%; vertical-align: -2px; margin-right: 4px; }
+.red { color: #ff4040; }
+.yellow { color: #ffd940; }
+.stage { height: calc(100vh - 54px); overflow: auto; display: grid; place-items: start center; }
+iframe { border: 0; background: #05060a; }
+</style>
+</head>
+<body>
+<div class="bar">
+<button id="prev" type="button">←</button>
+<button id="next" type="button">→</button>
+<select id="caseSelect"></select>
+<span class="meta" id="meta"></span>
+<span class="legend"><span><span class="swatch red"></span>catalogue</span><span><span class="swatch yellow"></span>detections</span></span>
+</div>
+<div class="stage"><iframe id="viewer" title="Star overlay"></iframe></div>
+<script>
+const cases = ${JSON.stringify(cases, null, 2)};
+const select = document.getElementById("caseSelect");
+const viewer = document.getElementById("viewer");
+const meta = document.getElementById("meta");
+let index = 0;
+for (let i = 0; i < cases.length; i += 1) {
+  const option = document.createElement("option");
+  option.value = String(i);
+  option.textContent = cases[i].id;
+  select.appendChild(option);
+}
+function show(i) {
+  if (!cases.length) return;
+  index = (i + cases.length) % cases.length;
+  select.value = String(index);
+  viewer.src = cases[index].file;
+  sizeViewer();
+  meta.textContent = (index + 1) + "/" + cases.length + " · " + cases[index].stars + " catalogue · " + cases[index].detections + " detections";
+}
+function sizeViewer() {
+  if (!cases.length) return;
+  const item = cases[index];
+  const maxW = window.innerWidth;
+  const maxH = Math.max(320, window.innerHeight - 64);
+  const scale = Math.min(maxW / item.width, maxH / item.height, 1);
+  viewer.style.width = Math.max(320, Math.round(item.width * scale)) + "px";
+  viewer.style.height = Math.max(240, Math.round(item.height * scale)) + "px";
+}
+document.getElementById("prev").addEventListener("click", () => show(index - 1));
+document.getElementById("next").addEventListener("click", () => show(index + 1));
+select.addEventListener("change", () => show(Number(select.value)));
+window.addEventListener("resize", sizeViewer);
+window.addEventListener("keydown", event => {
+  if (event.key === "ArrowLeft") show(index - 1);
+  if (event.key === "ArrowRight" || event.key === " ") show(index + 1);
+});
+show(0);
+</script>
+</body>
+</html>
+`;
+    return fs.writeFileSync(path.join(overlayDir, "index.html"), html);
 }
 
 async function main() {
@@ -505,10 +520,11 @@ async function main() {
             process.stderr.write(`drawing known-lens overlay for ${testCase.id}\n`);
             summaries.push(await buildOverlay(testCase, options));
         }
+        writeOverlayBrowser(summaries, options.overlayDir);
         for (const summary of summaries) {
             process.stdout.write(`${summary.outfile} (${summary.stars} stars, ${summary.detections} detections)\n`);
-            process.stdout.write(`${summary.pngOutfile} (raster copy, same markers)\n`);
         }
+        process.stdout.write(`${path.join(options.overlayDir, "index.html")} (overlay browser)\n`);
         return;
     }
     ensureDirs(options.datasetDir, options.reset);

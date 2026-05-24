@@ -23,16 +23,19 @@ npm run build:star-training -- 010095 --reset
 npm run build:star-training -- IMG-9953 --yes 40 --no 80 --random-no 20
 ```
 
-Quickly check known lens models by drawing red catalogue star circles and
-yellow detector circles over the source images:
+Quickly check known lens models by drawing open red catalogue star circles and
+open yellow detector circles over the source images:
 
 ```sh
 npm run build:star-training -- --overlay-only 010095
 npm run build:star-training -- --overlay-only IMG-9953
+npm run overlays:stars
 ```
 
 Overlay images are written to `star_training/overlays/` by default. Use
-`--overlay-dir <path>` to write them elsewhere.
+`--overlay-dir <path>` to write them elsewhere. The command also writes
+`star_training/overlays/index.html`, which can be opened directly in a browser
+to flip through all generated SVG overlays with the arrow keys.
 
 Launch the browser reviewer:
 

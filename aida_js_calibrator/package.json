@@ -4,6 +4,7 @@
     "report": "node tools/generate_test_report.js",
     "report:case": "node tools/generate_test_report.js",
     "build:star-training": "node tools/build_star_training_set.js",
+    "overlays:stars": "node tools/build_star_training_set.js --overlay-only",
     "review:stars": "node tools/review_star_training_set.js"
   }
 }
