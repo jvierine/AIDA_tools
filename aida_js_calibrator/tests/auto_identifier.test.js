@@ -271,6 +271,163 @@ function matchDetectionsToKnownStars(detections, knownStars, maxDistancePx = 18)
     return matches;
 }
 
+function solveLinearSystem(a, b) {
+    const n = b.length;
+    const m = a.map((row, i) => row.slice().concat([b[i]]));
+    for (let col = 0; col < n; col += 1) {
+        let pivot = col;
+        for (let row = col + 1; row < n; row += 1) {
+            if (Math.abs(m[row][col]) > Math.abs(m[pivot][col])) {
+                pivot = row;
+            }
+        }
+        if (Math.abs(m[pivot][col]) < 1e-12) {
+            return null;
+        }
+        if (pivot !== col) {
+            const tmp = m[col];
+            m[col] = m[pivot];
+            m[pivot] = tmp;
+        }
+        const pivotValue = m[col][col];
+        for (let j = col; j <= n; j += 1) {
+            m[col][j] /= pivotValue;
+        }
+        for (let row = 0; row < n; row += 1) {
+            if (row === col) {
+                continue;
+            }
+            const factor = m[row][col];
+            for (let j = col; j <= n; j += 1) {
+                m[row][j] -= factor * m[col][j];
+            }
+        }
+    }
+    return m.map(row => row[n]);
+}
+
+function optmod2FitPenalty(optpar) {
+    if (optpar.length !== 8 ||
+            Math.abs(optpar[0]) < 0.05 || Math.abs(optpar[0]) > 10 ||
+            Math.abs(optpar[1]) < 0.05 || Math.abs(optpar[1]) > 10 ||
+            Math.abs(optpar[2]) > 90 || Math.abs(optpar[3]) > 90 ||
+            Math.abs(optpar[4]) > 720 || Math.abs(optpar[5]) > 0.5 ||
+            Math.abs(optpar[6]) > 0.5 || optpar[7] < 0.05 || optpar[7] > 2.5) {
+        return true;
+    }
+    return false;
+}
+
+function lensFitResidualsOptmod2(optpar, pairs, realCase) {
+    if (optmod2FitPenalty(optpar)) {
+        return null;
+    }
+    const residuals = [];
+    for (const pair of pairs) {
+        const xy = AidaTools.cameraModel(
+            pair.star.az,
+            pair.star.ze,
+            optpar,
+            2,
+            realCase.width,
+            realCase.height,
+        );
+        if (!Number.isFinite(xy.x) || !Number.isFinite(xy.y)) {
+            return null;
+        }
+        residuals.push(xy.x - pair.detection.x, xy.y - pair.detection.y);
+    }
+    return residuals;
+}
+
+function residualSumSquares(residuals) {
+    return residuals ? residuals.reduce((acc, value) => acc + value * value, 0) : 1e12;
+}
+
+function residualRmsPx(residuals) {
+    return Math.sqrt(residualSumSquares(residuals) / Math.max(1, residuals ? residuals.length / 2 : 1));
+}
+
+function fitOptmod2FromPairs(pairs, realCase, startOptpar, maxIter = 100) {
+    const diffSteps = [1e-4, 1e-4, 1e-3, 1e-3, 1e-3, 1e-5, 1e-5, 1e-4];
+    let x = startOptpar.slice();
+    let residuals = lensFitResidualsOptmod2(x, pairs, realCase);
+    let fx = residualSumSquares(residuals);
+    let lambda = 1e-3;
+    let accepted = 0;
+    let iterations = 0;
+    for (; iterations < maxIter; iterations += 1) {
+        if (!residuals || !Number.isFinite(fx)) {
+            break;
+        }
+        const jac = Array.from({length: residuals.length}, () => Array(x.length).fill(0));
+        for (let col = 0; col < x.length; col += 1) {
+            const xp = x.slice();
+            xp[col] += diffSteps[col];
+            const rp = lensFitResidualsOptmod2(xp, pairs, realCase);
+            if (!rp) {
+                continue;
+            }
+            for (let row = 0; row < residuals.length; row += 1) {
+                jac[row][col] = (rp[row] - residuals[row]) / diffSteps[col];
+            }
+        }
+        const jtj = Array.from({length: x.length}, () => Array(x.length).fill(0));
+        const jtr = Array(x.length).fill(0);
+        for (let row = 0; row < residuals.length; row += 1) {
+            for (let i = 0; i < x.length; i += 1) {
+                jtr[i] += jac[row][i] * residuals[row];
+                for (let j = 0; j < x.length; j += 1) {
+                    jtj[i][j] += jac[row][i] * jac[row][j];
+                }
+            }
+        }
+        let improved = false;
+        for (let attempt = 0; attempt < 8; attempt += 1) {
+            const a = jtj.map((row, i) => row.map((value, j) =>
+                i === j ? value + lambda * Math.max(1, Math.abs(value)) : value));
+            const step = solveLinearSystem(a, jtr.map(value => -value));
+            if (!step) {
+                lambda *= 10;
+                continue;
+            }
+            const candidate = x.map((value, i) => value + step[i]);
+            const candidateResiduals = lensFitResidualsOptmod2(candidate, pairs, realCase);
+            const candidateFx = residualSumSquares(candidateResiduals);
+            if (candidateResiduals && candidateFx < fx) {
+                x = candidate;
+                residuals = candidateResiduals;
+                fx = candidateFx;
+                accepted += 1;
+                lambda = Math.max(lambda / 3, 1e-9);
+                improved = true;
+                if (Math.hypot(...step) < 1e-7) {
+                    return {optpar: x, residuals, rms: residualRmsPx(residuals), iterations: iterations + 1, accepted};
+                }
+                break;
+            }
+            lambda *= 10;
+        }
+        if (!improved) {
+            break;
+        }
+    }
+    return {optpar: x, residuals, rms: residualRmsPx(residuals), iterations, accepted};
+}
+
+function perturbedOptmod2Start(optpar) {
+    const start = optpar.slice();
+    start[0] *= 1.025;
+    start[1] *= 0.975;
+    start[2] += 0.8;
+    start[3] -= 0.6;
+    start[4] += 1.2;
+    start[5] += 0.004;
+    start[6] -= 0.004;
+    start[7] *= 1.015;
+    return start;
+}
+
 function pseudoNoise(index, salt = 0) {
     const value = Math.sin((index + 1) * 12.9898 + salt * 78.233) * 43758.5453;
     return value - Math.floor(value);
@@ -543,6 +700,64 @@ test("automatic star finder detects real bright stars without catalogue matching
             medianCentroidError <= testCase.maxMedianCentroidErrorPx,
             `${testCase.name}: expected median detector centroid error below ` +
                 `${testCase.maxMedianCentroidErrorPx} px, got ${medianCentroidError}`,
+        );
+    }
+});
+
+test("optmod 2 lens fitting works from automatically found real stars", async () => {
+    const cases = [
+        {
+            name: "010095",
+            image: REAL_CASE_IMAGE,
+            realCase: REAL_CASE,
+            minStablePairs: 12,
+            maxStableRmsPx: 5.0,
+            minStableFits: 3,
+        },
+        {
+            name: "012165 high-pass",
+            image: REAL_CASE_012165_IMAGE,
+            realCase: REAL_CASE_012165,
+            minStablePairs: 12,
+            maxStableRmsPx: 5.0,
+            minStableFits: 3,
+        },
+    ];
+    const sweepCounts = [8, 10, 12, 14, 16, 18];
+    for (const testCase of cases) {
+        const imageData = readPngImageData(testCase.image);
+        const detectionResult = await StarDetector.detectBrightStars(imageData, {maxDetections: 50});
+        const knownStars = projectedRealCaseStars(testCase.realCase.optpar, 4.0, testCase.realCase);
+        const autoPairs = matchDetectionsToKnownStars(detectionResult.detections, knownStars, 18)
+            .sort((a, b) => a.star.mag - b.star.mag || a.distance - b.distance);
+        assert.ok(
+            autoPairs.length >= Math.max(...sweepCounts),
+            `${testCase.name}: expected at least ${Math.max(...sweepCounts)} auto-identified stars for fit sweep, ` +
+                `got ${autoPairs.length}; ${detectionResult.status}`,
+        );
+
+        const start = perturbedOptmod2Start(testCase.realCase.optpar);
+        const results = [];
+        for (const count of sweepCounts) {
+            const pairs = autoPairs.slice(0, count);
+            const fit = fitOptmod2FromPairs(pairs, testCase.realCase, start);
+            results.push({count, ...fit});
+        }
+        const stable = results.filter(result =>
+            result.count >= testCase.minStablePairs &&
+            result.rms <= testCase.maxStableRmsPx &&
+            result.accepted > 0);
+        const report = results
+            .map(result => `${result.count}:${result.rms.toFixed(2)}px/${result.accepted}step`)
+            .join(", ");
+        assert.ok(
+            stable.length >= testCase.minStableFits,
+            `${testCase.name}: expected at least ${testCase.minStableFits} stable automated-star fits ` +
+                `with >=${testCase.minStablePairs} stars and RMS <= ${testCase.maxStableRmsPx}px; sweep ${report}`,
+        );
+        assert.ok(
+            results.at(-1).rms <= testCase.maxStableRmsPx,
+            `${testCase.name}: expected the largest automatic-star fit to stay stable; sweep ${report}`,
         );
     }
 });
