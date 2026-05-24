@@ -9,6 +9,20 @@ star_training/
   unsure/    ambiguous, saturated, clouded, blended, or otherwise questionable crops
 ```
 
+Generate initial crops from the known-lens test cases:
+
+```sh
+cd /Users/j/src/AIDA_tools/aida_js_calibrator
+npm run build:star-training -- --reset
+```
+
+Useful filters:
+
+```sh
+npm run build:star-training -- 010095 --reset
+npm run build:star-training -- IMG-9953 --yes 40 --no 80 --random-no 20
+```
+
 Launch the browser reviewer:
 
 ```sh
