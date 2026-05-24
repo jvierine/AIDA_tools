@@ -141,13 +141,15 @@
         </li>
         <li>
             Optional: press the Auto identify stars button after the rough
-            alignment is close. This runs a bounded bright-star finder with a
-            progress display, keeps at most the 50 brightest image detections,
-            and compares them with Yale catalog stars brighter than magnitude 4.
-            The first pass uses triangle asterisms and a KD-tree lookup, so it
-            does not depend strongly on the current lens parameters. If that
-            fails, the browser tries the current projected lens state as a
-            fallback. It is not run automatically on image load.
+            alignment is close. This adds star pairings only; it does not fit
+            the lens model. The browser first runs the conservative top-50
+            magnitude-4 bright-star bootstrap used in the test reports, using
+            spherical asterisms and KD-tree lookup so it does not depend
+            strongly on the current lens parameters. If that does not add
+            enough pairs, it tries broader detector settings with the current
+            projected lens state and, finally, a deeper projected pass for
+            fainter stars allowed by the limiting-magnitude setting. It is not
+            run automatically on image load.
         </li>
         <li>
             For a hands-off attempt, press <kbd>L</kbd> or the
@@ -194,7 +196,7 @@
         <li>Play/stop button next to Help: start or stop the evolving generated planetarium score and subtle interaction blips.</li>
         <li><kbd>K</kbd>: show or hide tiny KDE subpixel dots at the picked image-star positions.</li>
         <li><kbd>A</kbd>: show or hide the az/el grid.</li>
-        <li>Auto identify stars button: run the opt-in top-50 bright-star finder plus Yale-catalog asterism matcher.</li>
+        <li>Auto identify stars button: run the opt-in staged bright-star finder and Yale-catalog matcher, adding pairings without fitting.</li>
         <li><kbd>L</kbd>: run <em>I'm feeling lucky...</em>, which automatically detects, identifies, seeds, and iteratively fits the selected model.</li>
         <li><kbd>F</kbd>: fit the selected model parameters with robust Nelder-Mead.</li>
         <li><kbd>G</kbd>: fit the selected model parameters with Levenberg-Marquardt.</li>

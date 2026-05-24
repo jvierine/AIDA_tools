@@ -1551,6 +1551,124 @@ end
         return {result, added, detections: state.detectedStars.length};
     }
 
+    function autoIdentifyCurrentMaxMagnitude() {
+        const value = Number(controls.maxMag.value);
+        return Number.isFinite(value) ? Math.max(0, Math.min(7, value)) : 6.0;
+    }
+
+    function autoIdentifyStageMagnitude(stageMaxMagnitude, currentMaxMagnitude) {
+        return Math.min(stageMaxMagnitude, currentMaxMagnitude);
+    }
+
+    function autoIdentifyButtonStages() {
+        const currentMaxMagnitude = autoIdentifyCurrentMaxMagnitude();
+        return [
+            {
+                label: "Auto-identify 1/3 bright bootstrap",
+                summaryLabel: "bright bootstrap",
+                maxDetections: 50,
+                maxMagnitude: autoIdentifyStageMagnitude(4.0, currentMaxMagnitude),
+                minBlindMatches: 6,
+                minAsterismMatches: 4,
+                minProjectedMatches: 4,
+                detectorOptions: {
+                    thresholdSigma: 4.417,
+                    localThresholdSigma: 4.417,
+                    requireGlobalThreshold: true,
+                    maxElongation: 2.7,
+                },
+                blindOptions: {
+                    maxDetections: 50,
+                    maxCatalogStars: 70,
+                    blindEarlyAcceptMatches: 12,
+                    maxBlindCandidateRotations: 4500,
+                },
+                methodLabel: "auto star finder bright bootstrap",
+            },
+            {
+                label: "Auto-identify 2/3 alignment fallback",
+                summaryLabel: "alignment fallback",
+                maxDetections: 90,
+                maxMagnitude: autoIdentifyStageMagnitude(5.0, currentMaxMagnitude),
+                includeBlind: false,
+                includeAsterisms: true,
+                minAsterismMatches: 4,
+                minProjectedMatches: 4,
+                detectorOptions: {
+                    thresholdSigma: 3.6,
+                    localThresholdSigma: 3.4,
+                    requireGlobalThreshold: true,
+                    maxElongation: 3.0,
+                },
+                asterismOptions: {
+                    maxDetections: 60,
+                    maxCatalogStars: 120,
+                },
+                projectedOptions: {
+                    maxDetections: 90,
+                    maxCatalogStars: 140,
+                    maxDistancePx: 34,
+                    translationSearchRadiusPx: 90,
+                },
+                methodLabel: "auto star finder alignment fallback",
+            },
+            {
+                label: "Auto-identify 3/3 deeper projection",
+                summaryLabel: "deeper projection",
+                maxDetections: 120,
+                maxMagnitude: autoIdentifyStageMagnitude(6.0, currentMaxMagnitude),
+                includeBlind: false,
+                includeAsterisms: false,
+                minProjectedMatches: 4,
+                detectorOptions: {
+                    thresholdSigma: 3.1,
+                    localThresholdSigma: 3.2,
+                    requireGlobalThreshold: false,
+                    maxElongation: 3.1,
+                },
+                projectedOptions: {
+                    maxDetections: 120,
+                    maxCatalogStars: 180,
+                    maxDistancePx: 24,
+                    translationSearchRadiusPx: 55,
+                },
+                methodLabel: "auto star finder deeper projection",
+            },
+        ];
+    }
+
+    async function runStagedAutoIdentifyFromDetector() {
+        const optmod = Number(controls.optmod.value) || 2;
+        const desiredNewPairings = Math.max(6, Math.ceil(requiredOptparLength(optmod) / 2));
+        const stages = autoIdentifyButtonStages();
+        let totalAdded = 0;
+        let totalDetections = 0;
+        let lastResult = null;
+        const stageSummaries = [];
+
+        for (let i = 0; i < stages.length; i += 1) {
+            if (i > 0 && totalAdded >= desiredNewPairings) {
+                break;
+            }
+            const stage = stages[i];
+            const pass = await runAutoIdentifyPass(stage);
+            totalAdded += pass.added;
+            totalDetections = Math.max(totalDetections, pass.detections);
+            lastResult = pass.result;
+            stageSummaries.push(
+                `${stage.summaryLabel}: ${pass.added} added from ${(pass.result.matches || []).length} candidate matches`
+            );
+        }
+
+        return {
+            totalAdded,
+            totalDetections,
+            lastResult,
+            stageSummaries,
+            stagesRun: stageSummaries.length,
+        };
+    }
+
     async function autoIdentifyStarsFromDetector() {
         if (!state.image || !state.imagePixels) {
             state.fitMessage = "auto-identify: load an image with readable pixels first";
@@ -1569,19 +1687,18 @@ end
         controls.autoIdentifyStars.disabled = true;
         controls.luckyFit.disabled = true;
         try {
-            const maxMag = Math.min(Number(controls.maxMag.value) || 4, 4);
-            const pass = await runAutoIdentifyPass({
-                label: "Auto-identify",
-                maxDetections: 50,
-                maxMagnitude: maxMag,
-                minBlindMatches: 6,
-                minAsterismMatches: 4,
-                minProjectedMatches: 4,
-            });
-            state.fitMessage = pass.added > 0
-                ? `auto-identify: added ${pass.added} star pairing${pass.added === 1 ? "" : "s"}; inspect or fit next`
-                : pass.result.status;
-            playInteractionSound(pass.added > 0 ? "fit" : "click");
+            const result = await runStagedAutoIdentifyFromDetector();
+            const lastStatus = result.lastResult && result.lastResult.status ?
+                result.lastResult.status :
+                "auto-identify: no matches found";
+            state.autoIdentificationStatus =
+                `auto-identify: added ${result.totalAdded} pairing${result.totalAdded === 1 ? "" : "s"} ` +
+                `in ${result.stagesRun} staged detector pass${result.stagesRun === 1 ? "" : "es"}; ` +
+                `${result.stageSummaries.join("; ")}`;
+            state.fitMessage = result.totalAdded > 0
+                ? `auto-identify: added ${result.totalAdded} star pairing${result.totalAdded === 1 ? "" : "s"}; inspect or fit next`
+                : lastStatus;
+            playInteractionSound(result.totalAdded > 0 ? "fit" : "click");
             recomputeAndRender();
         } catch (error) {
             state.fitMessage = `auto-identify failed: ${error.message || error}`;
