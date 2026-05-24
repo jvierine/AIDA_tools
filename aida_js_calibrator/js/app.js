@@ -560,26 +560,26 @@
 
     function lensEquationLegendHtml(optmod) {
         const common = [
-            ["f1, f2", "horizontal and vertical focal scale factors"],
-            ["alpha, beta, gamma", "camera rotation angles in degrees"],
-            ["du, dv", "principal-point offsets in normalized image coordinates"],
-            ["s1, s2, s3", "star direction vector after camera rotation"],
-            ["W, H", "image width and height in pixels"],
-            ["x, y", "0-based image pixel coordinates"],
+            ["\\(f_1, f_2\\)", "horizontal and vertical focal scale factors"],
+            ["\\(\\alpha, \\beta, \\gamma\\)", "camera rotation angles in degrees"],
+            ["\\(d_u, d_v\\)", "principal-point offsets in normalized image coordinates"],
+            ["\\(s_1, s_2, s_3\\)", "star direction vector after camera rotation"],
+            ["\\(W, H\\)", "image width and height in pixels"],
+            ["\\(x, y\\)", "0-based image pixel coordinates"],
         ];
         const modelSpecific = optmod === 4 ? [
-            ["xn, yn", "normalized pinhole image coordinates"],
-            ["r", "radius in normalized pinhole coordinates"],
-            ["k1, k2, k3", "Brown-Conrady radial distortion coefficients"],
-            ["p1, p2", "Brown-Conrady tangential distortion coefficients"],
-            ["xd, yd", "distorted normalized image coordinates"],
+            ["\\(x_n, y_n\\)", "normalized pinhole image coordinates"],
+            ["\\(r\\)", "radius in normalized pinhole coordinates"],
+            ["\\(k_1, k_2, k_3\\)", "Brown-Conrady radial distortion coefficients"],
+            ["\\(p_1, p_2\\)", "Brown-Conrady tangential distortion coefficients"],
+            ["\\(x_d, y_d\\)", "distorted normalized image coordinates"],
         ] : [
-            ["theta", "off-axis angle from the camera boresight"],
-            ["q(theta)", "radial projection law for the selected AIDA model"],
-            ["a_r", "AIDA radial model parameter"],
+            ["\\(\\theta\\)", "off-axis angle from the camera boresight"],
+            ["\\(q(\\theta)\\)", "radial projection law for the selected AIDA model"],
+            ["\\(a_r\\)", "AIDA radial model parameter"],
         ];
         return common.concat(modelSpecific)
-            .map(([symbol, meaning]) => `<div><code>${symbol}</code>: ${meaning}</div>`)
+            .map(([symbol, meaning]) => `<div><span class="lens-equation-symbol">${symbol}</span>: ${meaning}</div>`)
             .join("");
     }
 
@@ -597,7 +597,8 @@
             lensEquationLegend.innerHTML = lensEquationLegendHtml(optmod);
         }
         if (window.MathJax && MathJax.typesetPromise) {
-            MathJax.typesetPromise([lensEquation]).catch(() => {});
+            const mathTargets = lensEquationLegend ? [lensEquation, lensEquationLegend] : [lensEquation];
+            MathJax.typesetPromise(mathTargets).catch(() => {});
         }
     }
 

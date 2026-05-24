@@ -639,7 +639,9 @@ button.toggle-on {
     line-height: 1.35;
 }
 
-.lens-equation-legend code {
+.lens-equation-symbol {
+    display: inline-block;
+    min-width: 58px;
     color: #1d4ed8;
     font-weight: 700;
 }
