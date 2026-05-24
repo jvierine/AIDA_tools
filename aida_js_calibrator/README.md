@@ -13,13 +13,14 @@ Open `index.html` directly in a browser. No local web server is needed.
 - Reads UTC time and observer position from EXIF metadata when available.
 - Falls back to known allsky7 filename/station metadata when possible.
 - Uses the embedded bright-star catalog and AIDA camera projection code.
-- Supports the AIDA sinusoidal radial model (`optmod 2`), the AIDA hybrid
-  tan/theta radial model (`optmod 3`), and a Brown-Conrady radial/tangential
-  distortion model; the selected optical model is the one used by the fit.
+- Supports the self-contained parametric AIDA/MATLAB lens models (`optmod 1`,
+  `2`, `3`, `4`, `5`, and `12`) plus a Brown-Conrady radial/tangential
+  distortion model under browser `optmod 20`; the selected optical model is
+  the one used by the fit.
 - Lets the user manually pick image stars with a 40x interpolated density
   estimate and pair them with catalog stars.
-- Fits the model-specific `optpar` vector: eight parameters for `optmod 2/3`,
-  and twelve for Brown-Conrady with `k1`, `k2`, `k3`, `p1`, and `p2`.
+- Fits the model-specific `optpar` vector: eight parameters for AIDA radial
+  models, and twelve for Brown-Conrady with `k1`, `k2`, `k3`, `p1`, and `p2`.
 - Exports the fitted `optpar` as a Python array or a Python image-to-az/el
   helper function.
 - Provides residual inspection, including 20x exaggerated on-image residual
@@ -33,8 +34,8 @@ Open `index.html` directly in a browser. No local web server is needed.
 1. Open `index.html` in a browser.
 2. Load an image, or use the bundled default image.
 3. Check UTC time, latitude, longitude, and altitude.
-4. Select the optical model to fit: AIDA sinusoidal radial (`optmod 2`),
-   AIDA hybrid tan/theta radial (`optmod 3`), or Brown-Conrady.
+4. Select the optical model to fit: an AIDA radial model (`optmod 1`, `2`,
+   `3`, `4`, `5`, or `12`) or Brown-Conrady.
 5. Roughly align the star field:
    - left-drag to move the zenith point,
    - right-drag to rotate the field,
@@ -81,12 +82,18 @@ model values are converted from MATLAB's 1-based pixel convention inside
 `js/aidatools.js`.
 
 The browser camera model is tested against the Python and MATLAB reference
-implementations for `optmod 2` and `optmod 3`, and has a separate browser
-unit test for the Brown-Conrady radial/tangential projection.
+implementations for the parametric AIDA optmods `1`, `2`, `3`, `4`, `5`, and
+`12`, and has a separate browser unit test for the Brown-Conrady
+radial/tangential projection. The MATLAB lookup-table and instrument-specific
+camera models are intentionally not in the browser UI because they require
+external calibration tables or special camera code.
 
 The AIDA model names are descriptive names for the implemented radial forms,
-not literature names. Brown-Conrady is the standard Brown-Conrady
-radial/tangential distortion model; see Nowakowski and Skarbek (2013),
+not literature names. Brown-Conrady is usually a good starting point for
+ordinary phone-camera lenses, including iPhone images, while the AIDA radial
+models are often better for fisheye and all-sky optics. Brown-Conrady is the
+standard Brown-Conrady radial/tangential distortion model; see Nowakowski and
+Skarbek (2013),
 "Analysis of Brown camera distortion model", in Photonics Applications in
 Astronomy, Communications, Industry, and High-Energy Physics Experiments 2013,
 SPIE volume 8903, pages 248-257.

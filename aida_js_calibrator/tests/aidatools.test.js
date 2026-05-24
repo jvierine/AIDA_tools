@@ -168,7 +168,10 @@ function matlabCameraModel(az, ze, optpar, optmod, width, height) {
     const radial = Math.sqrt(sese1 * sese1 + sese2 * sese2);
     let u;
     let w;
-    if (optmod === 2) {
+    if (optmod === 1) {
+        u = f1 * sese1 / sese3 + 0.5 + dx;
+        w = f2 * sese2 / sese3 + 0.5 + dy;
+    } else if (optmod === 2) {
         const theta = Math.atan(radial / sese3);
         const u2 = radial === 0 ? 0 : f1 * sese1 / radial * Math.sin(alpha * theta);
         const w2 = radial === 0 ? 0 : f2 * sese2 / radial * Math.sin(alpha * theta);
@@ -182,6 +185,28 @@ function matlabCameraModel(az, ze, optpar, optmod, width, height) {
         const w2 = radial === 0 ? 0 : f2 * alpha * sese2 / radial * theta;
         u = u1 + u2 + 0.5 + dx;
         w = w1 + w2 + 0.5 + dy;
+    } else if (optmod === 4) {
+        const theta = Math.abs(Math.atan(radial / sese3));
+        const r = Math.pow(theta, alpha);
+        u = (radial === 0 ? 0 : f1 * sese1 / radial * r) + 0.5 + dx;
+        w = (radial === 0 ? 0 : f2 * sese2 / radial * r) + 0.5 + dy;
+    } else if (optmod === 5) {
+        const theta = Math.atan(radial / sese3);
+        const r = Math.tan(alpha * theta);
+        u = (radial === 0 ? 0 : f1 * sese1 / radial * r) + 0.5 + dx;
+        w = (radial === 0 ? 0 : f2 * sese2 / radial * r) + 0.5 + dy;
+    } else if (optmod === 12) {
+        const theta = Math.atan(radial / sese3);
+        let r;
+        if (alpha > 0) {
+            r = Math.tan(alpha * theta) / alpha;
+        } else if (alpha < 0) {
+            r = Math.sin(alpha * theta) / alpha;
+        } else {
+            r = Math.abs(theta);
+        }
+        u = (radial === 0 ? 0 : f1 * sese1 / radial * r) + 0.5 + dx;
+        w = (radial === 0 ? 0 : f2 * sese2 / radial * r) + 0.5 + dy;
     } else {
         throw new Error(`unsupported MATLAB reference optmod ${optmod}`);
     }
@@ -309,13 +334,13 @@ test("optmod 2 follows the sin(alpha * theta) radial model", () => {
     assertNear(projected.y, expectedY);
 });
 
-test("optmod 4 follows the Brown-Conrady radial and tangential model", () => {
+test("optmod 20 follows the Brown-Conrady radial and tangential model", () => {
     const optpar = [0.8, 0.6, 0, 0, 0, 0.02, -0.03, 0.15, -0.04, 0.01, 0.002, -0.003];
     const az = Math.PI / 2;
     const ze = 30 * AidaTools.DEG;
     const width = 1000;
     const height = 800;
-    const projected = AidaTools.cameraModel(az, ze, optpar, 4, width, height);
+    const projected = AidaTools.cameraModel(az, ze, optpar, 20, width, height);
 
     const xn = Math.tan(ze);
     const r2 = xn * xn;
@@ -346,8 +371,16 @@ test("visibleStars filters by magnitude and zenith angle", () => {
     assert.equal(Array.from(stars, (star) => star.name).join(","), "bright");
 });
 
-test("cameraModel matches Python and MATLAB optmod 2/3 reference coordinates", () => {
+test("cameraModel matches Python and MATLAB parametric optmod reference coordinates", () => {
     const cases = [
+        {
+            optmod: 1,
+            width: 1024,
+            height: 768,
+            optpar: [0.71, 0.68, 4.0, -3.0, 12.0, 0.015, -0.02, 0.82],
+            az: 12 * AidaTools.DEG,
+            ze: 8 * AidaTools.DEG,
+        },
         {
             optmod: 2,
             width: 1024,
@@ -379,6 +412,30 @@ test("cameraModel matches Python and MATLAB optmod 2/3 reference coordinates", (
             optpar: [-0.74, 0.72, -2.5, 5.0, -8.0, -0.01, 0.018, 0.47],
             az: 223 * AidaTools.DEG,
             ze: 50 * AidaTools.DEG,
+        },
+        {
+            optmod: 4,
+            width: 960,
+            height: 720,
+            optpar: [0.64, 0.62, 3.0, -2.0, 7.0, 0.01, -0.012, 0.96],
+            az: 142 * AidaTools.DEG,
+            ze: 38 * AidaTools.DEG,
+        },
+        {
+            optmod: 5,
+            width: 960,
+            height: 720,
+            optpar: [0.64, 0.62, 3.0, -2.0, 7.0, 0.01, -0.012, 0.82],
+            az: 78 * AidaTools.DEG,
+            ze: 31 * AidaTools.DEG,
+        },
+        {
+            optmod: 12,
+            width: 960,
+            height: 720,
+            optpar: [0.64, 0.62, 3.0, -2.0, 7.0, 0.01, -0.012, -0.55],
+            az: 204 * AidaTools.DEG,
+            ze: 28 * AidaTools.DEG,
         },
     ];
     const pythonExpected = pythonCameraModel(cases);

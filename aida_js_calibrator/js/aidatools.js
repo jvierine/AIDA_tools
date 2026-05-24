@@ -3,6 +3,7 @@
 
     const DEG = Math.PI / 180.0;
     const RAD = 180.0 / Math.PI;
+    const BROWN_CONRADY_OPTMOD = 20;
 
     function mod(x, n) {
         return ((x % n) + n) % n;
@@ -119,6 +120,10 @@
         if (radial <= 1e-12) {
             uNorm = 0.5 + dx;
             vNorm = 0.5 + dy;
+        } else if (optmod === 1) {
+            const safeSese3 = Math.abs(sese3) > 1e-12 ? sese3 : 1e-12;
+            uNorm = f1 * sese1 / safeSese3 + 0.5 + dx;
+            vNorm = f2 * sese2 / safeSese3 + 0.5 + dy;
         } else if (optmod === 2) {
             const r = Math.sin(alpha * theta);
             uNorm = f1 * sese1 / radial * r + 0.5 + dx;
@@ -132,6 +137,25 @@
             uNorm = u1 + u2 + 0.5 + dx;
             vNorm = v1 + v2 + 0.5 + dy;
         } else if (optmod === 4) {
+            const r = Math.pow(Math.abs(theta), alpha);
+            uNorm = f1 * sese1 / radial * r + 0.5 + dx;
+            vNorm = f2 * sese2 / radial * r + 0.5 + dy;
+        } else if (optmod === 5) {
+            const r = Math.tan(alpha * theta);
+            uNorm = f1 * sese1 / radial * r + 0.5 + dx;
+            vNorm = f2 * sese2 / radial * r + 0.5 + dy;
+        } else if (optmod === 12) {
+            let r;
+            if (alpha > 0) {
+                r = Math.tan(alpha * theta) / alpha;
+            } else if (alpha < 0) {
+                r = Math.sin(alpha * theta) / alpha;
+            } else {
+                r = Math.abs(theta);
+            }
+            uNorm = f1 * sese1 / radial * r + 0.5 + dx;
+            vNorm = f2 * sese2 / radial * r + 0.5 + dy;
+        } else if (optmod === BROWN_CONRADY_OPTMOD) {
             const safeSese3 = Math.abs(sese3) > 1e-12 ? sese3 : 1e-12;
             const xn = sese1 / safeSese3;
             const yn = sese2 / safeSese3;

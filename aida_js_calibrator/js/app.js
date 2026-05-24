@@ -22,6 +22,7 @@
         url: "calibration_images/2025_02_19_03_47_01_000_010881_ams0882_first1s.png",
         name: "2025_02_19_03_47_01_000_010881_ams0882_first1s.png",
     };
+    const BROWN_CONRADY_OPTMOD = 20;
     const controls = {
         file: document.getElementById("imageFile"),
         timestampUtc: document.getElementById("timestampUtc"),
@@ -385,7 +386,7 @@
             Number(controls.dv.value) || 0,
             Number.isFinite(Number(controls.radialAlpha.value)) ? Number(controls.radialAlpha.value) : 0.35,
         ];
-        if (optmod !== 4) {
+        if (optmod !== BROWN_CONRADY_OPTMOD) {
             return common;
         }
         return common.concat([
@@ -419,10 +420,10 @@
 
     function updateOptmodUi() {
         const optmod = Number(controls.optmod.value) || 2;
-        controls.brownConradyParams.hidden = optmod !== 4;
-        if (optmod === 4 && Number(controls.radialAlpha.value) === 0.35) {
+        controls.brownConradyParams.hidden = optmod !== BROWN_CONRADY_OPTMOD;
+        if (optmod === BROWN_CONRADY_OPTMOD && Number(controls.radialAlpha.value) === 0.35) {
             controls.radialAlpha.value = "0";
-        } else if (optmod !== 4 && Number(controls.radialAlpha.value) === 0) {
+        } else if (optmod !== BROWN_CONRADY_OPTMOD && Number(controls.radialAlpha.value) === 0) {
             controls.radialAlpha.value = "0.35";
         }
     }
@@ -443,10 +444,12 @@
         controls.du.value = Math.max(-0.5, Math.min(0.5, x[5])).toFixed(6);
         controls.dv.value = Math.max(-0.5, Math.min(0.5, x[6])).toFixed(6);
         const optmod = Number(controls.optmod.value) || 2;
-        controls.radialAlpha.value = (optmod === 4 ?
+        controls.radialAlpha.value = (optmod === BROWN_CONRADY_OPTMOD ?
             Math.max(-5.0, Math.min(5.0, x[7] || 0)) :
-            Math.max(0.05, Math.min(2.5, x[7]))).toFixed(6);
-        if (optmod === 4) {
+            optmod === 12 ?
+                Math.max(-2.5, Math.min(2.5, x[7])) :
+                Math.max(0.05, Math.min(2.5, x[7]))).toFixed(6);
+        if (optmod === BROWN_CONRADY_OPTMOD) {
             controls.brownK2.value = Math.max(-5.0, Math.min(5.0, x[8] || 0)).toFixed(6);
             controls.brownK3.value = Math.max(-5.0, Math.min(5.0, x[9] || 0)).toFixed(6);
             controls.brownP1.value = Math.max(-1.0, Math.min(1.0, x[10] || 0)).toFixed(6);
@@ -526,7 +529,7 @@
     }
 
     function lensEquationLatex(optpar, optmod) {
-        if (optmod === 4) {
+        if (optmod === BROWN_CONRADY_OPTMOD) {
             return "\\[" +
                 "\\begin{aligned}" +
                 "\\mathbf{o}&=[f_1,f_2,\\alpha,\\beta,\\gamma,d_u,d_v,k_1,k_2,k_3,p_1,p_2]\\\\" +
@@ -541,9 +544,14 @@
                 "\\end{aligned}" +
                 "\\]";
         }
-        const radial = optmod === 2
-            ? "q(\\theta)=\\sin(a_r\\theta)"
-            : "q(\\theta)=a_r\\theta+(1-a_r)\\tan\\theta";
+        const radial = {
+            1: "q_1(\\theta)=\\tan\\theta",
+            2: "q_2(\\theta)=\\sin(a_r\\theta)",
+            3: "q_3(\\theta)=a_r\\theta+(1-a_r)\\tan\\theta",
+            4: "q_4(\\theta)=\\theta^{a_r}",
+            5: "q_5(\\theta)=\\tan(a_r\\theta)",
+            12: "q_{12}(\\theta)=\\begin{cases}\\tan(a_r\\theta)/a_r,&a_r>0\\\\ \\theta,&a_r=0\\\\ \\sin(a_r\\theta)/a_r,&a_r<0\\end{cases}",
+        }[optmod] || "q(\\theta)";
         return "\\[" +
             "\\begin{aligned}" +
             "\\mathbf{o}&=[f_1,f_2,\\alpha,\\beta,\\gamma,d_u,d_v,a_r]\\\\" +
@@ -625,6 +633,10 @@ def az_el_to_image(az_deg, el_deg, optpar=optpar, optmod=optmod,
     if radial <= 1e-12:
         u_norm = 0.5 + du
         v_norm = 0.5 + dv
+    elif optmod == 1:
+        safe_s3 = s3 if abs(s3) > 1e-12 else 1e-12
+        u_norm = f1 * s1 / safe_s3 + 0.5 + du
+        v_norm = f2 * s2 / safe_s3 + 0.5 + dv
     elif optmod == 2:
         theta = np.arctan2(radial, s3)
         r = np.sin(radial_alpha * theta)
@@ -636,6 +648,26 @@ def az_el_to_image(az_deg, el_deg, optpar=optpar, optmod=optmod,
         u_norm = f1 * (1.0 - radial_alpha) * s1 / safe_s3 + f1 * radial_alpha * s1 / radial * theta + 0.5 + du
         v_norm = f2 * (1.0 - radial_alpha) * s2 / safe_s3 + f2 * radial_alpha * s2 / radial * theta + 0.5 + dv
     elif optmod == 4:
+        theta = np.arctan2(radial, s3)
+        r = abs(theta) ** radial_alpha
+        u_norm = f1 * s1 / radial * r + 0.5 + du
+        v_norm = f2 * s2 / radial * r + 0.5 + dv
+    elif optmod == 5:
+        theta = np.arctan2(radial, s3)
+        r = np.tan(radial_alpha * theta)
+        u_norm = f1 * s1 / radial * r + 0.5 + du
+        v_norm = f2 * s2 / radial * r + 0.5 + dv
+    elif optmod == 12:
+        theta = np.arctan2(radial, s3)
+        if radial_alpha > 0:
+            r = np.tan(radial_alpha * theta) / radial_alpha
+        elif radial_alpha < 0:
+            r = np.sin(radial_alpha * theta) / radial_alpha
+        else:
+            r = abs(theta)
+        u_norm = f1 * s1 / radial * r + 0.5 + du
+        v_norm = f2 * s2 / radial * r + 0.5 + dv
+    elif optmod == ${BROWN_CONRADY_OPTMOD}:
         safe_s3 = s3 if abs(s3) > 1e-12 else 1e-12
         xn = s1 / safe_s3
         yn = s2 / safe_s3
@@ -2978,15 +3010,17 @@ def image_to_az_el(x, y, optpar=optpar, optmod=optmod,
     }
 
     function requiredOptparLength(optmod = Number(controls.optmod.value) || 2) {
-        return optmod === 4 ? 12 : 8;
+        return optmod === BROWN_CONRADY_OPTMOD ? 12 : 8;
     }
 
     function fitPenalty(x, optmod = Number(controls.optmod.value) || 2) {
-        const radialPenalty = optmod === 4
+        const radialPenalty = optmod === BROWN_CONRADY_OPTMOD
             ? Math.abs(x[7]) > 5.0 || Math.abs(x[8] || 0) > 5.0 ||
                 Math.abs(x[9] || 0) > 5.0 || Math.abs(x[10] || 0) > 1.0 ||
                 Math.abs(x[11] || 0) > 1.0
-            : x[7] < 0.05 || x[7] > 2.5;
+            : optmod === 12 ?
+                Math.abs(x[7]) > 2.5 :
+                x[7] < 0.05 || x[7] > 2.5;
         if (x.length < requiredOptparLength(optmod) ||
                 Math.abs(x[0]) < 0.05 || Math.abs(x[0]) > 10 ||
                 Math.abs(x[1]) < 0.05 || Math.abs(x[1]) > 10 ||
@@ -3176,7 +3210,7 @@ def image_to_az_el(x, y, optpar=optpar, optmod=optmod,
             addStart(state.lastFitVector);
         }
 
-        const axisOffsets = optmod === 4
+        const axisOffsets = optmod === BROWN_CONRADY_OPTMOD
             ? [0.08, 0.08, 3, 3, 8, 0.02, 0.02, 0.04, 0.01, 0.005, 0.002, 0.002]
             : [0.08, 0.08, 3, 3, 8, 0.02, 0.02, 0.08];
         for (let i = 0; i < start.length; i++) {
@@ -3201,8 +3235,8 @@ def image_to_az_el(x, y, optpar=optpar, optmod=optmod,
                 start[4] + (Math.random() * 2 - 1) * 25,
                 start[5] + (Math.random() * 2 - 1) * 0.06,
                 start[6] + (Math.random() * 2 - 1) * 0.06,
-                start[7] + (Math.random() * 2 - 1) * (optmod === 4 ? 0.08 : 0.18),
-            ].concat(optmod === 4 ? [
+                start[7] + (Math.random() * 2 - 1) * (optmod === BROWN_CONRADY_OPTMOD ? 0.08 : 0.18),
+            ].concat(optmod === BROWN_CONRADY_OPTMOD ? [
                 (start[8] || 0) + (Math.random() * 2 - 1) * 0.03,
                 (start[9] || 0) + (Math.random() * 2 - 1) * 0.01,
                 (start[10] || 0) + (Math.random() * 2 - 1) * 0.004,
@@ -3251,7 +3285,7 @@ def image_to_az_el(x, y, optpar=optpar, optmod=optmod,
 
     function levenbergMarquardt(residualFn, start, maxIter = 80, optmod = Number(controls.optmod.value) || 2) {
         const n = start.length;
-        const diffSteps = optmod === 4
+        const diffSteps = optmod === BROWN_CONRADY_OPTMOD
             ? [1e-4, 1e-4, 1e-3, 1e-3, 1e-3, 1e-5, 1e-5, 1e-5, 1e-6, 1e-6, 1e-6, 1e-6]
             : [1e-4, 1e-4, 1e-3, 1e-3, 1e-3, 1e-5, 1e-5, 1e-4];
         let x = start.slice();
@@ -3365,7 +3399,7 @@ def image_to_az_el(x, y, optpar=optpar, optmod=optmod,
         const residualFn = matchResidualFactory();
         const objective = matchObjectiveFactory(residualFn, optmod);
         const start = currentFitVector();
-        const steps = optmod === 4
+        const steps = optmod === BROWN_CONRADY_OPTMOD
             ? [0.05, 0.05, 1.5, 1.5, 2.0, 0.006, 0.006, 0.02, 0.006, 0.003, 0.001, 0.001]
             : [0.05, 0.05, 1.5, 1.5, 2.0, 0.006, 0.006, 0.03];
         const starts = fitStartCandidates(objective, start, optmod);

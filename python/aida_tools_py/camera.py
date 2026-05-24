@@ -72,6 +72,32 @@ def _camera_model_optmod2(
     return u2 + 0.5 + dx, w2 + 0.5 + dy
 
 
+def _radial_camera_model(
+    sese1: np.ndarray, sese2: np.ndarray, optpar: np.ndarray, radial_law: np.ndarray
+) -> tuple[np.ndarray, np.ndarray]:
+    f1, f2 = optpar[0], optpar[1]
+    dx, dy = optpar[5], optpar[6]
+    radial = np.sqrt(sese1**2 + sese2**2)
+    u2 = np.zeros_like(sese1)
+    w2 = np.zeros_like(sese2)
+    valid = radial > 0
+    u2[valid] = f1 * sese1[valid] / radial[valid] * radial_law[valid]
+    w2[valid] = f2 * sese2[valid] / radial[valid] * radial_law[valid]
+    return u2 + 0.5 + dx, w2 + 0.5 + dy
+
+
+def _camera_model_optmod1(
+    sese1: np.ndarray, sese2: np.ndarray, sese3: np.ndarray, optpar: np.ndarray
+) -> tuple[np.ndarray, np.ndarray]:
+    """Evaluate the MATLAB optmod=1 pinhole camera model in normalized coordinates."""
+    f1, f2 = optpar[0], optpar[1]
+    dx, dy = optpar[5], optpar[6]
+    safe_sese3 = np.where(np.abs(sese3) > 1e-12, sese3, 1e-12)
+    u = f1 * sese1 / safe_sese3 + 0.5 + dx
+    v = f2 * sese2 / safe_sese3 + 0.5 + dy
+    return u, v
+
+
 def _camera_model_optmod3(
     sese1: np.ndarray, sese2: np.ndarray, sese3: np.ndarray, optpar: np.ndarray
 ) -> tuple[np.ndarray, np.ndarray]:
@@ -91,6 +117,42 @@ def _camera_model_optmod3(
     return u1 + u2 + 0.5 + dx, w1 + w2 + 0.5 + dy
 
 
+def _camera_model_optmod4(
+    sese1: np.ndarray, sese2: np.ndarray, sese3: np.ndarray, optpar: np.ndarray
+) -> tuple[np.ndarray, np.ndarray]:
+    """Evaluate the MATLAB optmod=4 power-equidistant radial model."""
+    alpha = optpar[7]
+    radial = np.sqrt(sese1**2 + sese2**2)
+    theta = np.abs(np.arctan2(radial, sese3))
+    return _radial_camera_model(sese1, sese2, optpar, theta**alpha)
+
+
+def _camera_model_optmod5(
+    sese1: np.ndarray, sese2: np.ndarray, sese3: np.ndarray, optpar: np.ndarray
+) -> tuple[np.ndarray, np.ndarray]:
+    """Evaluate the MATLAB optmod=5 scaled rectilinear radial model."""
+    alpha = optpar[7]
+    radial = np.sqrt(sese1**2 + sese2**2)
+    theta = np.arctan2(radial, sese3)
+    return _radial_camera_model(sese1, sese2, optpar, np.tan(alpha * theta))
+
+
+def _camera_model_optmod12(
+    sese1: np.ndarray, sese2: np.ndarray, sese3: np.ndarray, optpar: np.ndarray
+) -> tuple[np.ndarray, np.ndarray]:
+    """Evaluate the MATLAB optmod=12 sign-adaptive radial model."""
+    alpha = optpar[7]
+    radial = np.sqrt(sese1**2 + sese2**2)
+    theta = np.arctan2(radial, sese3)
+    if alpha > 0:
+        radial_law = np.tan(alpha * theta) / alpha
+    elif alpha < 0:
+        radial_law = np.sin(alpha * theta) / alpha
+    else:
+        radial_law = np.abs(theta)
+    return _radial_camera_model(sese1, sese2, optpar, radial_law)
+
+
 def camera_model(az: np.ndarray, ze: np.ndarray, optpar: np.ndarray, optmod: int, image_shape: tuple[int, int]) -> tuple[np.ndarray, np.ndarray]:
     """Project azimuth/zenith directions into image pixel coordinates."""
     by, bx = image_shape
@@ -105,10 +167,18 @@ def camera_model(az: np.ndarray, ze: np.ndarray, optpar: np.ndarray, optmod: int
     sese1 = es1 * e1[0] + es2 * e1[1] + es3 * e1[2]
     sese2 = es1 * e2[0] + es2 * e2[1] + es3 * e2[2]
     sese3 = es1 * e3[0] + es2 * e3[1] + es3 * e3[2]
-    if optmod == 2:
+    if optmod == 1:
+        u_norm, v_norm = _camera_model_optmod1(sese1, sese2, sese3, optpar)
+    elif optmod == 2:
         u_norm, v_norm = _camera_model_optmod2(sese1, sese2, sese3, optpar)
     elif optmod == 3:
         u_norm, v_norm = _camera_model_optmod3(sese1, sese2, sese3, optpar)
+    elif optmod == 4:
+        u_norm, v_norm = _camera_model_optmod4(sese1, sese2, sese3, optpar)
+    elif optmod == 5:
+        u_norm, v_norm = _camera_model_optmod5(sese1, sese2, sese3, optpar)
+    elif optmod == 12:
+        u_norm, v_norm = _camera_model_optmod12(sese1, sese2, sese3, optpar)
     else:
         raise NotImplementedError(f"Camera model optmod={optmod} is not implemented in the Python subset.")
     return u_norm * bx, v_norm * by
@@ -123,10 +193,23 @@ def camera_invmodel(u: np.ndarray, v: np.ndarray, optpar: np.ndarray, optmod: in
     du, dv = optpar[5], optpar[6]
     alpha = optpar[7]
     r = np.sqrt(((U - 0.5 - du) / f1) ** 2 + ((V - 0.5 - dv) / f2) ** 2)
-    if optmod == 2:
+    if optmod == 1:
+        theta = np.arctan(r)
+    elif optmod == 2:
         theta = np.arcsin(np.clip(r, -1.0, 1.0)) / alpha
     elif optmod == 3:
         theta = _newrap1(r, alpha, 1e-10)
+    elif optmod == 4:
+        theta = r ** (1.0 / alpha)
+    elif optmod == 5:
+        theta = np.arctan(r) / alpha
+    elif optmod == 12:
+        if alpha < 0:
+            theta = np.arcsin(alpha * r) / alpha
+        elif alpha > 0:
+            theta = np.arctan(alpha * r) / alpha
+        else:
+            theta = r
     else:
         raise NotImplementedError(f"Camera model optmod={optmod} is not implemented in the Python subset.")
     phi = np.arctan2((U - 0.5 - du) / f1, (V - 0.5 - dv) / f2)

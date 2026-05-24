@@ -227,22 +227,31 @@
 
     <h2>Lens models</h2>
     <p>
-        The model selector names the two AIDA-specific lens models as
-        AIDA sinusoidal radial (<code>optmod 2</code>) and AIDA hybrid
-        tan/theta radial (<code>optmod 3</code>). These are descriptive names
-        for the AIDA model variants, not literature names. Brown-Conrady is
-        provided as a standard radial/tangential distortion alternative; see
-        Nowakowski and Skarbek (2013), "Analysis of Brown camera distortion
-        model", SPIE volume 8903.
+        The model selector includes the self-contained parametric AIDA models
+        from the MATLAB code: optmods 1, 2, 3, 4, 5, and 12. The lookup-table
+        and instrument-specific MATLAB variants are not included because they
+        require external calibration tables or camera-specific code.
+        Brown-Conrady is provided as a standard radial/tangential distortion
+        alternative under browser optmod 20; see Nowakowski and Skarbek
+        (2013), "Analysis of Brown camera distortion model", SPIE volume 8903.
     </p>
     <div class="equation-block">
-        <strong>AIDA radial models (<code>optmod 2</code> and <code>optmod 3</code>)</strong>
+        <strong>AIDA radial models (<code>optmod 1,2,3,4,5,12</code>)</strong>
         \[
         \begin{aligned}
         \mathbf{o}_{\mathrm{AIDA}}&=[f_1,f_2,\alpha,\beta,\gamma,d_u,d_v,a_r]\\
         \theta&=\tan^{-1}\!\left(\frac{\sqrt{s_1^2+s_2^2}}{s_3}\right)\\
+        q_1(\theta)&=\tan\theta\\
         q_2(\theta)&=\sin(a_r\theta)\\
         q_3(\theta)&=a_r\theta+(1-a_r)\tan\theta\\
+        q_4(\theta)&=\theta^{a_r}\\
+        q_5(\theta)&=\tan(a_r\theta)\\
+        q_{12}(\theta)&=
+        \begin{cases}
+        \tan(a_r\theta)/a_r,&a_r>0\\
+        \theta,&a_r=0\\
+        \sin(a_r\theta)/a_r,&a_r<0
+        \end{cases}\\
         x&=W\left(f_1\frac{s_1}{\sqrt{s_1^2+s_2^2}}q(\theta)+\frac{1}{2}+d_u\right)-1\\
         y&=H\left(f_2\frac{s_2}{\sqrt{s_1^2+s_2^2}}q(\theta)+\frac{1}{2}+d_v\right)-1
         \end{aligned}
@@ -286,12 +295,26 @@
         same rotation convention in the browser, the copied Python export, and
         the AIDA reference camera model.
     </p>
+    <p>
+        For ordinary rectilinear lenses and narrow or moderate fields of view,
+        start with optmod 1 or Brown-Conrady. Brown-Conrady is usually the more
+        useful choice for phone cameras and other lenses with radial and
+        tangential distortion; it has worked well with iPhone images. For
+        fisheye and all-sky cameras, optmod 2, 3, 4, 5, or 12 are better
+        starting points because their radial laws are written directly in
+        off-axis angle. Optmod 2 is a sine-like fisheye model, optmod 3 is a
+        flexible blend of equidistant and rectilinear behavior, optmod 4 is a
+        power-law equidistant variant, optmod 5 is a scaled rectilinear model
+        that can become steep at large fields of view, and optmod 12 smoothly
+        switches between sine-like, equidistant, and tangent-like radial laws
+        depending on the sign of \(a_r\).
+    </p>
 
     <h2>Export notes</h2>
     <p>
         The copied <code>optpar</code> array contains
         <code>[f1, f2, alpha, beta, gamma, du, dv, radial_alpha]</code>.
-        For the Brown-Conrady model, it contains
+        For the Brown-Conrady model (browser <code>optmod 20</code>), it contains
         <code>[f1, f2, alpha, beta, gamma, du, dv, k1, k2, k3, p1, p2]</code>.
         The copied Python mapper uses the same forward model and numerically
         searches for the azimuth and elevation whose projected image coordinate
