@@ -65,6 +65,7 @@
         brownK3: document.getElementById("brownK3"),
         brownP1: document.getElementById("brownP1"),
         brownP2: document.getElementById("brownP2"),
+        luckyFit: document.getElementById("luckyFit"),
         fitLens: document.getElementById("fitLens"),
         fitLensLm: document.getElementById("fitLensLm"),
         undoFit: document.getElementById("undoFit"),
@@ -117,8 +118,10 @@
         autoMatches: [],
         detectorCache: null,
         detectorStatus: "detector: no image",
+        detectionGeneration: 0,
         autoIdentificationStatus: "auto-identify: not run",
         autoIdentifyBusy: false,
+        luckyFitBusy: false,
         pendingMatch: null,
         centroidPreview: null,
         centroidDensity: null,
@@ -429,6 +432,30 @@
         const height = image && Number.isFinite(image.height) && image.height > 0 ? image.height : 9;
         const common = [1.0, width / height, 0, 0, 0, 0, 0, defaultRadialAlphaForOptmod(optmod)];
         return optmod === BROWN_CONRADY_OPTMOD ? common.concat([0, 0, 0, 0]) : common;
+    }
+
+    function cameraAnglesFromRotation(rot) {
+        if (typeof AidaTools.cameraAnglesFromRotation === "function") {
+            return AidaTools.cameraAnglesFromRotation(rot);
+        }
+        if (!Array.isArray(rot) || rot.length < 9) {
+            return null;
+        }
+        const beta = Math.asin(Math.max(-1, Math.min(1, rot[5])));
+        const cb = Math.cos(beta);
+        let alpha = 0;
+        let gamma = 0;
+        if (Math.abs(cb) > 1e-9) {
+            alpha = Math.atan2(rot[2], rot[8]);
+            gamma = Math.atan2(rot[3], rot[4]);
+        } else {
+            gamma = Math.atan2(-rot[1], rot[0]);
+        }
+        return {
+            alpha: alpha * 180 / Math.PI,
+            beta: beta * 180 / Math.PI,
+            gamma: gamma * 180 / Math.PI,
+        };
     }
 
     function radialAlphaIsValidForOptmod(value, optmod = Number(controls.optmod.value) || 2) {
@@ -1347,135 +1374,214 @@ end
             });
     }
 
+    function autoIdentifierAvailable() {
+        return Boolean(window.AidaAutoIdentifier &&
+            typeof window.AidaAutoIdentifier.identifyStars === "function" &&
+            typeof window.AidaAutoIdentifier.identifyStarsByAsterisms === "function" &&
+            typeof window.AidaAutoIdentifier.identifyStarsBlind === "function");
+    }
+
+    function currentGenerationDetectionIdsFromMatches() {
+        return new Set(
+            state.matches
+                .filter(match =>
+                    match.detectionId !== null && match.detectionId !== undefined &&
+                    match.detectionGeneration === state.detectionGeneration
+                )
+                .map(match => match.detectionId)
+        );
+    }
+
+    function imagePointAlreadyMatched(x, y, radiusPx = 7) {
+        const radius2 = radiusPx * radiusPx;
+        return state.matches.some(match => {
+            const dx = match.image.x - x;
+            const dy = match.image.y - y;
+            return dx * dx + dy * dy <= radius2;
+        });
+    }
+
+    function addAutoIdentificationMatches(result, methodLabel = "auto star finder") {
+        const existingCatalogKeys = new Set(state.matches.map(match => match.catalog.key));
+        const existingDetectionIds = currentGenerationDetectionIdsFromMatches();
+        let added = 0;
+        for (const match of result.matches || []) {
+            if (existingCatalogKeys.has(match.star.key) ||
+                    existingDetectionIds.has(match.detection.id) ||
+                    imagePointAlreadyMatched(match.detection.x, match.detection.y)) {
+                continue;
+            }
+            state.matches.push({
+                id: state.matches.length + 1,
+                image: {
+                    x: match.detection.x,
+                    y: match.detection.y,
+                    method: methodLabel,
+                },
+                detectionId: match.detection.id,
+                detectionGeneration: match.detection.generation || state.detectionGeneration,
+                catalog: {
+                    key: match.star.key,
+                    raHours: match.star.raHours,
+                    decDeg: match.star.decDeg,
+                    mag: match.star.mag,
+                    name: match.star.name,
+                    az: match.star.az,
+                    ze: match.star.ze,
+                },
+            });
+            existingCatalogKeys.add(match.star.key);
+            existingDetectionIds.add(match.detection.id);
+            added += 1;
+        }
+        return added;
+    }
+
+    async function identifyStarsFromCurrentDetections(options = {}) {
+        const label = options.label || "Auto-identify";
+        const maxMag = Number.isFinite(options.maxMagnitude) ?
+            options.maxMagnitude :
+            Math.min(Number(controls.maxMag.value) || 4, 4);
+        const minBlindMatches = Number.isFinite(options.minBlindMatches) ? options.minBlindMatches : 6;
+        const minAsterismMatches = Number.isFinite(options.minAsterismMatches) ? options.minAsterismMatches : 4;
+        const minProjectedMatches = Number.isFinite(options.minProjectedMatches) ? options.minProjectedMatches : 4;
+        const existingCatalogKeys = new Set(state.matches.map(match => match.catalog.key));
+        const existingDetectionIds = currentGenerationDetectionIdsFromMatches();
+        const commonOptions = {
+            imageWidth: state.image.width,
+            imageHeight: state.image.height,
+            maxMagnitude: maxMag,
+            existingCatalogKeys,
+            existingDetectionIds,
+            deletedDetectionIds: state.deletedDetectionIds,
+        };
+        const diag = Math.hypot(state.image.width, state.image.height);
+        let result = {
+            matches: [],
+            status: "auto-identify: no matcher stage was enabled",
+        };
+
+        if (options.includeBlind !== false) {
+            setLoadingProgress(
+                Number.isFinite(options.progressBlind) ? options.progressBlind : 74,
+                `${label}: matching bright spherical asterisms with the Yale catalog...`
+            );
+            await yieldToBrowser();
+            result = window.AidaAutoIdentifier.identifyStarsBlind(
+                visibleStarsForMatching(maxMag),
+                state.detectedStars,
+                {
+                    ...commonOptions,
+                    maxDetections: 80,
+                    maxCatalogStars: 80,
+                    minMatches: minBlindMatches,
+                    ...(options.blindOptions || {}),
+                }
+            );
+        }
+
+        if (options.includeAsterisms !== false && result.matches.length < minBlindMatches) {
+            setLoadingProgress(
+                Number.isFinite(options.progressAsterism) ? options.progressAsterism : 82,
+                `${label}: trying bright asterisms in the sky plane...`
+            );
+            await yieldToBrowser();
+            result = window.AidaAutoIdentifier.identifyStarsByAsterisms(
+                skyPlaneStarsForAsterismIdentification(maxMag),
+                state.detectedStars,
+                {
+                    ...commonOptions,
+                    maxDetections: 50,
+                    maxCatalogStars: 90,
+                    asterismMatchRadiusPx: Math.max(32, Math.min(70, 0.012 * diag)),
+                    minMatches: minAsterismMatches,
+                    ...(options.asterismOptions || {}),
+                }
+            );
+        }
+
+        if (options.includeProjected !== false &&
+                result.matches.length < Math.max(minAsterismMatches, minProjectedMatches)) {
+            setLoadingProgress(
+                Number.isFinite(options.progressProjected) ? options.progressProjected : 86,
+                `${label}: matching with the current lens projection...`
+            );
+            await yieldToBrowser();
+            const matchRadius = Math.max(22, Math.min(48, 0.018 * diag));
+            result = window.AidaAutoIdentifier.identifyStars(
+                projectedStarsForAutoIdentification(),
+                state.detectedStars,
+                {
+                    ...commonOptions,
+                    maxDetections: 50,
+                    maxCatalogStars: 90,
+                    maxDistancePx: matchRadius,
+                    translationSearchRadiusPx: Math.max(80, Math.min(240, 0.10 * diag)),
+                    minMatches: minProjectedMatches,
+                    ...(options.projectedOptions || {}),
+                }
+            );
+        }
+
+        return result;
+    }
+
+    async function runAutoIdentifyPass(options = {}) {
+        const label = options.label || "Auto-identify";
+        const maxDetections = Number.isFinite(options.maxDetections) ? options.maxDetections : 50;
+        setLoadingProgress(
+            Number.isFinite(options.progressDetect) ? options.progressDetect : 8,
+            `${label}: detecting the ${maxDetections} brightest image stars...`
+        );
+        await yieldToBrowser();
+        await detectBrightImageStarsForAutoIdentify(maxDetections, options.detectorOptions || {});
+        const result = await identifyStarsFromCurrentDetections(options);
+        setLoadingProgress(
+            Number.isFinite(options.progressAdd) ? options.progressAdd : 94,
+            `${label}: adding matched star pairings...`
+        );
+        await yieldToBrowser();
+        const added = addAutoIdentificationMatches(result, options.methodLabel || "auto star finder");
+        state.pendingMatch = null;
+        clearDensityEstimate();
+        state.showPickedMatchMarkers = true;
+        state.lastFitVector = null;
+        state.autoIdentificationStatus = `${result.status}; added ${added}`;
+        updateAutoMatches();
+        return {result, added, detections: state.detectedStars.length};
+    }
+
     async function autoIdentifyStarsFromDetector() {
         if (!state.image || !state.imagePixels) {
             state.fitMessage = "auto-identify: load an image with readable pixels first";
             render();
             return;
         }
-        if (!window.AidaAutoIdentifier ||
-                typeof window.AidaAutoIdentifier.identifyStars !== "function" ||
-                typeof window.AidaAutoIdentifier.identifyStarsByAsterisms !== "function" ||
-                typeof window.AidaAutoIdentifier.identifyStarsBlind !== "function") {
+        if (!autoIdentifierAvailable()) {
             state.fitMessage = "auto-identify: matcher module is unavailable";
             render();
             return;
         }
-        if (state.autoIdentifyBusy) {
+        if (state.autoIdentifyBusy || state.luckyFitBusy) {
             return;
         }
         state.autoIdentifyBusy = true;
         controls.autoIdentifyStars.disabled = true;
+        controls.luckyFit.disabled = true;
         try {
-            setLoadingProgress(8, "Auto-identify: detecting the 50 brightest image stars...");
-            await yieldToBrowser();
-            await detectBrightImageStarsForAutoIdentify(50);
             const maxMag = Math.min(Number(controls.maxMag.value) || 4, 4);
-            const existingCatalogKeys = new Set(state.matches.map(match => match.catalog.key));
-            const existingDetectionIds = new Set(
-                state.matches
-                    .filter(match => match.detectionId !== null && match.detectionId !== undefined)
-                    .map(match => match.detectionId)
-            );
-            setLoadingProgress(74, "Auto-identify: matching bright asterisms with the Yale catalog...");
-            await yieldToBrowser();
-            const visibleCatalogStars = visibleStarsForMatching(maxMag);
-            let result = window.AidaAutoIdentifier.identifyStarsBlind(
-                visibleCatalogStars,
-                state.detectedStars,
-                {
-                    imageWidth: state.image.width,
-                    imageHeight: state.image.height,
-                    maxMagnitude: maxMag,
-                    existingCatalogKeys,
-                    existingDetectionIds,
-                    deletedDetectionIds: state.deletedDetectionIds,
-                    maxDetections: 80,
-                    maxCatalogStars: 80,
-                    minMatches: 6,
-                }
-            );
-            if (result.matches.length < 6) {
-                setLoadingProgress(82, "Auto-identify: trying bright asterisms in the sky plane...");
-                await yieldToBrowser();
-                result = window.AidaAutoIdentifier.identifyStarsByAsterisms(
-                    skyPlaneStarsForAsterismIdentification(maxMag),
-                    state.detectedStars,
-                    {
-                        imageWidth: state.image.width,
-                        imageHeight: state.image.height,
-                        maxMagnitude: maxMag,
-                        existingCatalogKeys,
-                        existingDetectionIds,
-                        deletedDetectionIds: state.deletedDetectionIds,
-                        maxDetections: 50,
-                        maxCatalogStars: 90,
-                        asterismMatchRadiusPx: Math.max(32, Math.min(70, 0.012 * Math.hypot(state.image.width, state.image.height))),
-                        minMatches: 4,
-                    }
-                );
-            }
-            if (result.matches.length < 4) {
-                setLoadingProgress(86, "Auto-identify: trying current lens projection as fallback...");
-                await yieldToBrowser();
-                const matchRadius = Math.max(22, Math.min(48, 0.018 * Math.hypot(state.image.width, state.image.height)));
-                result = window.AidaAutoIdentifier.identifyStars(
-                    projectedStarsForAutoIdentification(),
-                    state.detectedStars,
-                    {
-                        imageWidth: state.image.width,
-                        imageHeight: state.image.height,
-                        maxMagnitude: maxMag,
-                        existingCatalogKeys,
-                        existingDetectionIds,
-                        deletedDetectionIds: state.deletedDetectionIds,
-                        maxDetections: 50,
-                        maxCatalogStars: 90,
-                        maxDistancePx: matchRadius,
-                        translationSearchRadiusPx: Math.max(80, Math.min(240, 0.10 * Math.hypot(state.image.width, state.image.height))),
-                        minMatches: 4,
-                    }
-                );
-            }
-            setLoadingProgress(94, "Auto-identify: adding matched star pairings...");
-            await yieldToBrowser();
-            let added = 0;
-            for (const match of result.matches) {
-                if (existingCatalogKeys.has(match.star.key) || existingDetectionIds.has(match.detection.id)) {
-                    continue;
-                }
-                state.matches.push({
-                    id: state.matches.length + 1,
-                    image: {
-                        x: match.detection.x,
-                        y: match.detection.y,
-                        method: "auto star finder",
-                    },
-                    detectionId: match.detection.id,
-                    catalog: {
-                        key: match.star.key,
-                        raHours: match.star.raHours,
-                        decDeg: match.star.decDeg,
-                        mag: match.star.mag,
-                        name: match.star.name,
-                        az: match.star.az,
-                        ze: match.star.ze,
-                    },
-                });
-                existingCatalogKeys.add(match.star.key);
-                existingDetectionIds.add(match.detection.id);
-                added += 1;
-            }
-            state.pendingMatch = null;
-            clearDensityEstimate();
-            state.showPickedMatchMarkers = true;
-            state.lastFitVector = null;
-            state.autoIdentificationStatus = `${result.status}; added ${added}`;
-            state.fitMessage = added > 0
-                ? `auto-identify: added ${added} star pairing${added === 1 ? "" : "s"}; inspect or fit next`
-                : result.status;
-            updateAutoMatches();
-            playInteractionSound(added > 0 ? "fit" : "click");
+            const pass = await runAutoIdentifyPass({
+                label: "Auto-identify",
+                maxDetections: 50,
+                maxMagnitude: maxMag,
+                minBlindMatches: 6,
+                minAsterismMatches: 4,
+                minProjectedMatches: 4,
+            });
+            state.fitMessage = pass.added > 0
+                ? `auto-identify: added ${pass.added} star pairing${pass.added === 1 ? "" : "s"}; inspect or fit next`
+                : pass.result.status;
+            playInteractionSound(pass.added > 0 ? "fit" : "click");
             recomputeAndRender();
         } catch (error) {
             state.fitMessage = `auto-identify failed: ${error.message || error}`;
@@ -1483,6 +1589,7 @@ end
         } finally {
             hideLoadingProgress();
             controls.autoIdentifyStars.disabled = false;
+            controls.luckyFit.disabled = false;
             state.autoIdentifyBusy = false;
         }
     }
@@ -2683,7 +2790,7 @@ end
         applyDetectorThreshold(state.detectorCache);
     }
 
-    async function detectBrightImageStarsForAutoIdentify(maxDetections = 50) {
+    async function detectBrightImageStarsForAutoIdentify(maxDetections = 50, detectorOptions = {}) {
         state.detectedStars = [];
         state.autoMatches = [];
         state.deletedDetectionIds = new Set();
@@ -2695,13 +2802,18 @@ end
 
         const result = await window.AidaStarDetector.detectBrightStars(state.imagePixels, {
             maxDetections,
+            ...detectorOptions,
             maskPredicate: (x, y) => isMaskedImagePixel(x, y),
             onProgress: (percent, text) => setLoadingProgress(18 + 52 * percent / 100, text),
             yieldFn: async () => {
                 await yieldToBrowser();
             },
         });
-        state.detectedStars = result.detections;
+        state.detectionGeneration += 1;
+        state.detectedStars = result.detections.map(detection => ({
+            ...detection,
+            generation: state.detectionGeneration,
+        }));
         state.detectorStatus = result.status;
         updateAutoMatches();
         return state.detectedStars;
@@ -4000,7 +4112,13 @@ end
         if (!Number.isFinite(rmsAfter) || rmsAfter > Math.max(50, rmsBefore * 1.25)) {
             state.fitMessage = `${methodLabel} rejected: RMS ${rmsBefore.toFixed(2)} -> ${rmsAfter.toFixed(2)} px`;
             render();
-            return false;
+            return {
+                accepted: false,
+                rmsBefore,
+                rmsAfter,
+                fitCount,
+                message: state.fitMessage,
+            };
         }
         rememberFitState(methodLabel);
         applyFitVector(result.x);
@@ -4011,7 +4129,14 @@ end
             `${detail}; ${objectiveLabel}; fitted all ${result.x.length} optpar values using ${fitCount}/${state.matches.length} pairs ` +
             `with mag <= ${Number(controls.maxMag.value).toFixed(1)}`;
         recomputeAndRender();
-        return true;
+        return {
+            accepted: true,
+            rmsBefore,
+            rmsAfter,
+            fitCount,
+            optpar: result.x.slice(),
+            message: state.fitMessage,
+        };
     }
 
     function fitLensFromMatches() {
@@ -4022,7 +4147,7 @@ end
             state.fitMessage = `lens fit: need at least ${minPairs} matched star pairs with mag <= ` +
                 `${Number(controls.maxMag.value).toFixed(1)} (${fitCount}/${state.matches.length} available)`;
             render();
-            return;
+            return {accepted: false, reason: "not enough matched star pairs", fitCount};
         }
 
         const residualFn = matchResidualFactory();
@@ -4044,9 +4169,9 @@ end
         if (!result) {
             state.fitMessage = "lens fit rejected: no valid grid-search start points";
             render();
-            return;
+            return {accepted: false, reason: "no valid grid-search start points", fitCount};
         }
-        acceptFitResult(
+        return acceptFitResult(
             result,
             start,
             residualFn,
@@ -4065,7 +4190,7 @@ end
             state.fitMessage = `LM lens fit: need at least ${minPairs} matched star pairs with mag <= ` +
                 `${Number(controls.maxMag.value).toFixed(1)} (${fitCount}/${state.matches.length} available)`;
             render();
-            return;
+            return {accepted: false, reason: "not enough matched star pairs", fitCount};
         }
         const residualFn = matchResidualFactory();
         const lmResidualFn = optmod === BROWN_CONRADY_OPTMOD ?
@@ -4088,9 +4213,9 @@ end
         if (!result) {
             state.fitMessage = "LM lens fit rejected: no valid start points";
             render();
-            return;
+            return {accepted: false, reason: "no valid start points", fitCount};
         }
-        acceptFitResult(
+        return acceptFitResult(
             result,
             start,
             residualFn,
@@ -4099,6 +4224,230 @@ end
             fitCount,
             optmod === BROWN_CONRADY_OPTMOD ? "Brown-Conrady monotonic ordinary least-squares objective" : "ordinary least-squares objective"
         );
+    }
+
+    function currentFitRmsPx() {
+        const fitCount = fittingMatches().length;
+        if (!state.image || fitCount === 0) {
+            return Infinity;
+        }
+        const residualFn = matchResidualFactory();
+        const residuals = residualFn(currentFitVector());
+        if (!residuals) {
+            return Infinity;
+        }
+        return Math.sqrt(residualSumSquares(residuals) / fitCount);
+    }
+
+    function setLuckyMaxMagnitude(maxMag) {
+        const clipped = Math.max(2, Math.min(7, maxMag));
+        controls.maxMag.value = clipped.toFixed(1);
+        if (Object.prototype.hasOwnProperty.call(state.maxMagByMode, state.displayMode)) {
+            state.maxMagByMode[state.displayMode] = clipped;
+        }
+    }
+
+    function seedCurrentModelFromBlindIdentification(result) {
+        const angles = result && result.rotation ? cameraAnglesFromRotation(result.rotation) : null;
+        if (!angles || !state.image) {
+            return false;
+        }
+        const optmod = Number(controls.optmod.value) || 2;
+        const seed = defaultOptparForImage(state.image, optmod);
+        const width = state.image.width;
+        const height = state.image.height;
+        const f1 = Number.isFinite(result.f1) ? Math.max(0.12, Math.min(6.0, Math.abs(result.f1))) : seed[0];
+        seed[0] = f1;
+        seed[1] = Math.max(0.12, Math.min(6.0, f1 * width / Math.max(1, height)));
+        seed[2] = Math.max(-89.5, Math.min(89.5, angles.alpha));
+        seed[3] = Math.max(-89.5, Math.min(89.5, angles.beta));
+        seed[4] = angles.gamma;
+        if (Number.isFinite(result.du)) {
+            seed[5] = Math.max(-0.25, Math.min(0.25, result.du));
+        }
+        if (Number.isFinite(result.dv)) {
+            seed[6] = Math.max(-0.25, Math.min(0.25, result.dv));
+        }
+        if (optmod !== BROWN_CONRADY_OPTMOD && Number.isFinite(result.radialAlpha)) {
+            seed[7] = Math.max(
+                optmod === 12 ? -2.5 : 0.05,
+                Math.min(optmod === 12 ? 2.5 : 2.5, result.radialAlpha)
+            );
+        }
+        applyFitVector(seed);
+        state.lastFitVector = seed.slice();
+        updateProjection();
+        return true;
+    }
+
+    async function runLuckyFitStage(stage, stageIndex, totalStages) {
+        setLuckyMaxMagnitude(stage.maxMagnitude);
+        const pass = await runAutoIdentifyPass({
+            label: `I'm feeling lucky ${stageIndex}/${totalStages}`,
+            maxDetections: stage.maxDetections,
+            maxMagnitude: stage.maxMagnitude,
+            detectorOptions: stage.detectorOptions,
+            includeBlind: stage.includeBlind,
+            includeAsterisms: stage.includeAsterisms,
+            includeProjected: true,
+            minBlindMatches: stage.minBlindMatches || 6,
+            minAsterismMatches: stage.minAsterismMatches || 4,
+            minProjectedMatches: stage.minProjectedMatches || 4,
+            blindOptions: stage.blindOptions,
+            asterismOptions: stage.asterismOptions,
+            projectedOptions: stage.projectedOptions,
+            methodLabel: "lucky auto star finder",
+        });
+        let seeded = false;
+        if (stage.seedFromBlind && pass.result.matches.length >= 4) {
+            seeded = seedCurrentModelFromBlindIdentification(pass.result);
+            if (seeded) {
+                recomputeAndRender();
+                await yieldToBrowser();
+            }
+        }
+        return {...pass, seeded};
+    }
+
+    async function runLuckySelectedModelFits(label) {
+        const optmod = Number(controls.optmod.value) || 2;
+        const minPairs = Math.ceil(requiredOptparLength(optmod) / 2);
+        if (fittingMatches().length < minPairs) {
+            return {accepted: 0, skipped: true};
+        }
+        setLoadingProgress(88, `${label}: fitting selected optmod ${optmod} with robust Nelder-Mead...`);
+        await yieldToBrowser();
+        const nm = fitLensFromMatches();
+        await yieldToBrowser();
+        setLoadingProgress(92, `${label}: polishing selected optmod ${optmod} with Levenberg-Marquardt...`);
+        await yieldToBrowser();
+        const lm = fitLensLevenbergMarquardt();
+        await yieldToBrowser();
+        return {
+            accepted: (nm && nm.accepted ? 1 : 0) + (lm && lm.accepted ? 1 : 0),
+            skipped: false,
+        };
+    }
+
+    async function feelingLuckyFit() {
+        if (!state.image || !state.imagePixels) {
+            state.fitMessage = "I'm feeling lucky: load an image with readable pixels first";
+            render();
+            return;
+        }
+        if (!autoIdentifierAvailable()) {
+            state.fitMessage = "I'm feeling lucky: matcher module is unavailable";
+            render();
+            return;
+        }
+        if (state.autoIdentifyBusy || state.luckyFitBusy) {
+            return;
+        }
+        state.luckyFitBusy = true;
+        controls.autoIdentifyStars.disabled = true;
+        controls.luckyFit.disabled = true;
+        controls.fitLens.disabled = true;
+        controls.fitLensLm.disabled = true;
+        const optmod = Number(controls.optmod.value) || 2;
+        const startingMatchCount = state.matches.length;
+        const stages = [
+            {
+                maxDetections: 50,
+                maxMagnitude: 4.0,
+                seedFromBlind: true,
+                includeBlind: true,
+                includeAsterisms: true,
+                detectorOptions: {
+                    thresholdSigma: 4.417,
+                    localThresholdSigma: 4.417,
+                    requireGlobalThreshold: true,
+                    maxElongation: 2.7,
+                },
+                blindOptions: {
+                    maxDetections: 50,
+                    maxCatalogStars: 70,
+                    blindEarlyAcceptMatches: 12,
+                    maxBlindCandidateRotations: 4500,
+                },
+            },
+            {
+                maxDetections: 90,
+                maxMagnitude: 5.0,
+                includeBlind: false,
+                includeAsterisms: false,
+                detectorOptions: {
+                    thresholdSigma: 3.6,
+                    localThresholdSigma: 3.4,
+                    requireGlobalThreshold: true,
+                    maxElongation: 3.0,
+                },
+                projectedOptions: {
+                    maxDetections: 90,
+                    maxCatalogStars: 130,
+                    maxDistancePx: 34,
+                    translationSearchRadiusPx: 90,
+                },
+            },
+            {
+                maxDetections: 120,
+                maxMagnitude: 6.0,
+                includeBlind: false,
+                includeAsterisms: false,
+                detectorOptions: {
+                    thresholdSigma: 3.1,
+                    localThresholdSigma: 3.2,
+                    requireGlobalThreshold: false,
+                    maxElongation: 3.1,
+                },
+                projectedOptions: {
+                    maxDetections: 120,
+                    maxCatalogStars: 180,
+                    maxDistancePx: 24,
+                    translationSearchRadiusPx: 55,
+                },
+            },
+        ];
+
+        let totalAdded = 0;
+        let acceptedFits = 0;
+        let seeded = false;
+        try {
+            for (let i = 0; i < stages.length; i += 1) {
+                const pass = await runLuckyFitStage(stages[i], i + 1, stages.length);
+                totalAdded += pass.added;
+                seeded = seeded || pass.seeded;
+                const fitResult = await runLuckySelectedModelFits(`I'm feeling lucky ${i + 1}/${stages.length}`);
+                acceptedFits += fitResult.accepted;
+                if (fitResult.skipped && i === 0 && pass.added === 0) {
+                    break;
+                }
+            }
+            const fitCount = fittingMatches().length;
+            const rms = currentFitRmsPx();
+            const modelName = optmod === BROWN_CONRADY_OPTMOD ? "Brown-Conrady" : `optmod ${optmod}`;
+            const summary = Number.isFinite(rms)
+                ? `final RMS ${rms.toFixed(2)} px using ${fitCount}/${state.matches.length} pairs`
+                : `only ${fitCount}/${state.matches.length} usable pairs`;
+            state.autoIdentificationStatus =
+                `I'm feeling lucky: added ${totalAdded} pairings in ${stages.length} staged passes; ` +
+                `${seeded ? "seeded from blind asterisms" : "no blind seed"}; ${acceptedFits} accepted fits`;
+            state.fitMessage =
+                `I'm feeling lucky: ${modelName}, ${summary}; ` +
+                `${totalAdded} new pairings (${startingMatchCount} -> ${state.matches.length}), ` +
+                `${acceptedFits} accepted fit step${acceptedFits === 1 ? "" : "s"}`;
+            playInteractionSound(acceptedFits > 0 ? "fit" : "click");
+            recomputeAndRender();
+        } catch (error) {
+            state.fitMessage = `I'm feeling lucky failed: ${error.message || error}`;
+            render();
+        } finally {
+            hideLoadingProgress();
+            controls.autoIdentifyStars.disabled = false;
+            controls.luckyFit.disabled = false;
+            controls.fitLens.disabled = false;
+            controls.fitLensLm.disabled = false;
+            state.luckyFitBusy = false;
+        }
     }
 
     function clearIdentifiedStars() {
@@ -5041,6 +5390,10 @@ end
     controls.toggleDetectionCircles.addEventListener("click", toggleDetectionCircles);
     controls.toggleStarNames.addEventListener("click", toggleStarNames);
     controls.autoIdentifyStars.addEventListener("click", autoIdentifyStarsFromDetector);
+    controls.luckyFit.addEventListener("click", () => {
+        playInteractionSound("fit");
+        feelingLuckyFit();
+    });
     controls.toggleAmbientMusic.addEventListener("click", toggleAmbientMusic);
     controls.toggleFitResiduals.addEventListener("click", toggleFitResiduals);
     densityPopupClose.addEventListener("click", () => {
@@ -5241,6 +5594,10 @@ end
         } else if ((event.key === "a" || event.key === "A") && !event.repeat) {
             event.preventDefault();
             toggleAzElGrid();
+        } else if ((event.key === "l" || event.key === "L") && !event.repeat) {
+            event.preventDefault();
+            playInteractionSound("fit");
+            feelingLuckyFit();
         } else if ((event.key === "f" || event.key === "F") && !event.repeat) {
             event.preventDefault();
             playInteractionSound("fit");

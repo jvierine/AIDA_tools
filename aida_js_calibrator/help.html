@@ -150,6 +150,15 @@
             fallback. It is not run automatically on image load.
         </li>
         <li>
+            For a hands-off attempt, press <kbd>L</kbd> or the
+            <em>I'm feeling lucky...</em> button. This runs a staged automatic
+            workflow: first a conservative magnitude-4 bright-star search,
+            then a blind spherical asterism match to seed the selected optical
+            model's rotation and coarse focal scale, then repeated
+            detect-match-fit passes that add fainter stars and refit only the
+            currently selected optical model.
+        </li>
+        <li>
             Hold <kbd>S</kbd> and click an image star. The local star position is
             refined with an interpolated Gaussian-smoothed density estimate.
             Release <kbd>S</kbd>, then click the matching red catalog star.
@@ -184,6 +193,7 @@
         <li><kbd>K</kbd>: show or hide tiny KDE subpixel dots at the picked image-star positions.</li>
         <li><kbd>A</kbd>: show or hide the az/el grid.</li>
         <li>Auto identify stars button: run the opt-in top-50 bright-star finder plus Yale-catalog asterism matcher.</li>
+        <li><kbd>L</kbd>: run <em>I'm feeling lucky...</em>, which automatically detects, identifies, seeds, and iteratively fits the selected model.</li>
         <li><kbd>F</kbd>: fit the selected model parameters with robust Nelder-Mead.</li>
         <li><kbd>G</kbd>: fit the selected model parameters with Levenberg-Marquardt.</li>
         <li><kbd>Cmd/Ctrl Z</kbd>: undo the most recent accepted fit.</li>

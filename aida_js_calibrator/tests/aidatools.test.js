@@ -328,6 +328,21 @@ test("cameraRot is exported for rotation visualization", () => {
     assert.deepEqual(rot, [1, 0, 0, 0, 1, 0, 0, 0, 1]);
 });
 
+test("cameraAnglesFromRotation inverts cameraRot for lucky fit seeding", () => {
+    const cases = [
+        [-60.8, 35.2, 74.5],
+        [-19.3, 62.6, 20.5],
+        [-79.7, -27.0, 93.0],
+        [10.0, 20.0, 30.0],
+    ];
+    for (const angles of cases) {
+        const recovered = AidaTools.cameraAnglesFromRotation(AidaTools.cameraRot(...angles));
+        assertNear(recovered.alpha, angles[0], 1e-10);
+        assertNear(recovered.beta, angles[1], 1e-10);
+        assertNear(recovered.gamma, angles[2], 1e-10);
+    }
+});
+
 test("optmod 2 follows the sin(alpha * theta) radial model", () => {
     const optpar = [0.8, 0.6, 0, 0, 0, 0.02, -0.03, 0.9];
     const az = Math.PI / 2;

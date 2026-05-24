@@ -96,6 +96,27 @@
         return matMul3(matMul3(rot2, rot3), rot1);
     }
 
+    function cameraAnglesFromRotation(rot) {
+        if (!Array.isArray(rot) || rot.length < 9) {
+            return null;
+        }
+        const beta = Math.asin(Math.max(-1, Math.min(1, rot[5])));
+        const cb = Math.cos(beta);
+        let alpha = 0;
+        let gamma = 0;
+        if (Math.abs(cb) > 1e-9) {
+            alpha = Math.atan2(rot[2], rot[8]);
+            gamma = Math.atan2(rot[3], rot[4]);
+        } else {
+            gamma = Math.atan2(-rot[1], rot[0]);
+        }
+        return {
+            alpha: alpha * RAD,
+            beta: beta * RAD,
+            gamma: gamma * RAD,
+        };
+    }
+
     function cameraModel(az, ze, optpar, optmod, width, height) {
         const rot = cameraRot(optpar[2], optpar[3], optpar[4]);
         const sinze = Math.sin(ze);
@@ -531,6 +552,7 @@
         parseExifMetadata,
         normalizeExternalExifMetadata,
         cameraRot,
+        cameraAnglesFromRotation,
         cameraModel,
         radecToAzZe: starAzZe,
         visibleStars,
