@@ -1182,12 +1182,28 @@
             }
         }
         candidates.sort((a, b) => a.score - b.score || a.distance - b.distance);
+        const rejectAmbiguous = options.rejectAmbiguousMatches === true;
+        const ambiguityRadius = Number.isFinite(options.ambiguityRadiusPx) ?
+            options.ambiguityRadiusPx : Math.min(radius, 8);
+        const ambiguityScoreSlack = Number.isFinite(options.ambiguityScoreSlack) ?
+            options.ambiguityScoreSlack : 1.5;
+        const isAmbiguous = candidate => rejectAmbiguous && candidates.some(other =>
+            other !== candidate &&
+            other.detection.id === candidate.detection.id &&
+            other.star.key !== candidate.star.key &&
+            other.distance <= ambiguityRadius &&
+            other.score <= candidate.score + ambiguityScoreSlack
+        );
 
         const usedStars = new Set();
         const usedDetections = new Set();
         const matches = [];
         for (const candidate of candidates) {
             if (usedStars.has(candidate.star.key) || usedDetections.has(candidate.detection.id)) {
+                continue;
+            }
+            if (isAmbiguous(candidate)) {
+                usedDetections.add(candidate.detection.id);
                 continue;
             }
             usedStars.add(candidate.star.key);

@@ -52,7 +52,7 @@ h2 { margin: 0 0 8px; font-size: 20px; }
 <body>
 <header>
 <h1>AIDA Calibrator Star-Fit Test Report</h1>
-<p class="intro">Generated 2026-05-24T15:41:28.224Z. The report sweeps the tracked <code>python/examples/allsky7/*first1s.png</code> frames with their matching latitude, longitude, timestamp, and optpar metadata. A known-good lens model creates an oracle truth map between Yale catalogue stars and image detections; this validates the detector and shows the best available fit if the star identities are known. Each case also reports a separate GUI-style auto-identify simulation that starts from the default lens state, uses blind asterisms to seed the model, and then expands with projected matching. Green circles are oracle-certified detections used for the validation fit, cyan circles are fitted lens-model positions, red circles are catalogue stars under the known-good optpar model, and yellow dots are raw automatic detections. Brown-Conrady cases use light coefficient regularization.</p>
+<p class="intro">Generated 2026-05-24T16:09:44.671Z. The report sweeps the tracked <code>python/examples/allsky7/*first1s.png</code> frames with their matching latitude, longitude, timestamp, and optpar metadata. A known-good lens model creates an oracle truth map between Yale catalogue stars and image detections; this validates the detector and shows the best available fit if the star identities are known. Each case also reports a separate GUI-style auto-identify simulation that starts from the default lens state, uses blind asterisms to seed the model, and then expands with projected matching. Green circles are oracle-certified detections used for the validation fit, cyan circles are fitted lens-model positions, red circles are catalogue stars under the known-good optpar model, and yellow dots are raw automatic detections. Brown-Conrady cases use light coefficient regularization.</p>
 </header>
 <section class="case-card" id="2025_02_19_03_44_00_000_010760_first1s">
         <h2>2025_02_19_03_44_00_000_010760_first1s optmod 2</h2>
@@ -732,8 +732,8 @@ h2 { margin: 0 0 8px; font-size: 20px; }
         <p class="status">detector details: local SNR min/median 3.2/6.8, global SNR min/median 0.5/1.8, radius 1.17..2.99 px, elongation 1.02..2.37, saturated pixels 0..8</p>
         <p class="status">detector rejections: below scan 8058, below global 0, below local contrast 5203, invalid centroid 0, non-star shape 517</p>
         <p class="status">auto-identify: 56 star pairs, median residual 1.6 px, translation dx/dy -7.0/-5.3 px</p>
-        <p class="status">known-lens validation: 52/56 auto-ID pairs correct, 2 wrong, 2 outside truth map</p>
-        <p class="status">GUI-style auto-identify from default/blind seed: 0/5 correct, 3 wrong, 2 outside truth map; bright blind bootstrap: 0 added, auto-identify: not enough bright stars for blind spherical matching / projected fallback: 1 added, auto-identify: 5 star pairs, median residual 19.2 px, translation dx/dy 66.2/12.0 px / deeper projected expansion: 4 added, auto-identify: 18 star pairs, median residual 13.0 px, translation dx/dy 53.7/10.3 px</p>
+        <p class="status">known-lens validation: 53/56 auto-ID pairs correct, 1 wrong, 2 outside truth map</p>
+        <p class="status">GUI-style auto-identify from default/blind seed: 0/0 correct, 0 wrong, 0 outside truth map; bright blind bootstrap: 0 added, auto-identify: not enough bright stars for blind spherical matching / projected fallback: skipped because no blind seed was accepted / deeper projected expansion: skipped because no blind seed was accepted</p>
         <p class="status warn">correct lens model achieved: NO; known-vs-fit projection RMS 7.27 px, 95% 9.51 px over 369/369 catalogue stars (threshold 5.0 px)</p>
         <p class="status">parameter closeness to known model: max |df| 0.00469040968649, max |d angle| 1.369 deg, max |d principal| 0.0111243924032 (~21.4 px), max |d distortion| 0.00107392828792</p>
         <p class="status mono">known good [optmod, ...optpar]: [2, 0.785627269584, 1.39479362196, -60.3766110918, 23.1146085643, 76.4595046098, 0.0322122061015, -0.00139939738577, 0.894787865357]</p>
@@ -744,9 +744,9 @@ h2 { margin: 0 0 8px; font-size: 20px; }
             <div><strong>120</strong><span>detections</span></div>
             <div><strong>369</strong><span>catalog stars</span></div>
             <div><strong>57</strong><span>known-lens truth pairs</span></div>
-            <div><strong>52</strong><span>validated auto-ID pairs</span></div>
-            <div><strong>2</strong><span>wrong auto-ID pairs</span></div>
-            <div><strong>0/5</strong><span>GUI-style auto-ID correct</span></div>
+            <div><strong>53</strong><span>validated auto-ID pairs</span></div>
+            <div><strong>1</strong><span>wrong auto-ID pairs</span></div>
+            <div><strong>0/0</strong><span>GUI-style auto-ID correct</span></div>
             <div><strong>4.91 px</strong><span>fit RMS</span></div>
             <div><strong>57/120</strong><span>catalogue-certified detections</span></div>
             <div><strong>3.2</strong><span>min local SNR</span></div>
@@ -1483,8 +1483,8 @@ h2 { margin: 0 0 8px; font-size: 20px; }
         <p class="status">detector details: local SNR min/median 3.2/6.8, global SNR min/median 0.5/1.8, radius 1.17..2.99 px, elongation 1.02..2.37, saturated pixels 0..8</p>
         <p class="status">detector rejections: below scan 8058, below global 0, below local contrast 5203, invalid centroid 0, non-star shape 517</p>
         <p class="status">auto-identify: 56 star pairs, median residual 1.6 px, translation dx/dy -7.0/-5.3 px</p>
-        <p class="status">known-lens validation: 52/56 auto-ID pairs correct, 2 wrong, 2 outside truth map</p>
-        <p class="status">GUI-style auto-identify from default/blind seed: 0/5 correct, 3 wrong, 2 outside truth map; bright blind bootstrap: 0 added, auto-identify: not enough bright stars for blind spherical matching / projected fallback: 1 added, auto-identify: 5 star pairs, median residual 19.2 px, translation dx/dy 66.2/12.0 px / deeper projected expansion: 4 added, auto-identify: 18 star pairs, median residual 13.0 px, translation dx/dy 53.7/10.3 px</p>
+        <p class="status">known-lens validation: 53/56 auto-ID pairs correct, 1 wrong, 2 outside truth map</p>
+        <p class="status">GUI-style auto-identify from default/blind seed: 0/0 correct, 0 wrong, 0 outside truth map; bright blind bootstrap: 0 added, auto-identify: not enough bright stars for blind spherical matching / projected fallback: skipped because no blind seed was accepted / deeper projected expansion: skipped because no blind seed was accepted</p>
         <p class="status warn">correct lens model achieved: NO; known-vs-fit projection RMS 7.27 px, 95% 9.51 px over 369/369 catalogue stars (threshold 5.0 px)</p>
         <p class="status">parameter closeness to known model: max |df| 0.00469040968649, max |d angle| 1.369 deg, max |d principal| 0.0111243924032 (~21.4 px), max |d distortion| 0.00107392828792</p>
         <p class="status mono">known good [optmod, ...optpar]: [2, 0.785627269584, 1.39479362196, -60.3766110918, 23.1146085643, 76.4595046098, 0.0322122061015, -0.00139939738577, 0.894787865357]</p>
@@ -1495,9 +1495,9 @@ h2 { margin: 0 0 8px; font-size: 20px; }
             <div><strong>120</strong><span>detections</span></div>
             <div><strong>369</strong><span>catalog stars</span></div>
             <div><strong>57</strong><span>known-lens truth pairs</span></div>
-            <div><strong>52</strong><span>validated auto-ID pairs</span></div>
-            <div><strong>2</strong><span>wrong auto-ID pairs</span></div>
-            <div><strong>0/5</strong><span>GUI-style auto-ID correct</span></div>
+            <div><strong>53</strong><span>validated auto-ID pairs</span></div>
+            <div><strong>1</strong><span>wrong auto-ID pairs</span></div>
+            <div><strong>0/0</strong><span>GUI-style auto-ID correct</span></div>
             <div><strong>4.91 px</strong><span>fit RMS</span></div>
             <div><strong>57/120</strong><span>catalogue-certified detections</span></div>
             <div><strong>3.2</strong><span>min local SNR</span></div>
@@ -2235,8 +2235,8 @@ h2 { margin: 0 0 8px; font-size: 20px; }
         <p class="status">detector details: local SNR min/median 3.5/10.1, global SNR min/median 0.5/1.8, radius 1.44..3.00 px, elongation 1.02..2.14, saturated pixels 0..5</p>
         <p class="status">detector rejections: below scan 6828, below global 0, below local contrast 4044, invalid centroid 0, non-star shape 2364</p>
         <p class="status">auto-identify: 67 star pairs, median residual 1.1 px, translation dx/dy -5.6/-3.9 px</p>
-        <p class="status">known-lens validation: 61/67 auto-ID pairs correct, 5 wrong, 1 outside truth map</p>
-        <p class="status">GUI-style auto-identify from default/blind seed: 18/20 correct, 2 wrong, 0 outside truth map; bright blind bootstrap: 8 added, auto-identify: blind spherical matched 8 stars &lt;= mag 4.0, median angular residual 0.22 deg, preflatten f1 0.80, a 0.90, sign 1/1, du/dv 0.08/0.04, scored 16390 rotations / projected fallback: 0 added, auto-identify: 15 star pairs, median residual 12.1 px, translation dx/dy 0.8/0.8 px / deeper projected expansion: 12 added, auto-identify: 56 star pairs, median residual 8.3 px, translation dx/dy 0.7/0.5 px</p>
+        <p class="status">known-lens validation: 64/67 auto-ID pairs correct, 2 wrong, 1 outside truth map</p>
+        <p class="status">GUI-style auto-identify from default/blind seed: 18/20 correct, 2 wrong, 0 outside truth map; bright blind bootstrap: 8 added, auto-identify: blind spherical matched 8 stars &lt;= mag 4.0, median angular residual 0.22 deg, preflatten f1 0.80, a 0.90, sign 1/1, du/dv 0.08/0.04, scored 16390 rotations / projected fallback: 0 added, auto-identify: 13 star pairs, median residual 12.3 px, translation dx/dy 0.8/0.8 px / deeper projected expansion: 12 added, auto-identify: 54 star pairs, median residual 8.4 px, translation dx/dy 0.7/0.5 px</p>
         <p class="status warn">correct lens model achieved: NO; known-vs-fit projection RMS 6.66 px, 95% 7.17 px over 345/345 catalogue stars (threshold 5.0 px)</p>
         <p class="status">parameter closeness to known model: max |df| 0.00674131138235, max |d angle| 0.168 deg, max |d principal| 0.00134723592572 (~2.6 px), max |d distortion| 0.00508724110466</p>
         <p class="status mono">known good [optmod, ...optpar]: [2, 0.790438524907, 1.40352883422, -60.7239672018, 34.8979397956, 74.5944173266, 0.0422322090782, 0.00820391565393, 0.888744565694]</p>
@@ -2247,8 +2247,8 @@ h2 { margin: 0 0 8px; font-size: 20px; }
             <div><strong>120</strong><span>detections</span></div>
             <div><strong>345</strong><span>catalog stars</span></div>
             <div><strong>66</strong><span>known-lens truth pairs</span></div>
-            <div><strong>61</strong><span>validated auto-ID pairs</span></div>
-            <div><strong>5</strong><span>wrong auto-ID pairs</span></div>
+            <div><strong>64</strong><span>validated auto-ID pairs</span></div>
+            <div><strong>2</strong><span>wrong auto-ID pairs</span></div>
             <div><strong>18/20</strong><span>GUI-style auto-ID correct</span></div>
             <div><strong>1.64 px</strong><span>fit RMS</span></div>
             <div><strong>66/120</strong><span>catalogue-certified detections</span></div>
@@ -2963,7 +2963,7 @@ h2 { margin: 0 0 8px; font-size: 20px; }
         <p class="status">detector details: local SNR min/median 3.2/11.2, global SNR min/median 0.6/4.5, radius 1.28..3.00 px, elongation 1.02..2.96, saturated pixels 0..11</p>
         <p class="status">detector rejections: below scan 8206, below global 0, below local contrast 5180, invalid centroid 0, non-star shape 455</p>
         <p class="status">auto-identify: 32 star pairs, median residual 0.6 px, translation dx/dy -6.4/-3.5 px</p>
-        <p class="status">known-lens validation: 28/32 auto-ID pairs correct, 4 wrong, 0 outside truth map</p>
+        <p class="status">known-lens validation: 29/32 auto-ID pairs correct, 3 wrong, 0 outside truth map</p>
         <p class="status">GUI-style auto-identify from default/blind seed: 13/14 correct, 1 wrong, 0 outside truth map; bright blind bootstrap: 8 added, auto-identify: blind spherical matched 11 stars &lt;= mag 4.0, median angular residual 0.32 deg, preflatten f1 0.80, a 0.90, sign -1/-1, du/dv 0.12/-0.04, scored 24000 rotations / projected fallback: 1 added, auto-identify: 16 star pairs, median residual 11.7 px, translation dx/dy -0.9/-0.0 px / deeper projected expansion: 5 added, auto-identify: 31 star pairs, median residual 11.1 px, translation dx/dy -0.9/-2.8 px</p>
         <p class="status warn">correct lens model achieved: NO; known-vs-fit projection RMS 6.36 px, 95% 7.67 px over 348/348 catalogue stars (threshold 5.0 px)</p>
         <p class="status">parameter closeness to known model: max |df| 0.0239256285323, max |d angle| 0.630 deg, max |d principal| 0.0110066507492 (~21.1 px), max |d distortion| 0.0158413867773</p>
@@ -2975,8 +2975,8 @@ h2 { margin: 0 0 8px; font-size: 20px; }
             <div><strong>120</strong><span>detections</span></div>
             <div><strong>348</strong><span>catalog stars</span></div>
             <div><strong>34</strong><span>known-lens truth pairs</span></div>
-            <div><strong>28</strong><span>validated auto-ID pairs</span></div>
-            <div><strong>4</strong><span>wrong auto-ID pairs</span></div>
+            <div><strong>29</strong><span>validated auto-ID pairs</span></div>
+            <div><strong>3</strong><span>wrong auto-ID pairs</span></div>
             <div><strong>13/14</strong><span>GUI-style auto-ID correct</span></div>
             <div><strong>5.96 px</strong><span>fit RMS</span></div>
             <div><strong>34/120</strong><span>catalogue-certified detections</span></div>
@@ -3623,7 +3623,7 @@ h2 { margin: 0 0 8px; font-size: 20px; }
         <p class="status">detector rejections: below scan 2951, below global 0, below local contrast 3466, invalid centroid 0, non-star shape 5246</p>
         <p class="status">auto-identify: 66 star pairs, median residual 2.6 px, translation dx/dy -4.6/-0.5 px</p>
         <p class="status">known-lens validation: 64/66 auto-ID pairs correct, 1 wrong, 1 outside truth map</p>
-        <p class="status">GUI-style auto-identify from default/blind seed: 0/15 correct, 10 wrong, 5 outside truth map; bright blind bootstrap: 8 added, auto-identify: blind spherical matched 13 stars &lt;= mag 4.0, median angular residual 0.64 deg, preflatten f1 0.80, a 0.75, sign 1/1, du/dv 0.00/-0.08, scored 24000 rotations / projected fallback: 2 added, auto-identify: 20 star pairs, median residual 24.8 px, translation dx/dy -17.3/25.5 px / deeper projected expansion: 5 added, auto-identify: 21 star pairs, median residual 12.1 px, translation dx/dy -6.8/-0.6 px</p>
+        <p class="status">GUI-style auto-identify from default/blind seed: 0/0 correct, 0 wrong, 0 outside truth map; bright blind bootstrap: 0 added, auto-identify: blind spherical matched 13 stars &lt;= mag 4.0, median angular residual 0.64 deg, preflatten f1 0.80, a 0.75, sign 1/1, du/dv 0.00/-0.08, scored 24000 rotations / projected fallback: skipped because no blind seed was accepted / deeper projected expansion: skipped because no blind seed was accepted</p>
         <p class="status warn">correct lens model achieved: NO; known-vs-fit projection RMS 5.70 px, 95% 7.20 px over 304/304 catalogue stars (threshold 5.0 px)</p>
         <p class="status">parameter closeness to known model: max |df| 0.020058992348, max |d angle| 0.477 deg, max |d principal| 0.0069014896595 (~13.3 px), max |d distortion| 0.01460285977</p>
         <p class="status mono">known good [optmod, ...optpar]: [2, 0.787721843766, 1.39749281156, -4.37320767205, 68.1799786503, 6.583663671, 0.0184693011583, 0.0301638294265, 0.890321456748]</p>
@@ -3636,7 +3636,7 @@ h2 { margin: 0 0 8px; font-size: 20px; }
             <div><strong>66</strong><span>known-lens truth pairs</span></div>
             <div><strong>64</strong><span>validated auto-ID pairs</span></div>
             <div><strong>1</strong><span>wrong auto-ID pairs</span></div>
-            <div><strong>0/15</strong><span>GUI-style auto-ID correct</span></div>
+            <div><strong>0/0</strong><span>GUI-style auto-ID correct</span></div>
             <div><strong>3.74 px</strong><span>fit RMS</span></div>
             <div><strong>66/120</strong><span>catalogue-certified detections</span></div>
             <div><strong>6.0</strong><span>min local SNR</span></div>
@@ -4308,8 +4308,8 @@ h2 { margin: 0 0 8px; font-size: 20px; }
         <p class="status">detector details: local SNR min/median 3.5/10.4, global SNR min/median 0.6/1.7, radius 1.52..2.99 px, elongation 1.00..2.99, saturated pixels 0..8</p>
         <p class="status">detector rejections: below scan 7072, below global 0, below local contrast 4052, invalid centroid 0, non-star shape 2169</p>
         <p class="status">auto-identify: 65 star pairs, median residual 1.2 px, translation dx/dy -5.6/-3.8 px</p>
-        <p class="status">known-lens validation: 60/65 auto-ID pairs correct, 3 wrong, 2 outside truth map</p>
-        <p class="status">GUI-style auto-identify from default/blind seed: 18/20 correct, 2 wrong, 0 outside truth map; bright blind bootstrap: 9 added, auto-identify: blind spherical matched 9 stars &lt;= mag 4.0, median angular residual 0.14 deg, preflatten f1 0.79, a 0.90, sign -1/-1, du/dv 0.05/0.04, scored 24000 rotations / projected fallback: 2 added, auto-identify: 12 star pairs, median residual 2.6 px, translation dx/dy -0.2/1.3 px / deeper projected expansion: 9 added, auto-identify: 65 star pairs, median residual 3.1 px, translation dx/dy 0.0/0.1 px</p>
+        <p class="status">known-lens validation: 62/65 auto-ID pairs correct, 1 wrong, 2 outside truth map</p>
+        <p class="status">GUI-style auto-identify from default/blind seed: 18/20 correct, 2 wrong, 0 outside truth map; bright blind bootstrap: 9 added, auto-identify: blind spherical matched 9 stars &lt;= mag 4.0, median angular residual 0.14 deg, preflatten f1 0.79, a 0.90, sign -1/-1, du/dv 0.05/0.04, scored 24000 rotations / projected fallback: 2 added, auto-identify: 10 star pairs, median residual 2.6 px, translation dx/dy -0.2/1.3 px / deeper projected expansion: 9 added, auto-identify: 63 star pairs, median residual 3.1 px, translation dx/dy 0.0/0.1 px</p>
         <p class="status warn">correct lens model achieved: NO; known-vs-fit projection RMS 6.76 px, 95% 7.79 px over 345/345 catalogue stars (threshold 5.0 px)</p>
         <p class="status">parameter closeness to known model: max |df| 0.0167022275029, max |d angle| 0.322 deg, max |d principal| 0.00339312213191 (~6.5 px), max |d distortion| 0.0105032830802</p>
         <p class="status mono">known good [optmod, ...optpar]: [2, 0.790438524907, 1.40352883422, -60.7239672018, 34.8979397956, 74.5944173266, 0.0422322090782, 0.00820391565393, 0.888744565694]</p>
@@ -4320,8 +4320,8 @@ h2 { margin: 0 0 8px; font-size: 20px; }
             <div><strong>120</strong><span>detections</span></div>
             <div><strong>345</strong><span>catalog stars</span></div>
             <div><strong>63</strong><span>known-lens truth pairs</span></div>
-            <div><strong>60</strong><span>validated auto-ID pairs</span></div>
-            <div><strong>3</strong><span>wrong auto-ID pairs</span></div>
+            <div><strong>62</strong><span>validated auto-ID pairs</span></div>
+            <div><strong>1</strong><span>wrong auto-ID pairs</span></div>
             <div><strong>18/20</strong><span>GUI-style auto-ID correct</span></div>
             <div><strong>2.62 px</strong><span>fit RMS</span></div>
             <div><strong>63/120</strong><span>catalogue-certified detections</span></div>
@@ -5036,8 +5036,8 @@ h2 { margin: 0 0 8px; font-size: 20px; }
         <p class="status">detector details: local SNR min/median 4.0/9.0, global SNR min/median 2.4/5.5, radius 1.29..3.00 px, elongation 1.01..2.09, saturated pixels 0..4</p>
         <p class="status">detector rejections: below scan 6741, below global 0, below local contrast 5977, invalid centroid 0, non-star shape 947</p>
         <p class="status">auto-identify: 54 star pairs, median residual 3.0 px, translation dx/dy -0.5/-1.6 px</p>
-        <p class="status">known-lens validation: 51/54 auto-ID pairs correct, 3 wrong, 0 outside truth map</p>
-        <p class="status">GUI-style auto-identify from default/blind seed: 0/8 correct, 7 wrong, 1 outside truth map; bright blind bootstrap: 8 added, auto-identify: blind spherical matched 17 stars &lt;= mag 4.0, median angular residual 0.98 deg, preflatten f1 0.80, a 0.90, sign -1/-1, du/dv 0.08/0.00, scored 16702 rotations / projected fallback: 0 added, auto-identify: 27 star pairs, median residual 21.1 px, translation dx/dy -4.2/-1.0 px / deeper projected expansion: 0 added, auto-identify: 23 star pairs, median residual 18.1 px, translation dx/dy -8.8/3.6 px</p>
+        <p class="status">known-lens validation: 54/54 auto-ID pairs correct, 0 wrong, 0 outside truth map</p>
+        <p class="status">GUI-style auto-identify from default/blind seed: 0/0 correct, 0 wrong, 0 outside truth map; bright blind bootstrap: 0 added, auto-identify: blind spherical matched 17 stars &lt;= mag 4.0, median angular residual 0.98 deg, preflatten f1 0.80, a 0.90, sign -1/-1, du/dv 0.08/0.00, scored 16702 rotations / projected fallback: skipped because no blind seed was accepted / deeper projected expansion: skipped because no blind seed was accepted</p>
         <p class="status ok">correct lens model achieved: YES; known-vs-fit projection RMS 3.38 px, 95% 5.43 px over 284/284 catalogue stars (threshold 5.0 px)</p>
         <p class="status">parameter closeness to known model: max |df| 0.00847710355512, max |d angle| 0.332 deg, max |d principal| 0.00340639540013 (~6.5 px), max |d distortion| 0.00745997571358</p>
         <p class="status mono">known good [optmod, ...optpar]: [2, 0.732932539511, 1.30086054874, 12.5005221865, 28.2147886792, -21.9150671331, 0.0337649351516, 0.0530654352917, 0.961431128408]</p>
@@ -5048,9 +5048,9 @@ h2 { margin: 0 0 8px; font-size: 20px; }
             <div><strong>120</strong><span>detections</span></div>
             <div><strong>284</strong><span>catalog stars</span></div>
             <div><strong>56</strong><span>known-lens truth pairs</span></div>
-            <div><strong>51</strong><span>validated auto-ID pairs</span></div>
-            <div><strong>3</strong><span>wrong auto-ID pairs</span></div>
-            <div><strong>0/8</strong><span>GUI-style auto-ID correct</span></div>
+            <div><strong>54</strong><span>validated auto-ID pairs</span></div>
+            <div><strong>0</strong><span>wrong auto-ID pairs</span></div>
+            <div><strong>0/0</strong><span>GUI-style auto-ID correct</span></div>
             <div><strong>5.52 px</strong><span>fit RMS</span></div>
             <div><strong>56/120</strong><span>catalogue-certified detections</span></div>
             <div><strong>4.0</strong><span>min local SNR</span></div>
@@ -7075,8 +7075,8 @@ h2 { margin: 0 0 8px; font-size: 20px; }
         <p class="status">detector details: local SNR min/median 3.2/7.4, global SNR min/median 0.7/3.5, radius 1.61..3.00 px, elongation 1.02..1.92, saturated pixels 0..4</p>
         <p class="status">detector rejections: below scan 8626, below global 0, below local contrast 4716, invalid centroid 0, non-star shape 586</p>
         <p class="status">auto-identify: 48 star pairs, median residual 2.7 px, translation dx/dy -3.1/2.1 px</p>
-        <p class="status">known-lens validation: 44/48 auto-ID pairs correct, 3 wrong, 1 outside truth map</p>
-        <p class="status">GUI-style auto-identify from default/blind seed: 0/11 correct, 5 wrong, 6 outside truth map; bright blind bootstrap: 8 added, auto-identify: blind spherical matched 12 stars &lt;= mag 4.0, median angular residual 0.47 deg, preflatten f1 0.80, a 0.90, sign 1/1, du/dv -0.04/0.04, scored 4179 rotations / projected fallback: 2 added, auto-identify: 20 star pairs, median residual 15.9 px, translation dx/dy 4.9/-6.5 px / deeper projected expansion: 1 added, auto-identify: 26 star pairs, median residual 12.8 px, translation dx/dy 4.9/-4.4 px</p>
+        <p class="status">known-lens validation: 47/48 auto-ID pairs correct, 0 wrong, 1 outside truth map</p>
+        <p class="status">GUI-style auto-identify from default/blind seed: 0/0 correct, 0 wrong, 0 outside truth map; bright blind bootstrap: 0 added, auto-identify: blind spherical matched 12 stars &lt;= mag 4.0, median angular residual 0.47 deg, preflatten f1 0.80, a 0.90, sign 1/1, du/dv -0.04/0.04, scored 4179 rotations / projected fallback: skipped because no blind seed was accepted / deeper projected expansion: skipped because no blind seed was accepted</p>
         <p class="status ok">correct lens model achieved: YES; known-vs-fit projection RMS 4.39 px, 95% 5.97 px over 375/375 catalogue stars (threshold 5.0 px)</p>
         <p class="status">parameter closeness to known model: max |df| 0.00609815408872, max |d angle| 1.229 deg, max |d principal| 0.0120430086188 (~23.1 px), max |d distortion| 0.0043501175328</p>
         <p class="status mono">known good [optmod, ...optpar]: [2, 0.789952826466, 1.40129693231, 61.7840552982, 11.6330712185, -83.4971596284, 0.0463770718434, -0.0291816063217, 0.886575117016]</p>
@@ -7087,9 +7087,9 @@ h2 { margin: 0 0 8px; font-size: 20px; }
             <div><strong>120</strong><span>detections</span></div>
             <div><strong>375</strong><span>catalog stars</span></div>
             <div><strong>49</strong><span>known-lens truth pairs</span></div>
-            <div><strong>44</strong><span>validated auto-ID pairs</span></div>
-            <div><strong>3</strong><span>wrong auto-ID pairs</span></div>
-            <div><strong>0/11</strong><span>GUI-style auto-ID correct</span></div>
+            <div><strong>47</strong><span>validated auto-ID pairs</span></div>
+            <div><strong>0</strong><span>wrong auto-ID pairs</span></div>
+            <div><strong>0/0</strong><span>GUI-style auto-ID correct</span></div>
             <div><strong>3.98 px</strong><span>fit RMS</span></div>
             <div><strong>49/120</strong><span>catalogue-certified detections</span></div>
             <div><strong>3.2</strong><span>min local SNR</span></div>
@@ -7793,8 +7793,8 @@ h2 { margin: 0 0 8px; font-size: 20px; }
         <p class="status">detector details: local SNR min/median 3.2/7.4, global SNR min/median 0.7/3.5, radius 1.61..3.00 px, elongation 1.02..1.92, saturated pixels 0..4</p>
         <p class="status">detector rejections: below scan 8626, below global 0, below local contrast 4716, invalid centroid 0, non-star shape 586</p>
         <p class="status">auto-identify: 48 star pairs, median residual 2.7 px, translation dx/dy -3.1/2.1 px</p>
-        <p class="status">known-lens validation: 44/48 auto-ID pairs correct, 3 wrong, 1 outside truth map</p>
-        <p class="status">GUI-style auto-identify from default/blind seed: 0/11 correct, 5 wrong, 6 outside truth map; bright blind bootstrap: 8 added, auto-identify: blind spherical matched 12 stars &lt;= mag 4.0, median angular residual 0.47 deg, preflatten f1 0.80, a 0.90, sign 1/1, du/dv -0.04/0.04, scored 4179 rotations / projected fallback: 2 added, auto-identify: 20 star pairs, median residual 15.9 px, translation dx/dy 4.9/-6.5 px / deeper projected expansion: 1 added, auto-identify: 26 star pairs, median residual 12.8 px, translation dx/dy 4.9/-4.4 px</p>
+        <p class="status">known-lens validation: 47/48 auto-ID pairs correct, 0 wrong, 1 outside truth map</p>
+        <p class="status">GUI-style auto-identify from default/blind seed: 0/0 correct, 0 wrong, 0 outside truth map; bright blind bootstrap: 0 added, auto-identify: blind spherical matched 12 stars &lt;= mag 4.0, median angular residual 0.47 deg, preflatten f1 0.80, a 0.90, sign 1/1, du/dv -0.04/0.04, scored 4179 rotations / projected fallback: skipped because no blind seed was accepted / deeper projected expansion: skipped because no blind seed was accepted</p>
         <p class="status ok">correct lens model achieved: YES; known-vs-fit projection RMS 4.39 px, 95% 5.97 px over 375/375 catalogue stars (threshold 5.0 px)</p>
         <p class="status">parameter closeness to known model: max |df| 0.00609815408872, max |d angle| 1.229 deg, max |d principal| 0.0120430086188 (~23.1 px), max |d distortion| 0.0043501175328</p>
         <p class="status mono">known good [optmod, ...optpar]: [2, 0.789952826466, 1.40129693231, 61.7840552982, 11.6330712185, -83.4971596284, 0.0463770718434, -0.0291816063217, 0.886575117016]</p>
@@ -7805,9 +7805,9 @@ h2 { margin: 0 0 8px; font-size: 20px; }
             <div><strong>120</strong><span>detections</span></div>
             <div><strong>375</strong><span>catalog stars</span></div>
             <div><strong>49</strong><span>known-lens truth pairs</span></div>
-            <div><strong>44</strong><span>validated auto-ID pairs</span></div>
-            <div><strong>3</strong><span>wrong auto-ID pairs</span></div>
-            <div><strong>0/11</strong><span>GUI-style auto-ID correct</span></div>
+            <div><strong>47</strong><span>validated auto-ID pairs</span></div>
+            <div><strong>0</strong><span>wrong auto-ID pairs</span></div>
+            <div><strong>0/0</strong><span>GUI-style auto-ID correct</span></div>
             <div><strong>3.98 px</strong><span>fit RMS</span></div>
             <div><strong>49/120</strong><span>catalogue-certified detections</span></div>
             <div><strong>3.2</strong><span>min local SNR</span></div>
@@ -8511,8 +8511,8 @@ h2 { margin: 0 0 8px; font-size: 20px; }
         <p class="status">detector details: local SNR min/median 3.2/9.9, global SNR min/median 0.6/4.1, radius 0.64..2.99 px, elongation 1.02..2.04, saturated pixels 0..9</p>
         <p class="status">detector rejections: below scan 9192, below global 0, below local contrast 4698, invalid centroid 0, non-star shape 258</p>
         <p class="status">auto-identify: 53 star pairs, median residual 0.7 px, translation dx/dy -6.5/-3.2 px</p>
-        <p class="status">known-lens validation: 49/53 auto-ID pairs correct, 4 wrong, 0 outside truth map</p>
-        <p class="status">GUI-style auto-identify from default/blind seed: 18/20 correct, 2 wrong, 0 outside truth map; bright blind bootstrap: 19 added, auto-identify: blind spherical matched 20 stars &lt;= mag 4.0, median angular residual 0.18 deg, preflatten f1 0.79, a 0.90, sign 1/1, du/dv 0.03/0.01, scored 913 rotations / projected fallback: 1 added, auto-identify: 27 star pairs, median residual 2.5 px, translation dx/dy -1.8/-2.4 px</p>
+        <p class="status">known-lens validation: 51/53 auto-ID pairs correct, 2 wrong, 0 outside truth map</p>
+        <p class="status">GUI-style auto-identify from default/blind seed: 18/20 correct, 2 wrong, 0 outside truth map; bright blind bootstrap: 19 added, auto-identify: blind spherical matched 20 stars &lt;= mag 4.0, median angular residual 0.18 deg, preflatten f1 0.79, a 0.90, sign 1/1, du/dv 0.03/0.01, scored 913 rotations / projected fallback: 1 added, auto-identify: 25 star pairs, median residual 2.5 px, translation dx/dy -1.8/-2.4 px</p>
         <p class="status warn">correct lens model achieved: NO; known-vs-fit projection RMS 6.52 px, 95% 7.63 px over 352/352 catalogue stars (threshold 5.0 px)</p>
         <p class="status">parameter closeness to known model: max |df| 0.00197413001247, max |d angle| 0.452 deg, max |d principal| 0.00412435466891 (~7.9 px), max |d distortion| 0.00285011996725</p>
         <p class="status mono">known good [optmod, ...optpar]: [2, 0.79192919, 1.4029044, -67.177973, 10.737738, 84.817593, 0.018842341, -0.0063527072, 0.88735032]</p>
@@ -8523,8 +8523,8 @@ h2 { margin: 0 0 8px; font-size: 20px; }
             <div><strong>120</strong><span>detections</span></div>
             <div><strong>352</strong><span>catalog stars</span></div>
             <div><strong>55</strong><span>known-lens truth pairs</span></div>
-            <div><strong>49</strong><span>validated auto-ID pairs</span></div>
-            <div><strong>4</strong><span>wrong auto-ID pairs</span></div>
+            <div><strong>51</strong><span>validated auto-ID pairs</span></div>
+            <div><strong>2</strong><span>wrong auto-ID pairs</span></div>
             <div><strong>18/20</strong><span>GUI-style auto-ID correct</span></div>
             <div><strong>3.43 px</strong><span>fit RMS</span></div>
             <div><strong>55/120</strong><span>catalogue-certified detections</span></div>
@@ -9246,8 +9246,8 @@ h2 { margin: 0 0 8px; font-size: 20px; }
         <p class="status">detector details: local SNR min/median 3.2/9.9, global SNR min/median 0.6/4.1, radius 0.64..2.99 px, elongation 1.02..2.04, saturated pixels 0..9</p>
         <p class="status">detector rejections: below scan 9192, below global 0, below local contrast 4698, invalid centroid 0, non-star shape 258</p>
         <p class="status">auto-identify: 53 star pairs, median residual 0.7 px, translation dx/dy -6.5/-3.2 px</p>
-        <p class="status">known-lens validation: 49/53 auto-ID pairs correct, 4 wrong, 0 outside truth map</p>
-        <p class="status">GUI-style auto-identify from default/blind seed: 18/20 correct, 2 wrong, 0 outside truth map; bright blind bootstrap: 19 added, auto-identify: blind spherical matched 20 stars &lt;= mag 4.0, median angular residual 0.18 deg, preflatten f1 0.79, a 0.90, sign 1/1, du/dv 0.03/0.01, scored 913 rotations / projected fallback: 1 added, auto-identify: 27 star pairs, median residual 2.5 px, translation dx/dy -1.8/-2.4 px</p>
+        <p class="status">known-lens validation: 51/53 auto-ID pairs correct, 2 wrong, 0 outside truth map</p>
+        <p class="status">GUI-style auto-identify from default/blind seed: 18/20 correct, 2 wrong, 0 outside truth map; bright blind bootstrap: 19 added, auto-identify: blind spherical matched 20 stars &lt;= mag 4.0, median angular residual 0.18 deg, preflatten f1 0.79, a 0.90, sign 1/1, du/dv 0.03/0.01, scored 913 rotations / projected fallback: 1 added, auto-identify: 25 star pairs, median residual 2.5 px, translation dx/dy -1.8/-2.4 px</p>
         <p class="status warn">correct lens model achieved: NO; known-vs-fit projection RMS 6.52 px, 95% 7.63 px over 352/352 catalogue stars (threshold 5.0 px)</p>
         <p class="status">parameter closeness to known model: max |df| 0.00197413001247, max |d angle| 0.452 deg, max |d principal| 0.00412435466891 (~7.9 px), max |d distortion| 0.00285011996725</p>
         <p class="status mono">known good [optmod, ...optpar]: [2, 0.79192919, 1.4029044, -67.177973, 10.737738, 84.817593, 0.018842341, -0.0063527072, 0.88735032]</p>
@@ -9258,8 +9258,8 @@ h2 { margin: 0 0 8px; font-size: 20px; }
             <div><strong>120</strong><span>detections</span></div>
             <div><strong>352</strong><span>catalog stars</span></div>
             <div><strong>55</strong><span>known-lens truth pairs</span></div>
-            <div><strong>49</strong><span>validated auto-ID pairs</span></div>
-            <div><strong>4</strong><span>wrong auto-ID pairs</span></div>
+            <div><strong>51</strong><span>validated auto-ID pairs</span></div>
+            <div><strong>2</strong><span>wrong auto-ID pairs</span></div>
             <div><strong>18/20</strong><span>GUI-style auto-ID correct</span></div>
             <div><strong>3.43 px</strong><span>fit RMS</span></div>
             <div><strong>55/120</strong><span>catalogue-certified detections</span></div>
@@ -9981,7 +9981,7 @@ h2 { margin: 0 0 8px; font-size: 20px; }
         <p class="status">detector details: local SNR min/median 3.5/11.5, global SNR min/median 0.6/3.7, radius 1.50..2.98 px, elongation 1.00..1.92, saturated pixels 0..9</p>
         <p class="status">detector rejections: below scan 6245, below global 0, below local contrast 5611, invalid centroid 0, non-star shape 1138</p>
         <p class="status">auto-identify: 81 star pairs, median residual 2.6 px, translation dx/dy -3.5/0.7 px</p>
-        <p class="status">known-lens validation: 80/81 auto-ID pairs correct, 1 wrong, 0 outside truth map</p>
+        <p class="status">known-lens validation: 81/81 auto-ID pairs correct, 0 wrong, 0 outside truth map</p>
         <p class="status">GUI-style auto-identify from default/blind seed: 20/20 correct, 0 wrong, 0 outside truth map; bright blind bootstrap: 20 added, auto-identify: blind spherical matched 28 stars &lt;= mag 4.0, median angular residual 0.39 deg, preflatten f1 0.79, a 0.90, sign 1/1, du/dv 0.08/0.08, scored 3010 rotations</p>
         <p class="status ok">correct lens model achieved: YES; known-vs-fit projection RMS 4.97 px, 95% 6.64 px over 387/387 catalogue stars (threshold 5.0 px)</p>
         <p class="status">parameter closeness to known model: max |df| 0.00365403909036, max |d angle| 0.287 deg, max |d principal| 0.00128155964155 (~2.5 px), max |d distortion| 0.00254465998195</p>
@@ -9993,8 +9993,8 @@ h2 { margin: 0 0 8px; font-size: 20px; }
             <div><strong>120</strong><span>detections</span></div>
             <div><strong>387</strong><span>catalog stars</span></div>
             <div><strong>81</strong><span>known-lens truth pairs</span></div>
-            <div><strong>80</strong><span>validated auto-ID pairs</span></div>
-            <div><strong>1</strong><span>wrong auto-ID pairs</span></div>
+            <div><strong>81</strong><span>validated auto-ID pairs</span></div>
+            <div><strong>0</strong><span>wrong auto-ID pairs</span></div>
             <div><strong>20/20</strong><span>GUI-style auto-ID correct</span></div>
             <div><strong>1.02 px</strong><span>fit RMS</span></div>
             <div><strong>81/120</strong><span>catalogue-certified detections</span></div>
@@ -10751,7 +10751,7 @@ h2 { margin: 0 0 8px; font-size: 20px; }
         <p class="status">detector details: local SNR min/median 3.2/8.5, global SNR min/median 0.6/3.4, radius 1.65..3.00 px, elongation 1.01..2.09, saturated pixels 0..11</p>
         <p class="status">detector rejections: below scan 8627, below global 0, below local contrast 4738, invalid centroid 0, non-star shape 588</p>
         <p class="status">auto-identify: 58 star pairs, median residual 3.2 px, translation dx/dy -4.1/0.9 px</p>
-        <p class="status">known-lens validation: 53/58 auto-ID pairs correct, 2 wrong, 3 outside truth map</p>
+        <p class="status">known-lens validation: 54/58 auto-ID pairs correct, 1 wrong, 3 outside truth map</p>
         <p class="status">GUI-style auto-identify from default/blind seed: 18/20 correct, 2 wrong, 0 outside truth map; bright blind bootstrap: 18 added, auto-identify: blind spherical matched 20 stars &lt;= mag 4.0, median angular residual 0.27 deg, preflatten f1 0.77, a 0.90, sign 1/1, du/dv 0.02/-0.03, scored 1476 rotations / projected fallback: 2 added, auto-identify: 34 star pairs, median residual 6.1 px, translation dx/dy -1.6/0.5 px</p>
         <p class="status ok">correct lens model achieved: YES; known-vs-fit projection RMS 4.16 px, 95% 5.58 px over 372/372 catalogue stars (threshold 5.0 px)</p>
         <p class="status">parameter closeness to known model: max |df| 0.0332631897346, max |d angle| 0.520 deg, max |d principal| 0.0091194959047 (~17.5 px), max |d distortion| 0.0224755357072</p>
@@ -10763,8 +10763,8 @@ h2 { margin: 0 0 8px; font-size: 20px; }
             <div><strong>120</strong><span>detections</span></div>
             <div><strong>372</strong><span>catalog stars</span></div>
             <div><strong>56</strong><span>known-lens truth pairs</span></div>
-            <div><strong>53</strong><span>validated auto-ID pairs</span></div>
-            <div><strong>2</strong><span>wrong auto-ID pairs</span></div>
+            <div><strong>54</strong><span>validated auto-ID pairs</span></div>
+            <div><strong>1</strong><span>wrong auto-ID pairs</span></div>
             <div><strong>18/20</strong><span>GUI-style auto-ID correct</span></div>
             <div><strong>4.66 px</strong><span>fit RMS</span></div>
             <div><strong>56/120</strong><span>catalogue-certified detections</span></div>
@@ -11506,7 +11506,7 @@ h2 { margin: 0 0 8px; font-size: 20px; }
         <p class="status">detector details: local SNR min/median 3.6/12.6, global SNR min/median 0.9/4.2, radius 1.24..2.94 px, elongation 1.02..2.56, saturated pixels 0..4</p>
         <p class="status">detector rejections: below scan 5993, below global 0, below local contrast 5754, invalid centroid 0, non-star shape 1165</p>
         <p class="status">auto-identify: 85 star pairs, median residual 2.6 px, translation dx/dy -3.8/0.9 px</p>
-        <p class="status">known-lens validation: 82/85 auto-ID pairs correct, 3 wrong, 0 outside truth map</p>
+        <p class="status">known-lens validation: 84/85 auto-ID pairs correct, 1 wrong, 0 outside truth map</p>
         <p class="status">GUI-style auto-identify from default/blind seed: 18/20 correct, 2 wrong, 0 outside truth map; bright blind bootstrap: 20 added, auto-identify: blind spherical matched 26 stars &lt;= mag 4.0, median angular residual 0.25 deg, preflatten f1 0.77, a 0.90, sign 1/1, du/dv 0.04/0.04, scored 494 rotations</p>
         <p class="status warn">correct lens model achieved: NO; known-vs-fit projection RMS 5.01 px, 95% 6.68 px over 384/384 catalogue stars (threshold 5.0 px)</p>
         <p class="status">parameter closeness to known model: max |df| 0.00515872678233, max |d angle| 0.260 deg, max |d principal| 0.000918768706336 (~1.8 px), max |d distortion| 0.00400989346992</p>
@@ -11518,8 +11518,8 @@ h2 { margin: 0 0 8px; font-size: 20px; }
             <div><strong>120</strong><span>detections</span></div>
             <div><strong>384</strong><span>catalog stars</span></div>
             <div><strong>89</strong><span>known-lens truth pairs</span></div>
-            <div><strong>82</strong><span>validated auto-ID pairs</span></div>
-            <div><strong>3</strong><span>wrong auto-ID pairs</span></div>
+            <div><strong>84</strong><span>validated auto-ID pairs</span></div>
+            <div><strong>1</strong><span>wrong auto-ID pairs</span></div>
             <div><strong>18/20</strong><span>GUI-style auto-ID correct</span></div>
             <div><strong>0.61 px</strong><span>fit RMS</span></div>
             <div><strong>89/120</strong><span>catalogue-certified detections</span></div>
@@ -12273,7 +12273,7 @@ h2 { margin: 0 0 8px; font-size: 20px; }
         <p class="status">detector rejections: below scan 37580, below global 0, below local contrast 9791, invalid centroid 0, non-star shape 20</p>
         <p class="status">auto-identify: 14 star pairs, median residual 2.9 px, translation dx/dy 0.4/0.2 px</p>
         <p class="status">known-lens validation: 14/14 auto-ID pairs correct, 0 wrong, 0 outside truth map</p>
-        <p class="status">GUI-style auto-identify from default/blind seed: 0/0 correct, 0 wrong, 0 outside truth map; bright blind bootstrap: 0 added, auto-identify: not enough bright stars for blind spherical matching / projected fallback: 0 added, auto-identify: no projected catalog stars or detected image stars / deeper projected expansion: 0 added, auto-identify: only 0 plausible star pairs found; rough-align the field first</p>
+        <p class="status">GUI-style auto-identify from default/blind seed: 0/0 correct, 0 wrong, 0 outside truth map; bright blind bootstrap: 0 added, auto-identify: not enough bright stars for blind spherical matching / projected fallback: skipped because no blind seed was accepted / deeper projected expansion: skipped because no blind seed was accepted</p>
         <p class="status warn">correct lens model achieved: NO; known-vs-fit projection RMS 15.32 px, 95% 31.77 px over 156/156 catalogue stars (threshold 8.0 px)</p>
         <p class="status">parameter closeness to known model: max |df| 0.00211333601323, max |d angle| 1.151 deg, max |d principal| 0.0292115708638 (~117.8 px), max |d distortion| 0.126284072253</p>
         <p class="status mono">known good [optmod, ...optpar]: [20, 1.411641, 1.052995, -79.7, -27, 93, -0.006571, 0.014468, 0.239385, -0.846254, 1.042227, -0.000576, -0.003371]</p>

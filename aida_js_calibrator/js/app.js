@@ -1407,6 +1407,11 @@ end
         const maxAddDistancePx = Number.isFinite(options.maxAddDistancePx) ?
             options.maxAddDistancePx :
             Infinity;
+        if (Number.isFinite(options.maxMedianDistance) &&
+                Number.isFinite(result.medianDistance) &&
+                result.medianDistance > options.maxMedianDistance) {
+            return 0;
+        }
         const maxAdditions = Number.isFinite(options.maxAdditions) ?
             Math.max(0, Math.floor(options.maxAdditions)) :
             Infinity;
@@ -1558,6 +1563,7 @@ end
         const added = addAutoIdentificationMatches(result, options.methodLabel || "auto star finder", {
             maxAddDistancePx: options.maxAddDistancePx,
             maxAdditions: options.maxAdditions,
+            maxMedianDistance: options.maxMedianDistance,
         });
         state.pendingMatch = null;
         clearDensityEstimate();
@@ -1605,6 +1611,7 @@ end
                     maxBlindCandidateRotations: 12000,
                 },
                 maxAddDistancePx: 0.8,
+                maxMedianDistance: 0.42,
                 methodLabel: "auto star finder bright bootstrap",
             },
             {
@@ -1631,6 +1638,8 @@ end
                     maxCatalogStars: 140,
                     maxDistancePx: 34,
                     translationSearchRadiusPx: 90,
+                    rejectAmbiguousMatches: true,
+                    ambiguityRadiusPx: 8,
                 },
                 maxAddDistancePx: 8,
                 methodLabel: "auto star finder alignment fallback",
@@ -1654,6 +1663,8 @@ end
                     maxCatalogStars: 180,
                     maxDistancePx: 24,
                     translationSearchRadiusPx: 55,
+                    rejectAmbiguousMatches: true,
+                    ambiguityRadiusPx: 8,
                 },
                 maxAddDistancePx: 8,
                 methodLabel: "auto star finder deeper projection",
@@ -1677,6 +1688,10 @@ end
                 break;
             }
             const stage = stages[i];
+            if (stage.includeBlind === false && totalAdded === 0) {
+                stageSummaries.push(`${stage.summaryLabel}: skipped because no blind seed was accepted`);
+                continue;
+            }
             const remaining = Math.max(0, desiredNewPairings - totalAdded);
             const pass = await runAutoIdentifyPass({
                 ...stage,
@@ -4520,6 +4535,7 @@ end
             projectedOptions: stage.projectedOptions,
             reuseExistingMatchesForTransform: true,
             maxAddDistancePx: stage.maxAddDistancePx,
+            maxMedianDistance: stage.maxMedianDistance,
             methodLabel: "lucky auto star finder",
         });
         let seeded = false;

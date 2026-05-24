@@ -403,6 +403,7 @@ function knownLensValidationMap(detections, knownStars, maxDistancePx) {
         matches,
         detectionToStar: new Map(matches.map(match => [match.detection.id, match.star.key])),
         starToDetection: new Map(matches.map(match => [match.star.key, match.detection.id])),
+        starByKey: new Map(knownStars.map(star => [star.key, star])),
     };
 }
 
@@ -417,6 +418,18 @@ function scoreIdentificationAgainstKnownLens(matches, validation) {
             unknown += 1;
         } else if (truthKey === match.star.key) {
             correct += 1;
+        } else if (validation.starByKey) {
+            const truthStar = validation.starByKey.get(truthKey);
+            const identifiedStar = validation.starByKey.get(match.star.key);
+            const projectedSeparation = truthStar && identifiedStar ?
+                Math.hypot(truthStar.x - identifiedStar.x, truthStar.y - identifiedStar.y) :
+                Infinity;
+            if (projectedSeparation <= 4) {
+                correct += 1;
+            } else {
+                incorrect += 1;
+                wrong.push({match, truth: truthKey});
+            }
         } else {
             incorrect += 1;
             wrong.push({match, truth: truthKey});
@@ -488,6 +501,11 @@ function imagePointAlreadyInMatches(matches, x, y, radiusPx = 7) {
 function addGuiSimulationMatches(matches, result, options = {}) {
     const existingKeys = new Set(matches.map(match => match.star.key));
     const maxDistance = Number.isFinite(options.maxDistancePx) ? options.maxDistancePx : Infinity;
+    if (Number.isFinite(options.maxMedianDistance) &&
+            Number.isFinite(result.medianDistance) &&
+            result.medianDistance > options.maxMedianDistance) {
+        return 0;
+    }
     const maxAdd = Number.isFinite(options.maxAdd) ? Math.max(0, Math.floor(options.maxAdd)) : Infinity;
     let added = 0;
     for (const match of result.matches || []) {
@@ -563,6 +581,7 @@ async function simulateGuiAutoIdentify(testCase, imageData) {
                 maxBlindCandidateRotations: 12000,
             },
             maxAddDistancePx: 0.8,
+            maxMedianDistance: 0.42,
         },
         {
             label: "projected fallback",
@@ -580,6 +599,8 @@ async function simulateGuiAutoIdentify(testCase, imageData) {
                 maxDistancePx: 34,
                 translationSearchRadiusPx: 90,
                 minMatches: 4,
+                rejectAmbiguousMatches: true,
+                ambiguityRadiusPx: 8,
             },
             maxAddDistancePx: 8,
         },
@@ -599,6 +620,8 @@ async function simulateGuiAutoIdentify(testCase, imageData) {
                 maxDistancePx: 24,
                 translationSearchRadiusPx: 55,
                 minMatches: 4,
+                rejectAmbiguousMatches: true,
+                ambiguityRadiusPx: 8,
             },
             maxAddDistancePx: 8,
         },
@@ -608,6 +631,10 @@ async function simulateGuiAutoIdentify(testCase, imageData) {
     const summaries = [];
     for (let i = 0; i < stages.length && matches.length < targetPairs; i += 1) {
         const stage = stages[i];
+        if (i > 0 && matches.length === 0) {
+            summaries.push(`${stage.label}: skipped because no blind seed was accepted`);
+            continue;
+        }
         const detectionResult = await StarDetector.detectBrightStars(imageData, {
             maxDetections: stage.maxDetections,
             ...stage.detectorOptions,
@@ -635,6 +662,7 @@ async function simulateGuiAutoIdentify(testCase, imageData) {
         }
         const added = addGuiSimulationMatches(matches, result, {
             maxDistancePx: stage.maxAddDistancePx,
+            maxMedianDistance: stage.maxMedianDistance,
             maxAdd: targetPairs - matches.length,
         });
         summaries.push(`${stage.label}: ${added} added, ${result.status}`);
@@ -1302,7 +1330,20 @@ async function main() {
     process.stdout.write(`${outfile}\n`);
 }
 
-main().catch(error => {
-    console.error(error);
-    process.exitCode = 1;
-});
+if (require.main === module) {
+    main().catch(error => {
+        console.error(error);
+        process.exitCode = 1;
+    });
+}
+
+module.exports = {
+    analyzeCase,
+    buildCases,
+    knownLensValidationMap,
+    projectStars,
+    readPngImageData,
+    scoreIdentificationAgainstKnownLens,
+    simulateGuiAutoIdentify,
+    visibleStars,
+};
