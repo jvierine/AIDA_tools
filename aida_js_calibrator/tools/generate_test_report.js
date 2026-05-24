@@ -510,6 +510,54 @@ function formatBestParameterVector(testCase, fit) {
     return [testCase.optmod, ...fit.optpar].map(formatFitNumber).join(", ");
 }
 
+function percentile(sortedValues, fraction) {
+    if (!sortedValues.length) {
+        return Infinity;
+    }
+    const index = Math.min(
+        sortedValues.length - 1,
+        Math.max(0, Math.floor(fraction * (sortedValues.length - 1))),
+    );
+    return sortedValues[index];
+}
+
+function assessLensModelAgreement(testCase, fit, maxMag = testCase.maxMag) {
+    const referenceStars = projectStars(testCase, testCase.optpar, maxMag);
+    const distances = [];
+    let missed = 0;
+    for (const star of referenceStars) {
+        const xy = AidaTools.cameraModel(
+            star.az,
+            star.ze,
+            fit.optpar,
+            testCase.optmod,
+            testCase.width,
+            testCase.height,
+        );
+        if (!Number.isFinite(xy.x) || !Number.isFinite(xy.y)) {
+            missed += 1;
+            continue;
+        }
+        distances.push(Math.hypot(xy.x - star.x, xy.y - star.y));
+    }
+    distances.sort((a, b) => a - b);
+    const sumSquares = distances.reduce((acc, distance) => acc + distance * distance, 0);
+    const rms = distances.length ? Math.sqrt(sumSquares / distances.length) : Infinity;
+    const p95 = percentile(distances, 0.95);
+    const thresholdPx = Number.isFinite(testCase.lensAgreementThresholdPx)
+        ? testCase.lensAgreementThresholdPx
+        : testCase.optmod === 20 ? 8 : 5;
+    return {
+        achieved: missed === 0 && rms <= thresholdPx && p95 <= thresholdPx * 2,
+        checkedStars: referenceStars.length,
+        comparedStars: distances.length,
+        missed,
+        rms,
+        p95,
+        thresholdPx,
+    };
+}
+
 function overlaySvg(result) {
     const matchedKeys = new Set(result.matches.map(pair => pair.star.key));
     const fittedStars = new Map(projectStars(result.case, result.fit.optpar, result.case.maxMag + 0.01)
@@ -609,6 +657,7 @@ async function analyzeCase(testCase) {
         sweep.push({count, ...fit});
     }
     const fit = sweep.length ? sweep[sweep.length - 1] : fitFromPairs(matches, testCase, start);
+    const lensAgreement = assessLensModelAgreement(testCase, fit);
     return {
         case: testCase,
         detections: detectionResult.detections,
@@ -621,6 +670,7 @@ async function analyzeCase(testCase) {
         identificationScore,
         sweep,
         fit,
+        lensAgreement,
         startRms: residualRmsPx(fitResiduals(start, matches.slice(0, Math.min(matches.length, testCase.sweepCounts.at(-1))), testCase, false)),
     };
 }
@@ -632,8 +682,14 @@ function caseHtml(result) {
         .join(" / ");
     const model = c.optmod === 20 ? "Brown-Conrady" : `optmod ${c.optmod}`;
     const score = result.identificationScore;
+    const agreement = result.lensAgreement;
+    const lensStatus = agreement.achieved ? "YES" : "NO";
     const autoIdStatus = `known-lens validation: ${score.correct}/${score.total} auto-ID pairs correct, ` +
         `${score.incorrect} wrong, ${score.unknown} outside truth map`;
+    const lensAgreementStatus = `correct lens model achieved: ${lensStatus}; ` +
+        `known-vs-fit projection RMS ${agreement.rms.toFixed(2)} px, ` +
+        `95% ${agreement.p95.toFixed(2)} px over ${agreement.comparedStars}/${agreement.checkedStars} catalogue stars ` +
+        `(threshold ${agreement.thresholdPx.toFixed(1)} px)`;
     return `<section class="case-card" id="${escapeHtml(c.id)}">
         <h2>${escapeHtml(c.title)}</h2>
         <div class="meta">
@@ -644,6 +700,7 @@ function caseHtml(result) {
         <p class="status">${escapeHtml(result.detectionStatus)}</p>
         <p class="status">${escapeHtml(result.autoIdentification.status)}</p>
         <p class="status">${escapeHtml(autoIdStatus)}</p>
+        <p class="status ${agreement.achieved ? "ok" : "warn"}">${escapeHtml(lensAgreementStatus)}</p>
         <p class="status">best fit [optmod, ...optpar]: [${escapeHtml(formatBestParameterVector(c, result.fit))}]</p>
         <div class="summary-grid">
             <div><strong>${result.detections.length}</strong><span>detections</span></div>
@@ -652,6 +709,8 @@ function caseHtml(result) {
             <div><strong>${score.correct}</strong><span>validated auto-ID pairs</span></div>
             <div><strong>${score.incorrect}</strong><span>wrong auto-ID pairs</span></div>
             <div><strong>${result.fit.rms.toFixed(2)} px</strong><span>fit RMS</span></div>
+            <div><strong>${agreement.achieved ? "yes" : "no"}</strong><span>correct lens achieved</span></div>
+            <div><strong>${agreement.rms.toFixed(2)} px</strong><span>known-vs-fit RMS</span></div>
         </div>
         <p class="sweep"><strong>fit sweep:</strong> ${escapeHtml(sweepText || "not enough pairs")}</p>
         <div class="visual-grid">
@@ -690,6 +749,8 @@ h2 { margin: 0 0 8px; font-size: 20px; }
 .meta { display: flex; flex-wrap: wrap; gap: 10px; color: #aeb8c8; margin-bottom: 10px; }
 .meta span { padding: 3px 8px; border: 1px solid #3b4657; border-radius: 999px; }
 .status, .sweep { color: #b9c4d4; }
+.status.ok { color: #8ef0a1; }
+.status.warn { color: #ffb86b; }
 .summary-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(145px, 1fr)); gap: 10px; margin: 14px 0; }
 .summary-grid div { padding: 10px; background: #202633; border: 1px solid #394457; border-radius: 6px; }
 .summary-grid strong { display: block; font-size: 20px; color: #ffffff; }

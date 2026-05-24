@@ -14,6 +14,8 @@ h2 { margin: 0 0 8px; font-size: 20px; }
 .meta { display: flex; flex-wrap: wrap; gap: 10px; color: #aeb8c8; margin-bottom: 10px; }
 .meta span { padding: 3px 8px; border: 1px solid #3b4657; border-radius: 999px; }
 .status, .sweep { color: #b9c4d4; }
+.status.ok { color: #8ef0a1; }
+.status.warn { color: #ffb86b; }
 .summary-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(145px, 1fr)); gap: 10px; margin: 14px 0; }
 .summary-grid div { padding: 10px; background: #202633; border: 1px solid #394457; border-radius: 6px; }
 .summary-grid strong { display: block; font-size: 20px; color: #ffffff; }
@@ -47,7 +49,7 @@ h2 { margin: 0 0 8px; font-size: 20px; }
 <body>
 <header>
 <h1>AIDA Calibrator Star-Fit Test Report</h1>
-<p class="intro">Generated 2026-05-24T13:30:06.184Z. The report uses the same real-image fixtures as the unit tests. A known-good lens model first creates a truth map between Yale catalogue stars and image detections; the automatic star-identification result is then scored against that map. Green circles are detected truth-map stars used for fitting, cyan circles are fitted lens-model positions, red circles are unmatched catalogue stars under the fitted model, and yellow dots are raw automatic detections. Brown-Conrady cases use light coefficient regularization.</p>
+<p class="intro">Generated 2026-05-24T13:33:39.733Z. The report uses the same real-image fixtures as the unit tests. A known-good lens model first creates a truth map between Yale catalogue stars and image detections; the automatic star-identification result is then scored against that map. Green circles are detected truth-map stars used for fitting, cyan circles are fitted lens-model positions, red circles are unmatched catalogue stars under the fitted model, and yellow dots are raw automatic detections. Brown-Conrady cases use light coefficient regularization.</p>
 </header>
 <section class="case-card" id="010095-optmod2">
         <h2>010095 optmod 2</h2>
@@ -59,6 +61,7 @@ h2 { margin: 0 0 8px; font-size: 20px; }
         <p class="status">bright-star detector: bg 41.0, sigma 17.9, 1458 candidates, selected top 50/50, suppression radius 22 px</p>
         <p class="status">auto-identify: 22 star pairs, median residual 0.4 px, translation dx/dy -0.3/-0.2 px</p>
         <p class="status">known-lens validation: 21/22 auto-ID pairs correct, 1 wrong, 0 outside truth map</p>
+        <p class="status ok">correct lens model achieved: YES; known-vs-fit projection RMS 0.54 px, 95% 1.06 px over 41/41 catalogue stars (threshold 5.0 px)</p>
         <p class="status">best fit [optmod, ...optpar]: [2, 0.782174129956, 1.38840321956, -60.7808244413, 35.1761477778, 74.5186147553, 0.0419031418978, 0.00761206466979, 0.898934278394]</p>
         <div class="summary-grid">
             <div><strong>50</strong><span>detections</span></div>
@@ -67,6 +70,8 @@ h2 { margin: 0 0 8px; font-size: 20px; }
             <div><strong>21</strong><span>validated auto-ID pairs</span></div>
             <div><strong>1</strong><span>wrong auto-ID pairs</span></div>
             <div><strong>0.45 px</strong><span>fit RMS</span></div>
+            <div><strong>yes</strong><span>correct lens achieved</span></div>
+            <div><strong>0.54 px</strong><span>known-vs-fit RMS</span></div>
         </div>
         <p class="sweep"><strong>fit sweep:</strong> 8: 0.28 px (10 accepted) / 10: 0.27 px (11 accepted) / 12: 0.48 px (6 accepted) / 14: 0.47 px (7 accepted) / 16: 0.46 px (10 accepted) / 18: 0.45 px (9 accepted)</p>
         <div class="visual-grid">
@@ -247,6 +252,7 @@ h2 { margin: 0 0 8px; font-size: 20px; }
         <p class="status">bright-star detector: bg 76.4, sigma 7.2, 1191 candidates, selected top 50/50, suppression radius 22 px</p>
         <p class="status">auto-identify: 40 star pairs, median residual 0.4 px, translation dx/dy 0.1/0.8 px</p>
         <p class="status">known-lens validation: 40/40 auto-ID pairs correct, 0 wrong, 0 outside truth map</p>
+        <p class="status ok">correct lens model achieved: YES; known-vs-fit projection RMS 0.74 px, 95% 0.86 px over 134/134 catalogue stars (threshold 5.0 px)</p>
         <p class="status">best fit [optmod, ...optpar]: [2, 0.779105269047, 1.37731690557, -19.2756206454, 62.5747136602, 20.4659362505, 0.00334356706946, 0.0013702230242, 0.901509595521]</p>
         <div class="summary-grid">
             <div><strong>50</strong><span>detections</span></div>
@@ -255,6 +261,8 @@ h2 { margin: 0 0 8px; font-size: 20px; }
             <div><strong>40</strong><span>validated auto-ID pairs</span></div>
             <div><strong>0</strong><span>wrong auto-ID pairs</span></div>
             <div><strong>0.49 px</strong><span>fit RMS</span></div>
+            <div><strong>yes</strong><span>correct lens achieved</span></div>
+            <div><strong>0.74 px</strong><span>known-vs-fit RMS</span></div>
         </div>
         <p class="sweep"><strong>fit sweep:</strong> 8: 0.21 px (8 accepted) / 10: 0.21 px (11 accepted) / 12: 0.22 px (7 accepted) / 14: 0.36 px (9 accepted) / 16: 0.41 px (11 accepted) / 18: 0.40 px (8 accepted) / 20: 0.44 px (8 accepted) / 24: 0.43 px (9 accepted) / 28: 0.44 px (10 accepted) / 32: 0.46 px (9 accepted) / 36: 0.45 px (9 accepted) / 40: 0.49 px (7 accepted)</p>
         <div class="visual-grid">
@@ -594,6 +602,7 @@ h2 { margin: 0 0 8px; font-size: 20px; }
         <p class="status">bright-star detector: bg 71.3, sigma 27.6, 993 candidates, selected top 50/50, suppression radius 22 px</p>
         <p class="status">auto-identify: 18 star pairs, median residual 0.4 px, translation dx/dy 0.3/-0.0 px</p>
         <p class="status">known-lens validation: 18/18 auto-ID pairs correct, 0 wrong, 0 outside truth map</p>
+        <p class="status ok">correct lens model achieved: YES; known-vs-fit projection RMS 0.80 px, 95% 1.26 px over 43/43 catalogue stars (threshold 5.0 px)</p>
         <p class="status">best fit [optmod, ...optpar]: [2, 0.793080340296, 1.40798495605, -60.7364102916, 23.5190474794, 76.4585298916, 0.0320319114677, 0.00236876489393, 0.885815299836]</p>
         <div class="summary-grid">
             <div><strong>50</strong><span>detections</span></div>
@@ -602,6 +611,8 @@ h2 { margin: 0 0 8px; font-size: 20px; }
             <div><strong>18</strong><span>validated auto-ID pairs</span></div>
             <div><strong>0</strong><span>wrong auto-ID pairs</span></div>
             <div><strong>0.43 px</strong><span>fit RMS</span></div>
+            <div><strong>yes</strong><span>correct lens achieved</span></div>
+            <div><strong>0.80 px</strong><span>known-vs-fit RMS</span></div>
         </div>
         <p class="sweep"><strong>fit sweep:</strong> 8: 0.19 px (10 accepted) / 10: 0.43 px (8 accepted) / 12: 0.42 px (12 accepted) / 14: 0.43 px (8 accepted) / 16: 0.41 px (8 accepted) / 18: 0.43 px (9 accepted)</p>
         <div class="visual-grid">
@@ -784,6 +795,7 @@ h2 { margin: 0 0 8px; font-size: 20px; }
         <p class="status">bright-star detector: bg 71.3, sigma 27.6, 993 candidates, selected top 80/80, suppression radius 22 px</p>
         <p class="status">auto-identify: 13 star pairs, median residual 12.5 px, translation dx/dy 20.1/-7.8 px</p>
         <p class="status">known-lens validation: 4/13 auto-ID pairs correct, 0 wrong, 9 outside truth map</p>
+        <p class="status warn">correct lens model achieved: NO; known-vs-fit projection RMS 16.30 px, 95% 35.18 px over 265/265 catalogue stars (threshold 5.0 px)</p>
         <p class="status">best fit [optmod, ...optpar]: [2, -0.71473868044, -1.30006689922, -60.3692207753, 38.4288980455, -105.018571835, 0.078623362051, 0.0145464966262, 0.986185122766]</p>
         <div class="summary-grid">
             <div><strong>80</strong><span>detections</span></div>
@@ -792,6 +804,8 @@ h2 { margin: 0 0 8px; font-size: 20px; }
             <div><strong>4</strong><span>validated auto-ID pairs</span></div>
             <div><strong>0</strong><span>wrong auto-ID pairs</span></div>
             <div><strong>10.31 px</strong><span>fit RMS</span></div>
+            <div><strong>no</strong><span>correct lens achieved</span></div>
+            <div><strong>16.30 px</strong><span>known-vs-fit RMS</span></div>
         </div>
         <p class="sweep"><strong>fit sweep:</strong> 8: 9.71 px (11 accepted) / 10: 10.24 px (12 accepted) / 12: 10.31 px (12 accepted)</p>
         <div class="visual-grid">
@@ -1217,6 +1231,7 @@ h2 { margin: 0 0 8px; font-size: 20px; }
         <p class="status">bright-star detector: bg 60.2, sigma 54.5, 237 candidates, selected top 106/120, suppression radius 50 px</p>
         <p class="status">auto-identify: 14 star pairs, median residual 2.9 px, translation dx/dy 0.4/0.2 px</p>
         <p class="status">known-lens validation: 14/14 auto-ID pairs correct, 0 wrong, 0 outside truth map</p>
+        <p class="status warn">correct lens model achieved: NO; known-vs-fit projection RMS 15.32 px, 95% 31.77 px over 156/156 catalogue stars (threshold 8.0 px)</p>
         <p class="status">best fit [optmod, ...optpar]: [20, 1.41113779643, 1.05510833601, -79.9709449507, -25.8487092798, 93.0012962751, 0.0226405708638, 0.0175172024952, 0.287665350648, -0.945440079278, 1.16851107225, 0.00830656230943, 0.00271806936466]</p>
         <div class="summary-grid">
             <div><strong>106</strong><span>detections</span></div>
@@ -1225,6 +1240,8 @@ h2 { margin: 0 0 8px; font-size: 20px; }
             <div><strong>14</strong><span>validated auto-ID pairs</span></div>
             <div><strong>0</strong><span>wrong auto-ID pairs</span></div>
             <div><strong>2.43 px</strong><span>fit RMS</span></div>
+            <div><strong>no</strong><span>correct lens achieved</span></div>
+            <div><strong>15.32 px</strong><span>known-vs-fit RMS</span></div>
         </div>
         <p class="sweep"><strong>fit sweep:</strong> 8: 1.56 px (16 accepted) / 10: 2.64 px (17 accepted) / 12: 2.54 px (24 accepted) / 14: 2.43 px (21 accepted)</p>
         <div class="visual-grid">
