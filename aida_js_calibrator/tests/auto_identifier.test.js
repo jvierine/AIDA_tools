@@ -536,8 +536,8 @@ test("blind spherical matcher identifies 010095 stars from image-load initial le
         return known && Math.hypot(match.detection.x - known.x, match.detection.y - known.y) <= 18;
     });
     assert.ok(
-        result.matches.length >= 8,
-        `expected at least 8 blind matches, got ${result.matches.length}; ${result.status}`,
+        result.matches.length >= 9,
+        `expected at least 9 blind matches, got ${result.matches.length}; ${result.status}`,
     );
     assert.ok(
         correct.length >= 8,

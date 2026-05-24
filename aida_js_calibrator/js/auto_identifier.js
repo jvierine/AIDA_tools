@@ -446,62 +446,416 @@
         ];
     }
 
+    function matMul3x3(a, b) {
+        const out = new Array(9).fill(0);
+        for (let r = 0; r < 3; r += 1) {
+            for (let c = 0; c < 3; c += 1) {
+                out[r * 3 + c] =
+                    a[r * 3 + 0] * b[0 * 3 + c] +
+                    a[r * 3 + 1] * b[1 * 3 + c] +
+                    a[r * 3 + 2] * b[2 * 3 + c];
+            }
+        }
+        return out;
+    }
+
+    function skewRotationMatrix(w) {
+        const angle = norm3(w);
+        if (angle <= 1e-12) {
+            return [1, 0, 0, 0, 1, 0, 0, 0, 1];
+        }
+        const x = w[0] / angle;
+        const y = w[1] / angle;
+        const z = w[2] / angle;
+        const c = Math.cos(angle);
+        const s = Math.sin(angle);
+        const t = 1 - c;
+        return [
+            t * x * x + c, t * x * y - s * z, t * x * z + s * y,
+            t * y * x + s * z, t * y * y + c, t * y * z - s * x,
+            t * z * x - s * y, t * z * y + s * x, t * z * z + c,
+        ];
+    }
+
+    function solve3x3(a, b) {
+        const m = [
+            [a[0], a[1], a[2], b[0]],
+            [a[3], a[4], a[5], b[1]],
+            [a[6], a[7], a[8], b[2]],
+        ];
+        for (let col = 0; col < 3; col += 1) {
+            let pivot = col;
+            for (let row = col + 1; row < 3; row += 1) {
+                if (Math.abs(m[row][col]) > Math.abs(m[pivot][col])) {
+                    pivot = row;
+                }
+            }
+            if (Math.abs(m[pivot][col]) < 1e-10) {
+                return null;
+            }
+            if (pivot !== col) {
+                const tmp = m[col];
+                m[col] = m[pivot];
+                m[pivot] = tmp;
+            }
+            const div = m[col][col];
+            for (let j = col; j < 4; j += 1) {
+                m[col][j] /= div;
+            }
+            for (let row = 0; row < 3; row += 1) {
+                if (row === col) {
+                    continue;
+                }
+                const factor = m[row][col];
+                for (let j = col; j < 4; j += 1) {
+                    m[row][j] -= factor * m[col][j];
+                }
+            }
+        }
+        return [m[0][3], m[1][3], m[2][3]];
+    }
+
+    function smallRotationCorrection(matches) {
+        if (matches.length < 3) {
+            return null;
+        }
+        const ata = new Array(9).fill(0);
+        const atb = [0, 0, 0];
+        for (const match of matches) {
+            const a = match.transformedVector || applyRot3(match.rotation || [1, 0, 0, 0, 1, 0, 0, 0, 1], match.detection.vector);
+            const b = match.star.vector;
+            if (!a || !b) {
+                continue;
+            }
+            const rows = [
+                [0, a[2], -a[1]],
+                [-a[2], 0, a[0]],
+                [a[1], -a[0], 0],
+            ];
+            const rhs = [b[0] - a[0], b[1] - a[1], b[2] - a[2]];
+            for (let r = 0; r < 3; r += 1) {
+                const weight = 1 + Math.max(0, 4.2 - match.star.mag) * 0.35;
+                for (let i = 0; i < 3; i += 1) {
+                    atb[i] += weight * rows[r][i] * rhs[r];
+                    for (let j = 0; j < 3; j += 1) {
+                        ata[i * 3 + j] += weight * rows[r][i] * rows[r][j];
+                    }
+                }
+            }
+        }
+        const w = solve3x3(ata, atb);
+        if (!w) {
+            return null;
+        }
+        const maxStep = 4.0 * Math.PI / 180;
+        const n = norm3(w);
+        return n > maxStep ? scale3(w, maxStep / n) : w;
+    }
+
     function scoreBlindRotation(catalog, detections, rot, options = {}) {
         const radius = (Number.isFinite(options.blindMatchRadiusDeg) ? options.blindMatchRadiusDeg : 2.2) * Math.PI / 180;
-        const radius2 = radius * radius;
         const usedStars = new Set();
+        const usedDetections = new Set();
         const matches = [];
-        let distractors = 0;
-        let conflicts = 0;
-        let score = 0;
+        const candidates = [];
         const maxTest = Number.isFinite(options.maxBlindVerifyDetections) ? options.maxBlindVerifyDetections : 55;
         const dets = detections.slice(0, maxTest);
         for (const detection of dets) {
             const transformed = applyRot3(rot, detection.vector);
-            let best = null;
-            let bestD = Infinity;
-            let secondD = Infinity;
             for (const star of catalog) {
                 const d = angularDistance(transformed, star.vector);
-                if (d < bestD) {
-                    secondD = bestD;
-                    bestD = d;
-                    best = star;
-                } else if (d < secondD) {
-                    secondD = d;
+                if (d > radius) {
+                    continue;
                 }
+                const detRank = Number.isFinite(detection.rank) ? detection.rank : 99;
+                const rankPenalty = Math.min(1.5, Math.abs(star.rank - detRank) / 35);
+                const brightnessBonus = 0.15 * Math.max(0, 4.2 - star.mag);
+                candidates.push({
+                    star,
+                    detection,
+                    transformedVector: transformed,
+                    distance: d * 180 / Math.PI,
+                    angularDistanceRad: d,
+                    cost: d / radius + rankPenalty - brightnessBonus,
+                });
             }
-            if (!best || bestD * bestD > radius2) {
-                distractors += 1;
-                score -= 0.20;
-                continue;
-            }
-            if (usedStars.has(best.key)) {
+        }
+        candidates.sort((a, b) => a.cost - b.cost || a.angularDistanceRad - b.angularDistanceRad);
+
+        let conflicts = 0;
+        for (const candidate of candidates) {
+            if (usedStars.has(candidate.star.key)) {
                 conflicts += 1;
-                score -= 1.5;
                 continue;
             }
-            usedStars.add(best.key);
-            const bright = Math.max(0, 4.2 - best.mag) / 4.2;
-            const detRank = Number.isFinite(detection.rank) ? detection.rank : 99;
-            const rankAgreement = 1 - Math.min(1, Math.abs(best.rank - detRank) / 55);
-            const ambiguityPenalty = secondD < radius * 1.8 ? 0.35 : 0;
-            score += 4.0 + 5.0 * bright + 1.2 * rankAgreement - 2.5 * bestD / radius - ambiguityPenalty;
+            if (usedDetections.has(candidate.detection.id)) {
+                conflicts += 1;
+                continue;
+            }
+            usedStars.add(candidate.star.key);
+            usedDetections.add(candidate.detection.id);
             matches.push({
-                star: best,
-                detection,
-                distance: bestD * 180 / Math.PI,
-                angularDistanceRad: bestD,
-                projectedX: detection.x,
-                projectedY: detection.y,
-                correctedX: detection.x,
-                correctedY: detection.y,
+                star: candidate.star,
+                detection: candidate.detection,
+                transformedVector: candidate.transformedVector,
+                distance: candidate.distance,
+                angularDistanceRad: candidate.angularDistanceRad,
+                projectedX: candidate.detection.x,
+                projectedY: candidate.detection.y,
+                correctedX: candidate.detection.x,
+                correctedY: candidate.detection.y,
                 residualDx: 0,
                 residualDy: 0,
             });
         }
+
+        let score = -0.20 * (dets.length - usedDetections.size);
+        for (const match of matches) {
+            const bright = Math.max(0, 4.2 - match.star.mag) / 4.2;
+            const detRank = Number.isFinite(match.detection.rank) ? match.detection.rank : 99;
+            const rankAgreement = 1 - Math.min(1, Math.abs(match.star.rank - detRank) / 55);
+            score += 4.0 + 5.0 * bright + 1.2 * rankAgreement - 10.0 * match.angularDistanceRad / radius;
+        }
+        const distractors = dets.length - usedDetections.size;
         matches.sort((a, b) => a.star.mag - b.star.mag || a.angularDistanceRad - b.angularDistanceRad);
         return {score, matches, distractors, conflicts};
+    }
+
+    function refineBlindRotation(catalog, detections, rot, options = {}) {
+        let currentRot = rot.slice();
+        let best = scoreBlindRotation(catalog, detections, currentRot, {
+            ...options,
+            blindMatchRadiusDeg: Number.isFinite(options.blindRefineRadiusDeg) ? options.blindRefineRadiusDeg : 2.6,
+        });
+        best.rotation = currentRot;
+        const iterations = Number.isFinite(options.blindRefineIterations) ? options.blindRefineIterations : 5;
+        for (let iter = 0; iter < iterations; iter += 1) {
+            const correction = smallRotationCorrection(best.matches);
+            if (!correction || norm3(correction) < 1e-7) {
+                break;
+            }
+            const correctionOptions = [
+                matMul3x3(skewRotationMatrix(correction), currentRot),
+                matMul3x3(skewRotationMatrix(scale3(correction, -1)), currentRot),
+                matMul3x3(currentRot, skewRotationMatrix(correction)),
+                matMul3x3(currentRot, skewRotationMatrix(scale3(correction, -1))),
+            ];
+            let candidate = null;
+            for (const candidateRot of correctionOptions) {
+                const scored = scoreBlindRotation(catalog, detections, candidateRot, {
+                    ...options,
+                    blindMatchRadiusDeg: Number.isFinite(options.blindRefineRadiusDeg) ? options.blindRefineRadiusDeg : 2.6,
+                });
+                scored.rotation = candidateRot;
+                if (!candidate || scored.score > candidate.score) {
+                    candidate = scored;
+                }
+            }
+            if (!candidate || candidate.matches.length < Math.max(3, best.matches.length - 2) ||
+                    candidate.score < best.score - 2.0) {
+                break;
+            }
+            currentRot = candidate.rotation;
+            best = candidate;
+        }
+        const final = scoreBlindRotation(catalog, detections, currentRot, options);
+        final.rotation = currentRot;
+        return final.score >= best.score - 1.0 || final.matches.length >= best.matches.length ?
+            final : best;
+    }
+
+    function transposeRot3(rot) {
+        return [
+            rot[0], rot[3], rot[6],
+            rot[1], rot[4], rot[7],
+            rot[2], rot[5], rot[8],
+        ];
+    }
+
+    function projectBlindCatalogStar(star, rot, options = {}) {
+        const width = finiteNumber(options.imageWidth, 0);
+        const height = finiteNumber(options.imageHeight, 0);
+        const f1 = finiteNumber(options.f1, NaN);
+        const radialAlpha = finiteNumber(options.radialAlpha, NaN);
+        if (!(width > 0 && height > 0 && f1 > 0 && radialAlpha > 0)) {
+            return null;
+        }
+        const cameraVector = applyRot3(transposeRot3(rot), star.vector);
+        if (!cameraVector || cameraVector[2] <= 0) {
+            return null;
+        }
+        const theta = Math.acos(Math.max(-1, Math.min(1, cameraVector[2])));
+        const sint = Math.sin(theta);
+        const f2 = Number.isFinite(options.preflattenF2) ? options.preflattenF2 : f1 * width / height;
+        const du = Number.isFinite(options.du) ? options.du : 0;
+        const dv = Number.isFinite(options.dv) ? options.dv : 0;
+        let dx = 0;
+        let dy = 0;
+        if (sint > 1e-12) {
+            const rho = Math.sin(radialAlpha * theta);
+            dx = f1 * rho * cameraVector[0] / sint;
+            dy = f2 * rho * cameraVector[1] / sint;
+        }
+        const x = width * (0.5 + du + dx) - 1;
+        const y = height * (0.5 + dv + dy) - 1;
+        if (!Number.isFinite(x) || !Number.isFinite(y) ||
+                x < -0.05 * width || x > 1.05 * width ||
+                y < -0.05 * height || y > 1.05 * height) {
+            return null;
+        }
+        return {x, y};
+    }
+
+    function expandBlindPixelMatches(catalog, detections, candidate, options = {}) {
+        if (!candidate || !candidate.rotation) {
+            return candidate;
+        }
+        const maxDistancePx = Number.isFinite(options.blindPixelMatchRadiusPx) ?
+            options.blindPixelMatchRadiusPx : 70;
+        const projected = [];
+        for (const star of catalog) {
+            const xy = projectBlindCatalogStar(star, candidate.rotation, {
+                ...options,
+                f1: candidate.f1,
+                radialAlpha: candidate.radialAlpha,
+                du: candidate.du,
+                dv: candidate.dv,
+            });
+            if (xy) {
+                projected.push({...star, x: xy.x, y: xy.y});
+            }
+        }
+        const pairs = [];
+        for (const star of projected) {
+            for (const detection of detections) {
+                const distancePx = Math.hypot(detection.x - star.x, detection.y - star.y);
+                if (distancePx <= maxDistancePx) {
+                    const detRank = Number.isFinite(detection.rank) ? detection.rank : 99;
+                    const rankPenalty = Math.min(1.5, Math.abs(star.rank - detRank) / 40);
+                    const brightBonus = 0.08 * Math.max(0, 4.2 - star.mag);
+                    pairs.push({star, detection, distancePx, cost: distancePx / maxDistancePx + rankPenalty - brightBonus});
+                }
+            }
+        }
+        pairs.sort((a, b) => a.cost - b.cost || a.distancePx - b.distancePx);
+        const usedStars = new Set();
+        const usedDetections = new Set();
+        const matches = [];
+        for (const pair of pairs) {
+            if (usedStars.has(pair.star.key) || usedDetections.has(pair.detection.id)) {
+                continue;
+            }
+            usedStars.add(pair.star.key);
+            usedDetections.add(pair.detection.id);
+            const angular = pair.detection.vector ?
+                angularDistance(applyRot3(candidate.rotation, pair.detection.vector), pair.star.vector) : NaN;
+            matches.push({
+                star: pair.star,
+                detection: pair.detection,
+                transformedVector: pair.detection.vector ? applyRot3(candidate.rotation, pair.detection.vector) : null,
+                distance: Number.isFinite(angular) ? angular * 180 / Math.PI : pair.distancePx,
+                angularDistanceRad: angular,
+                projectedX: pair.star.x,
+                projectedY: pair.star.y,
+                correctedX: pair.detection.x,
+                correctedY: pair.detection.y,
+                residualDx: pair.detection.x - pair.star.x,
+                residualDy: pair.detection.y - pair.star.y,
+            });
+        }
+        if (matches.length < Math.max(candidate.matches.length + 3, 10)) {
+            return candidate;
+        }
+        matches.sort((a, b) => a.star.mag - b.star.mag || a.distance - b.distance);
+        const score = matches.reduce((acc, match) => {
+            const bright = Math.max(0, 4.2 - match.star.mag) / 4.2;
+            const px = Math.hypot(match.residualDx, match.residualDy);
+            return acc + 4.0 + 5.0 * bright - 5.0 * px / maxDistancePx;
+        }, -0.20 * (detections.length - usedDetections.size));
+        return {
+            ...candidate,
+            matches,
+            rawMatches: matches,
+            score: Math.max(candidate.score, score),
+            pixelExpanded: true,
+        };
+    }
+
+    function vectorizeBlindDetections(detections, options, f1, radialAlpha, du, dv) {
+        const vectorOptions = {...options, preflattenDu: du, preflattenDv: dv};
+        return detections
+            .map((detection, index) => ({
+                ...detection,
+                vector: optmod2DetectionVector(detection, vectorOptions, f1, radialAlpha),
+                rank: Number.isFinite(detection.rank) ? detection.rank : index + 1,
+            }))
+            .filter(detection => detection.vector);
+    }
+
+    function refineBlindPreflatten(catalog, detections, candidate, options = {}) {
+        if (!candidate || !candidate.rotation) {
+            return candidate;
+        }
+        let best = candidate;
+        const stepSets = [
+            {f1: 0.06, radialAlpha: 0.10, du: 0.035, dv: 0.035},
+            {f1: 0.03, radialAlpha: 0.05, du: 0.018, dv: 0.018},
+            {f1: 0.015, radialAlpha: 0.025, du: 0.009, dv: 0.009},
+        ];
+        const evaluate = (f1, radialAlpha, du, dv, seedRot) => {
+            if (!(f1 > 0.35 && f1 < 1.25 && radialAlpha > 0.45 && radialAlpha < 1.25 &&
+                    Math.abs(du) < 0.16 && Math.abs(dv) < 0.16)) {
+                return null;
+            }
+            const vectorDetections = vectorizeBlindDetections(detections, options, f1, radialAlpha, du, dv);
+            if (vectorDetections.length < 6) {
+                return null;
+            }
+            const refined = refineBlindRotation(catalog, vectorDetections, seedRot, options);
+            return {
+                ...refined,
+                rotation: refined.rotation || seedRot,
+                f1,
+                radialAlpha,
+                du,
+                dv,
+                vectorDetections,
+                detectionTriangleCount: candidate.detectionTriangleCount,
+            };
+        };
+        for (const steps of stepSets) {
+            let improved = true;
+            let guard = 0;
+            while (improved && guard < 18) {
+                improved = false;
+                guard += 1;
+                const trials = [
+                    {name: "f1", delta: steps.f1},
+                    {name: "f1", delta: -steps.f1},
+                    {name: "radialAlpha", delta: steps.radialAlpha},
+                    {name: "radialAlpha", delta: -steps.radialAlpha},
+                    {name: "du", delta: steps.du},
+                    {name: "du", delta: -steps.du},
+                    {name: "dv", delta: steps.dv},
+                    {name: "dv", delta: -steps.dv},
+                ];
+                for (const trial of trials) {
+                    const params = {
+                        f1: best.f1,
+                        radialAlpha: best.radialAlpha,
+                        du: best.du,
+                        dv: best.dv,
+                    };
+                    params[trial.name] += trial.delta;
+                    const scored = evaluate(params.f1, params.radialAlpha, params.du, params.dv, best.rotation);
+                    if (scored && scored.score > best.score + 0.75) {
+                        best = scored;
+                        improved = true;
+                    }
+                }
+            }
+        }
+        return best;
     }
 
     function triangleRecords(points, options = {}) {
@@ -1083,25 +1437,31 @@
                                     continue;
                                 }
                                 seen.add(key);
-                                const candidate = scoreBlindRotation(catalog, vectorDetections, rot, options);
+                                let candidate = scoreBlindRotation(catalog, vectorDetections, rot, options);
+                                const seedMedian = candidate.matches.length ?
+                                    median(candidate.matches.map(match => match.distance)) : Infinity;
+                                if (candidate.matches.length >= 5 && seedMedian <= 1.6) {
+                                    candidate = refineBlindRotation(catalog, vectorDetections, rot, options);
+                                }
                                 scored += 1;
                                 if (!best || candidate.score > best.score) {
                                     best = {
                                         ...candidate,
-                                        rotation: rot,
+                                        rotation: candidate.rotation || rot,
                                         f1,
                                         radialAlpha,
                                         du,
                                         dv,
+                                        vectorDetections,
                                         detectionTriangleCount: detectionTriangles.length,
                                     };
                                 }
                                 const candidateMedian = candidate.matches.length ?
                                     median(candidate.matches.map(match => match.distance)) : Infinity;
                                 if (candidate.matches.length >=
-                                        (Number.isFinite(options.blindEarlyAcceptMatches) ? options.blindEarlyAcceptMatches : 8) &&
+                                        (Number.isFinite(options.blindEarlyAcceptMatches) ? options.blindEarlyAcceptMatches : 14) &&
                                         candidateMedian <=
-                                        (Number.isFinite(options.blindEarlyAcceptMedianDeg) ? options.blindEarlyAcceptMedianDeg : 0.8)) {
+                                        (Number.isFinite(options.blindEarlyAcceptMedianDeg) ? options.blindEarlyAcceptMedianDeg : 0.5)) {
                                     earlyAccepted = true;
                                     break;
                                 }
@@ -1138,6 +1498,8 @@
                 preflattenCount,
             };
         }
+        best = refineBlindPreflatten(catalog, normalizedDetections, best, options);
+        best = expandBlindPixelMatches(catalog, best.vectorDetections || normalizedDetections, best, options);
         const minMatches = Number.isFinite(options.minMatches) ? options.minMatches : 6;
         const medianDistance = best.matches.length ? median(best.matches.map(match => match.distance)) : Infinity;
         const status = best.matches.length >= minMatches ?
