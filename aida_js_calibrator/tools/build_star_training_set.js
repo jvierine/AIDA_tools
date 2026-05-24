@@ -191,12 +191,12 @@ function drawCircle(imageData, cx, cy, radius, color) {
 
 function magnitudeRadius(mag) {
     if (mag <= 2.0) {
-        return 10;
+        return 16;
     }
     if (mag <= 4.0) {
-        return 7;
+        return 12;
     }
-    return 5;
+    return 9;
 }
 
 function escapeXml(value) {
@@ -219,8 +219,8 @@ function writeOverlaySvg(testCase, stars, detections, overlayDir) {
     const imageHref = path.relative(overlayDir, path.join(IMAGE_DIR, testCase.image)).replace(/\\/g, "/");
     items.push(`<image href="${escapeXml(imageHref)}" x="0" y="0" width="${testCase.width}" height="${testCase.height}" />`);
     for (const detection of detections) {
-        items.push(circleSvg(detection.x, detection.y, 4, "#000"));
-        items.push(circleSvg(detection.x, detection.y, 3, "#ffd940"));
+        items.push(circleSvg(detection.x, detection.y, 8, "#000"));
+        items.push(circleSvg(detection.x, detection.y, 7, "#ffd940"));
     }
     for (const star of stars) {
         const radius = magnitudeRadius(star.mag);
