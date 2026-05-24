@@ -1534,6 +1534,7 @@ ${reviewHtml}
 
 function pageHtml(results) {
     const generated = new Date().toISOString();
+    const plural = results.length === 1 ? "case" : "cases";
     return `<!doctype html>
 <html lang="en">
 <head>
@@ -1588,22 +1589,65 @@ h2 { margin: 0 0 8px; font-size: 20px; }
 <body>
 <header>
 <h1>AIDA Calibrator Star-Fit Test Report</h1>
-<p class="intro">Generated ${escapeHtml(generated)}. The report sweeps the tracked <code>python/examples/allsky7/*first1s.png</code> frames with their matching latitude, longitude, timestamp, and optpar metadata. A known-good lens model creates an oracle truth map between Yale catalogue stars and image detections; this validates the detector and shows the best available fit if the star identities are known. Each case also reports a separate GUI-style auto-identify simulation that starts from the default lens state, uses blind asterisms to seed the model, and then expands with projected matching. Green circles are oracle-certified detections used for the validation fit, cyan circles are fitted lens-model positions, red circles are catalogue stars under the known-good optpar model, and yellow dots are raw automatic detections. Brown-Conrady cases use light coefficient regularization.</p>
+<p class="intro">Generated ${escapeHtml(generated)} for ${results.length} ${plural}. The report reads JSON cases from <code>aida_js_calibrator/test_cases/</code>; each case contains image metadata and an <code>[optmod, ...optpar]</code> vector. A known-good lens model creates an oracle truth map between Yale catalogue stars and image detections; this validates the detector and shows the best available fit if the star identities are known. Each case also reports a separate GUI-style auto-identify simulation that starts from the default lens state, uses blind asterisms to seed the model, and then expands with projected matching. Green circles are oracle-certified detections used for the validation fit, cyan circles are fitted lens-model positions, red circles are catalogue stars under the known-good optpar model, and yellow dots are raw automatic detections. Brown-Conrady cases use light coefficient regularization.</p>
 </header>
 ${results.map(caseHtml).join("\n")}
 </body>
 </html>`;
 }
 
+function normalizeCliFilter(value) {
+    return String(value || "")
+        .trim()
+        .replace(/^--case(?:=)?/, "")
+        .toLowerCase();
+}
+
+function caseMatchesFilter(testCase, filter) {
+    const haystack = [
+        testCase.id,
+        testCase.title,
+        testCase.image,
+        testCase.sourceImage,
+        testCase.sourceH5,
+        testCase.sourceJson,
+    ].filter(Boolean).join(" ").toLowerCase();
+    return haystack.includes(filter);
+}
+
+function outputNameForFilters(filters) {
+    if (filters.length === 0) {
+        return "index.html";
+    }
+    const slug = filters.join("-")
+        .replace(/[^a-z0-9_-]+/g, "-")
+        .replace(/^-+|-+$/g, "")
+        .slice(0, 80) || "filtered";
+    return `index-${slug}.html`;
+}
+
+function selectCases(cases, filters) {
+    if (filters.length === 0) {
+        return cases;
+    }
+    return cases.filter(testCase => filters.some(filter => caseMatchesFilter(testCase, filter)));
+}
+
 async function main() {
     fs.mkdirSync(OUT_DIR, {recursive: true});
-    const cases = buildCases();
+    const filters = process.argv.slice(2)
+        .map(normalizeCliFilter)
+        .filter(Boolean);
+    const cases = selectCases(buildCases(), filters);
+    if (cases.length === 0) {
+        throw new Error(`no test cases matched filter(s): ${filters.join(", ")}`);
+    }
     const results = [];
     for (const testCase of cases) {
         process.stderr.write(`analyzing ${testCase.title}\n`);
         results.push(await analyzeCase(testCase));
     }
-    const outfile = path.join(OUT_DIR, "index.html");
+    const outfile = path.join(OUT_DIR, outputNameForFilters(filters));
     fs.writeFileSync(outfile, pageHtml(results));
     process.stdout.write(`${outfile}\n`);
 }
