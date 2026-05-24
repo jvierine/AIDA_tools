@@ -13,9 +13,9 @@ Open `index.html` directly in a browser. No local web server is needed.
 - Reads UTC time and observer position from EXIF metadata when available.
 - Falls back to known allsky7 filename/station metadata when possible.
 - Uses the embedded bright-star catalog and AIDA camera projection code.
-- Provides an opt-in automatic star identifier that runs the browser star
-  finder, compares detections with projected Yale bright-star catalog positions,
-  and adds plausible pairings after the field of view is roughly aligned.
+- Provides an opt-in automatic star identifier that runs a bounded bright-star
+  finder, keeps at most the top 50 image detections, compares them with Yale
+  catalog stars brighter than magnitude 4, and adds plausible pairings.
 - Supports the self-contained parametric AIDA/MATLAB lens models (`optmod 1`,
   `2`, `3`, `4`, `5`, and `12`) plus a Brown-Conrady radial/tangential
   distortion model under browser `optmod 20`; the selected optical model is
@@ -42,8 +42,10 @@ Open `index.html` directly in a browser. No local web server is needed.
    - left-drag to move the zenith point,
    - right-drag to rotate the field,
    - mouse wheel to scale `f1` and `f2` together.
-6. Optionally click `Auto identify stars` after the rough alignment is close.
-   This is a user-requested action, not a startup default.
+6. Optionally click `Auto identify stars`. This is a user-requested action, not
+   a startup default. The first pass uses bright-star triangle asterisms and a
+   KD-tree lookup so it can still help when the current lens state is only a
+   rough guess; the current projected lens state is used as a fallback.
 7. Hold `S` and click an image star. The local star position is refined with
    the interpolated density estimate.
 8. Release `S`, then click the matching red catalog star.
@@ -67,8 +69,9 @@ Open `index.html` directly in a browser. No local web server is needed.
 - `Z`: show the zoom/magnifier view.
 - `Cmd/Ctrl Z`: undo the most recent accepted fit.
 - `Esc`: cancel the current interaction or close the density popup.
-- `Auto identify stars`: run the opt-in detector/catalog matcher and add normal
-  star pairings for the selected limiting magnitude.
+- `Auto identify stars`: run the opt-in top-50 bright-star detector and
+  Yale-catalog matcher. The automatic matcher is capped at magnitude 4 even if
+  the display limiting magnitude is fainter.
 
 The automatic identifier is deliberately not run by default. Manual KDE-based
 star picking remains the most controlled way to add or correct pairings.

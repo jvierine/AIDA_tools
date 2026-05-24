@@ -125,6 +125,66 @@ function syntheticDetections(projected, offset = {dx: 23.4, dy: -16.2}) {
     return detections;
 }
 
+function skyPlaneYaleStars(maxMag = 4.0) {
+    return AidaTools.visibleStars(YaleCatalog, DATE, LAT_DEG, LON_DEG, maxMag, 88)
+        .map((star, index) => {
+            const r = star.ze / (Math.PI / 2);
+            return {
+                ...star,
+                x: r * Math.sin(star.az),
+                y: -r * Math.cos(star.az),
+                key: catalogKey(star),
+                rank: index + 1,
+            };
+        })
+        .sort((a, b) => a.mag - b.mag || a.key.localeCompare(b.key));
+}
+
+function affinePoint(point) {
+    return {
+        x: 500 * point.x - 85 * point.y + WIDTH / 2,
+        y: 60 * point.x + 500 * point.y + HEIGHT / 2,
+    };
+}
+
+function syntheticAsterismDetections(catalog) {
+    const detections = [];
+    let id = 1;
+    for (let i = 0; i < Math.min(50, catalog.length); i += 1) {
+        if (i % 13 === 0) {
+            continue;
+        }
+        const star = catalog[i];
+        const xy = affinePoint(star);
+        if (xy.x < 40 || xy.x > WIDTH - 40 || xy.y < 40 || xy.y > HEIGHT - 40) {
+            continue;
+        }
+        detections.push({
+            id,
+            x: xy.x + (pseudoNoise(i, 11) - 0.5) * 1.2,
+            y: xy.y + (pseudoNoise(i, 12) - 0.5) * 1.2,
+            score: 1e6 * Math.pow(10, -0.4 * star.mag) + 1000 / (i + 1),
+            truthKey: star.key,
+        });
+        id += 1;
+    }
+    for (let i = 0; i < 15; i += 1) {
+        detections.push({
+            id,
+            x: 50 + pseudoNoise(i, 13) * (WIDTH - 100),
+            y: 50 + pseudoNoise(i, 14) * (HEIGHT - 100),
+            score: 800 + pseudoNoise(i, 15) * 400,
+            truthKey: null,
+        });
+        id += 1;
+    }
+    detections.sort((a, b) => b.score - a.score);
+    detections.forEach((detection, index) => {
+        detection.rank = index + 1;
+    });
+    return detections;
+}
+
 test("auto identifier recovers synthetic Yale-catalog stars for all lens models", () => {
     for (const optmod of MODELS) {
         for (const scenario of SCENARIOS) {
@@ -193,4 +253,37 @@ test("auto identifier reports no matches without a rough geometric agreement", (
     });
     assert.ok(result.matches.length < 12);
     assert.match(result.status, /rough-align/);
+});
+
+test("KD-tree range queries return nearby two-dimensional points", () => {
+    const tree = new AutoIdentifier.KdTree2([
+        {x: 0, y: 0, payload: "origin"},
+        {x: 3, y: 4, payload: "five"},
+        {x: 12, y: 0, payload: "far"},
+    ]);
+    const hits = tree.range(0, 0, 5.1);
+    assert.deepEqual(hits.map(hit => hit.payload), ["origin", "five"]);
+});
+
+test("asterism matcher identifies bright Yale stars without current lens projection", () => {
+    const catalog = skyPlaneYaleStars(4.0);
+    assert.ok(catalog.length > 40);
+    const detections = syntheticAsterismDetections(catalog);
+    const result = AutoIdentifier.identifyStarsByAsterisms(catalog, detections, {
+        imageWidth: WIDTH,
+        imageHeight: HEIGHT,
+        maxMagnitude: 4.0,
+        maxDetections: 50,
+        maxCatalogStars: 80,
+        asterismMatchRadiusPx: 18,
+        triangleSignatureRadius: 0.012,
+        minMatches: 10,
+    });
+    const correct = result.matches.filter(match => match.detection.truthKey === match.star.key);
+    assert.ok(result.scoredTransforms > 0);
+    assert.ok(result.matches.length >= 20, `expected >=20 asterism matches, got ${result.matches.length}`);
+    assert.ok(
+        correct.length / result.matches.length >= 0.95,
+        `expected >=95% correct asterism matches, got ${correct.length}/${result.matches.length}`,
+    );
 });
