@@ -492,6 +492,54 @@ function formatBestParameterVector(testCase, fit) {
     return [testCase.optmod, ...fit.optpar].map(formatFitNumber).join(", ");
 }
 
+function formatKnownParameterVector(testCase) {
+    return [testCase.optmod, ...testCase.optpar].map(formatFitNumber).join(", ");
+}
+
+function parameterNamesForModel(optmod, parameterCount) {
+    if (optmod === 20) {
+        return ["f1", "f2", "alpha", "beta", "gamma", "du", "dv", "k1", "k2", "k3", "p1", "p2"];
+    }
+    const names = ["f1", "f2", "alpha", "beta", "gamma", "du", "dv", "radial"];
+    while (names.length < parameterCount) {
+        names.push(`p${names.length}`);
+    }
+    return names.slice(0, parameterCount);
+}
+
+function assessParameterCloseness(testCase, fit) {
+    const deltas = fit.optpar.map((value, index) => value - testCase.optpar[index]);
+    const names = parameterNamesForModel(testCase.optmod, testCase.optpar.length);
+    const maxAbs = values => values.length ? Math.max(...values.map(Math.abs)) : 0;
+    const focal = maxAbs(deltas.slice(0, 2));
+    const anglesDeg = maxAbs(deltas.slice(2, 5));
+    const principal = maxAbs(deltas.slice(5, 7));
+    const principalPx = principal * Math.max(testCase.width, testCase.height);
+    const distortion = maxAbs(deltas.slice(7));
+    const vector = [0, ...deltas];
+    return {
+        names,
+        deltas,
+        vector,
+        focal,
+        anglesDeg,
+        principal,
+        principalPx,
+        distortion,
+        maxAbs: maxAbs(deltas),
+    };
+}
+
+function formatDeltaVector(parameterCloseness) {
+    return parameterCloseness.vector.map(formatFitNumber).join(", ");
+}
+
+function formatNamedDeltas(parameterCloseness) {
+    return parameterCloseness.names
+        .map((name, index) => `${name}=${formatFitNumber(parameterCloseness.deltas[index])}`)
+        .join(", ");
+}
+
 function percentile(sortedValues, fraction) {
     if (!sortedValues.length) {
         return Infinity;
@@ -640,6 +688,7 @@ async function analyzeCase(testCase) {
     }
     const fit = sweep.length ? sweep[sweep.length - 1] : fitFromPairs(matches, testCase, start);
     const lensAgreement = assessLensModelAgreement(testCase, fit);
+    const parameterCloseness = assessParameterCloseness(testCase, fit);
     return {
         case: testCase,
         detections: detectionResult.detections,
@@ -653,6 +702,7 @@ async function analyzeCase(testCase) {
         sweep,
         fit,
         lensAgreement,
+        parameterCloseness,
         startRms: residualRmsPx(fitResiduals(start, matches.slice(0, Math.min(matches.length, testCase.sweepCounts.at(-1))), testCase, false)),
     };
 }
@@ -665,6 +715,7 @@ function caseHtml(result) {
     const model = c.optmod === 20 ? "Brown-Conrady" : `optmod ${c.optmod}`;
     const score = result.identificationScore;
     const agreement = result.lensAgreement;
+    const closeness = result.parameterCloseness;
     const lensStatus = agreement.achieved ? "YES" : "NO";
     const autoIdStatus = `known-lens validation: ${score.correct}/${score.total} auto-ID pairs correct, ` +
         `${score.incorrect} wrong, ${score.unknown} outside truth map`;
@@ -672,6 +723,12 @@ function caseHtml(result) {
         `known-vs-fit projection RMS ${agreement.rms.toFixed(2)} px, ` +
         `95% ${agreement.p95.toFixed(2)} px over ${agreement.comparedStars}/${agreement.checkedStars} catalogue stars ` +
         `(threshold ${agreement.thresholdPx.toFixed(1)} px)`;
+    const parameterStatus = `parameter closeness to known model: ` +
+        `max |df| ${formatFitNumber(closeness.focal)}, ` +
+        `max |d angle| ${closeness.anglesDeg.toFixed(3)} deg, ` +
+        `max |d principal| ${formatFitNumber(closeness.principal)} ` +
+        `(~${closeness.principalPx.toFixed(1)} px), ` +
+        `max |d distortion| ${formatFitNumber(closeness.distortion)}`;
     return `<section class="case-card" id="${escapeHtml(c.id)}">
         <h2>${escapeHtml(c.title)}</h2>
         <div class="meta">
@@ -683,7 +740,11 @@ function caseHtml(result) {
         <p class="status">${escapeHtml(result.autoIdentification.status)}</p>
         <p class="status">${escapeHtml(autoIdStatus)}</p>
         <p class="status ${agreement.achieved ? "ok" : "warn"}">${escapeHtml(lensAgreementStatus)}</p>
+        <p class="status">${escapeHtml(parameterStatus)}</p>
+        <p class="status mono">known good [optmod, ...optpar]: [${escapeHtml(formatKnownParameterVector(c))}]</p>
         <p class="status">best fit [optmod, ...optpar]: [${escapeHtml(formatBestParameterVector(c, result.fit))}]</p>
+        <p class="status mono">delta [doptmod, ...doptpar]: [${escapeHtml(formatDeltaVector(closeness))}]</p>
+        <p class="status mono">named parameter deltas: ${escapeHtml(formatNamedDeltas(closeness))}</p>
         <div class="summary-grid">
             <div><strong>${result.detections.length}</strong><span>detections</span></div>
             <div><strong>${result.catalog.length}</strong><span>catalog stars</span></div>
@@ -693,6 +754,8 @@ function caseHtml(result) {
             <div><strong>${result.fit.rms.toFixed(2)} px</strong><span>fit RMS</span></div>
             <div><strong>${agreement.achieved ? "yes" : "no"}</strong><span>correct lens achieved</span></div>
             <div><strong>${agreement.rms.toFixed(2)} px</strong><span>known-vs-fit RMS</span></div>
+            <div><strong>${closeness.anglesDeg.toFixed(2)} deg</strong><span>max angle delta</span></div>
+            <div><strong>${closeness.principalPx.toFixed(1)} px</strong><span>max principal delta</span></div>
         </div>
         <p class="sweep"><strong>fit sweep:</strong> ${escapeHtml(sweepText || "not enough pairs")}</p>
         <div class="visual-grid">
@@ -733,6 +796,7 @@ h2 { margin: 0 0 8px; font-size: 20px; }
 .status, .sweep { color: #b9c4d4; }
 .status.ok { color: #8ef0a1; }
 .status.warn { color: #ffb86b; }
+.mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace; font-size: 12px; overflow-wrap: anywhere; }
 .summary-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(145px, 1fr)); gap: 10px; margin: 14px 0; }
 .summary-grid div { padding: 10px; background: #202633; border: 1px solid #394457; border-radius: 6px; }
 .summary-grid strong { display: block; font-size: 20px; color: #ffffff; }

@@ -16,6 +16,7 @@ h2 { margin: 0 0 8px; font-size: 20px; }
 .status, .sweep { color: #b9c4d4; }
 .status.ok { color: #8ef0a1; }
 .status.warn { color: #ffb86b; }
+.mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace; font-size: 12px; overflow-wrap: anywhere; }
 .summary-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(145px, 1fr)); gap: 10px; margin: 14px 0; }
 .summary-grid div { padding: 10px; background: #202633; border: 1px solid #394457; border-radius: 6px; }
 .summary-grid strong { display: block; font-size: 20px; color: #ffffff; }
@@ -49,7 +50,7 @@ h2 { margin: 0 0 8px; font-size: 20px; }
 <body>
 <header>
 <h1>AIDA Calibrator Star-Fit Test Report</h1>
-<p class="intro">Generated 2026-05-24T13:36:18.509Z. The report uses the same real-image fixtures as the unit tests. A known-good lens model first creates a truth map between Yale catalogue stars and image detections; the automatic star-identification result is then scored against that map. Green circles are detected truth-map stars used for fitting, cyan circles are fitted lens-model positions, red circles are unmatched catalogue stars under the fitted model, and yellow dots are raw automatic detections. Brown-Conrady cases use light coefficient regularization.</p>
+<p class="intro">Generated 2026-05-24T13:40:10.966Z. The report uses the same real-image fixtures as the unit tests. A known-good lens model first creates a truth map between Yale catalogue stars and image detections; the automatic star-identification result is then scored against that map. Green circles are detected truth-map stars used for fitting, cyan circles are fitted lens-model positions, red circles are unmatched catalogue stars under the fitted model, and yellow dots are raw automatic detections. Brown-Conrady cases use light coefficient regularization.</p>
 </header>
 <section class="case-card" id="010095-optmod2">
         <h2>010095 optmod 2</h2>
@@ -62,7 +63,11 @@ h2 { margin: 0 0 8px; font-size: 20px; }
         <p class="status">auto-identify: 22 star pairs, median residual 0.4 px, translation dx/dy -0.3/-0.2 px</p>
         <p class="status">known-lens validation: 21/22 auto-ID pairs correct, 1 wrong, 0 outside truth map</p>
         <p class="status ok">correct lens model achieved: YES; known-vs-fit projection RMS 0.54 px, 95% 1.06 px over 41/41 catalogue stars (threshold 5.0 px)</p>
+        <p class="status">parameter closeness to known model: max |df| 0.00523778043851, max |d angle| 0.024 deg, max |d principal| 0.000797935330209 (~1.5 px), max |d distortion| 0.00342527839391</p>
+        <p class="status mono">known good [optmod, ...optpar]: [2, 0.784905, 1.393641, -60.8, 35.2, 74.5, 0.042289, 0.00841, 0.895509]</p>
         <p class="status">best fit [optmod, ...optpar]: [2, 0.782174129956, 1.38840321956, -60.7808244413, 35.1761477778, 74.5186147553, 0.0419031418978, 0.00761206466979, 0.898934278394]</p>
+        <p class="status mono">delta [doptmod, ...doptpar]: [0, -0.0027308700437, -0.00523778043851, 0.0191755586552, -0.0238522221961, 0.018614755298, -0.000385858102185, -0.000797935330209, 0.00342527839391]</p>
+        <p class="status mono">named parameter deltas: f1=-0.0027308700437, f2=-0.00523778043851, alpha=0.0191755586552, beta=-0.0238522221961, gamma=0.018614755298, du=-0.000385858102185, dv=-0.000797935330209, radial=0.00342527839391</p>
         <div class="summary-grid">
             <div><strong>50</strong><span>detections</span></div>
             <div><strong>41</strong><span>catalog stars</span></div>
@@ -72,6 +77,8 @@ h2 { margin: 0 0 8px; font-size: 20px; }
             <div><strong>0.45 px</strong><span>fit RMS</span></div>
             <div><strong>yes</strong><span>correct lens achieved</span></div>
             <div><strong>0.54 px</strong><span>known-vs-fit RMS</span></div>
+            <div><strong>0.02 deg</strong><span>max angle delta</span></div>
+            <div><strong>1.5 px</strong><span>max principal delta</span></div>
         </div>
         <p class="sweep"><strong>fit sweep:</strong> 8: 0.28 px (10 accepted) / 10: 0.27 px (11 accepted) / 12: 0.48 px (6 accepted) / 14: 0.47 px (7 accepted) / 16: 0.46 px (10 accepted) / 18: 0.45 px (9 accepted)</p>
         <div class="visual-grid">
@@ -253,7 +260,11 @@ h2 { margin: 0 0 8px; font-size: 20px; }
         <p class="status">auto-identify: 40 star pairs, median residual 0.4 px, translation dx/dy 0.1/0.8 px</p>
         <p class="status">known-lens validation: 40/40 auto-ID pairs correct, 0 wrong, 0 outside truth map</p>
         <p class="status ok">correct lens model achieved: YES; known-vs-fit projection RMS 0.74 px, 95% 0.86 px over 134/134 catalogue stars (threshold 5.0 px)</p>
+        <p class="status">parameter closeness to known model: max |df| 0.00414490557171, max |d angle| 0.034 deg, max |d principal| 0.000112223024205 (~0.2 px), max |d distortion| 0.00288640447906</p>
+        <p class="status mono">known good [optmod, ...optpar]: [2, 0.776864, 1.373172, -19.3, 62.6, 20.5, 0.003257, 0.001258, 0.904396]</p>
         <p class="status">best fit [optmod, ...optpar]: [2, 0.779105269047, 1.37731690557, -19.2756206454, 62.5747136602, 20.4659362505, 0.00334356706946, 0.0013702230242, 0.901509595521]</p>
+        <p class="status mono">delta [doptmod, ...doptpar]: [0, 0.0022412690469, 0.00414490557171, 0.0243793546362, -0.0252863398457, -0.0340637495185, 0.0000865670694632, 0.000112223024205, -0.00288640447906]</p>
+        <p class="status mono">named parameter deltas: f1=0.0022412690469, f2=0.00414490557171, alpha=0.0243793546362, beta=-0.0252863398457, gamma=-0.0340637495185, du=0.0000865670694632, dv=0.000112223024205, radial=-0.00288640447906</p>
         <div class="summary-grid">
             <div><strong>50</strong><span>detections</span></div>
             <div><strong>134</strong><span>catalog stars</span></div>
@@ -263,6 +274,8 @@ h2 { margin: 0 0 8px; font-size: 20px; }
             <div><strong>0.49 px</strong><span>fit RMS</span></div>
             <div><strong>yes</strong><span>correct lens achieved</span></div>
             <div><strong>0.74 px</strong><span>known-vs-fit RMS</span></div>
+            <div><strong>0.03 deg</strong><span>max angle delta</span></div>
+            <div><strong>0.2 px</strong><span>max principal delta</span></div>
         </div>
         <p class="sweep"><strong>fit sweep:</strong> 8: 0.21 px (8 accepted) / 10: 0.21 px (11 accepted) / 12: 0.22 px (7 accepted) / 14: 0.36 px (9 accepted) / 16: 0.41 px (11 accepted) / 18: 0.40 px (8 accepted) / 20: 0.44 px (8 accepted) / 24: 0.43 px (9 accepted) / 28: 0.44 px (10 accepted) / 32: 0.46 px (9 accepted) / 36: 0.45 px (9 accepted) / 40: 0.49 px (7 accepted)</p>
         <div class="visual-grid">
@@ -603,7 +616,11 @@ h2 { margin: 0 0 8px; font-size: 20px; }
         <p class="status">auto-identify: 18 star pairs, median residual 0.4 px, translation dx/dy 0.3/-0.0 px</p>
         <p class="status">known-lens validation: 18/18 auto-ID pairs correct, 0 wrong, 0 outside truth map</p>
         <p class="status ok">correct lens model achieved: YES; known-vs-fit projection RMS 0.80 px, 95% 1.26 px over 43/43 catalogue stars (threshold 5.0 px)</p>
+        <p class="status">parameter closeness to known model: max |df| 0.0176129560524, max |d angle| 0.236 deg, max |d principal| 0.00428376489393 (~8.2 px), max |d distortion| 0.0122867001637</p>
+        <p class="status mono">known good [optmod, ...optpar]: [2, 0.782862, 1.390372, -60.5, 23.5, 76.4, 0.032256, -0.001915, 0.898102]</p>
         <p class="status">best fit [optmod, ...optpar]: [2, 0.793080340296, 1.40798495605, -60.7364102916, 23.5190474794, 76.4585298916, 0.0320319114677, 0.00236876489393, 0.885815299836]</p>
+        <p class="status mono">delta [doptmod, ...doptpar]: [0, 0.0102183402957, 0.0176129560524, -0.23641029164, 0.0190474794157, 0.0585298915813, -0.000224088532335, 0.00428376489393, -0.0122867001637]</p>
+        <p class="status mono">named parameter deltas: f1=0.0102183402957, f2=0.0176129560524, alpha=-0.23641029164, beta=0.0190474794157, gamma=0.0585298915813, du=-0.000224088532335, dv=0.00428376489393, radial=-0.0122867001637</p>
         <div class="summary-grid">
             <div><strong>50</strong><span>detections</span></div>
             <div><strong>43</strong><span>catalog stars</span></div>
@@ -613,6 +630,8 @@ h2 { margin: 0 0 8px; font-size: 20px; }
             <div><strong>0.43 px</strong><span>fit RMS</span></div>
             <div><strong>yes</strong><span>correct lens achieved</span></div>
             <div><strong>0.80 px</strong><span>known-vs-fit RMS</span></div>
+            <div><strong>0.24 deg</strong><span>max angle delta</span></div>
+            <div><strong>8.2 px</strong><span>max principal delta</span></div>
         </div>
         <p class="sweep"><strong>fit sweep:</strong> 8: 0.19 px (10 accepted) / 10: 0.43 px (8 accepted) / 12: 0.42 px (12 accepted) / 14: 0.43 px (8 accepted) / 16: 0.41 px (8 accepted) / 18: 0.43 px (9 accepted)</p>
         <div class="visual-grid">
@@ -796,7 +815,11 @@ h2 { margin: 0 0 8px; font-size: 20px; }
         <p class="status">auto-identify: 14 star pairs, median residual 2.9 px, translation dx/dy 0.4/0.2 px</p>
         <p class="status">known-lens validation: 14/14 auto-ID pairs correct, 0 wrong, 0 outside truth map</p>
         <p class="status warn">correct lens model achieved: NO; known-vs-fit projection RMS 15.32 px, 95% 31.77 px over 156/156 catalogue stars (threshold 8.0 px)</p>
+        <p class="status">parameter closeness to known model: max |df| 0.00211333601323, max |d angle| 1.151 deg, max |d principal| 0.0292115708638 (~117.8 px), max |d distortion| 0.126284072253</p>
+        <p class="status mono">known good [optmod, ...optpar]: [20, 1.411641, 1.052995, -79.7, -27, 93, -0.006571, 0.014468, 0.239385, -0.846254, 1.042227, -0.000576, -0.003371]</p>
         <p class="status">best fit [optmod, ...optpar]: [20, 1.41113779643, 1.05510833601, -79.9709449507, -25.8487092798, 93.0012962751, 0.0226405708638, 0.0175172024952, 0.287665350648, -0.945440079278, 1.16851107225, 0.00830656230943, 0.00271806936466]</p>
+        <p class="status mono">delta [doptmod, ...doptpar]: [0, -0.000503203565639, 0.00211333601323, -0.270944950651, 1.15129072015, 0.00129627512747, 0.0292115708638, 0.0030492024952, 0.0482803506483, -0.0991860792782, 0.126284072253, 0.00888256230943, 0.00608906936466]</p>
+        <p class="status mono">named parameter deltas: f1=-0.000503203565639, f2=0.00211333601323, alpha=-0.270944950651, beta=1.15129072015, gamma=0.00129627512747, du=0.0292115708638, dv=0.0030492024952, k1=0.0482803506483, k2=-0.0991860792782, k3=0.126284072253, p1=0.00888256230943, p2=0.00608906936466</p>
         <div class="summary-grid">
             <div><strong>106</strong><span>detections</span></div>
             <div><strong>156</strong><span>catalog stars</span></div>
@@ -806,6 +829,8 @@ h2 { margin: 0 0 8px; font-size: 20px; }
             <div><strong>2.43 px</strong><span>fit RMS</span></div>
             <div><strong>no</strong><span>correct lens achieved</span></div>
             <div><strong>15.32 px</strong><span>known-vs-fit RMS</span></div>
+            <div><strong>1.15 deg</strong><span>max angle delta</span></div>
+            <div><strong>117.8 px</strong><span>max principal delta</span></div>
         </div>
         <p class="sweep"><strong>fit sweep:</strong> 8: 1.56 px (16 accepted) / 10: 2.64 px (17 accepted) / 12: 2.54 px (24 accepted) / 14: 2.43 px (21 accepted)</p>
         <div class="visual-grid">
