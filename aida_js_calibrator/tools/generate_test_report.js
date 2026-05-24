@@ -42,8 +42,8 @@ const HUMAN_REVIEW_NOTES = new Map([
         note: "human review: automatic detection and fit look good",
     }],
     ["2025_02_19_03_47_01_000_010028_ams0228_first1s", {
-        status: "good",
-        note: "human review: automatic detection and fit look good",
+        status: "outliers",
+        note: "human review: fit is quite good, but a few automatic star identifications are outliers",
     }],
     ["2025_02_19_03_46_01_000_010881_ams0882_first1s", {
         status: "good",
