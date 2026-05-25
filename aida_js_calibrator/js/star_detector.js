@@ -117,15 +117,24 @@
         const height = pixelData.height;
         const data = pixelData.data;
         let flux = 0;
+        let coreFlux = 0;
+        let outerFlux = 0;
+        let shoulderFlux = 0;
+        let shoulderCount = 0;
         let moment = 0;
         let mxx = 0;
         let myy = 0;
         let mxy = 0;
         let saturated = 0;
+        const coreRadius2 = Math.pow(Math.max(1.1, Math.min(1.8, radius * 0.38)), 2);
+        const outerRadius2 = Math.pow(Math.max(1.8, radius * 0.62), 2);
+        const shoulderInner2 = Math.pow(1.4, 2);
+        const shoulderOuter2 = Math.pow(Math.min(radius, 3.4), 2);
         for (let dy = -radius; dy <= radius; dy += 1) {
             const y = Math.max(0, Math.min(height - 1, cy + dy));
             for (let dx = -radius; dx <= radius; dx += 1) {
-                if (dx * dx + dy * dy > radius * radius) {
+                const r2 = dx * dx + dy * dy;
+                if (r2 > radius * radius) {
                     continue;
                 }
                 const x = Math.max(0, Math.min(width - 1, cx + dx));
@@ -135,7 +144,17 @@
                 const sample = grayAt(data, width, x, y);
                 const w = Math.max(0, sample - background);
                 flux += w;
-                moment += w * (dx * dx + dy * dy);
+                if (r2 <= coreRadius2) {
+                    coreFlux += w;
+                }
+                if (r2 >= outerRadius2) {
+                    outerFlux += w;
+                }
+                if (r2 >= shoulderInner2 && r2 <= shoulderOuter2) {
+                    shoulderFlux += w;
+                    shoulderCount += 1;
+                }
+                moment += w * r2;
                 mxx += w * dx * dx;
                 myy += w * dy * dy;
                 mxy += w * dx * dy;
@@ -152,10 +171,15 @@
         const delta = Math.hypot((mxx - myy) / flux, 2 * mxy / flux);
         const minor = Math.max(1e-6, 0.5 * (trace - delta));
         const major = Math.max(minor, 0.5 * (trace + delta));
+        const centerExcess = Math.max(0, grayAt(data, width, cx, cy) - background);
+        const shoulderMean = shoulderCount > 0 ? shoulderFlux / shoulderCount : 0;
         return {
             flux,
             radius: Math.sqrt(Math.max(0, radius2)),
             elongation: Math.sqrt(major / minor),
+            coreFluxFraction: coreFlux / flux,
+            outerFluxFraction: outerFlux / flux,
+            peakDominance: centerExcess / Math.max(1, shoulderMean),
             saturated,
         };
     }
@@ -299,10 +323,42 @@
                 rejectCounts.nonStarShape += 1;
                 continue;
             }
+            const minCoreFluxFraction = Number.isFinite(options.minCoreFluxFraction) ?
+                options.minCoreFluxFraction : 0.14;
+            const maxOuterFluxFraction = Number.isFinite(options.maxOuterFluxFraction) ?
+                options.maxOuterFluxFraction : 0.58;
+            const minPeakDominance = Number.isFinite(options.minPeakDominance) ?
+                options.minPeakDominance : 1.08;
+            const corePower = Number.isFinite(options.coreFluxPenaltyPower) ?
+                options.coreFluxPenaltyPower : 1.5;
+            const peakPower = Number.isFinite(options.peakDominancePenaltyPower) ?
+                options.peakDominancePenaltyPower : 1.4;
+            const outerPower = Number.isFinite(options.outerFluxPenaltyPower) ?
+                options.outerFluxPenaltyPower : 1.35;
+            const elongationPower = Number.isFinite(options.elongationPenaltyPower) ?
+                options.elongationPenaltyPower : 1.7;
+            const centroidOffsetPower = Number.isFinite(options.centroidOffsetPenaltyPower) ?
+                options.centroidOffsetPenaltyPower : 1.15;
+            const centroidOffset = Math.hypot(centroid.x - peak.x, centroid.y - peak.y);
+            const coreShapeFactor = Math.pow(
+                Math.max(0.12, Math.min(1, shape.coreFluxFraction / minCoreFluxFraction)),
+                corePower
+            );
+            const peakShapeFactor = Math.pow(
+                Math.max(0.12, Math.min(1, shape.peakDominance / minPeakDominance)),
+                peakPower
+            );
+            const outerShapePenalty = Math.pow(
+                1 + Math.max(0, shape.outerFluxFraction - maxOuterFluxFraction) * 4.0,
+                outerPower
+            );
+            const elongationPenalty = Math.pow(Math.max(1, shape.elongation), elongationPower);
+            const centroidOffsetPenalty = Math.pow(1 + Math.max(0, centroidOffset - 0.8), centroidOffsetPower);
             const compactness = contrast / Math.pow(Math.max(1, shape.radius), 2.2);
             const saturationPenalty = 1 + 0.18 * shape.saturated;
-            const score = compactness * Math.sqrt(Math.max(1, shape.flux)) /
-                (Math.max(1, shape.elongation) * saturationPenalty);
+            const roundnessFactor = coreShapeFactor * peakShapeFactor;
+            const score = compactness * Math.sqrt(Math.max(1, shape.flux)) * roundnessFactor /
+                (elongationPenalty * outerShapePenalty * centroidOffsetPenalty * saturationPenalty);
             candidates.push({
                 x: centroid.x,
                 y: centroid.y,
@@ -316,6 +372,11 @@
                 background: annulus.background,
                 radius: shape.radius,
                 elongation: shape.elongation,
+                coreFluxFraction: shape.coreFluxFraction,
+                outerFluxFraction: shape.outerFluxFraction,
+                peakDominance: shape.peakDominance,
+                centroidOffset,
+                roundnessFactor,
                 saturated: shape.saturated,
                 score,
             });

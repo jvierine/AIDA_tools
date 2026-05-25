@@ -27,7 +27,7 @@
 
 \title{A Browser-Based Wide-Field Star Calibration Tool for AIDA Camera Models}
 \author{Juha Vierinen \and Bjorn Gustavsson \and Codex}
-\date{Draft for AIDA Browser Calibrator v0.2.4}
+\date{Draft for AIDA Browser Calibrator v0.2.5}
 
 \begin{document}
 \maketitle
@@ -337,6 +337,16 @@ near neighbor proposes a possible three-star correspondence.}
 \label{fig:triangle-signature}
 \end{figure}
 
+\subsection{Rejected Gradient Diagnostic}
+
+An earlier prototype also estimated local direction-cosine gradients for each
+candidate triangle. The idea was to use finite differences of the east and
+north sky-vector components with respect to image \(x\) and \(y\). In practice
+these measurements were too noisy for fisheye and other very wide field
+images, and they did not improve candidate selection beyond the triangle
+signature and support-triangle checks. The current browser implementation does
+not compute or filter on these gradients during asterism search.
+
 \subsection{Candidate Scoring and Seeding}
 
 A triangle correspondence is accepted only if it explains additional stars.
@@ -359,20 +369,87 @@ signature approximation.
 
 \subsection{Lucky Search Stages}
 
-The lucky workflow runs several bounded stages. Early stages use bright stars
-and conservative triangle counts. If no seed is found, later stages allow more
-detections and fainter stars. After a seed exists, projected matching is used
-to add stars near the current model. For \texttt{optmod 2}, the current code
-uses a restricted all-sky style pre-flattening grid that was found to work well
-for allsky7 fisheye images:
+The ``I'm feeling lucky'' workflow is a staged bootstrap and refinement
+procedure. It is designed to avoid committing to weak, ambiguous detections
+until there is some evidence that the image and catalog are already on the
+same geometric track. The main steps are:
+\begin{enumerate}
+  \item \textbf{Detect compact bright peaks.} The detector ranks candidate
+        peaks by contrast, flux, compactness, central concentration, peak
+        dominance, low outer-aperture flux, elongation, saturation, and local
+        crowding. Bad star-finder regions painted by the user are masked.
+  \item \textbf{Blind spherical bootstrap.} Candidate image detections are
+        pre-flattened with a small grid of lens hypotheses and converted to
+        unit vectors. Triangular asterisms from the image are matched against
+        local catalog triangles. The image is also divided into six partially
+        overlapping regions; the search keeps a capped set of promising
+        asterisms from each region so that one cluttered part of the frame
+        does not dominate the search.
+  \item \textbf{Support-triangle verification.} A seed asterism is not accepted
+        by itself. The candidate rotation must extend to neighboring stars:
+        each seed star is tested in additional triangles with nearby provisional
+        matches. These support triangles use the same minimum side length,
+        maximum side length, and minimum height limits as the main asterisms.
+        When regional detection coverage is enabled, support must span at
+        least two image regions. Accepted support triangles are drawn in the
+        GUI as cyan diagnostic asterisms.
+  \item \textbf{Stop on an empty first stage.} If the first blind asterism
+        stage finds no matched stars, the lucky workflow stops. It does not
+        proceed to fainter stars, because the later stages would otherwise have
+        a high chance of following noise or non-star structure.
+  \item \textbf{Seed the lens model and fit bright pairs.} A successful blind
+        match gives an approximate camera rotation and pre-flattening lens
+        parameters. These seed the selected lens model. The browser then fits
+        the brightest automatic pairs first with robust Nelder-Mead and
+        Levenberg-Marquardt sweeps.
+  \item \textbf{Add weaker stars cautiously.} Once a model exists, later stages
+        use projected catalog positions to add fainter detections. Each new
+        weak-star pairing must participate in one or two consistent triangle
+        checks with already trusted pairs before it is accepted. This prevents
+        isolated false detections from entering the fit merely because they are
+        near a projected catalog star.
+  \item \textbf{Reject harmful expansion.} Expansion stages are guarded by the
+        fit residual. If newly added automatic stars increase the RMS error too
+        much, that stage is reverted. Automatic outliers can also be pruned and
+        the fit repeated.
+\end{enumerate}
+
+There is a deliberate difference between the allsky7-style path and the more
+general phone-image path. For \texttt{optmod 2}, which is the simple but
+malleable fisheye model used for allsky7-like auroral cameras, the first blind
+bootstrap uses a restricted pre-flattening grid inherited from earlier working
+calibrations:
 \begin{equation}
   f_1 \in \{0.80,0.70,0.90,1.00,0.60\},
   \qquad
-  a_r \in \{0.90,0.75,1.05,0.60\}
+  a_r \in \{0.30,0.50,0.60,0.80,0.90,1.00\}
 \end{equation}
-in the first bright-star bootstrap. Deeper stages widen these ranges and add
-more detections. This staged search is a compromise between robustness and
-browser interactivity.
+and emphasizes bright all-sky stars before later projected refinements. This
+keeps the radial search from wandering through lens shapes that are plausible
+for ordinary photographs but poor for allsky7 fisheye geometry.
+
+For ordinary phone-camera images, including iPhone photographs, the generic
+lucky path starts with a deeper blind catalog limit, allows both pinhole and
+fisheye pre-flattening hypotheses, and later widens the radial grid. This is
+useful because phone images can have a less all-sky-like field geometry and
+often benefit from more candidate stars in the first blind stage. In both
+paths, the same rule is used after the first stage: weaker stars are only added
+after a seed exists, and they are checked against local asterisms and the RMS
+guard before being trusted.
+
+For the Brown-Conrady model, the blind bootstrap assumes a locally flat field
+for the initial search. Pixel coordinates are converted to approximate rays
+with a pinhole scale only; there is no radial pre-flattening and no \(a_r\)
+parameter in this stage. Brown-Conrady radial and tangential distortion terms
+are fitted later in pixel space after star pairings have been established.
+The pinhole scale search is one-dimensional: \(f_2\) is initialized from
+\(f_1\) and the image aspect ratio,
+\begin{equation}
+  f_2 = f_1\,\frac{W}{H},
+\end{equation}
+where \(W\) and \(H\) are the image width and height. Thus the ratio
+\(f_1/f_2\) is not treated as a substantially uncertain parameter during blind
+asterism construction; it is assumed to be close to the image aspect ratio.
 
 \subsection{Known Weaknesses for Wide-Field Images}
 
@@ -476,9 +553,9 @@ better architecture.
 The AIDA browser calibrator provides a practical, inspectable workflow for
 turning wide-field star images into calibrated camera models. It combines
 manual control with automatic assistance, keeps the calibration state visible,
-and exports model code that can be used outside the browser. Version 0.2.0 is a
-checkpoint release that stabilizes the lucky fitting workflow, bad detection
-masking, undo behavior, and documentation needed for further development.
+and exports model code that can be used outside the browser. Version 0.2.5
+stabilizes the regional asterism diagnostics, allsky7 lucky recipe, and
+Brown-Conrady phone-camera bootstrap path used for further development.
 
 \section*{Acknowledgments}
 

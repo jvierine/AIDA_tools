@@ -766,6 +766,32 @@ function syntheticDetections(projected, offset = {dx: 23.4, dy: -16.2}) {
     return detections;
 }
 
+function syntheticGrayImage(width, height, background = 12) {
+    const data = new Uint8ClampedArray(width * height * 4);
+    for (let i = 0; i < width * height; i += 1) {
+        data[4 * i] = background;
+        data[4 * i + 1] = background;
+        data[4 * i + 2] = background;
+        data[4 * i + 3] = 255;
+    }
+    const addGaussian = (cx, cy, sx, sy, amplitude) => {
+        const r = Math.ceil(4 * Math.max(sx, sy));
+        for (let y = Math.max(0, cy - r); y <= Math.min(height - 1, cy + r); y += 1) {
+            for (let x = Math.max(0, cx - r); x <= Math.min(width - 1, cx + r); x += 1) {
+                const dx = (x - cx) / sx;
+                const dy = (y - cy) / sy;
+                const value = amplitude * Math.exp(-0.5 * (dx * dx + dy * dy));
+                const k = 4 * (y * width + x);
+                const gray = Math.min(255, data[k] + value);
+                data[k] = gray;
+                data[k + 1] = gray;
+                data[k + 2] = gray;
+            }
+        }
+    };
+    return {width, height, data, addGaussian};
+}
+
 function skyPlaneYaleStars(maxMag = 4.0) {
     return AidaTools.visibleStars(YaleCatalog, DATE, LAT_DEG, LON_DEG, maxMag, 88)
         .map((star, index) => {
@@ -906,6 +932,73 @@ test("KD-tree range queries return nearby two-dimensional points", () => {
     assert.deepEqual(hits.map(hit => hit.payload), ["origin", "five"]);
 });
 
+test("regional detection coverage keeps bright local stars from overlapping image regions", () => {
+    const detections = [];
+    let id = 1;
+    for (let i = 0; i < 40; i += 1) {
+        detections.push({
+            id: id++,
+            x: 40 + (i % 5) * 14,
+            y: 45 + Math.floor(i / 5) * 9,
+            score: 10000 - i,
+        });
+    }
+    for (let row = 0; row < 2; row += 1) {
+        for (let col = 0; col < 3; col += 1) {
+            for (let i = 0; i < 4; i += 1) {
+                detections.push({
+                    id: id++,
+                    x: (col + 0.5) * WIDTH / 3 + (i - 1.5) * 12,
+                    y: (row + 0.5) * HEIGHT / 2 + (i - 1.5) * 12,
+                    score: 1000 - row * 100 - col * 10 - i,
+                });
+            }
+        }
+    }
+    const normalized = AutoIdentifier.normalizeDetections(detections, {
+        imageWidth: WIDTH,
+        imageHeight: HEIGHT,
+        maxDetections: 12,
+        enableRegionalDetectionCoverage: true,
+        regionalDetectionCols: 3,
+        regionalDetectionRows: 2,
+        regionalDetectionMinPerRegion: 4,
+        regionalDetectionOverlap: 0.2,
+    });
+    assert.ok(normalized.length >= 24);
+    for (let region = 0; region < 6; region += 1) {
+        const inRegion = normalized.filter(detection =>
+            Array.isArray(detection.regionIds) && detection.regionIds.includes(region));
+        assert.ok(inRegion.length >= 4, `expected at least 4 detections in region ${region}`);
+    }
+    assert.ok(normalized.slice(0, 24).every(detection => detection.regionalRequired));
+});
+
+test("star detector ranks compact center-bright peaks above broad lumpy peaks", async () => {
+    const image = syntheticGrayImage(96, 64, 12);
+    image.addGaussian(28, 32, 1.15, 1.15, 140);
+    image.addGaussian(68, 32, 3.1, 3.1, 190);
+    const result = await StarDetector.detectBrightStars(image, {
+        maxDetections: 6,
+        thresholdSigma: 1.5,
+        localThresholdSigma: 1.5,
+        requireGlobalThreshold: false,
+        maxRadiusPx: 5,
+        maxElongation: 10,
+        suppressionRadiusPx: 5,
+    });
+    const compact = result.candidates.find(candidate => Math.hypot(candidate.x - 28, candidate.y - 32) < 2);
+    const broad = result.candidates.find(candidate => Math.hypot(candidate.x - 68, candidate.y - 32) < 2);
+    assert.ok(compact, "expected compact synthetic star candidate");
+    assert.ok(broad, "expected broad synthetic peak candidate");
+    assert.ok(
+        compact.score > broad.score,
+        `expected compact score ${compact.score} > broad score ${broad.score}`,
+    );
+    assert.ok(compact.coreFluxFraction > broad.coreFluxFraction);
+    assert.ok(compact.outerFluxFraction < broad.outerFluxFraction);
+});
+
 test("asterism matcher identifies bright Yale stars without current lens projection", () => {
     const catalog = skyPlaneYaleStars(4.0);
     assert.ok(catalog.length > 40);
@@ -1025,6 +1118,83 @@ test("asterism matcher can lower the minimum detection triangle side for synthet
     });
     assert.ok(result.detectionTriangleCount > 0);
     assert.ok(result.matches.length >= 20);
+});
+
+test("blind matcher can reject candidate triangles with inconsistent cosine ordering", () => {
+    const catalog = visibleRealCaseStars(4.0).slice(0, 8).map((star, index) => ({
+        ...star,
+        vector: [
+            Math.sin(star.ze) * Math.sin(star.az),
+            Math.sin(star.ze) * Math.cos(star.az),
+            Math.cos(star.ze),
+        ],
+        rank: index + 1,
+    }));
+    const detections = [
+        {id: 1, vector: [0, 0, 1], rank: 1},
+        {id: 2, vector: [0.10, 0, Math.sqrt(1 - 0.10 * 0.10)], rank: 2},
+        {id: 3, vector: [0, 0.30, Math.sqrt(1 - 0.30 * 0.30)], rank: 3},
+    ];
+    const detectionTriangle = {
+        points: detections,
+    };
+    const catalogTriangle = {
+        points: [
+            catalog[0],
+            catalog[2],
+            catalog[1],
+        ],
+    };
+    assert.equal(
+        AutoIdentifier.triangleCosinesQuasiMonotonic(detectionTriangle, detectionTriangle),
+        true,
+    );
+    assert.equal(
+        AutoIdentifier.triangleCosinesQuasiMonotonic(detectionTriangle, catalogTriangle, {
+            triangleCosineOrderTolerance: 1e-9,
+        }),
+        false,
+    );
+});
+
+test("blind asterism neighbor support accepts extendable triangle hypotheses", () => {
+    const catalog = [
+        {key: "c1", vector: [0, 0, 1], rank: 1, mag: 1},
+        {key: "c2", vector: [0.10, 0, Math.sqrt(1 - 0.10 * 0.10)], rank: 2, mag: 2},
+        {key: "c3", vector: [0, 0.12, Math.sqrt(1 - 0.12 * 0.12)], rank: 3, mag: 2},
+        {key: "c4", vector: [0.08, 0.09, Math.sqrt(1 - 0.08 * 0.08 - 0.09 * 0.09)], rank: 4, mag: 3},
+        {key: "c5", vector: [-0.07, 0.05, Math.sqrt(1 - 0.07 * 0.07 - 0.05 * 0.05)], rank: 5, mag: 3},
+    ].map(star => ({...star, vector: star.vector.map(Number)}));
+    const detections = catalog.map((star, index) => ({
+        id: index + 1,
+        vector: star.vector,
+        x: 100 + index * 80,
+        y: 200 + (index % 2) * 70,
+        rank: index + 1,
+    }));
+    const support = AutoIdentifier.blindAsterismNeighborSupport(
+        catalog,
+        detections,
+        [1, 0, 0, 0, 1, 0, 0, 0, 1],
+        {points: detections.slice(0, 3)},
+        {points: catalog.slice(0, 3)},
+        {
+            imageWidth: WIDTH,
+            imageHeight: HEIGHT,
+            minBlindAsterismSupportMatches: 2,
+            minBlindAsterismSupportedVertices: 2,
+            minBlindAsterismSupportTriangles: 2,
+            blindAsterismSupportSignatureRadius: 0.02,
+        }
+    );
+    assert.equal(support.accepted, true);
+    assert.ok(support.extraMatches >= 2);
+    assert.ok(support.supportedVertices >= 2);
+    assert.ok(support.supportRecords.length > 0);
+    assert.ok(support.supportRecords.some(record =>
+        record.accepted &&
+            Number.isFinite(record.image.x) &&
+            Number.isFinite(record.image.y)));
 });
 
 fullTest("bright-star detector finds known 010095 stars with calibrated optmod 2", async () => {

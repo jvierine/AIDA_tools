@@ -571,6 +571,12 @@ h2 {
     vector-effect: non-scaling-stroke;
 }
 
+.support-asterism-lines line {
+    stroke: rgba(34, 211, 238, 0.78);
+    stroke-width: 1.25;
+    stroke-dasharray: 4 5;
+}
+
 .radius-region-marker {
     position: absolute;
     transform: translate(-50%, -50%);

@@ -1,7 +1,7 @@
 (function () {
     "use strict";
 
-    const APP_VERSION = "v0.2.4";
+    const APP_VERSION = "v0.2.5";
     const LOCAL_TEST_HOSTS = new Set(["localhost", "127.0.0.1", "::1"]);
     const LOCAL_TEST_CASES_ENABLED = location.protocol === "file:" || LOCAL_TEST_HOSTS.has(location.hostname);
     const canvas = document.getElementById("glCanvas");
@@ -1966,9 +1966,118 @@ end
         });
     }
 
+    function projectedRawPointForCatalogKey(key, fallbackStar = null) {
+        if (fallbackStar && Number.isFinite(fallbackStar.x) && Number.isFinite(fallbackStar.y)) {
+            return {x: fallbackStar.x, y: fallbackStar.y};
+        }
+        const projected = state.projected.find(star => catalogKey(star) === key);
+        if (!projected) {
+            return null;
+        }
+        const [x, y] = rawImagePixelFromModelImagePixel(projected.x, projected.y);
+        return Number.isFinite(x) && Number.isFinite(y) ? {x, y} : null;
+    }
+
+    function triangleShapeSignature(points) {
+        if (!Array.isArray(points) || points.length !== 3 ||
+                !points.every(point => point && Number.isFinite(point.x) && Number.isFinite(point.y))) {
+            return null;
+        }
+        const sides = [
+            Math.hypot(points[0].x - points[1].x, points[0].y - points[1].y),
+            Math.hypot(points[1].x - points[2].x, points[1].y - points[2].y),
+            Math.hypot(points[2].x - points[0].x, points[2].y - points[0].y),
+        ].sort((a, b) => a - b);
+        const longest = sides[2];
+        if (!Number.isFinite(longest) || longest <= 1e-6) {
+            return null;
+        }
+        const area2 = Math.abs(
+            (points[1].x - points[0].x) * (points[2].y - points[0].y) -
+            (points[2].x - points[0].x) * (points[1].y - points[0].y)
+        );
+        return {
+            x: sides[0] / longest,
+            y: sides[1] / longest,
+            shortest: sides[0],
+            longest,
+            height: area2 / longest,
+        };
+    }
+
+    function trianglePassesAsterismGeometry(signature) {
+        if (!signature || !state.image) {
+            return false;
+        }
+        return signature.shortest >= 50 &&
+            signature.longest <= 0.25 * state.image.width &&
+            signature.height >= 20;
+    }
+
+    function newMatchAsterismSupportCount(candidateMatch, existingMatches, options = {}) {
+        const required = Number.isFinite(options.minAsterismChecksForNewStars) ?
+            Math.max(0, Math.floor(options.minAsterismChecksForNewStars)) : 0;
+        if (required <= 0) {
+            return required;
+        }
+        if (!candidateMatch || !candidateMatch.star || !candidateMatch.detection || existingMatches.length < 2) {
+            return 0;
+        }
+        const candidateObserved = {x: candidateMatch.detection.x, y: candidateMatch.detection.y};
+        const candidateProjected = projectedRawPointForCatalogKey(candidateMatch.star.key, candidateMatch.star);
+        if (!candidateProjected) {
+            return 0;
+        }
+        const maxPartners = Number.isFinite(options.maxAsterismCheckPartners) ?
+            Math.max(2, Math.floor(options.maxAsterismCheckPartners)) : 24;
+        const tolerance = Number.isFinite(options.newStarAsterismSignatureTolerance) ?
+            options.newStarAsterismSignatureTolerance : 0.035;
+        const partners = existingMatches
+            .map(match => ({
+                observed: match.image,
+                projected: projectedRawPointForCatalogKey(match.catalog.key),
+                mag: Number(match.catalog.mag),
+            }))
+            .filter(match => match.observed && match.projected &&
+                Number.isFinite(match.observed.x) && Number.isFinite(match.observed.y))
+            .sort((a, b) => a.mag - b.mag)
+            .slice(0, maxPartners);
+        let support = 0;
+        for (let i = 0; i < partners.length - 1; i += 1) {
+            for (let j = i + 1; j < partners.length; j += 1) {
+                const observedSignature = triangleShapeSignature([
+                    candidateObserved,
+                    partners[i].observed,
+                    partners[j].observed,
+                ]);
+                const projectedSignature = triangleShapeSignature([
+                    candidateProjected,
+                    partners[i].projected,
+                    partners[j].projected,
+                ]);
+                if (!trianglePassesAsterismGeometry(observedSignature) ||
+                        !trianglePassesAsterismGeometry(projectedSignature)) {
+                    continue;
+                }
+                const distance = Math.hypot(
+                    observedSignature.x - projectedSignature.x,
+                    observedSignature.y - projectedSignature.y
+                );
+                if (distance <= tolerance) {
+                    support += 1;
+                    if (support >= required) {
+                        return support;
+                    }
+                }
+            }
+        }
+        return support;
+    }
+
     function addAutoIdentificationMatches(result, methodLabel = "auto star finder", options = {}) {
         const existingCatalogKeys = new Set(state.matches.map(match => match.catalog.key));
         const existingDetectionIds = currentGenerationDetectionIdsFromMatches();
+        const trustedMatches = state.matches.slice();
         const maxAddDistancePx = Number.isFinite(options.maxAddDistancePx) ?
             options.maxAddDistancePx :
             Infinity;
@@ -1994,7 +2103,12 @@ end
                     isJunkStarFinderPixel(match.detection.x, match.detection.y)) {
                 continue;
             }
-            state.matches.push({
+            const supportCount = newMatchAsterismSupportCount(match, trustedMatches, options);
+            if (Number.isFinite(options.minAsterismChecksForNewStars) &&
+                    supportCount < options.minAsterismChecksForNewStars) {
+                continue;
+            }
+            const addedMatch = {
                 id: state.matches.length + 1,
                 image: {
                     x: match.detection.x,
@@ -2012,7 +2126,9 @@ end
                     az: match.star.az,
                     ze: match.star.ze,
                 },
-            });
+            };
+            state.matches.push(addedMatch);
+            trustedMatches.push(addedMatch);
             existingCatalogKeys.add(match.star.key);
             existingDetectionIds.add(match.detection.id);
             added += 1;
@@ -2103,10 +2219,24 @@ end
             status: "automatic matching: no matcher stage was enabled",
         };
 
+        const radialAlphaProgressText = blindOptions => {
+            const models = Array.isArray(blindOptions && blindOptions.preflattenModelCandidates) ?
+                blindOptions.preflattenModelCandidates :
+                ["pinhole", "fisheye"];
+            if (!models.includes("fisheye")) {
+                return "";
+            }
+            const candidates = Array.isArray(blindOptions && blindOptions.preflattenRadialAlphaCandidates) ?
+                blindOptions.preflattenRadialAlphaCandidates :
+                [0.30, 0.60, 0.90];
+            return `; a_r grid ${candidates.map(value => Number(value).toFixed(2)).join(", ")}`;
+        };
+
         if (options.includeBlind !== false) {
+            const alphaText = radialAlphaProgressText(options.blindOptions || {});
             setLoadingProgress(
                 Number.isFinite(options.progressBlind) ? options.progressBlind : 74,
-                `${label}: matching bright spherical asterisms with the Yale catalog...`
+                `${label}: matching bright spherical asterisms with the Yale catalog${alphaText}...`
             );
             await yieldToBrowser();
             result = window.AidaAutoIdentifier.identifyStarsBlind(
@@ -2238,6 +2368,9 @@ end
             maxAddDistancePx: options.maxAddDistancePx,
             maxAdditions: options.maxAdditions,
             maxMedianDistance: options.maxMedianDistance,
+            minAsterismChecksForNewStars: options.minAsterismChecksForNewStars,
+            maxAsterismCheckPartners: options.maxAsterismCheckPartners,
+            newStarAsterismSignatureTolerance: options.newStarAsterismSignatureTolerance,
         });
         state.pendingMatch = null;
         clearDensityEstimate();
@@ -2788,13 +2921,26 @@ end
             pieces.push(`mag <= ${snapshot.maxMagnitude.toFixed(1)}`);
         }
         if (snapshot.preflattenModel && snapshot.preflattenModel !== "catalog") {
-            pieces.push(`${snapshot.preflattenModel} f1 ${Number(snapshot.f1).toFixed(2)} a ${Number(snapshot.radialAlpha).toFixed(2)}`);
+            if (snapshot.preflattenModel === "pinhole") {
+                pieces.push(`flat f1 ${Number(snapshot.f1).toFixed(2)}`);
+            } else {
+                pieces.push(`${snapshot.preflattenModel} f1 ${Number(snapshot.f1).toFixed(2)} a ${Number(snapshot.radialAlpha).toFixed(2)}`);
+            }
         }
         if (snapshot.quality) {
             pieces.push(
                 `overlap ${(100 * snapshot.quality.occupiedOverlap).toFixed(0)}%`,
                 `shape ${(100 * snapshot.quality.bhattacharyya).toFixed(0)}%`
             );
+        }
+        if (snapshot.supportTriangles) {
+            const acceptedSupport = snapshot.supportTriangles.acceptedCount || 0;
+            const rejectedSupport = snapshot.supportTriangles.rejectedCount || 0;
+            pieces.push(`support ${acceptedSupport}/${acceptedSupport + rejectedSupport}`);
+        }
+        if (Number.isFinite(snapshot.regionalAsterismCandidateCount) &&
+                Number.isFinite(snapshot.totalAsterismCandidateCount)) {
+            pieces.push(`regional ${snapshot.regionalAsterismCandidateCount}/${snapshot.totalAsterismCandidateCount}`);
         }
         title.textContent = pieces.join("; ");
         triangleDebugPlot.appendChild(title);
@@ -2841,6 +2987,10 @@ end
         };
         drawPoints(snapshot.catalog.points, "rgba(147, 197, 253, 0.55)", 1.15);
         drawPoints(snapshot.image.points, "rgba(250, 204, 21, 0.72)", 1.45);
+        if (snapshot.supportTriangles) {
+            drawPoints(snapshot.supportTriangles.rejected || [], "rgba(244, 114, 182, 0.45)", 1.45);
+            drawPoints(snapshot.supportTriangles.accepted || [], "rgba(34, 211, 238, 0.88)", 2.0);
+        }
 
         ctx.fillStyle = "#dbeafe";
         ctx.font = "700 10px system-ui, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif";
@@ -2850,6 +3000,9 @@ end
         ctx.fillText("1", plot.x0 + plot.w, 166);
         ctx.fillText("catalog blue", 76, 12);
         ctx.fillText("image yellow", 174, 12);
+        if (snapshot.supportTriangles) {
+            ctx.fillText("support cyan", 172, 26);
+        }
         ctx.save();
         ctx.translate(10, plot.y0 + plot.h / 2);
         ctx.rotate(-Math.PI / 2);
@@ -3040,10 +3193,19 @@ end
     }
 
     function drawAsterismLines() {
-        if (!state.showAsterismLines || !state.asterismEdges.length) {
+        if (!state.showAsterismLines) {
             return;
         }
-        addOverlaySvgLineLayer(state.asterismEdges, "lucky-asterism-lines");
+        const supportEdges = state.triangleDebugSnapshot &&
+            state.triangleDebugSnapshot.supportTriangles &&
+            Array.isArray(state.triangleDebugSnapshot.supportTriangles.acceptedEdges) ?
+            state.triangleDebugSnapshot.supportTriangles.acceptedEdges : [];
+        if (supportEdges.length) {
+            addOverlaySvgLineLayer(supportEdges, "support-asterism-lines");
+        }
+        if (state.asterismEdges.length) {
+            addOverlaySvgLineLayer(state.asterismEdges, "lucky-asterism-lines");
+        }
     }
 
     function drawOverlayLabels() {
@@ -3509,8 +3671,15 @@ end
                 let myy = 0;
                 let mxy = 0;
                 let saturated = 0;
+                let coreFlux = 0;
+                let outerFlux = 0;
+                let shoulderFlux = 0;
+                let shoulderCount = 0;
                 let radius2 = Infinity;
                 let elongation = Infinity;
+                let coreFluxFraction = 0;
+                let outerFluxFraction = 0;
+                let peakDominance = 0;
                 for (const apertureRadius of [centroidRadius, wideCentroidRadius]) {
                     flux = 0;
                     moment = 0;
@@ -3518,16 +3687,35 @@ end
                     myy = 0;
                     mxy = 0;
                     saturated = 0;
+                    coreFlux = 0;
+                    outerFlux = 0;
+                    shoulderFlux = 0;
+                    shoulderCount = 0;
+                    const coreRadius2 = Math.pow(Math.max(1.1, Math.min(1.8, apertureRadius * 0.38)), 2);
+                    const outerRadius2 = Math.pow(Math.max(1.8, apertureRadius * 0.62), 2);
+                    const shoulderInner2 = Math.pow(1.4, 2);
+                    const shoulderOuter2 = Math.pow(Math.min(apertureRadius, 3.4), 2);
                     for (let dy = -apertureRadius; dy <= apertureRadius; dy++) {
                         for (let dx = -apertureRadius; dx <= apertureRadius; dx++) {
-                            if (dx * dx + dy * dy <= apertureRadius * apertureRadius) {
+                            const r2 = dx * dx + dy * dy;
+                            if (r2 <= apertureRadius * apertureRadius) {
                                 const sample = imageGray(centroid.x + dx, centroid.y + dy);
                                 if (sample >= 252) {
                                     saturated += 1;
                                 }
                                 const w = Math.max(0, sample - localBg);
                                 flux += w;
-                                moment += w * (dx * dx + dy * dy);
+                                if (r2 <= coreRadius2) {
+                                    coreFlux += w;
+                                }
+                                if (r2 >= outerRadius2) {
+                                    outerFlux += w;
+                                }
+                                if (r2 >= shoulderInner2 && r2 <= shoulderOuter2) {
+                                    shoulderFlux += w;
+                                    shoulderCount += 1;
+                                }
+                                moment += w * r2;
                                 mxx += w * dx * dx;
                                 myy += w * dy * dy;
                                 mxy += w * dx * dy;
@@ -3543,6 +3731,10 @@ end
                     const minor = Math.max(1e-6, 0.5 * (trace - delta));
                     const major = Math.max(minor, 0.5 * (trace + delta));
                     elongation = Math.sqrt(major / minor);
+                    coreFluxFraction = coreFlux / flux;
+                    outerFluxFraction = outerFlux / flux;
+                    peakDominance = Math.max(0, peak - localBg) /
+                        Math.max(1, shoulderCount > 0 ? shoulderFlux / shoulderCount : 0);
                     if (radius2 > 0.3 * starRadius * starRadius && apertureRadius === centroidRadius) {
                         centroid = weightedCentroid(x, y, wideCentroidRadius, localBg);
                         peak = imageGray(centroid.x, centroid.y);
@@ -3558,8 +3750,25 @@ end
                 if (radius2 < 0.25 || radius2 > maxRadius2 || elongation > 3.4) {
                     continue;
                 }
+                const coreShapeFactor = Math.pow(
+                    Math.max(0.12, Math.min(1, coreFluxFraction / 0.14)),
+                    1.5
+                );
+                const peakShapeFactor = Math.pow(
+                    Math.max(0.12, Math.min(1, peakDominance / 1.08)),
+                    1.4
+                );
+                const outerShapePenalty = Math.pow(
+                    1 + Math.max(0, outerFluxFraction - 0.58) * 4.0,
+                    1.35
+                );
+                const elongationPenalty = Math.pow(Math.max(1, elongation), 1.7);
+                const centroidOffset = Math.hypot(centroid.x - x, centroid.y - y);
+                const centroidOffsetPenalty = Math.pow(1 + Math.max(0, centroidOffset - 0.8), 1.15);
                 const compactness = peakContrast / Math.max(1, Math.sqrt(radius2));
-                const score = compactness * Math.sqrt(Math.max(1, flux)) / elongation;
+                const roundnessFactor = coreShapeFactor * peakShapeFactor;
+                const score = compactness * Math.sqrt(Math.max(1, flux)) * roundnessFactor /
+                    (elongationPenalty * outerShapePenalty * centroidOffsetPenalty);
                 candidates.push({
                     x: centroid.x,
                     y: centroid.y,
@@ -3571,6 +3780,11 @@ end
                     background: localBg,
                     radius: Math.sqrt(radius2),
                     elongation,
+                    coreFluxFraction,
+                    outerFluxFraction,
+                    peakDominance,
+                    centroidOffset,
+                    roundnessFactor,
                     score,
                 });
             }
@@ -5396,6 +5610,9 @@ end
             reuseExistingMatchesForTransform: true,
             maxAddDistancePx: stage.maxAddDistancePx,
             maxMedianDistance: stage.maxMedianDistance,
+            minAsterismChecksForNewStars: stage.minAsterismChecksForNewStars,
+            maxAsterismCheckPartners: stage.maxAsterismCheckPartners,
+            newStarAsterismSignatureTolerance: stage.newStarAsterismSignatureTolerance,
             methodLabel: "lucky auto star finder",
         });
         let seeded = false;
@@ -5485,11 +5702,12 @@ end
         setTriangleDebugSnapshot(null);
         const removedBadAreaMatches = removeAutomaticMatchesInBadStarFinderRegions();
         const startingMatchCount = state.matches.length;
+        const optmod2RadialAlphaGrid = [0.30, 0.50, 0.60, 0.80, 0.90, 1.00];
         const stages = [
             {
                 maxDetections: 80,
-                maxMagnitude: 4.0,
-                phase: "blind bright-star bootstrap",
+                maxMagnitude: 6.0,
+                phase: "blind bootstrap",
                 seedFromBlind: true,
                 includeBlind: true,
                 includeAsterisms: true,
@@ -5506,6 +5724,12 @@ end
                 },
                 blindOptions: {
                     maxDetections: 80,
+                    enableRegionalDetectionCoverage: true,
+                    regionalDetectionCols: 3,
+                    regionalDetectionRows: 2,
+                    regionalDetectionMinPerRegion: 4,
+                    regionalDetectionOverlap: 0.25,
+                    maxBlindAsterismsPerRegion: 10,
                     maxBlindVerifyDetections: 80,
                     maxCatalogStars: 220,
                     maxCatalogTriangleStars: 220,
@@ -5551,6 +5775,12 @@ end
                 },
                 blindOptions: {
                     maxDetections: 160,
+                    enableRegionalDetectionCoverage: true,
+                    regionalDetectionCols: 3,
+                    regionalDetectionRows: 2,
+                    regionalDetectionMinPerRegion: 4,
+                    regionalDetectionOverlap: 0.25,
+                    maxBlindAsterismsPerRegion: 10,
                     maxBlindVerifyDetections: 140,
                     maxCatalogStars: 220,
                     maxCatalogTriangleStars: 220,
@@ -5598,6 +5828,12 @@ end
                 },
                 blindOptions: {
                     maxDetections: 320,
+                    enableRegionalDetectionCoverage: true,
+                    regionalDetectionCols: 3,
+                    regionalDetectionRows: 2,
+                    regionalDetectionMinPerRegion: 4,
+                    regionalDetectionOverlap: 0.25,
+                    maxBlindAsterismsPerRegion: 10,
                     maxBlindVerifyDetections: 220,
                     maxCatalogStars: 420,
                     maxCatalogTriangleStars: 360,
@@ -5646,6 +5882,7 @@ end
                     ambiguityDistanceSlackPx: 16,
                 },
                 maxAddDistancePx: 8,
+                minAsterismChecksForNewStars: 1,
             },
             {
                 maxDetections: 180,
@@ -5676,6 +5913,7 @@ end
                 maxAddDistancePx: 5,
                 maxMedianDistance: 10,
                 rejectIfRmsIncreasePx: 0.8,
+                minAsterismChecksForNewStars: 2,
             },
             {
                 maxDetections: 260,
@@ -5706,6 +5944,7 @@ end
                 maxAddDistancePx: 4,
                 maxMedianDistance: 8,
                 rejectIfRmsIncreasePx: 0.5,
+                minAsterismChecksForNewStars: 2,
                 skipFit: true,
             },
         ];
@@ -5713,7 +5952,7 @@ end
         if (optmod === 2) {
             const v010AllskyPreflatten = {
                 preflattenF1Candidates: [0.80, 0.70, 0.90, 1.00, 0.60],
-                preflattenRadialAlphaCandidates: [0.90, 0.75, 1.05, 0.60],
+                preflattenRadialAlphaCandidates: optmod2RadialAlphaGrid,
             };
             Object.assign(stages[0], {
                 maxDetections: 50,
@@ -5799,7 +6038,7 @@ end
                     maxDetectionTriangles: 5200,
                     preflattenModelCandidates: ["pinhole", "fisheye"],
                     preflattenF1Candidates: [0.55, 0.65, 0.75, 0.85, 0.95, 1.10],
-                    preflattenRadialAlphaCandidates: [0.20, 0.35, 0.55, 0.75, 0.95, 1.15],
+                    preflattenRadialAlphaCandidates: optmod2RadialAlphaGrid,
                     maxCatalogLocalNeighbors: 24,
                     maxBlindNeighborTriangles: 10,
                     blindEarlyAcceptMatches: 11,
@@ -5833,6 +6072,7 @@ end
                     ambiguityDistanceSlackPx: 16,
                 },
                 maxAddDistancePx: 8,
+                minAsterismChecksForNewStars: 1,
             });
             Object.assign(stages[4], {
                 maxDetections: 120,
@@ -5853,6 +6093,7 @@ end
                     ambiguityDistanceSlackPx: 16,
                 },
                 maxAddDistancePx: 8,
+                minAsterismChecksForNewStars: 2,
             });
             Object.assign(stages[5], {
                 maxDetections: 150,
@@ -5874,11 +6115,184 @@ end
                     ambiguityDistanceSlackPx: 16,
                 },
                 maxAddDistancePx: 6,
+                minAsterismChecksForNewStars: 2,
                 skipFit: false,
             });
             delete stages[4].rejectIfRmsIncreasePx;
             delete stages[5].rejectIfRmsIncreasePx;
             delete stages[5].maxMedianDistance;
+        } else if (optmod === BROWN_CONRADY_OPTMOD) {
+            const brownConradyPinholeGrid = [0.35, 0.45, 0.55, 0.65, 0.80, 1.00, 1.25, 1.55];
+            Object.assign(stages[0], {
+                maxDetections: 260,
+                maxMagnitude: 7.0,
+                phase: "Brown-Conrady flat-field blind bootstrap",
+                detectorOptions: {
+                    thresholdSigma: 1.45,
+                    localThresholdSigma: 1.55,
+                    requireGlobalThreshold: false,
+                    maxRadiusPx: 5,
+                    maxElongation: 3.4,
+                    suppressionRadiusPx: 8,
+                    crowdingRadiusPx: 30,
+                    maxCrowding: 8,
+                    crowdingScorePower: 1.25,
+                },
+                blindOptions: {
+                    maxDetections: 260,
+                    enableRegionalDetectionCoverage: true,
+                    regionalDetectionCols: 3,
+                    regionalDetectionRows: 2,
+                    regionalDetectionMinPerRegion: 5,
+                    regionalDetectionOverlap: 0.25,
+                    maxBlindAsterismsPerRegion: 12,
+                    maxBlindVerifyDetections: 220,
+                    maxCatalogStars: 520,
+                    maxCatalogTriangleStars: 420,
+                    maxCatalogTriangles: 65000,
+                    maxAmbiguityCatalogStars: 650,
+                    maxDetectionTriangleStars: 180,
+                    maxDetectionTriangles: 16000,
+                    preflattenModelCandidates: ["pinhole"],
+                    preflattenF1Candidates: brownConradyPinholeGrid,
+                    maxCatalogLocalNeighbors: 24,
+                    maxBlindNeighborTriangles: 12,
+                    blindEarlyAcceptMatches: 10,
+                    blindEarlyAcceptMedianDeg: 0.85,
+                    maxBlindCandidateRotations: 22000,
+                    rejectAmbiguousBlindMatches: true,
+                    blindAmbiguityRadiusDeg: 1.0,
+                    blindAmbiguityDistanceSlackDeg: 0.35,
+                    blindPixelMatchRadiusPx: 64,
+                    blindPixelAmbiguityRadiusPx: 18,
+                    blindPixelAmbiguityDistanceSlackPx: 9,
+                    ambiguityMaxMagnitude: 7.0,
+                },
+                maxAddDistancePx: 1.6,
+                maxMedianDistance: 0.55,
+                weakAsterismOptions: null,
+            });
+            Object.assign(stages[1], {
+                maxDetections: 320,
+                maxMagnitude: 7.0,
+                phase: "Brown-Conrady extended flat-field bootstrap",
+                detectorOptions: {
+                    thresholdSigma: 1.35,
+                    localThresholdSigma: 1.45,
+                    requireGlobalThreshold: false,
+                    maxRadiusPx: 5,
+                    maxElongation: 3.5,
+                    suppressionRadiusPx: 8,
+                    crowdingRadiusPx: 30,
+                    maxCrowding: 9,
+                    crowdingScorePower: 1.2,
+                },
+                blindOptions: {
+                    maxDetections: 320,
+                    enableRegionalDetectionCoverage: true,
+                    regionalDetectionCols: 3,
+                    regionalDetectionRows: 2,
+                    regionalDetectionMinPerRegion: 5,
+                    regionalDetectionOverlap: 0.25,
+                    maxBlindAsterismsPerRegion: 12,
+                    maxBlindVerifyDetections: 260,
+                    maxCatalogStars: 650,
+                    maxCatalogTriangleStars: 520,
+                    maxCatalogTriangles: 90000,
+                    maxAmbiguityCatalogStars: 800,
+                    maxDetectionTriangleStars: 220,
+                    maxDetectionTriangles: 22000,
+                    preflattenModelCandidates: ["pinhole"],
+                    preflattenF1Candidates: brownConradyPinholeGrid,
+                    maxCatalogLocalNeighbors: 26,
+                    maxBlindNeighborTriangles: 14,
+                    blindEarlyAcceptMatches: 10,
+                    blindEarlyAcceptMedianDeg: 0.9,
+                    maxBlindCandidateRotations: 26000,
+                    rejectAmbiguousBlindMatches: true,
+                    blindAmbiguityRadiusDeg: 1.0,
+                    blindAmbiguityDistanceSlackDeg: 0.35,
+                    blindPixelMatchRadiusPx: 70,
+                    blindPixelAmbiguityRadiusPx: 18,
+                    blindPixelAmbiguityDistanceSlackPx: 10,
+                    ambiguityMaxMagnitude: 7.0,
+                },
+                maxAddDistancePx: 1.8,
+                maxMedianDistance: 0.65,
+                weakAsterismOptions: null,
+            });
+            Object.assign(stages[3], {
+                maxDetections: 180,
+                maxMagnitude: 6.5,
+                detectorOptions: {
+                    thresholdSigma: 2.4,
+                    localThresholdSigma: 2.5,
+                    requireGlobalThreshold: false,
+                    maxElongation: 3.1,
+                    suppressionRadiusPx: 8,
+                    crowdingRadiusPx: 30,
+                    maxCrowding: 8,
+                    crowdingScorePower: 1.15,
+                },
+                projectedOptions: {
+                    maxDetections: 180,
+                    maxCatalogStars: 280,
+                    maxDistancePx: 42,
+                    translationSearchRadiusPx: 120,
+                    minMatches: 6,
+                    rejectAmbiguousMatches: true,
+                    ambiguityRadiusPx: 18,
+                    ambiguityDistanceSlackPx: 14,
+                },
+                maxAddDistancePx: 10,
+                minAsterismChecksForNewStars: 1,
+            });
+            Object.assign(stages[4], {
+                maxDetections: 260,
+                maxMagnitude: 7.0,
+                projectedOptions: {
+                    maxDetections: 260,
+                    maxCatalogStars: 420,
+                    maxDistancePx: 26,
+                    translationSearchRadiusPx: 60,
+                    minMatches: 8,
+                    rejectAmbiguousMatches: true,
+                    ambiguityRadiusPx: 16,
+                    ambiguityDistanceSlackPx: 10,
+                },
+                maxAddDistancePx: 7,
+                maxMedianDistance: 12,
+                rejectIfRmsIncreasePx: 1.2,
+                minAsterismChecksForNewStars: 2,
+            });
+            Object.assign(stages[5], {
+                maxDetections: 340,
+                maxMagnitude: 7.0,
+                projectedOptions: {
+                    maxDetections: 340,
+                    maxCatalogStars: 650,
+                    maxDistancePx: 20,
+                    translationSearchRadiusPx: 40,
+                    minMatches: 10,
+                    rejectAmbiguousMatches: true,
+                    ambiguityRadiusPx: 14,
+                    ambiguityDistanceSlackPx: 8,
+                },
+                maxAddDistancePx: 5,
+                maxMedianDistance: 10,
+                rejectIfRmsIncreasePx: 0.8,
+                minAsterismChecksForNewStars: 2,
+                skipFit: false,
+            });
+            for (const stage of stages) {
+                if (stage.blindOptions) {
+                    stage.blindOptions = {
+                        ...stage.blindOptions,
+                        preflattenModelCandidates: ["pinhole"],
+                    };
+                    delete stage.blindOptions.preflattenRadialAlphaCandidates;
+                }
+            }
         }
 
         let totalAdded = 0;
@@ -5887,6 +6301,7 @@ end
         let acceptedFits = 0;
         let stagesRun = 0;
         let seeded = false;
+        let stoppedAfterEmptyFirstStage = false;
         try {
             for (let i = 0; i < stages.length; i += 1) {
                 if (stages[i].runOnlyWithoutSeed === true && totalAdded > 0) {
@@ -5898,6 +6313,15 @@ end
                 stagesRun += 1;
                 totalAdded += pass.added;
                 seeded = seeded || pass.seeded;
+                if (i === 0 && (!pass.result || !Array.isArray(pass.result.matches) || pass.result.matches.length === 0)) {
+                    stoppedAfterEmptyFirstStage = true;
+                    setLoadingProgress(
+                        94,
+                        "I'm feeling lucky: first asterism stage found no matched stars; stopping before weaker-star stages."
+                    );
+                    await yieldToBrowser();
+                    break;
+                }
                 const fitResult = stages[i].skipFit === true ?
                     {accepted: 0, skipped: true} :
                     await runLuckySelectedModelFits(
@@ -5946,14 +6370,19 @@ end
             const summary = Number.isFinite(rms)
                 ? `final RMS ${rms.toFixed(2)} px using ${fitCount}/${state.matches.length} pairs`
                 : `only ${fitCount}/${state.matches.length} usable pairs`;
+            const stopText = stoppedAfterEmptyFirstStage ?
+                "stopped after empty first asterism stage; " :
+                "";
             state.automaticMatchingStatus =
                 `I'm feeling lucky: added ${totalAdded} pairings in ${stagesRun} staged bootstrap/refinement passes; ` +
+                stopText +
                 `${seeded ? "seeded from blind asterisms" : "no blind seed"}; ` +
                 `removed ${removedBadAreaMatches} bad-area automatic match${removedBadAreaMatches === 1 ? "" : "es"}; ` +
                 `rejected ${rejectedExpansionStars} RMSE-worsening expansion match${rejectedExpansionStars === 1 ? "" : "es"}; ` +
                 `pruned ${totalPruned} automatic outlier${totalPruned === 1 ? "" : "s"}; ${acceptedFits} accepted fits`;
             state.fitMessage =
                 `I'm feeling lucky: ${modelName}, ${summary}; ` +
+                stopText +
                 `${totalAdded} new pairings (${startingMatchCount} -> ${state.matches.length}), ` +
                 `${rejectedExpansionStars} rejected by RMSE guard, ` +
                 `${totalPruned} pruned, ` +
