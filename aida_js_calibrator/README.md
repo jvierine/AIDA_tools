@@ -1,5 +1,9 @@
 # AIDA Browser Star Calibration
 
+> Development note: the JavaScript GUI has moved to the standalone
+> [`widefield-star-calibrator`](https://github.com/jvierine/widefield-star-calibrator)
+> repository. This directory remains as a copy inside `AIDA_tools`.
+
 This directory contains a browser-only AIDA star calibration tool. It is used to
 align catalog stars with all-sky images, manually pair stars, fit the AIDA lens
 model, inspect residuals, and export the calibrated optical parameters.

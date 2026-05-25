@@ -54,7 +54,9 @@ If these resolve to files inside your `AIDA_tools` checkout, the setup is ready.
 
 Although AIDA_tools includes tomography, triangulation, image mapping, skymap/ephemeris, auroral analysis, and spectrophotometric catalogue functionality, a typical user will most likely want to start with camera calibration. For that reason, this README shows only a `starcal` example.
 
-For interactive browser-based star pairing and lens calibration, the repository also includes the experimental AIDA browser star calibrator in [`aida_js_calibrator/`](aida_js_calibrator/).
+For interactive browser-based star pairing and lens calibration, the JavaScript GUI now lives in its own dedicated repository:
+[`widefield-star-calibrator`](https://github.com/jvierine/widefield-star-calibrator).
+A snapshot is still kept in [`aida_js_calibrator/`](aida_js_calibrator/) for compatibility with this toolbox tree, but active JavaScript GUI development should happen in the standalone repository.
 
 ![AIDA browser star calibrator demo](Documentation/images/aida_browser_calibrator_demo.png)
 
