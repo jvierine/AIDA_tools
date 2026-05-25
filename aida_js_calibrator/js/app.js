@@ -1,7 +1,7 @@
 (function () {
     "use strict";
 
-    const APP_VERSION = "v0.2.5";
+    const APP_VERSION = "v0.2.6";
     const LOCAL_TEST_HOSTS = new Set(["localhost", "127.0.0.1", "::1"]);
     const LOCAL_TEST_CASES_ENABLED = location.protocol === "file:" || LOCAL_TEST_HOSTS.has(location.hostname);
     const NOT_STAR_TILE_SIZE = 128;
@@ -158,7 +158,6 @@
         showFitResiduals: false,
         showAsterismLines: true,
         asterismEdges: [],
-        regionalCellScores: [],
         triangleDebugSnapshot: null,
         fitMessage: "lens fit: not run",
         lastFitVector: null,
@@ -750,16 +749,11 @@
         }));
     }
 
-    function cloneRegionalCellScores(scores = state.regionalCellScores) {
-        return scores.map(cell => ({...cell}));
-    }
-
     function autoPairingUndoSnapshot(label) {
         return {
             optpar: currentOptpar(),
             matches: cloneMatches(),
             asterismEdges: cloneAsterismEdges(),
-            regionalCellScores: cloneRegionalCellScores(),
             label,
         };
     }
@@ -782,9 +776,6 @@
         }
         if (snapshot.asterismEdges) {
             state.asterismEdges = cloneAsterismEdges(snapshot.asterismEdges);
-        }
-        if (snapshot.regionalCellScores) {
-            state.regionalCellScores = cloneRegionalCellScores(snapshot.regionalCellScores);
         }
     }
 
@@ -3243,28 +3234,6 @@ end
         }
     }
 
-    function drawRegionalCellScores() {
-        if (!state.image || !Array.isArray(state.regionalCellScores) || state.regionalCellScores.length === 0) {
-            return;
-        }
-        for (const cell of state.regionalCellScores) {
-            if (!cell || !Number.isFinite(cell.x0) || !Number.isFinite(cell.x1) ||
-                    !Number.isFinite(cell.y0) || !Number.isFinite(cell.y1)) {
-                continue;
-            }
-            const scoreText = Number.isFinite(cell.score) ? cell.score.toFixed(1) : "none";
-            const prefix = cell.best ? "best " : "";
-            const matches = Number.isFinite(cell.matches) ? `, ${cell.matches} stars` : "";
-            const center = imageMarkerCanvasPixel(0.5 * (cell.x0 + cell.x1), 0.5 * (cell.y0 + cell.y1));
-            addOverlayLabel(
-                `${prefix}cell ${cell.id}: ${scoreText}${matches}`,
-                center,
-                `regional-cell-score-label${cell.best ? " regional-cell-score-best" : ""}`,
-                true
-            );
-        }
-    }
-
     function drawOverlayLabels() {
         cardinalLayer.replaceChildren();
         if (!state.image) {
@@ -3293,13 +3262,11 @@ end
         if (state.displayMode === "pairing") {
             drawAsterismLines();
             drawAutoDetectionMarkers();
-            drawRegionalCellScores();
             drawBadStarFinderMarkers();
             drawCatalogPairingMarkers();
             drawMatchMarkers(optpar, optmod);
         } else if (state.displayMode === "pureImage") {
             drawAutoDetectionMarkers();
-            drawRegionalCellScores();
             drawBadStarFinderMarkers();
         } else {
             drawStarNameLabels();
@@ -5661,19 +5628,6 @@ end
         return true;
     }
 
-    function brownConradyVectorFromPinholeOptpar(pinholeOptpar) {
-        const seed = defaultOptparForImage(state.image, BROWN_CONRADY_OPTMOD);
-        for (let i = 0; i < Math.min(7, pinholeOptpar.length); i += 1) {
-            seed[i] = pinholeOptpar[i];
-        }
-        seed[7] = 0;
-        seed[8] = 0;
-        seed[9] = 0;
-        seed[10] = 0;
-        seed[11] = 0;
-        return seed;
-    }
-
     function ensureMaxMagnitudeForMatches(matches) {
         const mags = (matches || [])
             .map(match => Number(match && (match.catalog ? match.catalog.mag : match.star && match.star.mag)))
@@ -5682,427 +5636,6 @@ end
             return;
         }
         setLuckyMaxMagnitude(Math.min(7, Math.max(Number(controls.maxMag.value) || 0, Math.max(...mags))));
-    }
-
-    async function fitPinholeSeedForBrownConrady(blindResult, label, options = {}) {
-        ensureMaxMagnitudeForMatches(state.matches);
-        if (!blindResult || !state.image || fittingMatches().length < 4) {
-            return {accepted: false, skipped: true};
-        }
-        const convertToBrownConrady = options.convertToBrownConrady !== false;
-        const savedOptmod = Number(controls.optmod.value) || BROWN_CONRADY_OPTMOD;
-        const savedActiveOptmod = state.activeOptmod;
-        const savedBrownOptpar = currentOptpar();
-        const undoDepth = state.fitUndoStack.length;
-        let fitResult = {accepted: false, skipped: true};
-        let convertedToBrownConrady = false;
-        try {
-            controls.optmod.value = "1";
-            state.activeOptmod = 1;
-            controls.brownConradyParams.hidden = true;
-            applyOptpar(defaultOptparForImage(state.image, 1));
-            seedCurrentModelFromBlindIdentification(blindResult);
-            setLoadingProgress(88, `${label}: fitting optmod 1 pinhole seed...`);
-            await yieldToBrowser();
-            fitResult = fitLensLevenbergMarquardt({
-                methodLabel: `${label} optmod 1 seed`,
-                fitScopeText: "from the best 3x3 regional asterism cell",
-            });
-            const pinholeOptpar = currentOptpar();
-            if (convertToBrownConrady) {
-                controls.optmod.value = String(BROWN_CONRADY_OPTMOD);
-                state.activeOptmod = BROWN_CONRADY_OPTMOD;
-                controls.brownConradyParams.hidden = false;
-                applyFitVector(brownConradyVectorFromPinholeOptpar(pinholeOptpar));
-                state.lastFitVector = currentOptpar();
-                updateProjection();
-                convertedToBrownConrady = true;
-            }
-        } finally {
-            if (convertToBrownConrady) {
-                controls.optmod.value = String(savedOptmod);
-                state.activeOptmod = savedActiveOptmod;
-                controls.brownConradyParams.hidden = savedOptmod !== BROWN_CONRADY_OPTMOD;
-                if (savedOptmod === BROWN_CONRADY_OPTMOD && !convertedToBrownConrady) {
-                    applyOptpar(savedBrownOptpar);
-                } else if (savedOptmod !== BROWN_CONRADY_OPTMOD) {
-                    applyOptpar(savedBrownOptpar.slice(0, requiredOptparLength(savedOptmod)));
-                }
-            }
-            if (state.fitUndoStack.length > undoDepth) {
-                state.fitUndoStack.splice(undoDepth);
-                updateUndoFitButton();
-            }
-        }
-        return fitResult;
-    }
-
-    function brownConradyRegionalCells(cols = 3, rows = 3, overlapFraction = 0.5) {
-        const width = state.image.width;
-        const height = state.image.height;
-        const cellWidth = width / cols;
-        const cellHeight = height / rows;
-        const padX = 0.5 * Math.max(0, overlapFraction) * cellWidth;
-        const padY = 0.5 * Math.max(0, overlapFraction) * cellHeight;
-        const cells = [];
-        for (let row = 0; row < rows; row += 1) {
-            for (let col = 0; col < cols; col += 1) {
-                const nominalX0 = col * cellWidth;
-                const nominalX1 = (col + 1) * cellWidth;
-                const nominalY0 = row * cellHeight;
-                const nominalY1 = (row + 1) * cellHeight;
-                cells.push({
-                    id: row * cols + col + 1,
-                    row,
-                    col,
-                    x0: Math.max(0, nominalX0 - padX),
-                    x1: Math.min(width, nominalX1 + padX),
-                    y0: Math.max(0, nominalY0 - padY),
-                    y1: Math.min(height, nominalY1 + padY),
-                    nominalX0,
-                    nominalX1,
-                    nominalY0,
-                    nominalY1,
-                });
-            }
-        }
-        return cells;
-    }
-
-    function scoreBrownConradyRegionalBlindResult(result) {
-        return Number.isFinite(result && result.score) ? result.score : -Infinity;
-    }
-
-    function setRegionalCellScore(candidate, bestCellId = null) {
-        if (!candidate || !candidate.cell) {
-            return;
-        }
-        const record = {
-            id: candidate.cell.id,
-            x0: candidate.cell.x0,
-            x1: candidate.cell.x1,
-            y0: candidate.cell.y0,
-            y1: candidate.cell.y1,
-            score: candidate.score,
-            matches: Array.isArray(candidate.result && candidate.result.matches) ?
-                candidate.result.matches.length : 0,
-            best: candidate.cell.id === bestCellId,
-        };
-        const index = state.regionalCellScores.findIndex(cell => cell.id === record.id);
-        if (index >= 0) {
-            state.regionalCellScores[index] = record;
-        } else {
-            state.regionalCellScores.push(record);
-        }
-    }
-
-    function markBestRegionalCellScore(bestCellId) {
-        state.regionalCellScores = state.regionalCellScores.map(cell => ({
-            ...cell,
-            best: cell.id === bestCellId,
-        }));
-    }
-
-    function skyUnitFromAzZe(az, ze) {
-        if (!Number.isFinite(az) || !Number.isFinite(ze)) {
-            return null;
-        }
-        const sinZe = Math.sin(ze);
-        return {
-            x: sinZe * Math.sin(az),
-            y: sinZe * Math.cos(az),
-            z: Math.cos(ze),
-        };
-    }
-
-    function medianSkyDirection(matches) {
-        const vectors = (matches || [])
-            .map(match => match && match.star ? skyUnitFromAzZe(match.star.az, match.star.ze) : null)
-            .filter(Boolean);
-        if (vectors.length === 0) {
-            return null;
-        }
-        const sum = vectors.reduce((acc, vector) => ({
-            x: acc.x + vector.x,
-            y: acc.y + vector.y,
-            z: acc.z + vector.z,
-        }), {x: 0, y: 0, z: 0});
-        const norm = Math.hypot(sum.x, sum.y, sum.z);
-        if (!Number.isFinite(norm) || norm <= 1e-9) {
-            return null;
-        }
-        return {x: sum.x / norm, y: sum.y / norm, z: sum.z / norm};
-    }
-
-    function skyDirectionDistanceDeg(a, b) {
-        if (!a || !b) {
-            return Infinity;
-        }
-        const dot = a.x * b.x + a.y * b.y + a.z * b.z;
-        return Math.acos(Math.max(-1, Math.min(1, dot))) * 180 / Math.PI;
-    }
-
-    function unwrapAzimuthSequence(radians) {
-        if (!radians.length) {
-            return [];
-        }
-        const out = [radians[0]];
-        for (let i = 1; i < radians.length; i += 1) {
-            let value = radians[i];
-            while (value - out[i - 1] > Math.PI) {
-                value -= 2 * Math.PI;
-            }
-            while (value - out[i - 1] < -Math.PI) {
-                value += 2 * Math.PI;
-            }
-            out.push(value);
-        }
-        return out;
-    }
-
-    function hasMonotonicAzimuthByImageX(matches) {
-        const ordered = (matches || [])
-            .filter(match => match && match.star && match.detection &&
-                Number.isFinite(match.star.az) && Number.isFinite(match.detection.x))
-            .slice()
-            .sort((a, b) => a.detection.x - b.detection.x);
-        if (ordered.length < 4) {
-            return false;
-        }
-        const az = unwrapAzimuthSequence(ordered.map(match => match.star.az));
-        let increasing = 0;
-        const tolerance = 2 * Math.PI / 180;
-        for (let i = 1; i < az.length; i += 1) {
-            const delta = az[i] - az[i - 1];
-            if (delta >= -tolerance) {
-                increasing += 1;
-            }
-        }
-        const needed = Math.ceil(0.7 * (az.length - 1));
-        return increasing >= needed;
-    }
-
-    function brownConradyRegionalResultsAgree(best, candidate) {
-        const a = best && best.result;
-        const b = candidate && candidate.result;
-        if (!a || !b || !Array.isArray(a.matches) || !Array.isArray(b.matches)) {
-            return false;
-        }
-        if (a.matches.length < 6 || b.matches.length < 6) {
-            return false;
-        }
-        const skyDistanceDeg = skyDirectionDistanceDeg(
-            medianSkyDirection(a.matches),
-            medianSkyDirection(b.matches)
-        );
-        const f1Ratio = Math.abs(Math.log(Math.max(1e-6, Math.abs(a.f1 || 1)) / Math.max(1e-6, Math.abs(b.f1 || 1))));
-        const sameSign = (a.signX || 1) === (b.signX || 1) && (a.signY || 1) === (b.signY || 1);
-        return sameSign &&
-            skyDistanceDeg <= 75 &&
-            f1Ratio <= Math.log(1.35) &&
-            hasMonotonicAzimuthByImageX(b.matches);
-    }
-
-    function recordRegionalBootstrapAsterisms(candidates, label) {
-        state.asterismEdges = [];
-        for (const candidate of candidates || []) {
-            if (candidate && candidate.result && candidate.cell) {
-                recordAsterismEdgesFromResult(candidate.result, `${label} cell ${candidate.cell.id}`);
-            }
-        }
-    }
-
-    async function runBrownConradyRegionalBootstrap(stage, stageIndex, totalStages) {
-        const label = `I'm feeling lucky ${stageIndex}/${totalStages} Brown-Conrady 3x3 bootstrap`;
-        const maxMag = Number.isFinite(stage.maxMagnitude) ? stage.maxMagnitude : 7.0;
-        const minBlindMatches = Number.isFinite(stage.minBlindMatches) ? stage.minBlindMatches : 6;
-        const cells = brownConradyRegionalCells(3, 3);
-        const commonOptions = {
-            imageWidth: state.image.width,
-            imageHeight: state.image.height,
-            maxMagnitude: maxMag,
-            existingCatalogKeys: null,
-            existingDetectionIds: currentGenerationDetectionIdsFromMatches(),
-            deletedDetectionIds: state.deletedDetectionIds,
-        };
-        let best = null;
-        const successful = [];
-        state.regionalCellScores = [];
-        for (let index = 0; index < cells.length; index += 1) {
-            const cell = cells[index];
-            setLoadingProgress(
-                8 + 62 * index / cells.length,
-                `${label}: detecting stars in cell ${cell.id}/9...`
-            );
-            await yieldToBrowser();
-            const detections = await detectBrightImageStarsForAutoIdentify(
-                stage.maxDetections,
-                {
-                    ...(stage.detectorOptions || {}),
-                    regionBounds: cell,
-                }
-            );
-            state.asterismEdges = [];
-            state.detectorStatus = `${state.detectorStatus}; showing 3x3 cell ${cell.id}/9`;
-            render();
-            await yieldToBrowser();
-            setLoadingProgress(
-                74,
-                `${label}: matching cell ${cell.id}/9 asterisms against Yale catalog...`
-            );
-            await yieldToBrowser();
-            const triangleDebug = snapshot => setTriangleDebugSnapshot({
-                ...snapshot,
-                stage: `${label} cell ${cell.id}: ${snapshot && snapshot.stage ? snapshot.stage : "blind"}`,
-            });
-            const blindMatcher = typeof window.AidaAutoIdentifier.identifyStarsBlindAsync === "function" ?
-                window.AidaAutoIdentifier.identifyStarsBlindAsync :
-                window.AidaAutoIdentifier.identifyStarsBlind;
-            const result = await blindMatcher(
-                visibleStarsForMatching(Math.max(
-                    maxMag,
-                    Number.isFinite(stage.blindOptions && stage.blindOptions.ambiguityMaxMagnitude) ?
-                        stage.blindOptions.ambiguityMaxMagnitude :
-                        maxMag
-                )),
-                detections,
-                {
-                    ...commonOptions,
-                    ...(stage.blindOptions || {}),
-                    maxDetections: Math.min(
-                        stage.maxDetections,
-                        Number.isFinite(stage.blindOptions && stage.blindOptions.maxDetections) ?
-                            stage.blindOptions.maxDetections :
-                            stage.maxDetections
-                    ),
-                    minMatches: minBlindMatches,
-                    triangleDebugStage: `${label} cell ${cell.id} <= mag ${maxMag.toFixed(1)}`,
-                    onTriangleDebug: triangleDebug,
-                    onProgress: (percent, text) => setLoadingProgress(
-                        74 + 20 * Math.max(0, Math.min(100, Number.isFinite(percent) ? percent : 0)) / 100,
-                        `${label}: cell ${cell.id}/9 ${text}`
-                    ),
-                    yieldFn: async () => {
-                        await yieldToBrowser();
-                    },
-                }
-            );
-            const score = scoreBrownConradyRegionalBlindResult(result);
-            const candidate = {cell, detections, result, score};
-            setRegionalCellScore(candidate, best && best.cell ? best.cell.id : null);
-            state.asterismEdges = [];
-            recordAsterismEdgesFromResult(result, `${label} cell ${cell.id}`);
-            const scoreText = Number.isFinite(score) ? score.toFixed(1) : "none";
-            state.automaticMatchingStatus =
-                `${String(result.status || "").replace(/auto-identify/g, "automatic matching")}; ` +
-                `cell ${cell.id}/9 score ${scoreText}`;
-            render();
-            if (Array.isArray(result.matches) && result.matches.length >= minBlindMatches &&
-                    (!Number.isFinite(stage.maxMedianDistance) ||
-                        Number.isFinite(result.medianDistance) && result.medianDistance <= stage.maxMedianDistance)) {
-                successful.push(candidate);
-            }
-            if (!best || score > best.score) {
-                best = candidate;
-                markBestRegionalCellScore(best.cell.id);
-            }
-            await yieldToBrowser();
-        }
-
-        if (successful.length > 0) {
-            successful.sort((a, b) => b.score - a.score);
-            best = successful[0];
-            markBestRegionalCellScore(best.cell.id);
-        }
-        if (!best || !best.result || !Array.isArray(best.result.matches) || best.result.matches.length === 0) {
-            return {
-                result: {matches: [], status: `${label}: no regional asterism cell produced matches`},
-                added: 0,
-                detections: 0,
-                seeded: false,
-                fitAccepted: false,
-                stopLucky: true,
-                stopReason: `${label}: no regional asterism cell produced matches`,
-            };
-        }
-
-        state.detectedStars = best.detections.slice();
-        updateAutoMatches();
-        recordRegionalBootstrapAsterisms([best], label);
-        setLoadingProgress(
-            84,
-            `${label}: selected best cell ${best.cell.id}/9 with ${best.result.matches.length} matches; adding pairs...`
-        );
-        state.automaticMatchingStatus =
-            `${String(best.result.status || "").replace(/auto-identify/g, "automatic matching")}; ` +
-            `selected best 3x3 cell ${best.cell.id}/9 by matcher score ${best.score.toFixed(1)}`;
-        render();
-        await yieldToBrowser();
-        let added = addAutoIdentificationMatches(best.result, "lucky regional asterism", {
-            maxAddDistancePx: stage.maxAddDistancePx,
-            maxAdditions: stage.maxAdditions,
-        });
-        if (fittingMatches().length < 4 && Array.isArray(best.result.matches) && best.result.matches.length >= 4) {
-            added += addAutoIdentificationMatches(best.result, "lucky regional asterism", {
-                maxAdditions: stage.maxAdditions,
-            });
-        }
-        state.pendingMatch = null;
-        clearDensityEstimate();
-        state.showPickedMatchMarkers = true;
-        state.lastFitVector = null;
-        updateAutoMatches();
-        ensureMaxMagnitudeForMatches(state.matches);
-        const agreeingCells = successful.filter(candidate => brownConradyRegionalResultsAgree(best, candidate));
-        const pinholeFit = Array.isArray(best.result.matches) && best.result.matches.length >= 4 ?
-            await fitPinholeSeedForBrownConrady(best.result, label, {
-                convertToBrownConrady: agreeingCells.length >= 2,
-            }) :
-            {accepted: false, skipped: true};
-        if (agreeingCells.length < 2) {
-            recordRegionalBootstrapAsterisms([best], label);
-            if (pinholeFit && !pinholeFit.skipped) {
-                controls.optmod.value = "1";
-                state.activeOptmod = 1;
-                controls.brownConradyParams.hidden = true;
-                if (pinholeFit.optpar) {
-                    applyFitVector(pinholeFit.optpar);
-                }
-                updateProjection();
-                render();
-            }
-            const solvedCells = successful.map(candidate => candidate.cell.id).join(", ") || "none";
-            return {
-                result: {
-                    ...best.result,
-                    status: `${best.result.status}; selected 3x3 cell ${best.cell.id}/9; ` +
-                        `only ${agreeingCells.length} mutually consistent 3x3 cell solution` +
-                        `${agreeingCells.length === 1 ? "" : "s"} found; solved cells ${solvedCells}`
-                },
-                added,
-                detections: best.detections.length,
-                seeded: Boolean(pinholeFit && !pinholeFit.skipped),
-                fitAccepted: Boolean(pinholeFit && pinholeFit.accepted),
-                stopLucky: true,
-                stopReason: `${label}: optmod 1 fit attempted on best cell; ` +
-                    "at least two consistent 3x3 cells are required before Brown-Conrady fitting",
-                cell: best.cell,
-                agreeingCells,
-            };
-        }
-        recordRegionalBootstrapAsterisms(agreeingCells, label);
-        return {
-            result: {
-                ...best.result,
-                status: `${best.result.status}; selected 3x3 cell ${best.cell.id}/9`,
-            },
-            added,
-            detections: best.detections.length,
-            seeded: Boolean(pinholeFit && !pinholeFit.skipped),
-            fitAccepted: Boolean(pinholeFit && pinholeFit.accepted),
-            cell: best.cell,
-            agreeingCells,
-        };
     }
 
     async function runLuckyFitStage(stage, stageIndex, totalStages) {
@@ -6235,7 +5768,6 @@ end
         const optmod = Number(controls.optmod.value) || 2;
         const undoSnapshot = autoPairingUndoSnapshot("I'm feeling lucky");
         state.asterismEdges = [];
-        state.regionalCellScores = [];
         setTriangleDebugSnapshot(null);
         const removedBadAreaMatches = removeAutomaticMatchesInBadStarFinderRegions();
         const startingMatchCount = state.matches.length;
@@ -6911,8 +6443,6 @@ end
         let stoppedAfterEmptyFirstStage = false;
         let stoppedAfterPoorBrownConradyFit = false;
         let poorBrownConradyFitText = "";
-        let stoppedAfterRegionalConsensusFailure = false;
-        let regionalConsensusFailureText = "";
         try {
             for (let i = 0; i < stages.length; i += 1) {
                 if (stages[i].runOnlyWithoutSeed === true && totalAdded > 0) {
@@ -6920,9 +6450,7 @@ end
                 }
                 const stageSnapshot = autoPairingUndoSnapshot(stages[i].phase || `stage ${i + 1}`);
                 const rmsBeforeStage = currentFitRmsPx();
-                const pass = stages[i].brownConradyRegionalBootstrap === true ?
-                    await runBrownConradyRegionalBootstrap(stages[i], i + 1, stages.length) :
-                    await runLuckyFitStage(stages[i], i + 1, stages.length);
+                const pass = await runLuckyFitStage(stages[i], i + 1, stages.length);
                 stagesRun += 1;
                 totalAdded += pass.added;
                 seeded = seeded || pass.seeded;
@@ -6933,13 +6461,6 @@ end
                         94,
                         "I'm feeling lucky: first asterism stage found no matched stars; stopping before weaker-star stages."
                     );
-                    await yieldToBrowser();
-                    break;
-                }
-                if (pass.stopLucky === true) {
-                    stoppedAfterRegionalConsensusFailure = true;
-                    regionalConsensusFailureText = pass.stopReason || "regional bootstrap did not produce enough consistent cells";
-                    setLoadingProgress(94, `I'm feeling lucky: ${regionalConsensusFailureText}; stopping before Brown-Conrady fitting.`);
                     await yieldToBrowser();
                     break;
                 }
@@ -7008,8 +6529,6 @@ end
                 "stopped after empty first asterism stage; " :
                 stoppedAfterPoorBrownConradyFit ?
                     `${poorBrownConradyFitText}; ` :
-                stoppedAfterRegionalConsensusFailure ?
-                    `${regionalConsensusFailureText}; ` :
                 "";
             state.automaticMatchingStatus =
                 `I'm feeling lucky: added ${totalAdded} pairings in ${stagesRun} staged bootstrap/refinement passes; ` +

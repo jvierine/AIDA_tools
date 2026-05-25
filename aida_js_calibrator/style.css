@@ -370,28 +370,6 @@ h2 {
     font-weight: 700;
 }
 
-.regional-cell-score-label {
-    min-width: 0;
-    max-width: 110px;
-    padding: 3px 6px;
-    transform: translate(-50%, -50%);
-    border-color: rgba(250, 204, 21, 0.75);
-    border-radius: 5px;
-    background: rgba(12, 18, 30, 0.78);
-    color: #fde68a;
-    font-size: 11px;
-    font-weight: 800;
-    line-height: 1.15;
-    text-align: center;
-}
-
-.regional-cell-score-best {
-    border-color: rgba(34, 211, 238, 0.9);
-    background: rgba(8, 47, 73, 0.84);
-    color: #a5f3fc;
-    box-shadow: 0 0 8px rgba(34, 211, 238, 0.45);
-}
-
 .azel-label {
     border-color: rgba(255, 210, 70, 0.55);
     color: #ffe08a;

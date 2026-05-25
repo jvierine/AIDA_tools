@@ -112,6 +112,122 @@
         return {background, sigma};
     }
 
+    function robustStats(samples) {
+        if (!samples.length) {
+            return {background: 0, sigma: 1};
+        }
+        const background = median(samples);
+        const sigma = Math.max(1, 1.4826 * median(samples.map(value => Math.abs(value - background))));
+        return {background, sigma};
+    }
+
+    function buildBackgroundMap(pixelData, options = {}) {
+        const width = pixelData.width;
+        const height = pixelData.height;
+        const data = pixelData.data;
+        const maskPredicate = typeof options.maskPredicate === "function" ? options.maskPredicate : null;
+        const meshSize = Number.isFinite(options.backgroundMeshSizePx) ?
+            Math.max(16, Math.floor(options.backgroundMeshSizePx)) :
+            Math.max(48, Math.min(128, Math.round(Math.min(width, height) / 14)));
+        const sampleStep = Number.isFinite(options.backgroundSampleStepPx) ?
+            Math.max(1, Math.floor(options.backgroundSampleStepPx)) : 4;
+        const cols = Math.ceil(width / meshSize);
+        const rows = Math.ceil(height / meshSize);
+        const backgrounds = new Array(cols * rows);
+        const sigmas = new Array(cols * rows);
+        for (let row = 0; row < rows; row += 1) {
+            const y0 = row * meshSize;
+            const y1 = Math.min(height, y0 + meshSize);
+            for (let col = 0; col < cols; col += 1) {
+                const x0 = col * meshSize;
+                const x1 = Math.min(width, x0 + meshSize);
+                const samples = [];
+                for (let y = y0 + Math.floor(sampleStep / 2); y < y1; y += sampleStep) {
+                    for (let x = x0 + Math.floor(sampleStep / 2); x < x1; x += sampleStep) {
+                        if (!maskPredicate || !maskPredicate(x, y)) {
+                            samples.push(grayAt(data, width, x, y));
+                        }
+                    }
+                }
+                const stats = robustStats(samples);
+                const k = row * cols + col;
+                backgrounds[k] = stats.background;
+                sigmas[k] = stats.sigma;
+            }
+        }
+
+        const smooth = values => values.map((value, index) => {
+            const row = Math.floor(index / cols);
+            const col = index - row * cols;
+            const local = [];
+            for (let dy = -1; dy <= 1; dy += 1) {
+                const yy = row + dy;
+                if (yy < 0 || yy >= rows) {
+                    continue;
+                }
+                for (let dx = -1; dx <= 1; dx += 1) {
+                    const xx = col + dx;
+                    if (xx >= 0 && xx < cols && Number.isFinite(values[yy * cols + xx])) {
+                        local.push(values[yy * cols + xx]);
+                    }
+                }
+            }
+            return local.length ? median(local) : value;
+        });
+        const smoothBackgrounds = smooth(backgrounds);
+        const smoothSigmas = smooth(sigmas).map(value => Math.max(1, value));
+        const at = (values, x, y) => {
+            const col = Math.max(0, Math.min(cols - 1, Math.floor(x / meshSize)));
+            const row = Math.max(0, Math.min(rows - 1, Math.floor(y / meshSize)));
+            return values[row * cols + col];
+        };
+        return {
+            meshSize,
+            cols,
+            rows,
+            backgrounds: smoothBackgrounds,
+            sigmas: smoothSigmas,
+            backgroundAt: (x, y) => at(smoothBackgrounds, x, y),
+            sigmaAt: (x, y) => at(smoothSigmas, x, y),
+        };
+    }
+
+    const MATCHED_KERNEL = [
+        [1, 2, 3, 2, 1],
+        [2, 3, 5, 3, 2],
+        [3, 5, 8, 5, 3],
+        [2, 3, 5, 3, 2],
+        [1, 2, 3, 2, 1],
+    ];
+    const MATCHED_KERNEL_NORM = Math.sqrt(MATCHED_KERNEL
+        .flat()
+        .reduce((sum, value) => sum + value * value, 0));
+
+    function matchedFilterSnr(pixelData, cx, cy, background, sigma, maskPredicate = null) {
+        const width = pixelData.width;
+        const height = pixelData.height;
+        const data = pixelData.data;
+        let weighted = 0;
+        let weight2 = 0;
+        for (let ky = 0; ky < MATCHED_KERNEL.length; ky += 1) {
+            const y = cy + ky - 2;
+            if (y < 0 || y >= height) {
+                continue;
+            }
+            for (let kx = 0; kx < MATCHED_KERNEL[ky].length; kx += 1) {
+                const x = cx + kx - 2;
+                if (x < 0 || x >= width || maskPredicate && maskPredicate(x, y)) {
+                    continue;
+                }
+                const kernel = MATCHED_KERNEL[ky][kx];
+                weighted += kernel * (grayAt(data, width, x, y) - background);
+                weight2 += kernel * kernel;
+            }
+        }
+        const norm = Math.sqrt(Math.max(1e-9, weight2)) || MATCHED_KERNEL_NORM;
+        return weighted / Math.max(1, sigma) / norm;
+    }
+
     function apertureShape(pixelData, cx, cy, radius, background, maskPredicate = null) {
         const width = pixelData.width;
         const height = pixelData.height;
@@ -229,6 +345,17 @@
         const cellsX = Math.ceil(width / cellSize);
         const cellsY = Math.ceil(height / cellSize);
         const cellPeaks = Array.from({length: cellsX * cellsY}, () => ({value: -Infinity, x: 0, y: 0}));
+        const useSpatialBackground = options.useSpatialBackground === true;
+        await maybeYield(
+            options,
+            8,
+            useSpatialBackground ? "Estimating spatial background and noise..." : "Estimating image background and noise...",
+            true
+        );
+        const backgroundMap = useSpatialBackground ? buildBackgroundMap(pixelData, {
+            ...options,
+            maskPredicate,
+        }) : null;
         const samples = [];
         for (let y = 4; y < height; y += 8) {
             for (let x = 4; x < width; x += 8) {
@@ -257,13 +384,35 @@
                     continue;
                 }
                 const value = grayAt(data, width, x, y);
-                if (value < scanThreshold || !isStrictLocalMaximum(data, width, x, y, value)) {
+                const localBgForScan = backgroundMap ? backgroundMap.backgroundAt(x, y) : bg;
+                const localSigmaForScan = backgroundMap ? backgroundMap.sigmaAt(x, y) : sigma;
+                const localScanThreshold = localBgForScan + Math.max(
+                    Number.isFinite(options.minPeakAboveBg) ? options.minPeakAboveBg : 4,
+                    (Number.isFinite(options.scanThresholdSigma) ? options.scanThresholdSigma : 0.5) * localSigmaForScan
+                );
+                if (value < Math.max(scanThreshold, localScanThreshold) ||
+                        !isStrictLocalMaximum(data, width, x, y, value)) {
                     continue;
                 }
+                const scanMatchedSnr = matchedFilterSnr(
+                    pixelData,
+                    x,
+                    y,
+                    localBgForScan,
+                    localSigmaForScan,
+                    maskPredicate
+                );
                 scannedLocalPeaks += 1;
                 const cellIndex = Math.floor(y / cellSize) * cellsX + Math.floor(x / cellSize);
-                if (value > cellPeaks[cellIndex].value) {
-                    cellPeaks[cellIndex] = {value, x, y};
+                const localPeakScore = scanMatchedSnr * Math.max(0, (value - localBgForScan) / Math.max(1, localSigmaForScan));
+                if (localPeakScore > cellPeaks[cellIndex].score || !Number.isFinite(cellPeaks[cellIndex].score)) {
+                    cellPeaks[cellIndex] = {
+                        value,
+                        score: localPeakScore,
+                        scanMatchedSnr,
+                        x,
+                        y,
+                    };
                 }
             }
             const now = typeof performance === "object" && performance.now ? performance.now() : Date.now();
@@ -315,21 +464,36 @@
                 continue;
             }
             const annulus = localAnnulusStats(pixelData, peak.x, peak.y, annulusInner, annulusOuter, maskPredicate);
-            const contrast = peak.value - annulus.background;
-            const localSnr = contrast / Math.max(1e-9, annulus.sigma);
+            const meshBackground = backgroundMap ? backgroundMap.backgroundAt(peak.x, peak.y) : annulus.background;
+            const meshSigma = backgroundMap ? backgroundMap.sigmaAt(peak.x, peak.y) : annulus.sigma;
+            const localBackground = Math.min(annulus.background, meshBackground);
+            const localSigmaEstimate = Math.max(1, Math.min(annulus.sigma, meshSigma));
+            const contrast = peak.value - localBackground;
+            const localSnr = contrast / Math.max(1e-9, localSigmaEstimate);
             const globalSnr = (peak.value - bg) / Math.max(1e-9, sigma);
-            if (contrast < Math.max(5, minLocalSigma * annulus.sigma)) {
+            const matchedSnr = matchedFilterSnr(
+                pixelData,
+                peak.x,
+                peak.y,
+                localBackground,
+                localSigmaEstimate,
+                maskPredicate
+            );
+            const minMatchedSnr = Number.isFinite(options.minMatchedFilterSnr) ?
+                options.minMatchedFilterSnr : 1.2;
+            if (contrast < Math.max(5, minLocalSigma * localSigmaEstimate) ||
+                    matchedSnr < minMatchedSnr) {
                 rejectCounts.belowLocalContrast += 1;
                 continue;
             }
-            const centroid = weightedCentroid(pixelData, peak.x, peak.y, centroidRadius, annulus.background, maskPredicate);
+            const centroid = weightedCentroid(pixelData, peak.x, peak.y, centroidRadius, localBackground, maskPredicate);
             if (!Number.isFinite(centroid.x) || !Number.isFinite(centroid.y)) {
                 rejectCounts.invalidCentroid += 1;
                 continue;
             }
             const cx = Math.round(centroid.x);
             const cy = Math.round(centroid.y);
-            const shape = apertureShape(pixelData, cx, cy, apertureRadius, annulus.background, maskPredicate);
+            const shape = apertureShape(pixelData, cx, cy, apertureRadius, localBackground, maskPredicate);
             if (!shape || shape.radius < 0.25 || shape.radius > maxRadius ||
                     shape.elongation > maxElongation || shape.saturated > maxSaturated) {
                 rejectCounts.nonStarShape += 1;
@@ -339,6 +503,10 @@
                 options.minCoreFluxFraction : 0.14;
             const maxOuterFluxFraction = Number.isFinite(options.maxOuterFluxFraction) ?
                 options.maxOuterFluxFraction : 0.58;
+            if (shape.coreFluxFraction < minCoreFluxFraction && shape.outerFluxFraction > maxOuterFluxFraction) {
+                rejectCounts.nonStarShape += 1;
+                continue;
+            }
             const minPeakDominance = Number.isFinite(options.minPeakDominance) ?
                 options.minPeakDominance : 1.08;
             const corePower = Number.isFinite(options.coreFluxPenaltyPower) ?
@@ -361,15 +529,16 @@
                 peakPower
             );
             const outerShapePenalty = Math.pow(
-                1 + Math.max(0, shape.outerFluxFraction - maxOuterFluxFraction) * 4.0,
+                1 + Math.max(0, shape.outerFluxFraction - maxOuterFluxFraction) * 6.0,
                 outerPower
             );
             const elongationPenalty = Math.pow(Math.max(1, shape.elongation), elongationPower);
             const centroidOffsetPenalty = Math.pow(1 + Math.max(0, centroidOffset - 0.8), centroidOffsetPower);
-            const compactness = contrast / Math.pow(Math.max(1, shape.radius), 2.2);
+            const compactness = contrast / Math.pow(Math.max(1, shape.radius), 2.8);
             const saturationPenalty = 1 + 0.18 * shape.saturated;
             const roundnessFactor = coreShapeFactor * peakShapeFactor;
-            const score = compactness * Math.sqrt(Math.max(1, shape.flux)) * roundnessFactor /
+            const matchedFactor = Math.pow(Math.max(0.2, matchedSnr), 0.25);
+            const score = compactness * Math.pow(Math.max(1, shape.flux), 0.25) * roundnessFactor * matchedFactor /
                 (elongationPenalty * outerShapePenalty * centroidOffsetPenalty * saturationPenalty);
             candidates.push({
                 x: centroid.x,
@@ -381,7 +550,9 @@
                 globalSnr,
                 peak: peak.value,
                 flux: shape.flux,
-                background: annulus.background,
+                background: localBackground,
+                meshBackground,
+                meshSigma,
                 radius: shape.radius,
                 elongation: shape.elongation,
                 coreFluxFraction: shape.coreFluxFraction,
@@ -389,6 +560,7 @@
                 peakDominance: shape.peakDominance,
                 centroidOffset,
                 roundnessFactor,
+                matchedFilterSnr: matchedSnr,
                 saturated: shape.saturated,
                 score,
             });
@@ -446,10 +618,12 @@
             sigma,
             globalThreshold,
             scanThreshold,
+            backgroundMeshSize: backgroundMap ? backgroundMap.meshSize : null,
             scannedLocalPeaks,
             rejectCounts,
             status: `bright-star detector: bg ${bg.toFixed(1)}, sigma ${sigma.toFixed(1)}, ` +
                 `thresholds scan/global ${scanThreshold.toFixed(1)}/${globalThreshold.toFixed(1)}, ` +
+                `${backgroundMap ? `mesh ${backgroundMap.meshSize} px, ` : ""}` +
                 `${scannedLocalPeaks} local peaks, ${filteredCandidates.length}/${candidates.length} star-like candidates after clutter, ` +
                 `selected top ${detections.length}/${maxDetections}, suppression radius ${suppressionRadius.toFixed(0)} px`,
         };

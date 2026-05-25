@@ -16,6 +16,9 @@ const {
 const {
     buildSensitivityData: buildAllsky010031SensitivityData,
 } = require("../tools/allsky010031_ams0221_preundistortion_sensitivity.js");
+const {
+    detectionOracleMetrics,
+} = require("../tools/star_detector_oracle_report.js");
 const RUN_FULL_TESTS = process.env.AIDA_FULL_TESTS === "1";
 const RUN_SENSITIVITY_TESTS = process.env.AIDA_SENSITIVITY_TESTS === "1";
 
@@ -1044,6 +1047,35 @@ test("star detector ranks compact center-bright peaks above broad lumpy peaks", 
     );
     assert.ok(compact.coreFluxFraction > broad.coreFluxFraction);
     assert.ok(compact.outerFluxFraction < broad.outerFluxFraction);
+});
+
+test("star detector oracle metric rewards true compact detections and penalizes false positives", async () => {
+    const image = syntheticGrayImage(128, 96, 14);
+    const truth = [
+        {key: "a", x: 24, y: 22},
+        {key: "b", x: 66, y: 28},
+        {key: "c", x: 98, y: 54},
+        {key: "d", x: 42, y: 76},
+    ];
+    for (const star of truth) {
+        image.addGaussian(star.x, star.y, 1.05, 1.1, 150);
+    }
+    image.addGaussian(105, 18, 4.2, 1.1, 180);
+    image.addGaussian(82, 78, 5.5, 5.5, 95);
+    const result = await StarDetector.detectBrightStars(image, {
+        maxDetections: truth.length,
+        thresholdSigma: 1.4,
+        localThresholdSigma: 1.4,
+        requireGlobalThreshold: false,
+        maxRadiusPx: 4.5,
+        maxElongation: 3.5,
+        suppressionRadiusPx: 6,
+    });
+    const metrics = detectionOracleMetrics(result.detections, truth, 3.0);
+    assert.equal(metrics.correct, truth.length);
+    assert.ok(metrics.falsePositive <= 1, `expected at most one false positive; ${result.status}`);
+    assert.ok(metrics.precision >= 0.8, `expected high precision; ${JSON.stringify(metrics)}`);
+    assert.equal(metrics.recall, 1);
 });
 
 test("asterism matcher identifies bright Yale stars without current lens projection", () => {

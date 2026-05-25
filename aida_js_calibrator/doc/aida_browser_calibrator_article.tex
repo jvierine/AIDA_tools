@@ -27,7 +27,7 @@
 
 \title{A Browser-Based Wide-Field Star Calibration Tool for AIDA Camera Models}
 \author{Juha Vierinen \and Bjorn Gustavsson \and Codex}
-\date{Draft for AIDA Browser Calibrator v0.2.5}
+\date{Draft for AIDA Browser Calibrator v0.2.6}
 
 \begin{document}
 \maketitle
@@ -184,6 +184,17 @@ or crowded detections. Detected stars are ranked by contrast and flux-like
 scores. Painted bad regions are applied as exclusion masks before automatic
 pairing, allowing the user to remove spurious detections from buildings,
 aurora, hot pixels, or image artifacts.
+This design follows the practical lessons of Source Extractor
+\cite{bertin1996sextractor} and SEP \cite{barbary2016sep}: estimate a
+spatially variable background and noise field, use a compact PSF-like matched
+filter to favor point sources, and treat segmentation/deblending ideas as a way
+to prevent extended structures from masquerading as stars. The browser
+implementation does not expose these as user tuning parameters. Instead, it
+uses automatic local background estimates and matched-filter peak scoring
+inside the detector, with mesh background/RMS estimation retained as an
+oracle-tested diagnostic option rather than a mandatory GUI setting. Detector
+changes are validated offline with oracle tests that compare detections against
+catalog stars projected through known lens models.
 
 Manual picking uses a different path. The user clicks near a star and the tool
 extracts a local image patch. A smoothed density estimate is computed on an
@@ -572,9 +583,10 @@ better architecture.
 The AIDA browser calibrator provides a practical, inspectable workflow for
 turning wide-field star images into calibrated camera models. It combines
 manual control with automatic assistance, keeps the calibration state visible,
-and exports model code that can be used outside the browser. Version 0.2.5
-stabilizes the regional asterism diagnostics, allsky7 lucky recipe, and
-Brown-Conrady phone-camera bootstrap path used for further development.
+and exports model code that can be used outside the browser. Version 0.2.6
+stabilizes the asterism diagnostics, allsky7 lucky recipe, and
+whole-image Brown-Conrady phone-camera bootstrap path used for further
+development.
 
 \section*{Acknowledgments}
 
@@ -582,5 +594,22 @@ This software and article draft were prepared by Juha Vierinen, Bjorn
 Gustavsson, and Codex. The implementation builds on practical calibration
 workflows developed for all-sky camera analysis and on the historical parameter
 conventions used by AIDA-compatible calibration tools.
+
+\begin{thebibliography}{9}
+
+\bibitem{bertin1996sextractor}
+E. Bertin and S. Arnouts.
+\newblock SExtractor: Software for source extraction.
+\newblock \emph{Astronomy and Astrophysics Supplement Series}, 117:393--404,
+1996.
+\newblock doi:10.1051/aas:1996164.
+
+\bibitem{barbary2016sep}
+K. Barbary.
+\newblock SEP: Source Extractor as a library.
+\newblock \emph{Journal of Open Source Software}, 1(6):58, 2016.
+\newblock doi:10.21105/joss.00058.
+
+\end{thebibliography}
 
 \end{document}

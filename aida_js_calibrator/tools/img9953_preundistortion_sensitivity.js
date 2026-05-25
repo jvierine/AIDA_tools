@@ -46,17 +46,17 @@ const MATCHER_OPTIONS = {
 };
 
 const MAX_MAG = 6.5;
-const SWEEP_POINTS = 9;
+const SWEEP_POINTS = 13;
 
 const PARAMETERS = [
-    {index: 0, name: "f1", label: "f1", mode: "relative", span: 0.35, unit: "fraction"},
-    {index: 1, name: "f2", label: "f2", mode: "relative", span: 0.35, unit: "fraction"},
-    {index: 5, name: "du", label: "du", mode: "absolute", span: 0.08, unit: "normalized image"},
-    {index: 6, name: "dv", label: "dv", mode: "absolute", span: 0.08, unit: "normalized image"},
-    {index: 7, name: "k1", label: "k1", mode: "absolute", span: 0.35, unit: "coefficient"},
-    {index: 8, name: "k2", label: "k2", mode: "absolute", span: 0.70, unit: "coefficient"},
-    {index: 10, name: "p1", label: "p1", mode: "absolute", span: 0.05, unit: "coefficient"},
-    {index: 11, name: "p2", label: "p2", mode: "absolute", span: 0.05, unit: "coefficient"},
+    {index: 0, name: "f1", label: "f1", mode: "relative", span: 0.85, unit: "fraction"},
+    {index: 1, name: "f2", label: "f2", mode: "relative", span: 0.85, unit: "fraction"},
+    {index: 5, name: "du", label: "du", mode: "absolute", span: 0.22, unit: "normalized image"},
+    {index: 6, name: "dv", label: "dv", mode: "absolute", span: 0.22, unit: "normalized image"},
+    {index: 7, name: "k1", label: "k1", mode: "absolute", span: 1.20, unit: "coefficient"},
+    {index: 8, name: "k2", label: "k2", mode: "absolute", span: 2.40, unit: "coefficient"},
+    {index: 10, name: "p1", label: "p1", mode: "absolute", span: 0.16, unit: "coefficient"},
+    {index: 11, name: "p2", label: "p2", mode: "absolute", span: 0.16, unit: "coefficient"},
 ];
 
 function escapeHtml(value) {
@@ -240,7 +240,7 @@ async function buildSensitivityData() {
         label: "common f1/f2 zoom",
         unit: "scale",
         mode: "absolute",
-        points: linspace(0.55, 1.45, SWEEP_POINTS).map(z => ({
+        points: linspace(0.20, 2.40, SWEEP_POINTS).map(z => ({
             delta: z - 1,
             value: z,
             ...evaluateAsterism(

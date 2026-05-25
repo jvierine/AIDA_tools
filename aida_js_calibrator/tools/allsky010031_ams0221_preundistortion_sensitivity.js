@@ -15,7 +15,7 @@ const {
 const ROOT = path.join(__dirname, "..");
 const OUT_DIR = path.join(ROOT, "test-report", "allsky010031-ams0221-preundistortion-sensitivity");
 const MAX_MAG = 6.5;
-const SWEEP_POINTS = 9;
+const SWEEP_POINTS = 13;
 const IMAGE_NAME = "2025_02_19_03_46_01_000_010031_ams0221_first1s.png";
 const TEST_CASE = {
     id: "2025_02_19_03_46_01_000_010031_ams0221_first1s",
@@ -59,14 +59,14 @@ const MATCHER_OPTIONS = {
     maxCandidateTransforms: 3000,
 };
 const PARAMETERS = [
-    {index: 0, name: "f1", label: "f1", mode: "relative", span: 0.35, unit: "fraction"},
-    {index: 1, name: "f2", label: "f2", mode: "relative", span: 0.35, unit: "fraction"},
-    {index: 2, name: "alpha", label: "alpha angle", mode: "absolute", span: 25, unit: "deg"},
-    {index: 3, name: "beta", label: "beta angle", mode: "absolute", span: 25, unit: "deg"},
-    {index: 4, name: "gamma", label: "gamma angle", mode: "absolute", span: 25, unit: "deg"},
-    {index: 5, name: "du", label: "du", mode: "absolute", span: 0.08, unit: "normalized image"},
-    {index: 6, name: "dv", label: "dv", mode: "absolute", span: 0.08, unit: "normalized image"},
-    {index: 7, name: "radial", label: "optmod 2 radial alpha", mode: "absolute", span: 0.35, unit: "coefficient"},
+    {index: 0, name: "f1", label: "f1", mode: "relative", span: 0.85, unit: "fraction"},
+    {index: 1, name: "f2", label: "f2", mode: "relative", span: 0.85, unit: "fraction"},
+    {index: 2, name: "alpha", label: "alpha angle", mode: "absolute", span: 80, unit: "deg"},
+    {index: 3, name: "beta", label: "beta angle", mode: "absolute", span: 80, unit: "deg"},
+    {index: 4, name: "gamma", label: "gamma angle", mode: "absolute", span: 80, unit: "deg"},
+    {index: 5, name: "du", label: "du", mode: "absolute", span: 0.22, unit: "normalized image"},
+    {index: 6, name: "dv", label: "dv", mode: "absolute", span: 0.22, unit: "normalized image"},
+    {index: 7, name: "radial", label: "optmod 2 radial alpha", mode: "absolute", span: 0.85, unit: "coefficient"},
 ];
 
 function escapeHtml(value) {
@@ -232,7 +232,7 @@ async function buildSensitivityData() {
         label: "common f1/f2 zoom",
         unit: "scale",
         mode: "absolute",
-        points: linspace(0.55, 1.45, SWEEP_POINTS).map(z => ({
+        points: linspace(0.20, 2.40, SWEEP_POINTS).map(z => ({
             delta: z - 1,
             value: z,
             ...evaluateAsterism(TEST_CASE, detectionResult.detections, catalogRaw, validation, perturbZoom(TEST_CASE.optpar, z)),
