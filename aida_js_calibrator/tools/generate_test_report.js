@@ -461,6 +461,16 @@ function escapeHtml(value) {
     }[ch]));
 }
 
+function shellQuote(value) {
+    const text = String(value);
+    return /^[A-Za-z0-9_./:=@+-]+$/.test(text) ? text : `'${text.replace(/'/g, `'\\''`)}'`;
+}
+
+function reportCommand(args = []) {
+    const suffix = args.length ? ` -- ${args.map(shellQuote).join(" ")}` : "";
+    return `cd /Users/j/src/AIDA_tools/aida_js_calibrator && npm run report${suffix}`;
+}
+
 function paethPredictor(a, b, c) {
     const p = a + b - c;
     const pa = Math.abs(p - a);
@@ -1564,7 +1574,7 @@ ${reviewHtml}
     </section>`;
 }
 
-function pageHtml(results) {
+function pageHtml(results, command = reportCommand()) {
     const generated = new Date().toISOString();
     const plural = results.length === 1 ? "case" : "cases";
     return `<!doctype html>
@@ -1579,6 +1589,9 @@ header { padding: 28px 32px 16px; border-bottom: 1px solid #2b3340; background: 
 h1 { margin: 0 0 8px; font-size: 26px; }
 h2 { margin: 0 0 8px; font-size: 20px; }
 .intro { max-width: 980px; color: #aeb8c8; }
+.reproduce { max-width: 980px; margin-top: 14px; padding: 12px; background: #202633; border: 1px solid #394457; border-radius: 6px; }
+.reproduce h2 { margin: 0 0 8px; font-size: 15px; }
+.reproduce pre { margin: 0; padding: 10px; overflow-x: auto; background: #10151d; border: 1px solid #303948; border-radius: 5px; color: #b7f7c8; }
 .case-card { margin: 24px auto; max-width: 1320px; padding: 22px; background: #181d25; border: 1px solid #303948; border-radius: 8px; }
 .meta { display: flex; flex-wrap: wrap; gap: 10px; color: #aeb8c8; margin-bottom: 10px; }
 .meta span { padding: 3px 8px; border: 1px solid #3b4657; border-radius: 999px; }
@@ -1622,6 +1635,10 @@ h2 { margin: 0 0 8px; font-size: 20px; }
 <header>
 <h1>AIDA Calibrator Star-Fit Test Report</h1>
 <p class="intro">Generated ${escapeHtml(generated)} for ${results.length} ${plural}. The report reads JSON cases from <code>aida_js_calibrator/test_cases/</code>; each case contains image metadata and an <code>[optmod, ...optpar]</code> vector. A known-good lens model creates an oracle truth map between Yale catalogue stars and image detections; this validates the detector and shows the best available fit if the star identities are known. Each case also reports a separate GUI-style auto-identify simulation that starts from the default lens state, uses blind asterisms to seed the model, and then expands with projected matching. Green circles are oracle-certified detections used for the validation fit, cyan circles are fitted lens-model positions, red circles are catalogue stars under the known-good optpar model, and yellow dots are raw automatic detections. Brown-Conrady cases use light coefficient regularization.</p>
+<section class="reproduce">
+<h2>Repeat From Command Line</h2>
+<pre><code>${escapeHtml(command)}</code></pre>
+</section>
 </header>
 ${results.map(caseHtml).join("\n")}
 </body>
@@ -1680,7 +1697,7 @@ async function main() {
         results.push(await analyzeCase(testCase));
     }
     const outfile = path.join(OUT_DIR, outputNameForFilters(filters));
-    fs.writeFileSync(outfile, pageHtml(results));
+    fs.writeFileSync(outfile, pageHtml(results, reportCommand(process.argv.slice(2))));
     process.stdout.write(`${outfile}\n`);
 }
 

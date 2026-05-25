@@ -86,6 +86,7 @@ function casePanel(testCase, index) {
 
 function pageHtml(cases) {
     const generated = new Date().toISOString();
+    const command = "cd /Users/j/src/AIDA_tools/aida_js_calibrator && npm run report:saved-overlays";
     return `<!doctype html>
 <html lang="en">
 <head>
@@ -113,6 +114,9 @@ button { cursor: pointer; font-weight: 800; }
 .info h2 { margin: 0 0 10px; font-size: 17px; color: #fff; overflow-wrap: anywhere; }
 .info p { margin: 8px 0; }
 pre { white-space: pre-wrap; overflow-wrap: anywhere; padding: 10px; background: #0b0f18; border: 1px solid #303746; border-radius: 6px; color: #b7f7c8; font-size: 11px; }
+.reproduce { padding: 10px 12px; background: #121723; border-bottom: 1px solid #303746; color: #c9d2e3; }
+.reproduce h2 { margin: 0 0 6px; font-size: 13px; color: #fff; }
+.reproduce pre { margin: 0; }
 @media (max-width: 900px) { .case.active { display: block; height: auto; } .stage { height: auto; } .info { border-left: 0; border-top: 1px solid #303746; } }
 </style>
 </head>
@@ -124,6 +128,10 @@ pre { white-space: pre-wrap; overflow-wrap: anywhere; padding: 10px; background:
     <span id="counter" class="meta"></span>
     <span class="legend"><span><span class="swatch selected"></span>selected</span><span><span class="swatch"></span>catalogue mag &le; ${LIMITING_MAG.toFixed(1)}</span></span>
 </div>
+<section class="reproduce">
+<h2>Repeat From Command Line</h2>
+<pre><code>${escapeHtml(command)}</code></pre>
+</section>
 ${cases.map(casePanel).join("\n")}
 <script>
 const cases = ${JSON.stringify(cases.map(testCase => ({id: testCase.id})))};

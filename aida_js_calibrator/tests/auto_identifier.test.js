@@ -7,6 +7,7 @@ const zlib = require("node:zlib");
 
 const AutoIdentifier = require("../js/auto_identifier.js");
 const StarDetector = require("../js/star_detector.js");
+const StarPatchNN = require("../js/star_patch_nn.js");
 const {
     runImg9953UndistortedAsterismCase,
 } = require("../tools/img9953_undistorted_asterism_report.js");
@@ -1076,6 +1077,52 @@ test("star detector oracle metric rewards true compact detections and penalizes 
     assert.ok(metrics.falsePositive <= 1, `expected at most one false positive; ${result.status}`);
     assert.ok(metrics.precision >= 0.8, `expected high precision; ${JSON.stringify(metrics)}`);
     assert.equal(metrics.recall, 1);
+});
+
+test("star patch NN helper extracts fixed-size browser-safe features", () => {
+    const width = 17;
+    const height = 17;
+    const data = new Uint8ClampedArray(width * height * 4);
+    for (let y = 0; y < height; y += 1) {
+        for (let x = 0; x < width; x += 1) {
+            const k = 4 * (y * width + x);
+            const r2 = (x - 8) * (x - 8) + (y - 8) * (y - 8);
+            const value = Math.round(20 + 180 * Math.exp(-0.5 * r2 / 2.2));
+            data[k] = value;
+            data[k + 1] = value;
+            data[k + 2] = value;
+            data[k + 3] = 255;
+        }
+    }
+    const features = StarPatchNN.featureVector({width, height, data}, 8, 8, {
+        localSnr: 12,
+        globalSnr: 9,
+        matchedFilterSnr: 7,
+        flux: 400,
+        peakContrast: 170,
+        radius: 1.6,
+        elongation: 1.1,
+        coreFluxFraction: 0.4,
+        outerFluxFraction: 0.2,
+        peakDominance: 3,
+        centroidOffset: 0.2,
+        localCrowding: 0,
+    });
+    assert.equal(features.length, 93);
+    assert.ok(features.every(Number.isFinite));
+    const model = {
+        input: features.length,
+        hidden: 2,
+        w1: new Array(features.length * 2).fill(0),
+        b1: [0, 0],
+        wClass: [0, 0],
+        bClass: 0,
+        wMag: [0, 0],
+        bMag: 0,
+    };
+    const prediction = StarPatchNN.predictRaw(model, features);
+    assert.equal(prediction.starProbability, 0.5);
+    assert.equal(prediction.predictedMagnitude, 4);
 });
 
 test("asterism matcher identifies bright Yale stars without current lens projection", () => {

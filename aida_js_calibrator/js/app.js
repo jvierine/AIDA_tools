@@ -3019,6 +3019,22 @@ end
         triangleDebugPlot.appendChild(title);
     }
 
+    function clearTransientDebugOverlays() {
+        state.asterismEdges = [];
+        state.triangleDebugSnapshot = null;
+        state.showFitResiduals = false;
+        state.pendingMatch = null;
+        state.centroidPreview = null;
+        state.notStarTilePreview = null;
+        state.junkStarFinderPreview = null;
+        state.notStarTilePaintActive = false;
+        state.junkStarFinderPaintActive = false;
+        state.lastNotStarTilePaintPoint = null;
+        state.lastJunkStarFinderPoint = null;
+        updateFitResidualButton();
+        updateTriangleDebugPlot();
+    }
+
     function nearestCardinalAzimuthDistance(azDeg) {
         const normalized = ((azDeg % 360) + 360) % 360;
         let best = 180;
@@ -3296,12 +3312,8 @@ end
         } else {
             updateResidualHistogram([]);
             if (state.displayMode === "pureImage") {
-                drawAzElGrid();
                 cardinalLayer.replaceChildren();
-                drawAutoDetectionMarkers();
-                drawBadStarFinderMarkers();
             } else if (state.displayMode === "pureStellarium") {
-                drawAzElGrid();
                 drawStars();
                 cardinalLayer.replaceChildren();
             } else {
@@ -5768,6 +5780,7 @@ end
         const optmod = Number(controls.optmod.value) || 2;
         const undoSnapshot = autoPairingUndoSnapshot("I'm feeling lucky");
         state.asterismEdges = [];
+        state.showAsterismLines = true;
         setTriangleDebugSnapshot(null);
         const removedBadAreaMatches = removeAutomaticMatchesInBadStarFinderRegions();
         const startingMatchCount = state.matches.length;
@@ -6544,6 +6557,10 @@ end
                 `${rejectedExpansionStars} rejected by RMSE guard, ` +
                 `${totalPruned} pruned, ` +
                 `${acceptedFits} accepted fit step${acceptedFits === 1 ? "" : "s"}; undo is available`;
+            state.asterismEdges = [];
+            state.triangleDebugSnapshot = null;
+            state.showAsterismLines = false;
+            state.showAutoDetectionMarkers = false;
             playInteractionSound(acceptedFits > 0 ? "fit" : "click");
             recomputeAndRender();
         } catch (error) {
@@ -6969,6 +6986,7 @@ end
 
     function toggleDetectionCircles() {
         const nextMode = state.displayMode === "stellarium" ? "pairing" : "stellarium";
+        clearTransientDebugOverlays();
         setDisplayMode(nextMode);
         state.previousAnnotatedDisplayMode = nextMode;
         state.starMatchMode = false;
@@ -6978,6 +6996,7 @@ end
     }
 
     function togglePureView() {
+        clearTransientDebugOverlays();
         if (state.displayMode === "pureImage") {
             setDisplayMode("pureStellarium");
         } else if (state.displayMode === "pureStellarium") {

@@ -101,6 +101,16 @@ function escapeHtml(value) {
     }[ch]));
 }
 
+function shellQuote(value) {
+    const text = String(value);
+    return /^[A-Za-z0-9_./:=@+-]+$/.test(text) ? text : `'${text.replace(/'/g, `'\\''`)}'`;
+}
+
+function reportCommand(args = []) {
+    const suffix = args.length ? ` -- ${args.map(shellQuote).join(" ")}` : "";
+    return `cd /Users/j/src/AIDA_tools/aida_js_calibrator && npm run lucky:report${suffix}`;
+}
+
 function fmtMs(value) {
     return Number.isFinite(value) ? `${value.toFixed(value >= 1000 ? 0 : 1)} ms` : "n/a";
 }
@@ -962,7 +972,7 @@ function summaryHtml(results, generated) {
     </div>`;
 }
 
-function pageHtml(results) {
+function pageHtml(results, command = reportCommand()) {
     const generated = new Date().toISOString();
     return `<!doctype html>
 <html lang="en">
@@ -977,6 +987,9 @@ button, select { color: #eef2f7; background: #263041; border: 1px solid #4b566b;
 button { cursor: pointer; font-weight: 800; }
 .summary { padding: 12px 16px; color: #cbd5e1; background: #151a23; border-bottom: 1px solid #313949; }
 .summary table { display: inline-table; margin-left: 18px; vertical-align: middle; }
+.reproduce { padding: 12px 16px; color: #cbd5e1; background: #111722; border-bottom: 1px solid #313949; }
+.reproduce h2 { margin: 0 0 6px; font-size: 13px; color: #fff; }
+.reproduce pre { margin: 0; padding: 10px; overflow-x: auto; background: #070b12; border: 1px solid #303746; border-radius: 6px; color: #b7f7c8; }
 .case { display: none; grid-template-columns: minmax(0, 1fr) 430px; gap: 14px; padding: 14px; min-height: calc(100vh - 110px); box-sizing: border-box; }
 .case.active { display: grid; }
 .stage { position: relative; align-self: start; max-width: 100%; max-height: calc(100vh - 140px); background: #05070c; overflow: hidden; }
@@ -1007,6 +1020,10 @@ td:last-child { overflow-wrap: anywhere; }
     <span>yellow raw detections/asterisms, red final catalogue, green lucky detections, cyan fitted stars</span>
 </div>
 ${summaryHtml(results, generated)}
+<section class="reproduce">
+<h2>Repeat From Command Line</h2>
+<pre><code>${escapeHtml(command)}</code></pre>
+</section>
 ${results.map(resultPanel).join("\n")}
 <script>
 const cases = ${JSON.stringify(results.map(result => ({id: result.testCase.id})))};
@@ -1090,7 +1107,7 @@ async function main() {
         results.push(await analyzeImage(images[i], i, images.length, metadataMap, options));
     }
     const outFile = path.join(options.outDir, "index.html");
-    fs.writeFileSync(outFile, pageHtml(results));
+    fs.writeFileSync(outFile, pageHtml(results, reportCommand(process.argv.slice(2))));
     const total = results.reduce((acc, result) => {
         for (const [key, value] of Object.entries(result.timings || {})) {
             acc[key] = (acc[key] || 0) + (Number.isFinite(value) ? value : 0);

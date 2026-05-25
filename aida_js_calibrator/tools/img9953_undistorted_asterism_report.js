@@ -269,6 +269,7 @@ function pageHtml(result) {
     const score = result.identificationScore;
     const imageName = path.basename(result.case.imagePath);
     const generated = new Date().toISOString();
+    const command = "cd /Users/j/src/AIDA_tools/aida_js_calibrator && npm run report:img9953-asterisms";
     return `<!doctype html>
 <html lang="en">
 <head>
@@ -302,6 +303,10 @@ pre { padding: 12px; overflow-x: auto; }
 <main>
 <h1>${escapeHtml(result.case.id)} Undistorted Asterism Report</h1>
 <p>Generated ${escapeHtml(generated)}. The automatic star detections were pre-undistorted with the saved Brown-Conrady optpar before running the sky-plane asterism matcher.</p>
+<section class="metric">
+<h2>Repeat From Command Line</h2>
+<pre><code>${escapeHtml(command)}</code></pre>
+</section>
 <div class="summary">
 <div class="metric"><span>Detected stars</span><b>${result.rawDetections.length}</b></div>
 <div class="metric"><span>Oracle detector hits</span><b>${result.validation.matches.length}</b></div>

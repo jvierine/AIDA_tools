@@ -83,6 +83,13 @@ function fmt(value, digits = 3) {
     return Number.isFinite(value) ? value.toFixed(digits) : "n/a";
 }
 
+function commandSnippetHtml(command) {
+    return `<section class="note">
+<h2>Repeat From Command Line</h2>
+<pre><code>${escapeHtml(command)}</code></pre>
+</section>`;
+}
+
 function linspace(lo, hi, n) {
     return Array.from({length: n}, (_, i) => lo + (hi - lo) * i / Math.max(1, n - 1));
 }
@@ -427,6 +434,7 @@ pre { background: #eef2f7; border-radius: 6px; padding: 12px; overflow-x: auto; 
 <main>
 <h1>Allsky 010031 AMS0221 Optmod 2 Pre-Undistortion Sensitivity</h1>
 <p>This report perturbs the supplied optmod 2 calibration, reruns sky-plane asterism matching on oracle-validated automatic detections, and marks the app default optmod 2 value in gold.</p>
+${commandSnippetHtml("cd /Users/j/src/AIDA_tools/aida_js_calibrator && npm run report:allsky010031-sensitivity")}
 <div class="metrics">
 <div class="metric"><span>Baseline correct matches</span><b>${data.baseline.correct}</b></div>
 <div class="metric"><span>Default optmod 2 matches</span><b>${data.defaultCase.correct}</b></div>
