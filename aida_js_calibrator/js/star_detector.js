@@ -293,7 +293,19 @@
             crowdedRegion: 0,
         };
 
-        for (const peak of cellPeaks) {
+        lastYield = typeof performance === "object" && performance.now ? performance.now() : Date.now();
+        for (let peakIndex = 0; peakIndex < cellPeaks.length; peakIndex += 1) {
+            const peak = cellPeaks[peakIndex];
+            const now = typeof performance === "object" && performance.now ? performance.now() : Date.now();
+            if (now - lastYield > 35) {
+                await maybeYield(
+                    options,
+                    70 + 18 * peakIndex / Math.max(1, cellPeaks.length),
+                    `Measuring star-like peak shape: ${Math.round(100 * peakIndex / Math.max(1, cellPeaks.length))}%`,
+                    true
+                );
+                lastYield = now;
+            }
             if (!Number.isFinite(peak.value) || peak.value < scanThreshold) {
                 rejectCounts.belowScanThreshold += 1;
                 continue;
@@ -388,7 +400,19 @@
         if (crowdingRadius > 0 && candidates.length > 0) {
             const r2 = crowdingRadius * crowdingRadius;
             filteredCandidates = [];
-            for (const candidate of candidates) {
+            lastYield = typeof performance === "object" && performance.now ? performance.now() : Date.now();
+            for (let candidateIndex = 0; candidateIndex < candidates.length; candidateIndex += 1) {
+                const candidate = candidates[candidateIndex];
+                const now = typeof performance === "object" && performance.now ? performance.now() : Date.now();
+                if (now - lastYield > 35) {
+                    await maybeYield(
+                        options,
+                        88 + 8 * candidateIndex / Math.max(1, candidates.length),
+                        `Rejecting cluttered peaks: ${Math.round(100 * candidateIndex / Math.max(1, candidates.length))}%`,
+                        true
+                    );
+                    lastYield = now;
+                }
                 let neighbors = 0;
                 for (const other of candidates) {
                     const dx = candidate.x - other.x;

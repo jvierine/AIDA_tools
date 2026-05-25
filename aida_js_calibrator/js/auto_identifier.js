@@ -26,6 +26,27 @@
         return Number.isFinite(Number(value)) ? Number(value) : fallback;
     }
 
+    function nowMs() {
+        return typeof performance === "object" && performance.now ? performance.now() : Date.now();
+    }
+
+    async function cooperativeYield(options, percent, text, force = false, state = null) {
+        if (typeof options.onProgress === "function") {
+            options.onProgress(percent, text);
+        }
+        if (typeof options.yieldFn !== "function") {
+            return;
+        }
+        const now = nowMs();
+        const minMs = Number.isFinite(options.progressYieldMs) ? options.progressYieldMs : 40;
+        if (force || !state || !Number.isFinite(state.lastYield) || now - state.lastYield >= minMs) {
+            if (state) {
+                state.lastYield = now;
+            }
+            await options.yieldFn();
+        }
+    }
+
     const N_MIN_ANGLE_PIX = 50;
     const N_MIN_TRIANGLE_HGT_PIX = 20;
     const N_MAX_ANGLE_IMAGE_WIDTH_FRACTION = 0.25;
@@ -997,7 +1018,56 @@
             score += 4.0 + 5.0 * bright + 1.2 * rankAgreement - 10.0 * match.angularDistanceRad / radius;
             score -= brightRankPenalty;
         }
+        if (Number.isFinite(options.expectedBoresightAzDeg) ||
+                Number.isFinite(options.minBoresightElevationDeg)) {
+            const boresight = applyRot3(rot, [0, 0, 1]);
+            if (boresight) {
+                const az = ((Math.atan2(boresight[0], boresight[1]) * 180 / Math.PI) % 360 + 360) % 360;
+                const el = Math.asin(clamp(boresight[2], -1, 1)) * 180 / Math.PI;
+                if (Number.isFinite(options.expectedBoresightAzDeg)) {
+                    let deltaAz = Math.abs(az - options.expectedBoresightAzDeg);
+                    deltaAz = Math.min(deltaAz, 360 - deltaAz);
+                    const tolerance = Number.isFinite(options.boresightAzToleranceDeg) ?
+                        options.boresightAzToleranceDeg : 55;
+                    if (deltaAz > tolerance) {
+                        score -= 120 * Math.pow((deltaAz - tolerance) / Math.max(1, tolerance), 2);
+                    }
+                }
+                if (Number.isFinite(options.minBoresightElevationDeg) &&
+                        el < options.minBoresightElevationDeg) {
+                    score -= 120 * Math.pow(
+                        (options.minBoresightElevationDeg - el) /
+                            Math.max(1, Math.abs(options.minBoresightElevationDeg) + 20),
+                        2
+                    );
+                }
+            }
+        }
         const distractors = dets.length - usedDetections.size;
+        if (matches.length >= 6 &&
+                (Number.isFinite(options.minBlindMatchSpanXFraction) ||
+                Number.isFinite(options.minBlindMatchSpanYFraction))) {
+            const width = finiteNumber(options.imageWidth, NaN);
+            const height = finiteNumber(options.imageHeight, NaN);
+            const xs = matches.map(match => match.detection.x).filter(Number.isFinite);
+            const ys = matches.map(match => match.detection.y).filter(Number.isFinite);
+            if (Number.isFinite(width) && width > 0 && xs.length >= 2) {
+                const spanX = (Math.max(...xs) - Math.min(...xs)) / width;
+                const minSpanX = Number.isFinite(options.minBlindMatchSpanXFraction) ?
+                    options.minBlindMatchSpanXFraction : 0;
+                if (spanX < minSpanX) {
+                    score -= 80 * Math.pow((minSpanX - spanX) / Math.max(0.01, minSpanX), 2);
+                }
+            }
+            if (Number.isFinite(height) && height > 0 && ys.length >= 2) {
+                const spanY = (Math.max(...ys) - Math.min(...ys)) / height;
+                const minSpanY = Number.isFinite(options.minBlindMatchSpanYFraction) ?
+                    options.minBlindMatchSpanYFraction : 0;
+                if (spanY < minSpanY) {
+                    score -= 80 * Math.pow((minSpanY - spanY) / Math.max(0.01, minSpanY), 2);
+                }
+            }
+        }
         matches.sort((a, b) => a.star.mag - b.star.mag || a.angularDistanceRad - b.angularDistanceRad);
         return {score, matches, distractors, conflicts};
     }
@@ -2079,6 +2149,190 @@
         };
     }
 
+    async function identifyStarsByAsterismsAsync(catalogStars, detections, options = {}) {
+        const yieldState = {lastYield: 0};
+        const maxMagnitude = Number.isFinite(options.maxMagnitude) ? options.maxMagnitude : 4.0;
+        await cooperativeYield(options, 2, "Asterism matcher: preparing catalog and detections...", true, yieldState);
+        const catalog = normalizeProjectedStars(catalogStars, {
+            ...options,
+            maxMagnitude,
+            maxCatalogStars: Number.isFinite(options.maxCatalogStars) ? options.maxCatalogStars : 90,
+            marginPx: Infinity,
+        });
+        const normalizedDetections = normalizeDetections(detections, {
+            ...options,
+            maxDetections: Number.isFinite(options.maxDetections) ? options.maxDetections : 50,
+        });
+        if (catalog.length < 5 || normalizedDetections.length < 5) {
+            return {
+                matches: [],
+                rawMatches: [],
+                catalog,
+                detections: normalizedDetections,
+                transform: null,
+                status: "auto-identify: not enough bright catalog stars or image detections for asterism matching",
+            };
+        }
+
+        await cooperativeYield(
+            options,
+            12,
+            `Asterism matcher: building catalog triangles from ${catalog.length} stars...`,
+            true,
+            yieldState
+        );
+        const exhaustiveCatalogTriangles = options.exhaustiveCatalogTriangles === true;
+        const catalogTriangles = triangleRecords(catalog, {
+            maxTriangles: exhaustiveCatalogTriangles ?
+                Number.POSITIVE_INFINITY :
+                Number.isFinite(options.maxCatalogTriangles) ? options.maxCatalogTriangles : 9000,
+            maxTrianglePoints: exhaustiveCatalogTriangles ?
+                catalog.length :
+                Number.isFinite(options.maxCatalogTriangleStars) ? options.maxCatalogTriangleStars : 80,
+        });
+        await cooperativeYield(
+            options,
+            28,
+            `Asterism matcher: building image triangles from ${normalizedDetections.length} detections...`,
+            true,
+            yieldState
+        );
+        const detectionTriangles = triangleRecords(normalizedDetections, {
+            maxTriangles: Number.isFinite(options.maxDetectionTriangles) ? options.maxDetectionTriangles : 1400,
+            maxTrianglePoints: Number.isFinite(options.maxDetectionTriangleStars) ? options.maxDetectionTriangleStars : 50,
+            ...detectionTriangleGeometryOptions(options),
+        });
+        reportTriangleDebug(options, {
+            mode: "sky-plane",
+            stage: options.triangleDebugStage || `sky-plane <= mag ${maxMagnitude.toFixed(1)}`,
+            maxMagnitude,
+            catalogTriangles,
+            detectionTriangles,
+        });
+        if (catalogTriangles.length === 0 || detectionTriangles.length === 0) {
+            return {
+                matches: [],
+                rawMatches: [],
+                catalog,
+                detections: normalizedDetections,
+                transform: null,
+                status: "auto-identify: no well-shaped bright-star triangles for asterism matching",
+                catalogTriangleCount: catalogTriangles.length,
+                detectionTriangleCount: detectionTriangles.length,
+            };
+        }
+
+        await cooperativeYield(
+            options,
+            42,
+            `Asterism matcher: indexing ${catalogTriangles.length} catalog triangles...`,
+            true,
+            yieldState
+        );
+        const signatureTree = new KdTree2(catalogTriangles.map((triangle, index) => ({
+            x: triangle.x,
+            y: triangle.y,
+            payload: {...triangle, index},
+        })));
+        const detectionTree = new KdTree2(normalizedDetections.map(detection => ({
+            x: detection.x,
+            y: detection.y,
+            payload: detection,
+        })));
+        const signatureRadius = Number.isFinite(options.triangleSignatureRadius) ?
+            options.triangleSignatureRadius : 0.018;
+        const maxNeighborTriangles = Number.isFinite(options.maxNeighborTriangles) ?
+            options.maxNeighborTriangles : 5;
+        const maxCandidateTransforms = Number.isFinite(options.maxCandidateTransforms) ?
+            options.maxCandidateTransforms : 3500;
+        const seenTransforms = new Set();
+        let best = null;
+        let scored = 0;
+
+        for (let triIndex = 0; triIndex < detectionTriangles.length; triIndex += 1) {
+            const detectionTriangle = detectionTriangles[triIndex];
+            await cooperativeYield(
+                options,
+                45 + 43 * triIndex / Math.max(1, detectionTriangles.length),
+                `Asterism matcher: tested ${scored}/${maxCandidateTransforms} candidate transforms...`,
+                false,
+                yieldState
+            );
+            const neighbors = signatureTree.range(detectionTriangle.x, detectionTriangle.y, signatureRadius)
+                .slice(0, maxNeighborTriangles);
+            for (const neighbor of neighbors) {
+                if (scored >= maxCandidateTransforms) {
+                    break;
+                }
+                const catalogTriangle = neighbor.payload;
+                const transform = affineFromTriangles(catalogTriangle.points, detectionTriangle.points);
+                if (!transform) {
+                    continue;
+                }
+                const key = [
+                    transform.a, transform.b, transform.c,
+                    transform.d, transform.e, transform.f,
+                ].map(value => Math.round(value * 1000)).join(",");
+                if (seenTransforms.has(key)) {
+                    continue;
+                }
+                seenTransforms.add(key);
+                const candidate = scoreAsterismTransform(catalog, normalizedDetections, detectionTree, transform, options);
+                scored += 1;
+                if (!best || candidate.score > best.score) {
+                    best = candidate;
+                    await cooperativeYield(
+                        options,
+                        45 + 43 * triIndex / Math.max(1, detectionTriangles.length),
+                        `Asterism matcher: best candidate has ${candidate.matches.length} matched stars...`,
+                        false,
+                        yieldState
+                    );
+                }
+            }
+            if (scored >= maxCandidateTransforms) {
+                break;
+            }
+        }
+
+        await cooperativeYield(options, 90, "Asterism matcher: filtering candidate matches...", true, yieldState);
+        if (!best) {
+            return {
+                matches: [],
+                rawMatches: [],
+                catalog,
+                detections: normalizedDetections,
+                transform: null,
+                status: "auto-identify: asterism matcher found no candidate transforms",
+            };
+        }
+
+        const matches = robustFilterMatches(best.matches, {
+            ...options,
+            maxDistancePx: defaultAsterismRadius(options),
+        });
+        matches.sort((a, b) => a.star.mag - b.star.mag || a.distance - b.distance);
+        const minMatches = Number.isFinite(options.minMatches) ? options.minMatches : 4;
+        const medianDistance = matches.length ? median(matches.map(match => match.distance)) : Infinity;
+        const status = matches.length >= minMatches ?
+            `auto-identify: asterism matched ${matches.length} stars <= mag ${maxMagnitude.toFixed(1)}, ` +
+                `median residual ${medianDistance.toFixed(1)} px, scored ${scored} triangle transforms` :
+            `auto-identify: asterism matcher found only ${matches.length} plausible stars; ` +
+                "try rough-aligning or masking bright non-star regions";
+        return {
+            matches,
+            rawMatches: best.matches,
+            catalog,
+            detections: normalizedDetections,
+            transform: best.transform,
+            medianDistance,
+            status,
+            scoredTransforms: scored,
+            catalogTriangleCount: catalogTriangles.length,
+            detectionTriangleCount: detectionTriangles.length,
+        };
+    }
+
     function identifyStarsBlind(catalogStars, detections, options = {}) {
         const maxMagnitude = Number.isFinite(options.maxMagnitude) ? options.maxMagnitude : 4.0;
         const catalog = catalogStars
@@ -2467,10 +2721,466 @@
         };
     }
 
+    async function identifyStarsBlindAsync(catalogStars, detections, options = {}) {
+        const yieldState = {lastYield: 0};
+        const maxMagnitude = Number.isFinite(options.maxMagnitude) ? options.maxMagnitude : 4.0;
+        await cooperativeYield(options, 2, "Blind matcher: preparing bright-star catalog...", true, yieldState);
+        const catalog = catalogStars
+            .filter((star, index) =>
+                Number.isFinite(star.az) && Number.isFinite(star.ze) &&
+                Number.isFinite(star.mag) && star.mag <= maxMagnitude &&
+                !setHas(options.existingCatalogKeys, starKey(star, index))
+            )
+            .map((star, index) => ({
+                ...star,
+                key: starKey(star, index),
+                vector: skyVector(star),
+                rank: index + 1,
+            }))
+            .sort((a, b) => a.mag - b.mag || a.key.localeCompare(b.key))
+            .slice(0, Number.isFinite(options.maxCatalogStars) ? options.maxCatalogStars : 220)
+            .map((star, index) => ({...star, rank: index + 1}));
+        const catalogKeys = new Set(catalog.map(star => star.key));
+        const ambiguityMagnitude = Number.isFinite(options.ambiguityMaxMagnitude) ?
+            Math.max(maxMagnitude, options.ambiguityMaxMagnitude) :
+            maxMagnitude;
+        const ambiguityCatalog = ambiguityMagnitude > maxMagnitude ?
+            catalogStars
+                .filter((star, index) =>
+                    Number.isFinite(star.az) && Number.isFinite(star.ze) &&
+                    Number.isFinite(star.mag) && star.mag <= ambiguityMagnitude &&
+                    !setHas(options.existingCatalogKeys, starKey(star, index))
+                )
+                .map((star, index) => ({
+                    ...star,
+                    key: starKey(star, index),
+                    vector: skyVector(star),
+                    rank: index + 1,
+                    ambiguityOnly: !catalogKeys.has(starKey(star, index)),
+                }))
+                .filter(star => star.vector && !catalogKeys.has(star.key))
+                .sort((a, b) => a.mag - b.mag || a.key.localeCompare(b.key))
+                .slice(0, Number.isFinite(options.maxAmbiguityCatalogStars) ?
+                    options.maxAmbiguityCatalogStars : 260) :
+            [];
+        const normalizedDetections = normalizeDetections(detections, {
+            ...options,
+            maxDetections: Number.isFinite(options.maxDetections) ? options.maxDetections : 80,
+        });
+        if (catalog.length < 6 || normalizedDetections.length < 6) {
+            return {
+                matches: [],
+                rawMatches: [],
+                catalog,
+                detections: normalizedDetections,
+                status: "auto-identify: not enough bright stars for blind spherical matching",
+            };
+        }
+
+        const f1Candidates = Array.isArray(options.preflattenF1Candidates) ?
+            options.preflattenF1Candidates : [0.70, 0.85, 1.00];
+        const fixedDu = Number.isFinite(options.preflattenDu) ? options.preflattenDu : 0;
+        const fixedDv = Number.isFinite(options.preflattenDv) ? options.preflattenDv : 0;
+        const duCandidates = [fixedDu];
+        const dvCandidates = [fixedDv];
+        const signCandidates = Array.isArray(options.preflattenSignCandidates) ?
+            options.preflattenSignCandidates : [[1, 1], [-1, -1]];
+        const modelCandidates = Array.isArray(options.preflattenModelCandidates) ?
+            options.preflattenModelCandidates :
+            ["pinhole", "fisheye"];
+        const radialCandidates = modelCandidates.includes("fisheye") ?
+            Array.isArray(options.preflattenRadialAlphaCandidates) ?
+                options.preflattenRadialAlphaCandidates :
+                [0.30, 0.60, 0.90] :
+            [1.0];
+        const signatureRadius = Number.isFinite(options.blindTriangleSignatureRadius) ?
+            options.blindTriangleSignatureRadius : 0.018;
+        const maxNeighborTriangles = Number.isFinite(options.maxBlindNeighborTriangles) ?
+            options.maxBlindNeighborTriangles : 4;
+        const maxCandidateRotations = Number.isFinite(options.maxBlindCandidateRotations) ?
+            options.maxBlindCandidateRotations : 6000;
+        const maxCandidateRotationsPerSign = Number.isFinite(options.maxBlindCandidateRotationsPerSign) ?
+            options.maxBlindCandidateRotationsPerSign :
+            maxCandidateRotations;
+        const maxCandidateRotationsTotal = maxCandidateRotationsPerSign * Math.max(1, signCandidates.length);
+
+        await cooperativeYield(
+            options,
+            10,
+            `Blind matcher: building catalog triangles from ${catalog.length} stars...`,
+            true,
+            yieldState
+        );
+        const catalogTriangles = sphericalTriangleRecords(catalog, {
+            maxTriangles: Number.isFinite(options.maxCatalogTriangles) ? options.maxCatalogTriangles : 30000,
+            maxTrianglePoints: Number.isFinite(options.maxCatalogTriangleStars) ?
+                options.maxCatalogTriangleStars : catalog.length,
+            localNeighborPoolSize: Number.isFinite(options.maxCatalogLocalNeighbors) ?
+                options.maxCatalogLocalNeighbors : 20,
+            localTriangleMaxSideDeg: Number.isFinite(options.maxCatalogLocalTriangleSideDeg) ?
+                options.maxCatalogLocalTriangleSideDeg : 70,
+        });
+        const catalogTriangleTree = new KdTree2(catalogTriangles.map((triangle, index) => ({
+            x: triangle.x,
+            y: triangle.y,
+            payload: {...triangle, index},
+        })));
+        reportTriangleDebug(options, {
+            mode: "blind",
+            stage: options.triangleDebugStage || `blind catalog <= mag ${maxMagnitude.toFixed(1)}`,
+            maxMagnitude,
+            preflattenModel: "catalog",
+            catalogTriangles,
+            detectionTriangles: [],
+        });
+
+        let best = null;
+        let scored = 0;
+        let preflattenCount = 0;
+        let earlyAccepted = false;
+        let supportRejected = 0;
+        const seen = new Set();
+        const preflattenTrials = [];
+        let trialOrder = 0;
+        const totalTrialGrid = Math.max(
+            1,
+            modelCandidates.length * signCandidates.length * f1Candidates.length *
+                radialCandidates.length * duCandidates.length * dvCandidates.length
+        );
+        for (const modelCandidate of modelCandidates) {
+            const preflattenModel = modelCandidate === "pinhole" ? "pinhole" : "fisheye";
+            for (const signPair of signCandidates) {
+                const signX = Array.isArray(signPair) && signPair[0] === -1 ? -1 : 1;
+                const signY = Array.isArray(signPair) && signPair[1] === -1 ? -1 : 1;
+                for (const f1 of f1Candidates) {
+                    for (const radialAlpha of radialCandidates) {
+                        for (const du of duCandidates) {
+                            for (const dv of dvCandidates) {
+                                await cooperativeYield(
+                                    options,
+                                    16 + 20 * trialOrder / totalTrialGrid,
+                                    `Blind matcher: pre-flattening trial ${trialOrder + 1}/${totalTrialGrid} ` +
+                                        `(${preflattenModel}, f1 ${f1.toFixed(2)}, a ${radialAlpha.toFixed(2)})...`,
+                                    false,
+                                    yieldState
+                                );
+                                const vectorOptions = {
+                                    ...options,
+                                    preflattenDu: du,
+                                    preflattenDv: dv,
+                                    preflattenSignX: signX,
+                                    preflattenSignY: signY,
+                                    preflattenModel,
+                                };
+                                const vectorDetections = normalizedDetections
+                                    .map((detection, index) => ({
+                                        ...detection,
+                                        vector: preflattenDetectionVector(detection, vectorOptions, f1, radialAlpha, preflattenModel),
+                                        rank: index + 1,
+                                    }))
+                                    .filter(detection => detection.vector);
+                                if (vectorDetections.length < 6) {
+                                    trialOrder += 1;
+                                    continue;
+                                }
+                                preflattenCount += 1;
+                                const detectionTriangles = sphericalTriangleRecords(vectorDetections, {
+                                    maxTriangles: Number.isFinite(options.maxDetectionTriangles) ? options.maxDetectionTriangles : 1400,
+                                    maxTrianglePoints: Number.isFinite(options.maxDetectionTriangleStars) ? options.maxDetectionTriangleStars : 40,
+                                    ...detectionTriangleGeometryOptions(options),
+                                });
+                                const catalogSnapshot = triangleRatioSnapshot(catalogTriangles);
+                                const detectionSnapshot = triangleRatioSnapshot(detectionTriangles);
+                                const quality = triangleDistributionQuality(catalogSnapshot, detectionSnapshot);
+                                preflattenTrials.push({
+                                    mode: "blind",
+                                    stage: options.triangleDebugStage || `blind <= mag ${maxMagnitude.toFixed(1)}`,
+                                    maxMagnitude,
+                                    preflattenModel,
+                                    f1,
+                                    radialAlpha,
+                                    signX,
+                                    signY,
+                                    du,
+                                    dv,
+                                    catalogTriangles,
+                                    detectionTriangles,
+                                    vectorDetections,
+                                    quality,
+                                    qualityScore: triangleDistributionQualityScore(quality),
+                                    order: trialOrder,
+                                });
+                                trialOrder += 1;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        if (options.disablePreflattenQualityOrdering !== true) {
+            preflattenTrials.sort((a, b) => b.qualityScore - a.qualityScore || a.order - b.order);
+        }
+
+        await cooperativeYield(
+            options,
+            38,
+            `Blind matcher: testing ${preflattenTrials.length} pre-flattening trials...`,
+            true,
+            yieldState
+        );
+        const signScored = new Map();
+        for (let trialIndex = 0; trialIndex < preflattenTrials.length; trialIndex += 1) {
+            const trial = preflattenTrials[trialIndex];
+            if (earlyAccepted || scored >= maxCandidateRotationsTotal) {
+                break;
+            }
+            const signKey = `${trial.preflattenModel}:${trial.signX}:${trial.signY}`;
+            if ((signScored.get(signKey) || 0) >= maxCandidateRotationsPerSign) {
+                continue;
+            }
+            await cooperativeYield(
+                options,
+                40 + 45 * trialIndex / Math.max(1, preflattenTrials.length),
+                `Blind matcher: trial ${trialIndex + 1}/${preflattenTrials.length}, ` +
+                    `${scored}/${maxCandidateRotationsTotal} rotations scored...`,
+                false,
+                yieldState
+            );
+            const candidateAsterisms = [];
+            const supportTriangles = {
+                accepted: [],
+                rejected: [],
+                acceptedEdges: [],
+                acceptedCount: 0,
+                rejectedCount: 0,
+            };
+            const maxSupportDebug = Number.isFinite(options.maxBlindAsterismSupportDebugTriangles) ?
+                options.maxBlindAsterismSupportDebugTriangles : 1200;
+            for (let detectionTriangleIndex = 0; detectionTriangleIndex < trial.detectionTriangles.length; detectionTriangleIndex += 1) {
+                const detectionTriangle = trial.detectionTriangles[detectionTriangleIndex];
+                await cooperativeYield(
+                    options,
+                    40 + 18 * trialIndex / Math.max(1, preflattenTrials.length),
+                    `Blind matcher: collecting asterisms for trial ${trialIndex + 1}, ` +
+                        `${detectionTriangleIndex}/${trial.detectionTriangles.length} triangles...`,
+                    false,
+                    yieldState
+                );
+                const neighbors = catalogTriangleTree.range(detectionTriangle.x, detectionTriangle.y, signatureRadius)
+                    .slice(0, maxNeighborTriangles);
+                for (const neighbor of neighbors) {
+                    const catalogTriangle = neighbor.payload;
+                    if (options.disableTriangleCosineOrderCheck !== true &&
+                            !triangleCosinesQuasiMonotonic(detectionTriangle, catalogTriangle, options)) {
+                        continue;
+                    }
+                    candidateAsterisms.push({
+                        detectionTriangle,
+                        catalogTriangle,
+                    });
+                }
+            }
+            const selectedAsterisms = selectRegionalAsterismCandidates(candidateAsterisms, options);
+            trial.candidateAsterisms = selectedAsterisms;
+            trial.regionalAsterismCandidateCount = selectedAsterisms.length;
+            trial.totalAsterismCandidateCount = candidateAsterisms.length;
+            reportTriangleDebug(options, trial);
+            for (let asterismIndex = 0; asterismIndex < selectedAsterisms.length; asterismIndex += 1) {
+                const asterism = selectedAsterisms[asterismIndex];
+                if (scored >= maxCandidateRotationsTotal ||
+                        (signScored.get(signKey) || 0) >= maxCandidateRotationsPerSign) {
+                    break;
+                }
+                await cooperativeYield(
+                    options,
+                    58 + 30 * Math.min(1, scored / Math.max(1, maxCandidateRotationsTotal)),
+                    `Blind matcher: scored ${scored}/${maxCandidateRotationsTotal} rotations; ` +
+                        `best ${best && best.matches ? best.matches.length : 0} stars...`,
+                    false,
+                    yieldState
+                );
+                const detectionTriangle = asterism.detectionTriangle;
+                const catalogTriangle = asterism.catalogTriangle;
+                const rot = rotationFromVectorPairs(
+                    detectionTriangle.points[0].vector,
+                    detectionTriangle.points[1].vector,
+                    catalogTriangle.points[0].vector,
+                    catalogTriangle.points[1].vector,
+                );
+                if (!rot) {
+                    continue;
+                }
+                const thirdError = angularDistance(
+                    applyRot3(rot, detectionTriangle.points[2].vector),
+                    catalogTriangle.points[2].vector,
+                );
+                if (thirdError > (Number.isFinite(options.maxBlindTriangleThirdErrorDeg) ?
+                        options.maxBlindTriangleThirdErrorDeg : 1.2) * Math.PI / 180) {
+                    continue;
+                }
+                if (options.disableBlindAsterismNeighborSupport !== true) {
+                    const support = blindAsterismNeighborSupport(
+                        catalog,
+                        trial.vectorDetections,
+                        rot,
+                        detectionTriangle,
+                        catalogTriangle,
+                        options
+                    );
+                    asterism.neighborSupport = support;
+                    for (const record of support.supportRecords || []) {
+                        if (record.accepted) {
+                            supportTriangles.acceptedCount += 1;
+                            if (supportTriangles.accepted.length < maxSupportDebug) {
+                                supportTriangles.accepted.push(record.image);
+                            }
+                            if (supportTriangles.acceptedEdges.length < maxSupportDebug * 3) {
+                                supportTriangles.acceptedEdges.push(...(record.edges || []));
+                            }
+                        } else {
+                            supportTriangles.rejectedCount += 1;
+                            if (supportTriangles.rejected.length < maxSupportDebug) {
+                                supportTriangles.rejected.push(record.image);
+                            }
+                        }
+                    }
+                    if (!support.accepted) {
+                        supportRejected += 1;
+                        continue;
+                    }
+                }
+                const key = [
+                    trial.preflattenModel,
+                    trial.signX,
+                    trial.signY,
+                    Math.round(trial.f1 * 100),
+                    Math.round(trial.radialAlpha * 100),
+                    Math.round(trial.du * 1000),
+                    Math.round(trial.dv * 1000),
+                ].concat(rot.map(value => Math.round(value * 200))).join(",");
+                if (seen.has(key)) {
+                    continue;
+                }
+                seen.add(key);
+                let candidate = scoreBlindRotation(catalog, trial.vectorDetections, rot, {
+                    ...options,
+                    ambiguityCatalog,
+                });
+                const seedMedian = candidate.matches.length ?
+                    median(candidate.matches.map(match => match.distance)) : Infinity;
+                if (candidate.matches.length >= 5 && seedMedian <= 1.6) {
+                    candidate = refineBlindRotation(catalog, trial.vectorDetections, rot, options);
+                }
+                scored += 1;
+                signScored.set(signKey, (signScored.get(signKey) || 0) + 1);
+                if (!best || candidate.score > best.score) {
+                    best = {
+                        ...candidate,
+                        rotation: candidate.rotation || rot,
+                        f1: trial.f1,
+                        radialAlpha: trial.radialAlpha,
+                        du: trial.du,
+                        dv: trial.dv,
+                        signX: trial.signX,
+                        signY: trial.signY,
+                        preflattenModel: trial.preflattenModel,
+                        preflattenQuality: trial.quality,
+                        preflattenQualityScore: trial.qualityScore,
+                        vectorDetections: trial.vectorDetections,
+                        detectionTriangleCount: trial.detectionTriangles.length,
+                    };
+                    await cooperativeYield(
+                        options,
+                        58 + 30 * Math.min(1, scored / Math.max(1, maxCandidateRotationsTotal)),
+                        `Blind matcher: new best has ${candidate.matches.length} matched stars...`,
+                        false,
+                        yieldState
+                    );
+                }
+                const candidateMedian = candidate.matches.length ?
+                    median(candidate.matches.map(match => match.distance)) : Infinity;
+                if (candidate.matches.length >=
+                        (Number.isFinite(options.blindEarlyAcceptMatches) ? options.blindEarlyAcceptMatches : 14) &&
+                        candidateMedian <=
+                        (Number.isFinite(options.blindEarlyAcceptMedianDeg) ? options.blindEarlyAcceptMedianDeg : 0.5)) {
+                    earlyAccepted = true;
+                    break;
+                }
+            }
+            trial.supportTriangles = supportTriangles;
+            reportTriangleDebug(options, trial);
+        }
+
+        if (!best) {
+            return {
+                matches: [],
+                rawMatches: [],
+                catalog,
+                detections: normalizedDetections,
+                status: "auto-identify: blind spherical matcher found no candidate rotations",
+                scoredRotations: scored,
+                preflattenCount,
+            };
+        }
+        await cooperativeYield(options, 90, "Blind matcher: refining best pre-flattening hypothesis...", true, yieldState);
+        best = refineBlindPreflatten(catalog, normalizedDetections, best, {
+            ...options,
+            ambiguityCatalog,
+        });
+        await cooperativeYield(options, 94, "Blind matcher: expanding pixel matches around best hypothesis...", true, yieldState);
+        best = expandBlindPixelMatches(catalog, best.vectorDetections || normalizedDetections, best, {
+            ...options,
+            ambiguityCatalog,
+        });
+        const minMatches = Number.isFinite(options.minMatches) ? options.minMatches : 6;
+        const medianDistance = best.matches.length ? median(best.matches.map(match => match.distance)) : Infinity;
+        const qualityText = Number.isFinite(best.preflattenQualityScore) ?
+            `, triangle shape ${(100 * best.preflattenQualityScore).toFixed(0)}%` :
+            "";
+        const supportText = supportRejected > 0 ? `, support rejected ${supportRejected}` : "";
+        const preflattenText = best.preflattenModel === "pinhole" ?
+            `flat pinhole f1 ${best.f1.toFixed(2)}, sign ${best.signX || 1}/${best.signY || 1}, ` :
+            `preflatten f1 ${best.f1.toFixed(2)}, a ${best.radialAlpha.toFixed(2)}, ` +
+                `sign ${best.signX || 1}/${best.signY || 1}, `;
+        const status = best.matches.length >= minMatches ?
+            `auto-identify: blind spherical matched ${best.matches.length} stars <= mag ${maxMagnitude.toFixed(1)}, ` +
+                `median angular residual ${medianDistance.toFixed(2)} deg, ${preflattenText}` +
+                `du/dv ${best.du.toFixed(2)}/${best.dv.toFixed(2)}, ` +
+                `scored ${scored} rotations${qualityText}${supportText}` :
+            `auto-identify: blind spherical matcher found only ${best.matches.length} plausible stars`;
+        return {
+            matches: best.matches,
+            rawMatches: best.matches,
+            catalog,
+            detections: normalizedDetections,
+            rotation: best.rotation,
+            f1: best.f1,
+            radialAlpha: best.radialAlpha,
+            signX: best.signX || 1,
+            signY: best.signY || 1,
+            du: best.du,
+            dv: best.dv,
+            medianDistance,
+            score: best.score,
+            distractors: best.distractors,
+            conflicts: best.conflicts,
+            preflattenQuality: best.preflattenQuality,
+            preflattenQualityScore: best.preflattenQualityScore,
+            status,
+            scoredRotations: scored,
+            preflattenCount,
+            supportRejected,
+            catalogTriangleCount: catalogTriangles.length,
+            detectionTriangleCount: best.detectionTriangleCount,
+        };
+    }
+
     return {
         identifyStars,
         identifyStarsByAsterisms,
+        identifyStarsByAsterismsAsync,
         identifyStarsBlind,
+        identifyStarsBlindAsync,
         estimateTranslation,
         normalizeProjectedStars,
         normalizeDetections,

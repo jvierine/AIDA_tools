@@ -7,10 +7,28 @@ const zlib = require("node:zlib");
 
 const AutoIdentifier = require("../js/auto_identifier.js");
 const StarDetector = require("../js/star_detector.js");
+const {
+    runImg9953UndistortedAsterismCase,
+} = require("../tools/img9953_undistorted_asterism_report.js");
+const {
+    buildSensitivityData: buildImg9953SensitivityData,
+} = require("../tools/img9953_preundistortion_sensitivity.js");
+const {
+    buildSensitivityData: buildAllsky010031SensitivityData,
+} = require("../tools/allsky010031_ams0221_preundistortion_sensitivity.js");
 const RUN_FULL_TESTS = process.env.AIDA_FULL_TESTS === "1";
+const RUN_SENSITIVITY_TESTS = process.env.AIDA_SENSITIVITY_TESTS === "1";
 
 function fullTest(name, fn) {
     test(name, {skip: !RUN_FULL_TESTS, timeout: 1000}, fn);
+}
+
+function slowFullTest(name, fn) {
+    test(name, {skip: !RUN_FULL_TESTS, timeout: 10000}, fn);
+}
+
+function sensitivityTest(name, fn) {
+    test(name, {skip: !RUN_SENSITIVITY_TESTS, timeout: 180000}, fn);
 }
 
 function loadBrowserScript(filename) {
@@ -215,6 +233,13 @@ const REAL_CASE_IMG_9371 = {
         -0.00337100000000,
     ],
 };
+const IMG_9953_ASTERISM_HIGH_WATER_FILE = path.join(
+    __dirname,
+    "..",
+    "test_cases",
+    "IMG_9953",
+    "asterism_high_water.json",
+);
 const SCENARIOS = [
     {name: "centered", f1: 0.52, f2: 0.92, alpha: 0, beta: 0, gamma: 0, du: 0, dv: 0},
     {name: "tilted", f1: 0.48, f2: 0.84, alpha: 8, beta: -5, gamma: 18, du: 0.03, dv: -0.02},
@@ -442,6 +467,28 @@ function scoreIdentificationAgainstKnownLens(matches, validation) {
         }
     }
     return {total: matches.length, correct, incorrect, unknown, wrong};
+}
+
+function readImg9953AsterismHighWater() {
+    return JSON.parse(fs.readFileSync(IMG_9953_ASTERISM_HIGH_WATER_FILE, "utf8"));
+}
+
+function writeImg9953AsterismHighWater(previous, result) {
+    const score = result.identificationScore;
+    const next = {
+        ...previous,
+        correctIdentifiedStars: score.correct,
+        oracleDetectorHits: result.validation.matches.length,
+        asterismIdentifiedStars: score.total,
+        incorrectIdentifiedStars: score.incorrect,
+        unknownIdentifiedStars: score.unknown,
+        maxMag: result.summary && Number.isFinite(result.summary.maxMag) ?
+            result.summary.maxMag : previous.maxMag,
+        detectorOptions: result.summary && result.summary.detectorOptions ?
+            result.summary.detectorOptions : previous.detectorOptions,
+        updatedUtc: new Date().toISOString(),
+    };
+    fs.writeFileSync(IMG_9953_ASTERISM_HIGH_WATER_FILE, `${JSON.stringify(next, null, 2)}\n`);
 }
 
 function solveLinearSystem(a, b) {
@@ -1521,6 +1568,71 @@ fullTest("IMG_9371 Brown-Conrady fit converges from automatic star detections", 
     assert.ok(
         results.every(result => result.rms <= 4.0 && result.accepted > 0),
         `IMG_9371 Brown-Conrady: expected all automatic-star fits to stay below 4 px RMS; sweep ${report}`,
+    );
+});
+
+slowFullTest("IMG_9953 pre-undistorted automatic stars exercise the asterism finder", async () => {
+    const result = await runImg9953UndistortedAsterismCase({writeReport: false});
+    const score = result.identificationScore;
+    const highWater = readImg9953AsterismHighWater();
+    assert.ok(
+        result.rawDetections.length >= 600,
+        `IMG_9953: expected the star finder to return many candidates, got ${result.rawDetections.length}`,
+    );
+    assert.ok(
+        result.validation.matches.length >= 140,
+        `IMG_9953: expected at least 140 automatic detections to be oracle catalogue stars, ` +
+            `got ${result.validation.matches.length}`,
+    );
+    assert.ok(
+        score.correct >= highWater.correctIdentifiedStars,
+        `IMG_9953: high-water regression: expected at least ` +
+            `${highWater.correctIdentifiedStars} correct pre-undistorted asterism matches, ` +
+            `got ${score.correct}/${score.total} correct, ${score.incorrect} incorrect; ` +
+            result.identification.status,
+    );
+    if (score.correct > highWater.correctIdentifiedStars) {
+        writeImg9953AsterismHighWater(highWater, result);
+    }
+});
+
+sensitivityTest("IMG_9953 pre-undistortion sensitivity quantifies focal-scale tolerance", async () => {
+    const data = await buildImg9953SensitivityData();
+    assert.ok(
+        data.baseline.correct >= 120,
+        `IMG_9953 sensitivity: expected baseline >= 120 correct matches, got ${data.baseline.correct}`,
+    );
+    assert.ok(
+        data.brownConradyDefault && Number.isFinite(data.brownConradyDefault.correct),
+        "IMG_9953 sensitivity: expected a Brown-Conrady default optpar sensitivity case",
+    );
+    assert.ok(
+        data.sweeps.every(sweep => sweep.points.some(point => point.kind === "default")),
+        "IMG_9953 sensitivity: expected every one-parameter sweep to include the Brown-Conrady default value",
+    );
+    const zoom90 = data.zoomSweep.points
+        .filter(point => point.correct >= data.baseline.correct * 0.9)
+        .map(point => point.value);
+    assert.ok(
+        Math.min(...zoom90) <= 0.65 && Math.max(...zoom90) >= 1.20,
+        `IMG_9953 sensitivity: expected common focal zoom to remain useful over a broad range, ` +
+            `got ${Math.min(...zoom90).toFixed(2)}x..${Math.max(...zoom90).toFixed(2)}x`,
+    );
+});
+
+sensitivityTest("allsky 010031 AMS0221 optmod 2 pre-undistortion sensitivity runs", async () => {
+    const data = await buildAllsky010031SensitivityData();
+    assert.ok(
+        data.baseline.correct >= 40,
+        `allsky 010031 AMS0221 sensitivity: expected baseline >= 40 correct matches, got ${data.baseline.correct}`,
+    );
+    assert.ok(
+        data.defaultCase && Number.isFinite(data.defaultCase.correct),
+        "allsky 010031 AMS0221 sensitivity: expected an optmod 2 default parameter case",
+    );
+    assert.ok(
+        data.sweeps.every(sweep => sweep.points.some(point => point.kind === "default")),
+        "allsky 010031 AMS0221 sensitivity: expected every one-parameter sweep to include the optmod 2 default value",
     );
 });
 

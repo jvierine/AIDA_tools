@@ -4,6 +4,7 @@
     const APP_VERSION = "v0.2.5";
     const LOCAL_TEST_HOSTS = new Set(["localhost", "127.0.0.1", "::1"]);
     const LOCAL_TEST_CASES_ENABLED = location.protocol === "file:" || LOCAL_TEST_HOSTS.has(location.hostname);
+    const NOT_STAR_TILE_SIZE = 128;
     const canvas = document.getElementById("glCanvas");
     const rotationCanvas = document.getElementById("rotationCanvas");
     const rotationContext = rotationCanvas.getContext("2d");
@@ -129,10 +130,16 @@
         maskRegions: [],
         junkStarFinderRegions: [],
         badStarFinderDetections: [],
+        notStarTiles: [],
+        notStarTileKeys: new Set(),
+        notStarTilePreview: null,
+        notStarTilePaintActive: false,
+        lastNotStarTilePaintPoint: null,
         junkStarFinderPreview: null,
         junkStarFinderPaintActive: false,
         lastJunkStarFinderPoint: null,
         detectedStars: [],
+        currentImageMetadata: null,
         showAutoDetectionMarkers: true,
         deletedDetectionIds: new Set(),
         autoMatches: [],
@@ -151,6 +158,7 @@
         showFitResiduals: false,
         showAsterismLines: true,
         asterismEdges: [],
+        regionalCellScores: [],
         triangleDebugSnapshot: null,
         fitMessage: "lens fit: not run",
         lastFitVector: null,
@@ -342,11 +350,24 @@
     }
 
     function isJunkStarFinderPixel(x, y, pad = 0) {
+        if (isNotStarTilePixel(x, y, pad)) {
+            return true;
+        }
         for (const region of state.junkStarFinderRegions) {
             const r = region.radius + pad;
             const dx = x - region.x;
             const dy = y - region.y;
             if (dx * dx + dy * dy <= r * r) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    function isNotStarTilePixel(x, y, pad = 0) {
+        for (const tile of state.notStarTiles) {
+            if (x >= tile.x0 - pad && x < tile.x0 + tile.width + pad &&
+                    y >= tile.y0 - pad && y < tile.y0 + tile.height + pad) {
                 return true;
             }
         }
@@ -446,6 +467,27 @@
         el.style.top = `${top}px`;
         el.style.width = `${2 * radiusCss}px`;
         el.style.height = `${2 * radiusCss}px`;
+        cardinalLayer.appendChild(el);
+        return true;
+    }
+
+    function addOverlayRawRect(rawX, rawY, width, height, className = "") {
+        if (!state.image) {
+            return false;
+        }
+        const a = imageMarkerCanvasPixel(rawX, rawY);
+        const b = imageMarkerCanvasPixel(rawX + width, rawY + height);
+        const [left, top] = canvasPixelToCssPixel([Math.min(a[0], b[0]), Math.min(a[1], b[1])]);
+        const [right, bottom] = canvasPixelToCssPixel([Math.max(a[0], b[0]), Math.max(a[1], b[1])]);
+        if (right < 0 || left > canvas.clientWidth || bottom < 0 || top > canvas.clientHeight) {
+            return false;
+        }
+        const el = document.createElement("div");
+        el.className = `raw-tile-marker ${className}`.trim();
+        el.style.left = `${left}px`;
+        el.style.top = `${top}px`;
+        el.style.width = `${Math.max(1, right - left)}px`;
+        el.style.height = `${Math.max(1, bottom - top)}px`;
         cardinalLayer.appendChild(el);
         return true;
     }
@@ -708,11 +750,16 @@
         }));
     }
 
+    function cloneRegionalCellScores(scores = state.regionalCellScores) {
+        return scores.map(cell => ({...cell}));
+    }
+
     function autoPairingUndoSnapshot(label) {
         return {
             optpar: currentOptpar(),
             matches: cloneMatches(),
             asterismEdges: cloneAsterismEdges(),
+            regionalCellScores: cloneRegionalCellScores(),
             label,
         };
     }
@@ -735,6 +782,9 @@
         }
         if (snapshot.asterismEdges) {
             state.asterismEdges = cloneAsterismEdges(snapshot.asterismEdges);
+        }
+        if (snapshot.regionalCellScores) {
+            state.regionalCellScores = cloneRegionalCellScores(snapshot.regionalCellScores);
         }
     }
 
@@ -2081,7 +2131,8 @@ end
         const maxAddDistancePx = Number.isFinite(options.maxAddDistancePx) ?
             options.maxAddDistancePx :
             Infinity;
-        if (Number.isFinite(options.maxMedianDistance) &&
+        const ignoreDistanceGuards = options.ignoreDistanceGuards === true;
+        if (!ignoreDistanceGuards && Number.isFinite(options.maxMedianDistance) &&
                 Number.isFinite(result.medianDistance) &&
                 result.medianDistance > options.maxMedianDistance) {
             return 0;
@@ -2094,7 +2145,7 @@ end
             if (added >= maxAdditions) {
                 break;
             }
-            if (Number.isFinite(match.distance) && match.distance > maxAddDistancePx) {
+            if (!ignoreDistanceGuards && Number.isFinite(match.distance) && match.distance > maxAddDistancePx) {
                 continue;
             }
             if (existingCatalogKeys.has(match.star.key) ||
@@ -2214,6 +2265,18 @@ end
             ...snapshot,
             stage: snapshot && snapshot.stage ? `${label}: ${snapshot.stage}` : label,
         });
+        const cooperativeMatcherOptions = (startPercent, spanPercent, prefix) => ({
+            onProgress: (percent, text) => {
+                const p = Number.isFinite(percent) ? percent : 0;
+                setLoadingProgress(
+                    startPercent + spanPercent * Math.max(0, Math.min(100, p)) / 100,
+                    `${label}: ${prefix}: ${text}`
+                );
+            },
+            yieldFn: async () => {
+                await yieldToBrowser();
+            },
+        });
         let result = {
             matches: [],
             status: "automatic matching: no matcher stage was enabled",
@@ -2239,7 +2302,10 @@ end
                 `${label}: matching bright spherical asterisms with the Yale catalog${alphaText}...`
             );
             await yieldToBrowser();
-            result = window.AidaAutoIdentifier.identifyStarsBlind(
+            const blindMatcher = typeof window.AidaAutoIdentifier.identifyStarsBlindAsync === "function" ?
+                window.AidaAutoIdentifier.identifyStarsBlindAsync :
+                window.AidaAutoIdentifier.identifyStarsBlind;
+            result = await blindMatcher(
                 visibleStarsForMatching(Math.max(
                     maxMag,
                     Number.isFinite(options.blindOptions && options.blindOptions.ambiguityMaxMagnitude) ?
@@ -2255,6 +2321,11 @@ end
                     ...(options.blindOptions || {}),
                     triangleDebugStage: `${label} blind <= mag ${maxMag.toFixed(1)}`,
                     onTriangleDebug: triangleDebug,
+                    ...cooperativeMatcherOptions(
+                        Number.isFinite(options.progressBlind) ? options.progressBlind : 74,
+                        7,
+                        "blind asterism search"
+                    ),
                 }
             );
         }
@@ -2265,7 +2336,10 @@ end
                 `${label}: trying bright asterisms in the sky plane...`
             );
             await yieldToBrowser();
-            result = window.AidaAutoIdentifier.identifyStarsByAsterisms(
+            const skyPlaneMatcher = typeof window.AidaAutoIdentifier.identifyStarsByAsterismsAsync === "function" ?
+                window.AidaAutoIdentifier.identifyStarsByAsterismsAsync :
+                window.AidaAutoIdentifier.identifyStarsByAsterisms;
+            result = await skyPlaneMatcher(
                 skyPlaneStarsForAsterismIdentification(maxMag),
                 activeDetectedStars(),
                 {
@@ -2277,6 +2351,11 @@ end
                     ...(options.asterismOptions || {}),
                     triangleDebugStage: `${label} sky-plane <= mag ${maxMag.toFixed(1)}`,
                     onTriangleDebug: triangleDebug,
+                    ...cooperativeMatcherOptions(
+                        Number.isFinite(options.progressAsterism) ? options.progressAsterism : 82,
+                        4,
+                        "sky-plane asterism search"
+                    ),
                 }
             );
             const weakAsterismStages = Array.isArray(options.weakAsterismOptions) ?
@@ -2293,7 +2372,7 @@ end
                     `${label}: trying asterisms down to mag ${weakMaxMag.toFixed(1)}...`
                 );
                 await yieldToBrowser();
-                result = window.AidaAutoIdentifier.identifyStarsByAsterisms(
+                result = await skyPlaneMatcher(
                     skyPlaneStarsForAsterismIdentification(weakMaxMag, {
                         minSeparationDeg: weakAsterismOptions.catalogMinSeparationDeg,
                     }),
@@ -2309,6 +2388,11 @@ end
                         ...weakAsterismOptions,
                         triangleDebugStage: `${label} sky-plane <= mag ${weakMaxMag.toFixed(1)}`,
                         onTriangleDebug: triangleDebug,
+                        ...cooperativeMatcherOptions(
+                            Number.isFinite(weakAsterismOptions.progress) ? weakAsterismOptions.progress : 84,
+                            4,
+                            "deep asterism search"
+                        ),
                     }
                 );
             }
@@ -2901,12 +2985,10 @@ end
         }
         triangleDebugPlot.replaceChildren();
         const snapshot = state.triangleDebugSnapshot;
-        const hasPoints = snapshot &&
-            ((snapshot.catalog && snapshot.catalog.count > 0) ||
-            (snapshot.image && snapshot.image.count > 0));
-        triangleDebugPlot.classList.toggle("visible", Boolean(hasPoints));
-        triangleDebugPlot.setAttribute("aria-hidden", hasPoints ? "false" : "true");
-        if (!hasPoints) {
+        const hasSnapshot = Boolean(snapshot);
+        triangleDebugPlot.classList.toggle("visible", hasSnapshot);
+        triangleDebugPlot.setAttribute("aria-hidden", hasSnapshot ? "false" : "true");
+        if (!hasSnapshot) {
             return;
         }
 
@@ -2944,71 +3026,6 @@ end
         }
         title.textContent = pieces.join("; ");
         triangleDebugPlot.appendChild(title);
-
-        const canvasPlot = document.createElement("canvas");
-        canvasPlot.className = "triangle-debug-canvas";
-        const cssWidth = 260;
-        const cssHeight = 190;
-        const dpr = Math.max(1, window.devicePixelRatio || 1);
-        canvasPlot.width = Math.round(cssWidth * dpr);
-        canvasPlot.height = Math.round(cssHeight * dpr);
-        const ctx = canvasPlot.getContext("2d");
-        ctx.scale(dpr, dpr);
-        ctx.clearRect(0, 0, cssWidth, cssHeight);
-        const plot = {x0: 38, y0: 14, w: 196, h: 138};
-        const sx = value => plot.x0 + Math.max(0, Math.min(1, value)) * plot.w;
-        const sy = value => plot.y0 + plot.h - Math.max(0, Math.min(1, value)) * plot.h;
-
-        ctx.lineWidth = 1;
-        ctx.strokeStyle = "rgba(191, 219, 254, 0.20)";
-        for (const tick of [0, 0.25, 0.5, 0.75, 1.0]) {
-            ctx.beginPath();
-            ctx.moveTo(sx(tick), plot.y0);
-            ctx.lineTo(sx(tick), plot.y0 + plot.h);
-            ctx.moveTo(plot.x0, sy(tick));
-            ctx.lineTo(plot.x0 + plot.w, sy(tick));
-            ctx.stroke();
-        }
-        ctx.strokeStyle = "rgba(219, 234, 254, 0.82)";
-        ctx.beginPath();
-        ctx.moveTo(plot.x0, plot.y0 + plot.h);
-        ctx.lineTo(plot.x0 + plot.w, plot.y0 + plot.h);
-        ctx.moveTo(plot.x0, plot.y0);
-        ctx.lineTo(plot.x0, plot.y0 + plot.h);
-        ctx.stroke();
-
-        const drawPoints = (points, fillStyle, radius) => {
-            ctx.fillStyle = fillStyle;
-            for (const point of points || []) {
-                ctx.beginPath();
-                ctx.arc(sx(point.x), sy(point.y), radius, 0, 2 * Math.PI);
-                ctx.fill();
-            }
-        };
-        drawPoints(snapshot.catalog.points, "rgba(147, 197, 253, 0.55)", 1.15);
-        drawPoints(snapshot.image.points, "rgba(250, 204, 21, 0.72)", 1.45);
-        if (snapshot.supportTriangles) {
-            drawPoints(snapshot.supportTriangles.rejected || [], "rgba(244, 114, 182, 0.45)", 1.45);
-            drawPoints(snapshot.supportTriangles.accepted || [], "rgba(34, 211, 238, 0.88)", 2.0);
-        }
-
-        ctx.fillStyle = "#dbeafe";
-        ctx.font = "700 10px system-ui, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif";
-        ctx.textAlign = "center";
-        ctx.fillText("a/c", plot.x0 + plot.w / 2, 182);
-        ctx.fillText("0", plot.x0, 166);
-        ctx.fillText("1", plot.x0 + plot.w, 166);
-        ctx.fillText("catalog blue", 76, 12);
-        ctx.fillText("image yellow", 174, 12);
-        if (snapshot.supportTriangles) {
-            ctx.fillText("support cyan", 172, 26);
-        }
-        ctx.save();
-        ctx.translate(10, plot.y0 + plot.h / 2);
-        ctx.rotate(-Math.PI / 2);
-        ctx.fillText("b/c", 0, 0);
-        ctx.restore();
-        triangleDebugPlot.appendChild(canvasPlot);
     }
 
     function nearestCardinalAzimuthDistance(azDeg) {
@@ -3176,6 +3193,24 @@ end
         if (!state.image || !(state.displayMode === "pairing" || state.displayMode === "pureImage")) {
             return;
         }
+        for (const tile of state.notStarTiles) {
+            addOverlayRawRect(
+                tile.x0,
+                tile.y0,
+                tile.width,
+                tile.height,
+                "not-star-tile-black"
+            );
+        }
+        if (state.notStarTilePreview) {
+            addOverlayRawRect(
+                state.notStarTilePreview.x0,
+                state.notStarTilePreview.y0,
+                state.notStarTilePreview.width,
+                state.notStarTilePreview.height,
+                "not-star-tile-preview"
+            );
+        }
         for (const region of state.junkStarFinderRegions) {
             addOverlayRadiusCircle(region.x, region.y, region.radius, "junk-star-finder-region");
         }
@@ -3208,6 +3243,28 @@ end
         }
     }
 
+    function drawRegionalCellScores() {
+        if (!state.image || !Array.isArray(state.regionalCellScores) || state.regionalCellScores.length === 0) {
+            return;
+        }
+        for (const cell of state.regionalCellScores) {
+            if (!cell || !Number.isFinite(cell.x0) || !Number.isFinite(cell.x1) ||
+                    !Number.isFinite(cell.y0) || !Number.isFinite(cell.y1)) {
+                continue;
+            }
+            const scoreText = Number.isFinite(cell.score) ? cell.score.toFixed(1) : "none";
+            const prefix = cell.best ? "best " : "";
+            const matches = Number.isFinite(cell.matches) ? `, ${cell.matches} stars` : "";
+            const center = imageMarkerCanvasPixel(0.5 * (cell.x0 + cell.x1), 0.5 * (cell.y0 + cell.y1));
+            addOverlayLabel(
+                `${prefix}cell ${cell.id}: ${scoreText}${matches}`,
+                center,
+                `regional-cell-score-label${cell.best ? " regional-cell-score-best" : ""}`,
+                true
+            );
+        }
+    }
+
     function drawOverlayLabels() {
         cardinalLayer.replaceChildren();
         if (!state.image) {
@@ -3236,11 +3293,13 @@ end
         if (state.displayMode === "pairing") {
             drawAsterismLines();
             drawAutoDetectionMarkers();
+            drawRegionalCellScores();
             drawBadStarFinderMarkers();
             drawCatalogPairingMarkers();
             drawMatchMarkers(optpar, optmod);
         } else if (state.displayMode === "pureImage") {
             drawAutoDetectionMarkers();
+            drawRegionalCellScores();
             drawBadStarFinderMarkers();
         } else {
             drawStarNameLabels();
@@ -3868,10 +3927,22 @@ end
             return [];
         }
 
+        const {
+            maskPredicate: optionMaskPredicate,
+            regionBounds,
+            ...detectorRest
+        } = detectorOptions || {};
+        const inRegion = (x, y) => !regionBounds ||
+            x >= regionBounds.x0 && x <= regionBounds.x1 &&
+            y >= regionBounds.y0 && y <= regionBounds.y1;
         const result = await window.AidaStarDetector.detectBrightStars(state.imagePixels, {
             maxDetections,
-            ...detectorOptions,
-            maskPredicate: (x, y) => isMaskedImagePixel(x, y) || isJunkStarFinderPixel(x, y),
+            ...detectorRest,
+            maskPredicate: (x, y) =>
+                !inRegion(x, y) ||
+                isMaskedImagePixel(x, y) ||
+                isJunkStarFinderPixel(x, y) ||
+                Boolean(optionMaskPredicate && optionMaskPredicate(x, y)),
             onProgress: (percent, text) => setLoadingProgress(18 + 52 * percent / 100, text),
             yieldFn: async () => {
                 await yieldToBrowser();
@@ -5590,6 +5661,450 @@ end
         return true;
     }
 
+    function brownConradyVectorFromPinholeOptpar(pinholeOptpar) {
+        const seed = defaultOptparForImage(state.image, BROWN_CONRADY_OPTMOD);
+        for (let i = 0; i < Math.min(7, pinholeOptpar.length); i += 1) {
+            seed[i] = pinholeOptpar[i];
+        }
+        seed[7] = 0;
+        seed[8] = 0;
+        seed[9] = 0;
+        seed[10] = 0;
+        seed[11] = 0;
+        return seed;
+    }
+
+    function ensureMaxMagnitudeForMatches(matches) {
+        const mags = (matches || [])
+            .map(match => Number(match && (match.catalog ? match.catalog.mag : match.star && match.star.mag)))
+            .filter(Number.isFinite);
+        if (!mags.length) {
+            return;
+        }
+        setLuckyMaxMagnitude(Math.min(7, Math.max(Number(controls.maxMag.value) || 0, Math.max(...mags))));
+    }
+
+    async function fitPinholeSeedForBrownConrady(blindResult, label, options = {}) {
+        ensureMaxMagnitudeForMatches(state.matches);
+        if (!blindResult || !state.image || fittingMatches().length < 4) {
+            return {accepted: false, skipped: true};
+        }
+        const convertToBrownConrady = options.convertToBrownConrady !== false;
+        const savedOptmod = Number(controls.optmod.value) || BROWN_CONRADY_OPTMOD;
+        const savedActiveOptmod = state.activeOptmod;
+        const savedBrownOptpar = currentOptpar();
+        const undoDepth = state.fitUndoStack.length;
+        let fitResult = {accepted: false, skipped: true};
+        let convertedToBrownConrady = false;
+        try {
+            controls.optmod.value = "1";
+            state.activeOptmod = 1;
+            controls.brownConradyParams.hidden = true;
+            applyOptpar(defaultOptparForImage(state.image, 1));
+            seedCurrentModelFromBlindIdentification(blindResult);
+            setLoadingProgress(88, `${label}: fitting optmod 1 pinhole seed...`);
+            await yieldToBrowser();
+            fitResult = fitLensLevenbergMarquardt({
+                methodLabel: `${label} optmod 1 seed`,
+                fitScopeText: "from the best 3x3 regional asterism cell",
+            });
+            const pinholeOptpar = currentOptpar();
+            if (convertToBrownConrady) {
+                controls.optmod.value = String(BROWN_CONRADY_OPTMOD);
+                state.activeOptmod = BROWN_CONRADY_OPTMOD;
+                controls.brownConradyParams.hidden = false;
+                applyFitVector(brownConradyVectorFromPinholeOptpar(pinholeOptpar));
+                state.lastFitVector = currentOptpar();
+                updateProjection();
+                convertedToBrownConrady = true;
+            }
+        } finally {
+            if (convertToBrownConrady) {
+                controls.optmod.value = String(savedOptmod);
+                state.activeOptmod = savedActiveOptmod;
+                controls.brownConradyParams.hidden = savedOptmod !== BROWN_CONRADY_OPTMOD;
+                if (savedOptmod === BROWN_CONRADY_OPTMOD && !convertedToBrownConrady) {
+                    applyOptpar(savedBrownOptpar);
+                } else if (savedOptmod !== BROWN_CONRADY_OPTMOD) {
+                    applyOptpar(savedBrownOptpar.slice(0, requiredOptparLength(savedOptmod)));
+                }
+            }
+            if (state.fitUndoStack.length > undoDepth) {
+                state.fitUndoStack.splice(undoDepth);
+                updateUndoFitButton();
+            }
+        }
+        return fitResult;
+    }
+
+    function brownConradyRegionalCells(cols = 3, rows = 3, overlapFraction = 0.5) {
+        const width = state.image.width;
+        const height = state.image.height;
+        const cellWidth = width / cols;
+        const cellHeight = height / rows;
+        const padX = 0.5 * Math.max(0, overlapFraction) * cellWidth;
+        const padY = 0.5 * Math.max(0, overlapFraction) * cellHeight;
+        const cells = [];
+        for (let row = 0; row < rows; row += 1) {
+            for (let col = 0; col < cols; col += 1) {
+                const nominalX0 = col * cellWidth;
+                const nominalX1 = (col + 1) * cellWidth;
+                const nominalY0 = row * cellHeight;
+                const nominalY1 = (row + 1) * cellHeight;
+                cells.push({
+                    id: row * cols + col + 1,
+                    row,
+                    col,
+                    x0: Math.max(0, nominalX0 - padX),
+                    x1: Math.min(width, nominalX1 + padX),
+                    y0: Math.max(0, nominalY0 - padY),
+                    y1: Math.min(height, nominalY1 + padY),
+                    nominalX0,
+                    nominalX1,
+                    nominalY0,
+                    nominalY1,
+                });
+            }
+        }
+        return cells;
+    }
+
+    function scoreBrownConradyRegionalBlindResult(result) {
+        return Number.isFinite(result && result.score) ? result.score : -Infinity;
+    }
+
+    function setRegionalCellScore(candidate, bestCellId = null) {
+        if (!candidate || !candidate.cell) {
+            return;
+        }
+        const record = {
+            id: candidate.cell.id,
+            x0: candidate.cell.x0,
+            x1: candidate.cell.x1,
+            y0: candidate.cell.y0,
+            y1: candidate.cell.y1,
+            score: candidate.score,
+            matches: Array.isArray(candidate.result && candidate.result.matches) ?
+                candidate.result.matches.length : 0,
+            best: candidate.cell.id === bestCellId,
+        };
+        const index = state.regionalCellScores.findIndex(cell => cell.id === record.id);
+        if (index >= 0) {
+            state.regionalCellScores[index] = record;
+        } else {
+            state.regionalCellScores.push(record);
+        }
+    }
+
+    function markBestRegionalCellScore(bestCellId) {
+        state.regionalCellScores = state.regionalCellScores.map(cell => ({
+            ...cell,
+            best: cell.id === bestCellId,
+        }));
+    }
+
+    function skyUnitFromAzZe(az, ze) {
+        if (!Number.isFinite(az) || !Number.isFinite(ze)) {
+            return null;
+        }
+        const sinZe = Math.sin(ze);
+        return {
+            x: sinZe * Math.sin(az),
+            y: sinZe * Math.cos(az),
+            z: Math.cos(ze),
+        };
+    }
+
+    function medianSkyDirection(matches) {
+        const vectors = (matches || [])
+            .map(match => match && match.star ? skyUnitFromAzZe(match.star.az, match.star.ze) : null)
+            .filter(Boolean);
+        if (vectors.length === 0) {
+            return null;
+        }
+        const sum = vectors.reduce((acc, vector) => ({
+            x: acc.x + vector.x,
+            y: acc.y + vector.y,
+            z: acc.z + vector.z,
+        }), {x: 0, y: 0, z: 0});
+        const norm = Math.hypot(sum.x, sum.y, sum.z);
+        if (!Number.isFinite(norm) || norm <= 1e-9) {
+            return null;
+        }
+        return {x: sum.x / norm, y: sum.y / norm, z: sum.z / norm};
+    }
+
+    function skyDirectionDistanceDeg(a, b) {
+        if (!a || !b) {
+            return Infinity;
+        }
+        const dot = a.x * b.x + a.y * b.y + a.z * b.z;
+        return Math.acos(Math.max(-1, Math.min(1, dot))) * 180 / Math.PI;
+    }
+
+    function unwrapAzimuthSequence(radians) {
+        if (!radians.length) {
+            return [];
+        }
+        const out = [radians[0]];
+        for (let i = 1; i < radians.length; i += 1) {
+            let value = radians[i];
+            while (value - out[i - 1] > Math.PI) {
+                value -= 2 * Math.PI;
+            }
+            while (value - out[i - 1] < -Math.PI) {
+                value += 2 * Math.PI;
+            }
+            out.push(value);
+        }
+        return out;
+    }
+
+    function hasMonotonicAzimuthByImageX(matches) {
+        const ordered = (matches || [])
+            .filter(match => match && match.star && match.detection &&
+                Number.isFinite(match.star.az) && Number.isFinite(match.detection.x))
+            .slice()
+            .sort((a, b) => a.detection.x - b.detection.x);
+        if (ordered.length < 4) {
+            return false;
+        }
+        const az = unwrapAzimuthSequence(ordered.map(match => match.star.az));
+        let increasing = 0;
+        const tolerance = 2 * Math.PI / 180;
+        for (let i = 1; i < az.length; i += 1) {
+            const delta = az[i] - az[i - 1];
+            if (delta >= -tolerance) {
+                increasing += 1;
+            }
+        }
+        const needed = Math.ceil(0.7 * (az.length - 1));
+        return increasing >= needed;
+    }
+
+    function brownConradyRegionalResultsAgree(best, candidate) {
+        const a = best && best.result;
+        const b = candidate && candidate.result;
+        if (!a || !b || !Array.isArray(a.matches) || !Array.isArray(b.matches)) {
+            return false;
+        }
+        if (a.matches.length < 6 || b.matches.length < 6) {
+            return false;
+        }
+        const skyDistanceDeg = skyDirectionDistanceDeg(
+            medianSkyDirection(a.matches),
+            medianSkyDirection(b.matches)
+        );
+        const f1Ratio = Math.abs(Math.log(Math.max(1e-6, Math.abs(a.f1 || 1)) / Math.max(1e-6, Math.abs(b.f1 || 1))));
+        const sameSign = (a.signX || 1) === (b.signX || 1) && (a.signY || 1) === (b.signY || 1);
+        return sameSign &&
+            skyDistanceDeg <= 75 &&
+            f1Ratio <= Math.log(1.35) &&
+            hasMonotonicAzimuthByImageX(b.matches);
+    }
+
+    function recordRegionalBootstrapAsterisms(candidates, label) {
+        state.asterismEdges = [];
+        for (const candidate of candidates || []) {
+            if (candidate && candidate.result && candidate.cell) {
+                recordAsterismEdgesFromResult(candidate.result, `${label} cell ${candidate.cell.id}`);
+            }
+        }
+    }
+
+    async function runBrownConradyRegionalBootstrap(stage, stageIndex, totalStages) {
+        const label = `I'm feeling lucky ${stageIndex}/${totalStages} Brown-Conrady 3x3 bootstrap`;
+        const maxMag = Number.isFinite(stage.maxMagnitude) ? stage.maxMagnitude : 7.0;
+        const minBlindMatches = Number.isFinite(stage.minBlindMatches) ? stage.minBlindMatches : 6;
+        const cells = brownConradyRegionalCells(3, 3);
+        const commonOptions = {
+            imageWidth: state.image.width,
+            imageHeight: state.image.height,
+            maxMagnitude: maxMag,
+            existingCatalogKeys: null,
+            existingDetectionIds: currentGenerationDetectionIdsFromMatches(),
+            deletedDetectionIds: state.deletedDetectionIds,
+        };
+        let best = null;
+        const successful = [];
+        state.regionalCellScores = [];
+        for (let index = 0; index < cells.length; index += 1) {
+            const cell = cells[index];
+            setLoadingProgress(
+                8 + 62 * index / cells.length,
+                `${label}: detecting stars in cell ${cell.id}/9...`
+            );
+            await yieldToBrowser();
+            const detections = await detectBrightImageStarsForAutoIdentify(
+                stage.maxDetections,
+                {
+                    ...(stage.detectorOptions || {}),
+                    regionBounds: cell,
+                }
+            );
+            state.asterismEdges = [];
+            state.detectorStatus = `${state.detectorStatus}; showing 3x3 cell ${cell.id}/9`;
+            render();
+            await yieldToBrowser();
+            setLoadingProgress(
+                74,
+                `${label}: matching cell ${cell.id}/9 asterisms against Yale catalog...`
+            );
+            await yieldToBrowser();
+            const triangleDebug = snapshot => setTriangleDebugSnapshot({
+                ...snapshot,
+                stage: `${label} cell ${cell.id}: ${snapshot && snapshot.stage ? snapshot.stage : "blind"}`,
+            });
+            const blindMatcher = typeof window.AidaAutoIdentifier.identifyStarsBlindAsync === "function" ?
+                window.AidaAutoIdentifier.identifyStarsBlindAsync :
+                window.AidaAutoIdentifier.identifyStarsBlind;
+            const result = await blindMatcher(
+                visibleStarsForMatching(Math.max(
+                    maxMag,
+                    Number.isFinite(stage.blindOptions && stage.blindOptions.ambiguityMaxMagnitude) ?
+                        stage.blindOptions.ambiguityMaxMagnitude :
+                        maxMag
+                )),
+                detections,
+                {
+                    ...commonOptions,
+                    ...(stage.blindOptions || {}),
+                    maxDetections: Math.min(
+                        stage.maxDetections,
+                        Number.isFinite(stage.blindOptions && stage.blindOptions.maxDetections) ?
+                            stage.blindOptions.maxDetections :
+                            stage.maxDetections
+                    ),
+                    minMatches: minBlindMatches,
+                    triangleDebugStage: `${label} cell ${cell.id} <= mag ${maxMag.toFixed(1)}`,
+                    onTriangleDebug: triangleDebug,
+                    onProgress: (percent, text) => setLoadingProgress(
+                        74 + 20 * Math.max(0, Math.min(100, Number.isFinite(percent) ? percent : 0)) / 100,
+                        `${label}: cell ${cell.id}/9 ${text}`
+                    ),
+                    yieldFn: async () => {
+                        await yieldToBrowser();
+                    },
+                }
+            );
+            const score = scoreBrownConradyRegionalBlindResult(result);
+            const candidate = {cell, detections, result, score};
+            setRegionalCellScore(candidate, best && best.cell ? best.cell.id : null);
+            state.asterismEdges = [];
+            recordAsterismEdgesFromResult(result, `${label} cell ${cell.id}`);
+            const scoreText = Number.isFinite(score) ? score.toFixed(1) : "none";
+            state.automaticMatchingStatus =
+                `${String(result.status || "").replace(/auto-identify/g, "automatic matching")}; ` +
+                `cell ${cell.id}/9 score ${scoreText}`;
+            render();
+            if (Array.isArray(result.matches) && result.matches.length >= minBlindMatches &&
+                    (!Number.isFinite(stage.maxMedianDistance) ||
+                        Number.isFinite(result.medianDistance) && result.medianDistance <= stage.maxMedianDistance)) {
+                successful.push(candidate);
+            }
+            if (!best || score > best.score) {
+                best = candidate;
+                markBestRegionalCellScore(best.cell.id);
+            }
+            await yieldToBrowser();
+        }
+
+        if (successful.length > 0) {
+            successful.sort((a, b) => b.score - a.score);
+            best = successful[0];
+            markBestRegionalCellScore(best.cell.id);
+        }
+        if (!best || !best.result || !Array.isArray(best.result.matches) || best.result.matches.length === 0) {
+            return {
+                result: {matches: [], status: `${label}: no regional asterism cell produced matches`},
+                added: 0,
+                detections: 0,
+                seeded: false,
+                fitAccepted: false,
+                stopLucky: true,
+                stopReason: `${label}: no regional asterism cell produced matches`,
+            };
+        }
+
+        state.detectedStars = best.detections.slice();
+        updateAutoMatches();
+        recordRegionalBootstrapAsterisms([best], label);
+        setLoadingProgress(
+            84,
+            `${label}: selected best cell ${best.cell.id}/9 with ${best.result.matches.length} matches; adding pairs...`
+        );
+        state.automaticMatchingStatus =
+            `${String(best.result.status || "").replace(/auto-identify/g, "automatic matching")}; ` +
+            `selected best 3x3 cell ${best.cell.id}/9 by matcher score ${best.score.toFixed(1)}`;
+        render();
+        await yieldToBrowser();
+        let added = addAutoIdentificationMatches(best.result, "lucky regional asterism", {
+            maxAddDistancePx: stage.maxAddDistancePx,
+            maxAdditions: stage.maxAdditions,
+        });
+        if (fittingMatches().length < 4 && Array.isArray(best.result.matches) && best.result.matches.length >= 4) {
+            added += addAutoIdentificationMatches(best.result, "lucky regional asterism", {
+                maxAdditions: stage.maxAdditions,
+            });
+        }
+        state.pendingMatch = null;
+        clearDensityEstimate();
+        state.showPickedMatchMarkers = true;
+        state.lastFitVector = null;
+        updateAutoMatches();
+        ensureMaxMagnitudeForMatches(state.matches);
+        const agreeingCells = successful.filter(candidate => brownConradyRegionalResultsAgree(best, candidate));
+        const pinholeFit = Array.isArray(best.result.matches) && best.result.matches.length >= 4 ?
+            await fitPinholeSeedForBrownConrady(best.result, label, {
+                convertToBrownConrady: agreeingCells.length >= 2,
+            }) :
+            {accepted: false, skipped: true};
+        if (agreeingCells.length < 2) {
+            recordRegionalBootstrapAsterisms([best], label);
+            if (pinholeFit && !pinholeFit.skipped) {
+                controls.optmod.value = "1";
+                state.activeOptmod = 1;
+                controls.brownConradyParams.hidden = true;
+                if (pinholeFit.optpar) {
+                    applyFitVector(pinholeFit.optpar);
+                }
+                updateProjection();
+                render();
+            }
+            const solvedCells = successful.map(candidate => candidate.cell.id).join(", ") || "none";
+            return {
+                result: {
+                    ...best.result,
+                    status: `${best.result.status}; selected 3x3 cell ${best.cell.id}/9; ` +
+                        `only ${agreeingCells.length} mutually consistent 3x3 cell solution` +
+                        `${agreeingCells.length === 1 ? "" : "s"} found; solved cells ${solvedCells}`
+                },
+                added,
+                detections: best.detections.length,
+                seeded: Boolean(pinholeFit && !pinholeFit.skipped),
+                fitAccepted: Boolean(pinholeFit && pinholeFit.accepted),
+                stopLucky: true,
+                stopReason: `${label}: optmod 1 fit attempted on best cell; ` +
+                    "at least two consistent 3x3 cells are required before Brown-Conrady fitting",
+                cell: best.cell,
+                agreeingCells,
+            };
+        }
+        recordRegionalBootstrapAsterisms(agreeingCells, label);
+        return {
+            result: {
+                ...best.result,
+                status: `${best.result.status}; selected 3x3 cell ${best.cell.id}/9`,
+            },
+            added,
+            detections: best.detections.length,
+            seeded: Boolean(pinholeFit && !pinholeFit.skipped),
+            fitAccepted: Boolean(pinholeFit && pinholeFit.accepted),
+            cell: best.cell,
+            agreeingCells,
+        };
+    }
+
     async function runLuckyFitStage(stage, stageIndex, totalStages) {
         setLuckyMaxMagnitude(stage.maxMagnitude);
         const pass = await runAutoIdentifyPass({
@@ -5616,7 +6131,28 @@ end
             methodLabel: "lucky auto star finder",
         });
         let seeded = false;
-        if (stage.seedFromBlind && pass.result.matches.length >= 4) {
+        if (stage.seedFromBlind && stage.allowProvisionalBlindPairs === true && pass.result.matches.length >= 4) {
+            if (pass.added === 0) {
+                const fallbackAdded = addAutoIdentificationMatches(pass.result, "lucky blind bootstrap", {
+                    ignoreDistanceGuards: true,
+                    maxAdditions: Number.isFinite(stage.bootstrapMaxAdditions) ? stage.bootstrapMaxAdditions : 24,
+                });
+                if (fallbackAdded > 0) {
+                    pass.added += fallbackAdded;
+                    state.pendingMatch = null;
+                    clearDensityEstimate();
+                    state.showPickedMatchMarkers = true;
+                    state.lastFitVector = null;
+                    ensureMaxMagnitudeForMatches(state.matches);
+                    state.automaticMatchingStatus =
+                        `${String(pass.result.status || "").replace(/auto-identify/g, "automatic matching")}; ` +
+                        `added ${fallbackAdded} provisional blind bootstrap pairing` +
+                        `${fallbackAdded === 1 ? "" : "s"} for fitting`;
+                    updateAutoMatches();
+                    render();
+                    await yieldToBrowser();
+                }
+            }
             seeded = seedCurrentModelFromBlindIdentification(pass.result);
             if (seeded) {
                 recomputeAndRender();
@@ -5699,6 +6235,7 @@ end
         const optmod = Number(controls.optmod.value) || 2;
         const undoSnapshot = autoPairingUndoSnapshot("I'm feeling lucky");
         state.asterismEdges = [];
+        state.regionalCellScores = [];
         setTriangleDebugSnapshot(null);
         const removedBadAreaMatches = removeAutomaticMatchesInBadStarFinderRegions();
         const startingMatchCount = state.matches.length;
@@ -6122,177 +6659,247 @@ end
             delete stages[5].rejectIfRmsIncreasePx;
             delete stages[5].maxMedianDistance;
         } else if (optmod === BROWN_CONRADY_OPTMOD) {
-            const brownConradyPinholeGrid = [0.35, 0.45, 0.55, 0.65, 0.80, 1.00, 1.25, 1.55];
+            const legacyPhonePreflatten = {
+                preflattenModelCandidates: ["pinhole", "fisheye"],
+                preflattenF1Candidates: [0.70, 0.85, 1.00],
+                preflattenRadialAlphaCandidates: [0.30, 0.60, 0.90],
+                preflattenDu: 0,
+                preflattenDv: 0,
+                minBlindMatchSpanXFraction: 0.42,
+                minBlindMatchSpanYFraction: 0.34,
+            };
+            const legacyPhoneDeepPreflatten = {
+                preflattenModelCandidates: ["pinhole", "fisheye"],
+                preflattenF1Candidates: [0.55, 0.65, 0.75, 0.85, 0.95, 1.10],
+                preflattenRadialAlphaCandidates: [0.15, 0.30, 0.45, 0.60, 0.75, 0.90, 0.98],
+                preflattenDu: 0,
+                preflattenDv: 0,
+                minBlindMatchSpanXFraction: 0.42,
+                minBlindMatchSpanYFraction: 0.34,
+            };
+            const imageDirectionDeg = Number(state.currentImageMetadata && state.currentImageMetadata.imageDirectionDeg);
+            const iPhoneHeadingGuard = Number.isFinite(imageDirectionDeg) ? {
+                expectedBoresightAzDeg: imageDirectionDeg,
+                boresightAzToleranceDeg: 60,
+                minBoresightElevationDeg: 0,
+            } : {};
+            Object.assign(legacyPhonePreflatten, iPhoneHeadingGuard);
+            Object.assign(legacyPhoneDeepPreflatten, iPhoneHeadingGuard);
+            const brownConradyMaxRmsToContinuePx = 12.0;
             Object.assign(stages[0], {
-                maxDetections: 260,
-                maxMagnitude: 7.0,
-                phase: "Brown-Conrady flat-field blind bootstrap",
+                maxDetections: 80,
+                maxMagnitude: 4.0,
+                phase: "Brown-Conrady v0.2.0-style blind bootstrap",
                 detectorOptions: {
-                    thresholdSigma: 1.45,
-                    localThresholdSigma: 1.55,
+                    scanStep: 1,
+                    thresholdSigma: 1.8,
+                    localThresholdSigma: 1.8,
                     requireGlobalThreshold: false,
                     maxRadiusPx: 5,
-                    maxElongation: 3.4,
-                    suppressionRadiusPx: 8,
-                    crowdingRadiusPx: 30,
-                    maxCrowding: 8,
+                    maxElongation: 4.0,
+                    suppressionRadiusPx: 10,
+                    crowdingRadiusPx: 36,
+                    maxCrowding: 7,
                     crowdingScorePower: 1.25,
                 },
                 blindOptions: {
-                    maxDetections: 260,
-                    enableRegionalDetectionCoverage: true,
-                    regionalDetectionCols: 3,
-                    regionalDetectionRows: 2,
-                    regionalDetectionMinPerRegion: 5,
-                    regionalDetectionOverlap: 0.25,
-                    maxBlindAsterismsPerRegion: 12,
-                    maxBlindVerifyDetections: 220,
-                    maxCatalogStars: 520,
-                    maxCatalogTriangleStars: 420,
-                    maxCatalogTriangles: 65000,
-                    maxAmbiguityCatalogStars: 650,
-                    maxDetectionTriangleStars: 180,
-                    maxDetectionTriangles: 16000,
-                    preflattenModelCandidates: ["pinhole"],
-                    preflattenF1Candidates: brownConradyPinholeGrid,
-                    maxCatalogLocalNeighbors: 24,
-                    maxBlindNeighborTriangles: 12,
-                    blindEarlyAcceptMatches: 10,
-                    blindEarlyAcceptMedianDeg: 0.85,
-                    maxBlindCandidateRotations: 22000,
+                    maxDetections: 80,
+                    maxBlindVerifyDetections: 80,
+                    maxCatalogStars: 220,
+                    maxCatalogTriangleStars: 220,
+                    maxCatalogTriangles: 30000,
+                    ...legacyPhonePreflatten,
+                    maxCatalogLocalNeighbors: 20,
+                    maxBlindNeighborTriangles: 8,
+                    blindEarlyAcceptMatches: 12,
+                    maxBlindCandidateRotations: 12000,
                     rejectAmbiguousBlindMatches: true,
                     blindAmbiguityRadiusDeg: 1.0,
                     blindAmbiguityDistanceSlackDeg: 0.35,
                     blindPixelMatchRadiusPx: 64,
                     blindPixelAmbiguityRadiusPx: 18,
-                    blindPixelAmbiguityDistanceSlackPx: 9,
-                    ambiguityMaxMagnitude: 7.0,
+                    blindPixelAmbiguityDistanceSlackPx: 8,
+                    ambiguityMaxMagnitude: 6.0,
                 },
-                maxAddDistancePx: 1.6,
-                maxMedianDistance: 0.55,
-                weakAsterismOptions: null,
+                maxAddDistancePx: 0.8,
+                maxMedianDistance: 0.42,
+                maxRmsToContinuePx: brownConradyMaxRmsToContinuePx,
+                weakAsterismOptions: deepAsterismFallbackStages({
+                    summaryLabel: "Brown-Conrady v0.2.0-style bootstrap",
+                }),
             });
             Object.assign(stages[1], {
-                maxDetections: 320,
-                maxMagnitude: 7.0,
-                phase: "Brown-Conrady extended flat-field bootstrap",
+                maxDetections: 160,
+                maxMagnitude: 4.0,
+                phase: "Brown-Conrady v0.2.0-style extended bootstrap",
                 detectorOptions: {
-                    thresholdSigma: 1.35,
-                    localThresholdSigma: 1.45,
+                    scanStep: 1,
+                    thresholdSigma: 1.8,
+                    localThresholdSigma: 1.8,
                     requireGlobalThreshold: false,
                     maxRadiusPx: 5,
-                    maxElongation: 3.5,
-                    suppressionRadiusPx: 8,
-                    crowdingRadiusPx: 30,
-                    maxCrowding: 9,
-                    crowdingScorePower: 1.2,
+                    maxElongation: 4.0,
+                    suppressionRadiusPx: 10,
+                    crowdingRadiusPx: 36,
+                    maxCrowding: 7,
+                    crowdingScorePower: 1.25,
                 },
                 blindOptions: {
-                    maxDetections: 320,
-                    enableRegionalDetectionCoverage: true,
-                    regionalDetectionCols: 3,
-                    regionalDetectionRows: 2,
-                    regionalDetectionMinPerRegion: 5,
-                    regionalDetectionOverlap: 0.25,
-                    maxBlindAsterismsPerRegion: 12,
-                    maxBlindVerifyDetections: 260,
-                    maxCatalogStars: 650,
-                    maxCatalogTriangleStars: 520,
-                    maxCatalogTriangles: 90000,
-                    maxAmbiguityCatalogStars: 800,
-                    maxDetectionTriangleStars: 220,
-                    maxDetectionTriangles: 22000,
-                    preflattenModelCandidates: ["pinhole"],
-                    preflattenF1Candidates: brownConradyPinholeGrid,
-                    maxCatalogLocalNeighbors: 26,
-                    maxBlindNeighborTriangles: 14,
-                    blindEarlyAcceptMatches: 10,
-                    blindEarlyAcceptMedianDeg: 0.9,
-                    maxBlindCandidateRotations: 26000,
+                    maxDetections: 160,
+                    maxBlindVerifyDetections: 140,
+                    maxCatalogStars: 220,
+                    maxCatalogTriangleStars: 220,
+                    maxCatalogTriangles: 30000,
+                    maxDetectionTriangleStars: 120,
+                    maxDetectionTriangles: 6000,
+                    ...legacyPhonePreflatten,
+                    maxCatalogLocalNeighbors: 20,
+                    maxBlindNeighborTriangles: 8,
+                    blindEarlyAcceptMatches: 12,
+                    maxBlindCandidateRotations: 12000,
                     rejectAmbiguousBlindMatches: true,
                     blindAmbiguityRadiusDeg: 1.0,
                     blindAmbiguityDistanceSlackDeg: 0.35,
-                    blindPixelMatchRadiusPx: 70,
                     blindPixelAmbiguityRadiusPx: 18,
-                    blindPixelAmbiguityDistanceSlackPx: 10,
+                    blindPixelAmbiguityDistanceSlackPx: 8,
+                    ambiguityMaxMagnitude: 6.0,
+                },
+                maxAddDistancePx: 0.8,
+                maxMedianDistance: 0.42,
+                maxRmsToContinuePx: brownConradyMaxRmsToContinuePx,
+                weakAsterismOptions: deepAsterismFallbackStages({
+                    summaryLabel: "Brown-Conrady v0.2.0-style extended bootstrap",
+                }),
+            });
+            Object.assign(stages[2], {
+                maxDetections: 650,
+                maxMagnitude: 6.5,
+                phase: "Brown-Conrady v0.2.0-style phone deep bootstrap",
+                detectorOptions: {
+                    scanStep: 1,
+                    thresholdSigma: 1.5,
+                    localThresholdSigma: 1.5,
+                    requireGlobalThreshold: false,
+                    maxRadiusPx: 5,
+                    maxElongation: 4.0,
+                    suppressionRadiusPx: 10,
+                    crowdingRadiusPx: 36,
+                    maxCrowding: 7,
+                    crowdingScorePower: 1.25,
+                },
+                blindOptions: {
+                    maxDetections: 650,
+                    maxBlindVerifyDetections: 650,
+                    maxCatalogStars: 650,
+                    maxCatalogTriangleStars: 420,
+                    maxCatalogTriangles: 50000,
+                    maxAmbiguityCatalogStars: 700,
+                    maxDetectionTriangleStars: 260,
+                    maxDetectionTriangles: 20000,
+                    ...legacyPhoneDeepPreflatten,
+                    maxCatalogLocalNeighbors: 24,
+                    maxBlindNeighborTriangles: 10,
+                    blindEarlyAcceptMatches: 11,
+                    blindEarlyAcceptMedianDeg: 0.75,
+                    maxBlindCandidateRotations: 26000,
+                    rejectAmbiguousBlindMatches: true,
+                    blindAmbiguityRadiusDeg: 0.9,
+                    blindAmbiguityDistanceSlackDeg: 0.3,
+                    blindPixelMatchRadiusPx: 58,
+                    blindPixelAmbiguityRadiusPx: 16,
+                    blindPixelAmbiguityDistanceSlackPx: 8,
                     ambiguityMaxMagnitude: 7.0,
                 },
-                maxAddDistancePx: 1.8,
-                maxMedianDistance: 0.65,
-                weakAsterismOptions: null,
+                maxAddDistancePx: 1.2,
+                maxMedianDistance: 0.42,
+                maxRmsToContinuePx: brownConradyMaxRmsToContinuePx,
             });
             Object.assign(stages[3], {
-                maxDetections: 180,
-                maxMagnitude: 6.5,
+                maxDetections: 90,
+                maxMagnitude: 5.0,
+                includeAsterisms: false,
                 detectorOptions: {
-                    thresholdSigma: 2.4,
-                    localThresholdSigma: 2.5,
-                    requireGlobalThreshold: false,
+                    thresholdSigma: 3.6,
+                    localThresholdSigma: 3.4,
+                    requireGlobalThreshold: true,
                     maxElongation: 3.1,
-                    suppressionRadiusPx: 8,
-                    crowdingRadiusPx: 30,
-                    maxCrowding: 8,
-                    crowdingScorePower: 1.15,
                 },
                 projectedOptions: {
-                    maxDetections: 180,
-                    maxCatalogStars: 280,
-                    maxDistancePx: 42,
-                    translationSearchRadiusPx: 120,
-                    minMatches: 6,
+                    maxDetections: 90,
+                    maxCatalogStars: 130,
+                    maxDistancePx: 34,
+                    translationSearchRadiusPx: 90,
                     rejectAmbiguousMatches: true,
                     ambiguityRadiusPx: 18,
-                    ambiguityDistanceSlackPx: 14,
+                    ambiguityDistanceSlackPx: 16,
                 },
-                maxAddDistancePx: 10,
+                maxAddDistancePx: 8,
+                maxRmsToContinuePx: brownConradyMaxRmsToContinuePx,
                 minAsterismChecksForNewStars: 1,
             });
             Object.assign(stages[4], {
-                maxDetections: 260,
-                maxMagnitude: 7.0,
+                maxDetections: 650,
+                maxMagnitude: 6.5,
+                detectorOptions: {
+                    scanStep: 1,
+                    thresholdSigma: 1.5,
+                    localThresholdSigma: 1.5,
+                    requireGlobalThreshold: false,
+                    maxRadiusPx: 5,
+                    maxElongation: 4.0,
+                    suppressionRadiusPx: 10,
+                    crowdingRadiusPx: 36,
+                    maxCrowding: 7,
+                    crowdingScorePower: 1.25,
+                },
                 projectedOptions: {
-                    maxDetections: 260,
-                    maxCatalogStars: 420,
-                    maxDistancePx: 26,
-                    translationSearchRadiusPx: 60,
+                    maxDetections: 650,
+                    maxCatalogStars: 650,
+                    maxDistancePx: 18,
+                    translationSearchRadiusPx: 35,
                     minMatches: 8,
                     rejectAmbiguousMatches: true,
-                    ambiguityRadiusPx: 16,
-                    ambiguityDistanceSlackPx: 10,
-                },
-                maxAddDistancePx: 7,
-                maxMedianDistance: 12,
-                rejectIfRmsIncreasePx: 1.2,
-                minAsterismChecksForNewStars: 2,
-            });
-            Object.assign(stages[5], {
-                maxDetections: 340,
-                maxMagnitude: 7.0,
-                projectedOptions: {
-                    maxDetections: 340,
-                    maxCatalogStars: 650,
-                    maxDistancePx: 20,
-                    translationSearchRadiusPx: 40,
-                    minMatches: 10,
-                    rejectAmbiguousMatches: true,
                     ambiguityRadiusPx: 14,
-                    ambiguityDistanceSlackPx: 8,
+                    ambiguityDistanceSlackPx: 10,
                 },
                 maxAddDistancePx: 5,
                 maxMedianDistance: 10,
                 rejectIfRmsIncreasePx: 0.8,
+                maxRmsToContinuePx: brownConradyMaxRmsToContinuePx,
                 minAsterismChecksForNewStars: 2,
-                skipFit: false,
             });
-            for (const stage of stages) {
-                if (stage.blindOptions) {
-                    stage.blindOptions = {
-                        ...stage.blindOptions,
-                        preflattenModelCandidates: ["pinhole"],
-                    };
-                    delete stage.blindOptions.preflattenRadialAlphaCandidates;
-                }
-            }
+            Object.assign(stages[5], {
+                maxDetections: 650,
+                maxMagnitude: 7.0,
+                detectorOptions: {
+                    scanStep: 1,
+                    thresholdSigma: 1.5,
+                    localThresholdSigma: 1.5,
+                    requireGlobalThreshold: false,
+                    maxRadiusPx: 5,
+                    maxElongation: 4.0,
+                    suppressionRadiusPx: 10,
+                    crowdingRadiusPx: 36,
+                    maxCrowding: 7,
+                    crowdingScorePower: 1.25,
+                },
+                projectedOptions: {
+                    maxDetections: 650,
+                    maxCatalogStars: 700,
+                    maxDistancePx: 14,
+                    translationSearchRadiusPx: 24,
+                    minMatches: 10,
+                    rejectAmbiguousMatches: true,
+                    ambiguityRadiusPx: 12,
+                    ambiguityDistanceSlackPx: 8,
+                },
+                maxAddDistancePx: 4,
+                maxMedianDistance: 8,
+                rejectIfRmsIncreasePx: 0.5,
+                maxRmsToContinuePx: brownConradyMaxRmsToContinuePx,
+                minAsterismChecksForNewStars: 2,
+                skipFit: true,
+            });
         }
 
         let totalAdded = 0;
@@ -6302,6 +6909,10 @@ end
         let stagesRun = 0;
         let seeded = false;
         let stoppedAfterEmptyFirstStage = false;
+        let stoppedAfterPoorBrownConradyFit = false;
+        let poorBrownConradyFitText = "";
+        let stoppedAfterRegionalConsensusFailure = false;
+        let regionalConsensusFailureText = "";
         try {
             for (let i = 0; i < stages.length; i += 1) {
                 if (stages[i].runOnlyWithoutSeed === true && totalAdded > 0) {
@@ -6309,16 +6920,26 @@ end
                 }
                 const stageSnapshot = autoPairingUndoSnapshot(stages[i].phase || `stage ${i + 1}`);
                 const rmsBeforeStage = currentFitRmsPx();
-                const pass = await runLuckyFitStage(stages[i], i + 1, stages.length);
+                const pass = stages[i].brownConradyRegionalBootstrap === true ?
+                    await runBrownConradyRegionalBootstrap(stages[i], i + 1, stages.length) :
+                    await runLuckyFitStage(stages[i], i + 1, stages.length);
                 stagesRun += 1;
                 totalAdded += pass.added;
                 seeded = seeded || pass.seeded;
+                acceptedFits += pass.fitAccepted ? 1 : 0;
                 if (i === 0 && (!pass.result || !Array.isArray(pass.result.matches) || pass.result.matches.length === 0)) {
                     stoppedAfterEmptyFirstStage = true;
                     setLoadingProgress(
                         94,
                         "I'm feeling lucky: first asterism stage found no matched stars; stopping before weaker-star stages."
                     );
+                    await yieldToBrowser();
+                    break;
+                }
+                if (pass.stopLucky === true) {
+                    stoppedAfterRegionalConsensusFailure = true;
+                    regionalConsensusFailureText = pass.stopReason || "regional bootstrap did not produce enough consistent cells";
+                    setLoadingProgress(94, `I'm feeling lucky: ${regionalConsensusFailureText}; stopping before Brown-Conrady fitting.`);
                     await yieldToBrowser();
                     break;
                 }
@@ -6354,6 +6975,19 @@ end
                     render();
                     continue;
                 }
+                if (optmod === BROWN_CONRADY_OPTMOD &&
+                        Number.isFinite(stages[i].maxRmsToContinuePx) &&
+                        (fitResult.skipped || !Number.isFinite(rmsAfterStage) ||
+                            rmsAfterStage > stages[i].maxRmsToContinuePx)) {
+                    stoppedAfterPoorBrownConradyFit = true;
+                    const rmsText = Number.isFinite(rmsAfterStage) ? `${rmsAfterStage.toFixed(2)} px` : "not finite";
+                    poorBrownConradyFitText =
+                        `stopped after ${i + 1}/${stages.length}: Brown-Conrady RMS ${rmsText} ` +
+                        `is above ${stages[i].maxRmsToContinuePx.toFixed(1)} px`;
+                    setLoadingProgress(94, `I'm feeling lucky: ${poorBrownConradyFitText}; skipping slower refinement stages.`);
+                    await yieldToBrowser();
+                    break;
+                }
                 const improved = Number.isFinite(rmsBeforeStage) && Number.isFinite(rmsAfterStage) ?
                     rmsBeforeStage - rmsAfterStage > 0.15 :
                     fitResult.accepted > 0;
@@ -6372,6 +7006,10 @@ end
                 : `only ${fitCount}/${state.matches.length} usable pairs`;
             const stopText = stoppedAfterEmptyFirstStage ?
                 "stopped after empty first asterism stage; " :
+                stoppedAfterPoorBrownConradyFit ?
+                    `${poorBrownConradyFitText}; ` :
+                stoppedAfterRegionalConsensusFailure ?
+                    `${regionalConsensusFailureText}; ` :
                 "";
             state.automaticMatchingStatus =
                 `I'm feeling lucky: added ${totalAdded} pairings in ${stagesRun} staged bootstrap/refinement passes; ` +
@@ -6510,10 +7148,16 @@ end
         state.maskRegions = [];
         state.junkStarFinderRegions = [];
         state.badStarFinderDetections = [];
+        state.notStarTiles = [];
+        state.notStarTileKeys = new Set();
+        state.notStarTilePreview = null;
+        state.notStarTilePaintActive = false;
+        state.lastNotStarTilePaintPoint = null;
         state.junkStarFinderPreview = null;
         state.junkStarFinderPaintActive = false;
         state.lastJunkStarFinderPoint = null;
         state.detectedStars = [];
+        state.currentImageMetadata = null;
         state.deletedDetectionIds = new Set();
         state.autoMatches = [];
         state.asterismEdges = [];
@@ -6591,6 +7235,9 @@ end
             controls.altM.value = exifMetadata.altM.toFixed(1);
             applied.push("altitude");
         }
+        if (Number.isFinite(exifMetadata.imageDirectionDeg)) {
+            applied.push(`image direction ${exifMetadata.imageDirectionDeg.toFixed(1)} deg`);
+        }
         return applied;
     }
 
@@ -6615,9 +7262,15 @@ end
                 }
                 state.image = img;
                 state.imageName = name;
+                state.currentImageMetadata = exifMetadata || null;
                 state.maskRegions = [];
                 state.junkStarFinderRegions = [];
                 state.badStarFinderDetections = [];
+                state.notStarTiles = [];
+                state.notStarTileKeys = new Set();
+                state.notStarTilePreview = null;
+                state.notStarTilePaintActive = false;
+                state.lastNotStarTilePaintPoint = null;
                 state.junkStarFinderPreview = null;
                 state.junkStarFinderPaintActive = false;
                 state.lastJunkStarFinderPoint = null;
@@ -7534,6 +8187,98 @@ end
         render();
     }
 
+    function notStarTileForPoint(rawX, rawY) {
+        if (!state.image) {
+            return null;
+        }
+        const x0 = Math.floor(rawX / NOT_STAR_TILE_SIZE) * NOT_STAR_TILE_SIZE;
+        const y0 = Math.floor(rawY / NOT_STAR_TILE_SIZE) * NOT_STAR_TILE_SIZE;
+        const width = Math.min(NOT_STAR_TILE_SIZE, state.image.width - x0);
+        const height = Math.min(NOT_STAR_TILE_SIZE, state.image.height - y0);
+        if (width <= 0 || height <= 0) {
+            return null;
+        }
+        return {x0, y0, width, height};
+    }
+
+    function notStarTileKey(tile) {
+        return `${tile.x0},${tile.y0}`;
+    }
+
+    function notStarTilesAlongPath(startPoint, endPoint) {
+        if (!endPoint) {
+            return [];
+        }
+        if (!startPoint) {
+            const tile = notStarTileForPoint(endPoint.x, endPoint.y);
+            return tile ? [tile] : [];
+        }
+        const dx = endPoint.x - startPoint.x;
+        const dy = endPoint.y - startPoint.y;
+        const distance = Math.hypot(dx, dy);
+        const step = Math.max(8, NOT_STAR_TILE_SIZE * 0.25);
+        const steps = Math.max(1, Math.ceil(distance / step));
+        const tiles = [];
+        const seen = new Set();
+        for (let i = 0; i <= steps; i += 1) {
+            const t = i / steps;
+            const tile = notStarTileForPoint(startPoint.x + dx * t, startPoint.y + dy * t);
+            if (!tile) {
+                continue;
+            }
+            const key = notStarTileKey(tile);
+            if (seen.has(key)) {
+                continue;
+            }
+            seen.add(key);
+            tiles.push(tile);
+        }
+        return tiles;
+    }
+
+    function handleNotStarTilePaint(event) {
+        const imagePoint = eventToImagePixel(event);
+        if (!imagePoint) {
+            state.notStarTilePreview = null;
+            state.lastNotStarTilePaintPoint = null;
+            render();
+            return;
+        }
+        const currentTile = notStarTileForPoint(imagePoint.x, imagePoint.y);
+        if (!currentTile) {
+            return;
+        }
+        state.notStarTilePreview = currentTile;
+        const tiles = notStarTilesAlongPath(state.lastNotStarTilePaintPoint, imagePoint);
+        state.lastNotStarTilePaintPoint = {x: imagePoint.x, y: imagePoint.y};
+        if (!tiles.length) {
+            render();
+            return;
+        }
+        const records = [];
+        for (const tile of tiles) {
+            const key = notStarTileKey(tile);
+            if (state.notStarTileKeys.has(key)) {
+                continue;
+            }
+            state.notStarTileKeys.add(key);
+            const record = {
+                ...tile,
+                id: state.notStarTiles.length + 1,
+            };
+            state.notStarTiles.push(record);
+            records.push(record);
+        }
+        if (!records.length) {
+            render();
+            return;
+        }
+        state.detectorCache = null;
+        const noun = records.length === 1 ? "tile" : "tiles";
+        state.fitMessage = `masked ${records.length} not-star 128x128 ${noun}`;
+        render();
+    }
+
     function focusImageWindow() {
         if (document.activeElement === canvas) {
             return;
@@ -7686,9 +8431,9 @@ end
         focusImageWindow();
         if (state.maskMode && event.button === 0) {
             event.preventDefault();
-            state.junkStarFinderPaintActive = true;
-            state.lastJunkStarFinderPoint = null;
-            handleBadStarFinderPaint(event);
+            state.notStarTilePaintActive = true;
+            state.lastNotStarTilePaintPoint = null;
+            handleNotStarTilePaint(event);
             playInteractionSound("delete");
             canvas.setPointerCapture(event.pointerId);
             return;
@@ -7719,10 +8464,10 @@ end
     canvas.addEventListener("pointermove", event => {
         if (state.maskMode) {
             const imagePoint = eventToImagePixel(event);
-            state.junkStarFinderPreview = imagePoint ? {x: imagePoint.x, y: imagePoint.y, radius: 100} : null;
-            if (state.junkStarFinderPaintActive) {
+            state.notStarTilePreview = imagePoint ? notStarTileForPoint(imagePoint.x, imagePoint.y) : null;
+            if (state.notStarTilePaintActive) {
                 event.preventDefault();
-                handleBadStarFinderPaint(event);
+                handleNotStarTilePaint(event);
                 return;
             }
             render();
@@ -7766,6 +8511,8 @@ end
         state.lastMouse = [event.clientX, event.clientY];
     });
     canvas.addEventListener("pointerup", event => {
+        state.notStarTilePaintActive = false;
+        state.lastNotStarTilePaintPoint = null;
         state.junkStarFinderPaintActive = false;
         state.lastJunkStarFinderPoint = null;
         state.dragging = false;
@@ -7779,7 +8526,8 @@ end
     });
     canvas.addEventListener("pointerleave", () => {
         hideZoomCanvas();
-        if (!state.junkStarFinderPaintActive) {
+        if (!state.notStarTilePaintActive && !state.junkStarFinderPaintActive) {
+            state.notStarTilePreview = null;
             state.junkStarFinderPreview = null;
             render();
         }
@@ -7831,6 +8579,9 @@ end
             state.deleteDetectionMode = false;
             state.starMatchMode = false;
             state.zoomMode = false;
+            state.notStarTilePreview = null;
+            state.notStarTilePaintActive = false;
+            state.lastNotStarTilePaintPoint = null;
             state.junkStarFinderPreview = null;
             state.junkStarFinderPaintActive = false;
             state.lastJunkStarFinderPoint = null;
@@ -7927,6 +8678,9 @@ end
         } else if (event.key === "m" || event.key === "M") {
             event.preventDefault();
             state.maskMode = false;
+            state.notStarTilePreview = null;
+            state.notStarTilePaintActive = false;
+            state.lastNotStarTilePaintPoint = null;
             state.junkStarFinderPreview = null;
             state.junkStarFinderPaintActive = false;
             state.lastJunkStarFinderPoint = null;

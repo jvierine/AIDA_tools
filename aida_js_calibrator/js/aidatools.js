@@ -499,6 +499,15 @@
             const sign = Number(raw.GPSAltitudeRef) === 1 ? -1 : 1;
             metadata.altM = sign * alt;
         }
+        const imageDirection = firstFinite(
+            raw.imageDirection,
+            raw.ImageDirection,
+            raw.GPSImgDirection,
+            raw.GPSDestBearing
+        );
+        if (Number.isFinite(imageDirection)) {
+            metadata.imageDirectionDeg = ((imageDirection % 360) + 360) % 360;
+        }
         return Object.keys(metadata).length ? metadata : null;
     }
 

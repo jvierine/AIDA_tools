@@ -442,6 +442,25 @@ for the initial search. Pixel coordinates are converted to approximate rays
 with a pinhole scale only; there is no radial pre-flattening and no \(a_r\)
 parameter in this stage. Brown-Conrady radial and tangential distortion terms
 are fitted later in pixel space after star pairings have been established.
+The \texttt{IMG\_9953} pre-undistortion sensitivity test indicates that the
+tangential coefficients \(p_1\) and \(p_2\) are weakly useful for the
+asterism-search phase and may be unnecessary until the final refinement.
+The current development recommendation is therefore to keep
+\(p_1=p_2=0\) during blind pre-flattening and early Brown-Conrady fitting,
+then release these parameters only in the last pixel-space fit if the residual
+structure supports them.
+The same sweep tests are also useful because they deliberately separate star
+finding from asterism identification. In these diagnostics, automatic
+detections are filtered through an oracle map built from the saved calibrated
+lens model before the asterism search is run. Under those conditions the
+asterism matcher is extremely robust over a surprisingly broad range of
+pre-undistortion parameters. This implies that the main missing component for
+ordinary phone-camera images is not primarily a better triangle matcher, but a
+very reliable star detector: it must suppress false star-like detections while
+still retaining as many true stellar peaks as possible. False detections can
+dominate the triangle search space and lead the blind matcher down incorrect
+hypotheses, while missed true stars remove the geometric redundancy needed to
+reject those hypotheses.
 The pinhole scale search is one-dimensional: \(f_2\) is initialized from
 \(f_1\) and the image aspect ratio,
 \begin{equation}
