@@ -1,0 +1,281 @@
+\documentclass[11pt]{article}
+
+\usepackage[margin=1in]{geometry}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{booktabs}
+\usepackage{hyperref}
+\usepackage{listings}
+\usepackage{xcolor}
+
+\hypersetup{
+  colorlinks=true,
+  linkcolor=blue!55!black,
+  citecolor=blue!55!black,
+  urlcolor=blue!55!black
+}
+
+\lstset{
+  basicstyle=\ttfamily\small,
+  breaklines=true,
+  frame=single,
+  columns=fullflexible
+}
+
+\title{A Browser-Based Wide-Field Star Calibration Tool for AIDA Camera Models}
+\author{Juha Vierinen \and Bjorn Gustavsson \and Codex}
+\date{Draft for AIDA Browser Calibrator v0.2.0}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+We describe a browser-based calibration tool for fitting wide-field camera
+models to images of the night sky. The application combines manual star
+pairing, automatic bright-star detection, blind asterism matching, robust
+nonlinear optimization, residual inspection, and code export in a self-contained
+HTML and JavaScript interface. The current implementation is designed for
+wide-field and all-sky cameras with fields of view above roughly 30 degrees and
+stars brighter than visual magnitude 7. It supports the parametric AIDA optical
+models used in MATLAB tooling and a Brown-Conrady model for ordinary phone
+cameras. The tool emphasizes practical calibration under imperfect observing
+conditions, including aurora, buildings, image noise, nonlinear lens effects,
+and spurious star detections.
+\end{abstract}
+
+\section{Introduction}
+
+Wide-field optical calibration is needed when image pixels must be mapped to
+sky directions. Examples include all-sky auroral imaging, meteor cameras,
+planetarium-style camera alignment, and phone-camera photographs of bright
+stars. Traditional calibration workflows often combine several separate tools:
+image viewers, star catalogs, custom fitting scripts, and hand-written export
+code. The AIDA browser calibrator packages these steps into one application.
+
+The application is intentionally local and transparent. Images are loaded in the
+browser. The bright-star catalog is embedded in JavaScript. The lens model,
+projection, star detection, asterism matching, fitting, residual analysis, and
+export routines are all implemented client-side. When served by the local
+development server, the application can also save calibrated test cases for
+regression testing.
+
+\section{User Workflow}
+
+The workflow is centered on matching image detections to catalog stars. The user
+loads an image, verifies the UTC timestamp and observer location, selects an
+optical model, and roughly aligns the sky projection. The application supports
+manual pairing through a keyboard-modified click workflow. Holding \texttt{S}
+and clicking near an image star opens a local density estimate; the centroid is
+refined at subpixel resolution and can then be paired with a catalog star.
+
+The ``I'm feeling lucky'' path automates the same idea. It detects bright image
+features, attempts a blind spherical asterism match, seeds the selected optical
+model, expands the number of candidate matches, fits the lens parameters, and
+rejects obvious outliers. The user can paint bad star-finder regions with
+\texttt{M}+click. These marked regions remove yellow automatic detections from
+future automatic matching and are saved with submitted test-case metadata.
+
+\section{Coordinate Systems}
+
+The application uses true zero-based image pixel coordinates in the browser. A
+catalog star is first converted from right ascension and declination to local
+azimuth and zenith angle using the image timestamp and observer position. Let
+\(\alpha_\star\) be right ascension, \(\delta_\star\) declination, \(\phi\) the
+observer latitude, and \(H\) the local hour angle. The altitude is
+\begin{equation}
+  h = \sin^{-1}\left(\cos H \cos\delta_\star \cos\phi
+      + \sin\delta_\star \sin\phi\right),
+\end{equation}
+and the zenith angle is
+\begin{equation}
+  z = \frac{\pi}{2} - h.
+\end{equation}
+The local sky unit vector used by the AIDA camera model is
+\begin{equation}
+  \mathbf{e} =
+  \begin{bmatrix}
+    \sin z \sin A \\
+    \sin z \cos A \\
+    \cos z
+  \end{bmatrix},
+\end{equation}
+where \(A\) is azimuth.
+
+\section{Camera Rotation and Projection}
+
+The browser implementation follows the AIDA convention of a three-angle camera
+rotation. The rotation matrix is
+\begin{equation}
+  R = R_y(\alpha) R_x(\beta) R_z(\gamma).
+\end{equation}
+The local sky vector is transformed into camera coordinates by
+\begin{equation}
+  \mathbf{s} = \mathbf{e} R,
+  \qquad
+  \mathbf{s} = (s_1, s_2, s_3).
+\end{equation}
+The radial angle from the optical axis is
+\begin{equation}
+  \theta = \tan^{-1}\left(\frac{\sqrt{s_1^2+s_2^2}}{s_3}\right).
+\end{equation}
+
+For AIDA \texttt{optmod 2}, the radial mapping is
+\begin{equation}
+  r = \sin(a_r \theta),
+\end{equation}
+and the normalized pixel coordinates are
+\begin{align}
+  u &= f_1 \frac{s_1}{\sqrt{s_1^2+s_2^2}} r + \frac{1}{2} + d_u, \\
+  v &= f_2 \frac{s_2}{\sqrt{s_1^2+s_2^2}} r + \frac{1}{2} + d_v.
+\end{align}
+The browser pixel coordinates are then
+\begin{equation}
+  x = u W - 1, \qquad y = v H - 1,
+\end{equation}
+where \(W\) and \(H\) are image width and height. The \(-1\) term converts from
+the historical MATLAB one-based convention to browser zero-based coordinates.
+
+\section{Supported Optical Models}
+
+The current browser supports AIDA parametric optical models \texttt{1},
+\texttt{2}, \texttt{3}, \texttt{4}, \texttt{5}, and \texttt{12}. These share the
+parameter vector
+\begin{equation}
+  \mathbf{p} = [f_1, f_2, \alpha, \beta, \gamma, d_u, d_v, a_r].
+\end{equation}
+The browser also supports a Brown-Conrady model, called \texttt{optmod 20} in
+the interface, with radial and tangential coefficients:
+\begin{equation}
+  \mathbf{p}_{BC} =
+  [f_1, f_2, \alpha, \beta, \gamma, d_u, d_v,
+   k_1, k_2, k_3, p_1, p_2].
+\end{equation}
+
+\begin{table}[h]
+\centering
+\begin{tabular}{lll}
+\toprule
+Model & Use case & Notes \\
+\midrule
+AIDA optmod 2 & all-sky and fisheye cameras & \(\sin(a_r\theta)\) radial law \\
+AIDA optmod 12 & flexible all-sky radial law & tangent/sine branch by sign \\
+Brown-Conrady & phone and ordinary lenses & radial plus tangential distortion \\
+\bottomrule
+\end{tabular}
+\caption{Common model choices in the browser calibrator.}
+\end{table}
+
+\section{Star Detection}
+
+Automatic detection starts from a grayscale representation of the input image.
+The detector estimates local and global brightness structure, thresholds
+candidate peaks, suppresses nearby duplicates, and rejects obviously elongated
+or crowded detections. Detected stars are ranked by contrast and flux-like
+scores. Painted bad regions are applied as exclusion masks before automatic
+pairing, allowing the user to remove spurious detections from buildings,
+aurora, hot pixels, or image artifacts.
+
+Manual picking uses a different path. The user clicks near a star and the tool
+extracts a local image patch. A smoothed density estimate is computed on an
+interpolated grid, and the local peak is used as the subpixel image coordinate.
+This gives the user a controlled way to create high-confidence calibration
+pairs even when automatic detection is confused.
+
+\section{Asterism Matching}
+
+The browser contains two matching strategies. The projected matcher uses the
+current lens model to project catalog stars into the image and then performs
+nearest-neighbor matching with robust filtering. This works well after the
+model is already roughly aligned.
+
+The blind spherical matcher is used for bootstrapping. Image detections are
+pre-flattened into approximate unit vectors using a grid of candidate focal
+scales and radial parameters. Catalog stars visible at the entered time and
+site are converted to local sky vectors. Triangular asterisms are represented by
+scale-invariant side-ratio signatures and stored in a two-dimensional KD-tree.
+For each image triangle, nearby catalog triangle signatures produce candidate
+rotations. Candidate rotations are scored by how many additional stars agree
+within an angular threshold. The best rotation seeds the lens model and is then
+refined by nonlinear fitting.
+
+The current implementation is deliberately bounded for interactivity. It does
+not attempt to reproduce the full astrometry.net global quad-index architecture
+inside the browser. Instead it uses a Yale bright-star catalog, local visible
+stars, and capped triangle sets appropriate for wide-field cameras.
+
+\section{Fitting}
+
+Once a set of star pairs exists, the objective function is the sum of squared
+pixel residuals:
+\begin{equation}
+  J(\mathbf{p}) = \sum_i
+  \left[
+    \left(x_i - \hat{x}_i(\mathbf{p})\right)^2
+    +
+    \left(y_i - \hat{y}_i(\mathbf{p})\right)^2
+  \right].
+\end{equation}
+Here \((x_i,y_i)\) is the measured image position and
+\((\hat{x}_i,\hat{y}_i)\) is the catalog star projected through the selected
+camera model.
+
+Two optimizers are available. The robust Nelder-Mead path tries many jittered
+starts, trims bad residuals, and is useful when the initial model is uncertain
+or a pair is wrong. The Levenberg-Marquardt path uses numerical derivatives and
+is faster near a good solution. The lucky workflow combines these in sweeps:
+bright reliable stars are fit first, then additional automatic stars are added
+only if they do not substantially increase the root-mean-square error.
+
+\section{Residual Inspection and Undo}
+
+Residual view draws the displacement between each picked image coordinate and
+the fitted catalog projection. The application highlights a suggested outlier
+based on deviation from the median residual pattern. Accepted fits and
+automatic pairing batches are stored on an undo stack, so the user can safely
+try automatic expansion and return to the previous state.
+
+\section{Test Cases and Reproducibility}
+
+When the app is served by the local Node server, a calibrated image can be
+submitted as a test case. A test case stores image metadata, timestamp,
+location, optical model, fitted parameters, matched stars, residuals, and
+painted bad star-finder positions. JavaScript unit tests cover coordinate
+conversion, camera model behavior, star matching utilities, export generators,
+and selected synthetic asterism cases. Heavier image-based tests are skipped by
+default and are intended for explicit full-test runs.
+
+\section{Exports}
+
+The browser can export the fitted parameter vector and mapper code in Python,
+Julia, C, or MATLAB. The exported code implements the same forward mapping used
+by the browser, which maps azimuth and elevation to image pixels for the
+selected optical model. This makes the browser calibration directly usable in
+downstream AIDA analysis scripts.
+
+\section{Limitations}
+
+The automatic workflow is best suited to wide fields of view above about
+30 degrees and scenes containing multiple stars brighter than magnitude 7.
+Aurora, buildings, clouds, saturation, and non-star point sources can still
+confuse the star detector and asterism matcher. The browser implementation also
+uses bounded local data structures for responsiveness; for arbitrary narrow
+field blind plate solving, a full astrometry.net-style quad index remains a
+better architecture.
+
+\section{Conclusion}
+
+The AIDA browser calibrator provides a practical, inspectable workflow for
+turning wide-field star images into calibrated camera models. It combines
+manual control with automatic assistance, keeps the calibration state visible,
+and exports model code that can be used outside the browser. Version 0.2.0 is a
+checkpoint release that stabilizes the lucky fitting workflow, bad detection
+masking, undo behavior, and documentation needed for further development.
+
+\section*{Acknowledgments}
+
+This software and article draft were prepared by Juha Vierinen, Bjorn
+Gustavsson, and Codex. The implementation builds on the AIDA optical model
+conventions and practical calibration workflows developed for all-sky camera
+analysis.
+
+\end{document}

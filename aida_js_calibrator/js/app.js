@@ -1,7 +1,7 @@
 (function () {
     "use strict";
 
-    const APP_VERSION = "20260525p-auto-pair-undo";
+    const APP_VERSION = "v0.2.0";
     const canvas = document.getElementById("glCanvas");
     const rotationCanvas = document.getElementById("rotationCanvas");
     const rotationContext = rotationCanvas.getContext("2d");
@@ -53,8 +53,6 @@
         toggleAzElGrid: document.getElementById("toggleAzElGrid"),
         toggleDetectionCircles: document.getElementById("toggleDetectionCircles"),
         toggleStarNames: document.getElementById("toggleStarNames"),
-        keepAutoPairingMore: document.getElementById("keepAutoPairingMore"),
-        autoIdentifyStars: document.getElementById("autoIdentifyStars"),
         toggleAmbientMusic: document.getElementById("toggleAmbientMusic"),
         resetOffset: document.getElementById("resetOffset"),
         optmod: document.getElementById("optmod"),
@@ -137,7 +135,7 @@
         detectorCache: null,
         detectorStatus: "detector: no image",
         detectionGeneration: 0,
-        autoIdentificationStatus: "auto-identify: not run",
+        automaticMatchingStatus: "automatic matching: not run",
         autoIdentifyBusy: false,
         luckyFitBusy: false,
         pendingMatch: null,
@@ -667,6 +665,24 @@
         };
     }
 
+    function restoreStateSnapshot(snapshot) {
+        if (!snapshot) {
+            return;
+        }
+        if (snapshot.optpar) {
+            applyFitVector(snapshot.optpar);
+            state.lastFitVector = snapshot.optpar.slice();
+            state.lastAcceptedFitVector = snapshot.optpar.slice();
+        }
+        if (snapshot.matches) {
+            state.matches = cloneMatches(snapshot.matches);
+            state.matches.forEach((match, index) => {
+                match.id = index + 1;
+            });
+            updateAutoMatches();
+        }
+    }
+
     function clearFitUndoStack() {
         state.fitUndoStack = [];
         updateUndoFitButton();
@@ -680,18 +696,7 @@
             render();
             return;
         }
-        if (previous.optpar) {
-            applyFitVector(previous.optpar);
-            state.lastFitVector = previous.optpar.slice();
-            state.lastAcceptedFitVector = previous.optpar.slice();
-        }
-        if (previous.matches) {
-            state.matches = cloneMatches(previous.matches);
-            state.matches.forEach((match, index) => {
-                match.id = index + 1;
-            });
-            updateAutoMatches();
-        }
+        restoreStateSnapshot(previous);
         state.pendingMatch = null;
         state.showPickedMatchMarkers = false;
         state.fitMessage = `undo: restored state before ${previous.label}`;
@@ -1955,7 +1960,7 @@ end
     }
 
     async function identifyStarsFromCurrentDetections(options = {}) {
-        const label = options.label || "Auto-identify";
+        const label = options.label || "Automatic matching";
         const maxMag = Number.isFinite(options.maxMagnitude) ?
             options.maxMagnitude :
             Math.min(Number(controls.maxMag.value) || 4, 4);
@@ -1977,7 +1982,7 @@ end
         const diag = Math.hypot(state.image.width, state.image.height);
         let result = {
             matches: [],
-            status: "auto-identify: no matcher stage was enabled",
+            status: "automatic matching: no matcher stage was enabled",
         };
 
         if (options.includeBlind !== false) {
@@ -2082,7 +2087,7 @@ end
     }
 
     async function runAutoIdentifyPass(options = {}) {
-        const label = options.label || "Auto-identify";
+        const label = options.label || "Automatic matching";
         const maxDetections = Number.isFinite(options.maxDetections) ? options.maxDetections : 50;
         const displayDetections = Math.max(
             maxDetections,
@@ -2111,7 +2116,7 @@ end
         clearDensityEstimate();
         state.showPickedMatchMarkers = true;
         state.lastFitVector = null;
-        state.autoIdentificationStatus = `${result.status}; added ${added}`;
+        state.automaticMatchingStatus = `${String(result.status || "").replace(/auto-identify/g, "automatic matching")}; added ${added}`;
         updateAutoMatches();
         return {result, added, detections: activeDetectedStars().length};
     }
@@ -2179,317 +2184,6 @@ end
                 catalogMinSeparationDeg: 3,
             }),
         ];
-    }
-
-    function autoIdentifyButtonStages() {
-        const currentMaxMagnitude = autoIdentifyCurrentMaxMagnitude();
-        return [
-            {
-                label: "Auto-identify 1/5 bright bootstrap",
-                summaryLabel: "bright bootstrap",
-                maxDetections: 80,
-                maxMagnitude: autoIdentifyStageMagnitude(4.0, currentMaxMagnitude),
-                minBlindMatches: 6,
-                minAsterismMatches: 4,
-                minProjectedMatches: 4,
-                seedFromBlind: true,
-                detectorOptions: {
-                    thresholdSigma: 1.8,
-                    localThresholdSigma: 1.8,
-                    requireGlobalThreshold: false,
-                    maxRadiusPx: 5,
-                    maxElongation: 4.0,
-                    suppressionRadiusPx: 10,
-                    crowdingRadiusPx: 36,
-                    maxCrowding: 7,
-                    crowdingScorePower: 1.25,
-                },
-                blindOptions: {
-                    maxDetections: 80,
-                    maxBlindVerifyDetections: 80,
-                    maxCatalogStars: 220,
-                    maxCatalogTriangleStars: 220,
-                    maxCatalogTriangles: 30000,
-                    preflattenModelCandidates: ["pinhole", "fisheye"],
-                    preflattenF1Candidates: [0.70, 0.85, 1.00],
-                    preflattenRadialAlphaCandidates: [0.30, 0.60, 0.90],
-                    maxCatalogLocalNeighbors: 20,
-                    maxBlindNeighborTriangles: 8,
-                    blindEarlyAcceptMatches: 12,
-                    maxBlindCandidateRotations: 12000,
-                    rejectAmbiguousBlindMatches: true,
-                    blindAmbiguityRadiusDeg: 1.0,
-                    blindAmbiguityDistanceSlackDeg: 0.35,
-                    blindPixelAmbiguityRadiusPx: 18,
-                    blindPixelAmbiguityDistanceSlackPx: 8,
-                    ambiguityMaxMagnitude: 6.0,
-                },
-                maxAddDistancePx: 0.8,
-                maxMedianDistance: 0.42,
-                methodLabel: "auto star finder bright bootstrap",
-                weakAsterismOptions: deepAsterismFallbackStages({
-                    summaryLabel: "bright bootstrap",
-                }),
-            },
-            {
-                label: "Auto-identify 2/5 extended bootstrap",
-                summaryLabel: "extended bootstrap",
-                maxDetections: 160,
-                maxMagnitude: autoIdentifyStageMagnitude(4.0, currentMaxMagnitude),
-                minBlindMatches: 6,
-                minAsterismMatches: 4,
-                minProjectedMatches: 4,
-                seedFromBlind: true,
-                runOnlyWithoutSeed: true,
-                detectorOptions: {
-                    thresholdSigma: 1.8,
-                    localThresholdSigma: 1.8,
-                    requireGlobalThreshold: false,
-                    maxRadiusPx: 5,
-                    maxElongation: 4.0,
-                    suppressionRadiusPx: 10,
-                    crowdingRadiusPx: 36,
-                    maxCrowding: 7,
-                    crowdingScorePower: 1.25,
-                },
-                blindOptions: {
-                    maxDetections: 160,
-                    maxBlindVerifyDetections: 140,
-                    maxCatalogStars: 220,
-                    maxCatalogTriangleStars: 220,
-                    maxCatalogTriangles: 30000,
-                    maxDetectionTriangleStars: 120,
-                    maxDetectionTriangles: 6000,
-                    preflattenModelCandidates: ["pinhole", "fisheye"],
-                    preflattenF1Candidates: [0.70, 0.85, 1.00],
-                    preflattenRadialAlphaCandidates: [0.30, 0.60, 0.90],
-                    maxCatalogLocalNeighbors: 20,
-                    maxBlindNeighborTriangles: 8,
-                    blindEarlyAcceptMatches: 12,
-                    maxBlindCandidateRotations: 12000,
-                    rejectAmbiguousBlindMatches: true,
-                    blindAmbiguityRadiusDeg: 1.0,
-                    blindAmbiguityDistanceSlackDeg: 0.35,
-                    blindPixelAmbiguityRadiusPx: 18,
-                    blindPixelAmbiguityDistanceSlackPx: 8,
-                    ambiguityMaxMagnitude: 6.0,
-                },
-                maxAddDistancePx: 0.8,
-                maxMedianDistance: 0.42,
-                methodLabel: "auto star finder extended bootstrap",
-                weakAsterismOptions: deepAsterismFallbackStages({
-                    summaryLabel: "extended bootstrap",
-                }),
-            },
-            {
-                label: "Auto-identify 3/5 phone deep bootstrap",
-                summaryLabel: "phone deep bootstrap",
-                maxDetections: 320,
-                maxMagnitude: autoIdentifyStageMagnitude(6.0, currentMaxMagnitude),
-                minBlindMatches: 6,
-                minAsterismMatches: 4,
-                minProjectedMatches: 4,
-                seedFromBlind: true,
-                runOnlyWithoutSeed: true,
-                detectorOptions: {
-                    thresholdSigma: 1.5,
-                    localThresholdSigma: 1.5,
-                    requireGlobalThreshold: false,
-                    maxRadiusPx: 5,
-                    maxElongation: 4.0,
-                    suppressionRadiusPx: 10,
-                    crowdingRadiusPx: 36,
-                    maxCrowding: 7,
-                    crowdingScorePower: 1.25,
-                },
-                blindOptions: {
-                    maxDetections: 320,
-                    maxBlindVerifyDetections: 220,
-                    maxCatalogStars: 420,
-                    maxCatalogTriangleStars: 360,
-                    maxCatalogTriangles: 50000,
-                    maxAmbiguityCatalogStars: 520,
-                    maxDetectionTriangleStars: 180,
-                    maxDetectionTriangles: 14000,
-                    preflattenModelCandidates: ["pinhole", "fisheye"],
-                    preflattenF1Candidates: [0.55, 0.65, 0.75, 0.85, 0.95, 1.10],
-                    preflattenRadialAlphaCandidates: [0.15, 0.30, 0.45, 0.60, 0.75, 0.90, 0.98],
-                    maxCatalogLocalNeighbors: 24,
-                    maxBlindNeighborTriangles: 10,
-                    blindEarlyAcceptMatches: 11,
-                    blindEarlyAcceptMedianDeg: 0.75,
-                    maxBlindCandidateRotations: 18000,
-                    rejectAmbiguousBlindMatches: true,
-                    blindAmbiguityRadiusDeg: 0.9,
-                    blindAmbiguityDistanceSlackDeg: 0.3,
-                    blindPixelMatchRadiusPx: 58,
-                    blindPixelAmbiguityRadiusPx: 16,
-                    blindPixelAmbiguityDistanceSlackPx: 8,
-                    ambiguityMaxMagnitude: 7.0,
-                },
-                maxAddDistancePx: 1.2,
-                maxMedianDistance: 0.42,
-                methodLabel: "auto star finder phone deep bootstrap",
-            },
-            {
-                label: "Auto-identify 4/5 alignment fallback",
-                summaryLabel: "alignment fallback",
-                maxDetections: 90,
-                maxMagnitude: autoIdentifyStageMagnitude(5.0, currentMaxMagnitude),
-                includeBlind: false,
-                includeAsterisms: false,
-                minAsterismMatches: 4,
-                minProjectedMatches: 4,
-                detectorOptions: {
-                    thresholdSigma: 3.6,
-                    localThresholdSigma: 3.4,
-                    requireGlobalThreshold: true,
-                    maxElongation: 3.0,
-                },
-                asterismOptions: {
-                    maxDetections: 60,
-                    maxCatalogStars: 120,
-                },
-                projectedOptions: {
-                    maxDetections: 90,
-                    maxCatalogStars: 140,
-                    maxDistancePx: 34,
-                    translationSearchRadiusPx: 90,
-                    rejectAmbiguousMatches: true,
-                    ambiguityRadiusPx: 18,
-                    ambiguityDistanceSlackPx: 16,
-                },
-                maxAddDistancePx: 8,
-                methodLabel: "auto star finder alignment fallback",
-            },
-            {
-                label: "Auto-identify 5/5 deeper projection",
-                summaryLabel: "deeper projection",
-                maxDetections: 120,
-                maxMagnitude: autoIdentifyStageMagnitude(6.0, currentMaxMagnitude),
-                includeBlind: false,
-                includeAsterisms: false,
-                minProjectedMatches: 4,
-                detectorOptions: {
-                    thresholdSigma: 3.1,
-                    localThresholdSigma: 3.2,
-                    requireGlobalThreshold: false,
-                    maxElongation: 3.1,
-                },
-                projectedOptions: {
-                    maxDetections: 120,
-                    maxCatalogStars: 180,
-                    maxDistancePx: 24,
-                    translationSearchRadiusPx: 55,
-                    rejectAmbiguousMatches: true,
-                    ambiguityRadiusPx: 18,
-                    ambiguityDistanceSlackPx: 16,
-                },
-                maxAddDistancePx: 8,
-                methodLabel: "auto star finder deeper projection",
-            },
-        ];
-    }
-
-    async function runStagedAutoIdentifyFromDetector() {
-        const optmod = Number(controls.optmod.value) || 2;
-        const keepPairingMore = controls.keepAutoPairingMore && controls.keepAutoPairingMore.checked;
-        const desiredNewPairings = keepPairingMore ?
-            (optmod === BROWN_CONRADY_OPTMOD ? 80 : 70) :
-            optmod === BROWN_CONRADY_OPTMOD ?
-                Math.max(24, Math.min(36, requiredOptparLength(optmod) * 3)) :
-                Math.max(18, Math.min(22, Math.ceil(requiredOptparLength(optmod) * 2.5)));
-        const stages = autoIdentifyButtonStages();
-        let totalAdded = 0;
-        let totalDetections = 0;
-        let lastResult = null;
-        const stageSummaries = [];
-
-        for (let i = 0; i < stages.length; i += 1) {
-            if (i > 0 && totalAdded >= desiredNewPairings) {
-                break;
-            }
-            const stage = stages[i];
-            if (stage.runOnlyWithoutSeed === true && totalAdded > 0) {
-                stageSummaries.push(`${stage.summaryLabel}: skipped because a blind seed was already accepted`);
-                continue;
-            }
-            if (stage.includeBlind === false && totalAdded === 0) {
-                stageSummaries.push(`${stage.summaryLabel}: skipped because no blind seed was accepted`);
-                continue;
-            }
-            const remaining = keepPairingMore ? Infinity : Math.max(0, desiredNewPairings - totalAdded);
-            const pass = await runAutoIdentifyPass({
-                ...stage,
-                maxAdditions: remaining,
-                reuseExistingMatchesForTransform: true,
-            });
-            if (stage.seedFromBlind && pass.added > 0 && pass.result && pass.result.rotation) {
-                seedCurrentModelFromBlindIdentification(pass.result);
-            }
-            totalAdded += pass.added;
-            totalDetections = Math.max(totalDetections, pass.detections);
-            lastResult = pass.result;
-            stageSummaries.push(
-                `${stage.summaryLabel}: ${pass.added} added from ${(pass.result.matches || []).length} candidate matches`
-            );
-        }
-
-        return {
-            totalAdded,
-            totalDetections,
-            lastResult,
-            stageSummaries,
-            stagesRun: stageSummaries.length,
-        };
-    }
-
-    async function autoIdentifyStarsFromDetector() {
-        if (!state.image || !state.imagePixels) {
-            state.fitMessage = "auto-identify: load an image with readable pixels first";
-            render();
-            return;
-        }
-        if (!autoIdentifierAvailable()) {
-            state.fitMessage = "auto-identify: matcher module is unavailable";
-            render();
-            return;
-        }
-        if (state.autoIdentifyBusy || state.luckyFitBusy) {
-            return;
-        }
-        state.autoIdentifyBusy = true;
-        controls.autoIdentifyStars.disabled = true;
-        controls.luckyFit.disabled = true;
-        const undoSnapshot = autoPairingUndoSnapshot("auto-identify");
-        try {
-            const removedBadAreaMatches = removeAutomaticMatchesInBadStarFinderRegions();
-            const result = await runStagedAutoIdentifyFromDetector();
-            if (result.totalAdded > 0 || removedBadAreaMatches > 0) {
-                rememberUndoState(undoSnapshot);
-            }
-            const lastStatus = result.lastResult && result.lastResult.status ?
-                result.lastResult.status :
-                "auto-identify: no matches found";
-            state.autoIdentificationStatus =
-                `auto-identify: added ${result.totalAdded} pairing${result.totalAdded === 1 ? "" : "s"} ` +
-                `in ${result.stagesRun} staged detector pass${result.stagesRun === 1 ? "" : "es"}; ` +
-                `removed ${removedBadAreaMatches} bad-area automatic match${removedBadAreaMatches === 1 ? "" : "es"}; ` +
-                `${result.stageSummaries.join("; ")}`;
-            state.fitMessage = result.totalAdded > 0
-                ? `auto-identify: added ${result.totalAdded} star pairing${result.totalAdded === 1 ? "" : "s"}; undo is available`
-                : lastStatus;
-            playInteractionSound(result.totalAdded > 0 ? "fit" : "click");
-            recomputeAndRender();
-        } catch (error) {
-            state.fitMessage = `auto-identify failed: ${error.message || error}`;
-            render();
-        } finally {
-            hideLoadingProgress();
-            controls.autoIdentifyStars.disabled = false;
-            controls.luckyFit.disabled = false;
-            state.autoIdentifyBusy = false;
-        }
     }
 
     function drawImage() {
@@ -3233,13 +2927,12 @@ end
             `az/el grid: ${state.showAzElGrid ? "on" : "off"}\n` +
             `display mode: ${state.displayMode}\n` +
             `star names: ${state.showStarNames ? "on" : "off"}\n` +
-            `keep auto-pairing more stars: ${controls.keepAutoPairingMore && controls.keepAutoPairingMore.checked ? "on" : "off"}\n` +
             `KDE sub-pixel dots: ${state.showKdePositionDots ? "on" : "off"}\n` +
             `fit residuals: ${state.showFitResiduals ? "on" : "off"}\n` +
             `star pairing armed: ${state.starMatchMode ? "on" : "off"}${state.pendingMatch ? " (select catalog star)" : ""}\n` +
             `matched star pairs: ${state.matches.length}\n` +
             fitStaleText +
-            `${state.autoIdentificationStatus}\n` +
+            `${state.automaticMatchingStatus}\n` +
             `${autoDetectionStatusText()}\n` +
             `${fitResidualStatusText()}\n` +
             state.fitMessage;
@@ -3283,7 +2976,7 @@ end
             return "Pairing delete mode: click a matched image or catalog star to remove that star pairing.";
         }
         if (state.maskMode) {
-            return "Bad star finder marking: hold M and click or drag over yellow detections. A 100 px radius circle records their pixel positions for training and hides them from auto-identify.";
+            return "Bad star finder marking: hold M and click or drag over yellow detections. A 100 px radius circle records their pixel positions for training and hides them from Lucky matching.";
         }
         if (state.zoomMode) {
             return "Zoom mode: move the mouse over the image to inspect a 100 x 100 raw-pixel region.";
@@ -5541,7 +5234,6 @@ end
             return;
         }
         state.luckyFitBusy = true;
-        controls.autoIdentifyStars.disabled = true;
         controls.luckyFit.disabled = true;
         controls.fitLens.disabled = true;
         controls.fitLensLm.disabled = true;
@@ -5712,11 +5404,195 @@ end
                 maxAddDistancePx: 8,
             },
             {
-                maxDetections: 120,
-                maxMagnitude: 6.0,
+                maxDetections: 180,
+                maxMagnitude: 6.5,
                 phase: "deeper projected refinement",
                 includeBlind: false,
                 includeAsterisms: false,
+                detectorOptions: {
+                    thresholdSigma: 2.7,
+                    localThresholdSigma: 2.9,
+                    requireGlobalThreshold: false,
+                    maxElongation: 3.1,
+                    suppressionRadiusPx: 8,
+                    crowdingRadiusPx: 30,
+                    maxCrowding: 8,
+                    crowdingScorePower: 1.15,
+                },
+                projectedOptions: {
+                    maxDetections: 180,
+                    maxCatalogStars: 260,
+                    maxDistancePx: 18,
+                    translationSearchRadiusPx: 35,
+                    minMatches: 8,
+                    rejectAmbiguousMatches: true,
+                    ambiguityRadiusPx: 14,
+                    ambiguityDistanceSlackPx: 10,
+                },
+                maxAddDistancePx: 5,
+                maxMedianDistance: 10,
+                rejectIfRmsIncreasePx: 0.8,
+            },
+            {
+                maxDetections: 260,
+                maxMagnitude: 7.0,
+                phase: "final model-guided expansion",
+                includeBlind: false,
+                includeAsterisms: false,
+                detectorOptions: {
+                    thresholdSigma: 2.35,
+                    localThresholdSigma: 2.7,
+                    requireGlobalThreshold: false,
+                    maxElongation: 3.2,
+                    suppressionRadiusPx: 8,
+                    crowdingRadiusPx: 30,
+                    maxCrowding: 8,
+                    crowdingScorePower: 1.15,
+                },
+                projectedOptions: {
+                    maxDetections: 260,
+                    maxCatalogStars: 420,
+                    maxDistancePx: 14,
+                    translationSearchRadiusPx: 24,
+                    minMatches: 10,
+                    rejectAmbiguousMatches: true,
+                    ambiguityRadiusPx: 12,
+                    ambiguityDistanceSlackPx: 8,
+                },
+                maxAddDistancePx: 4,
+                maxMedianDistance: 8,
+                rejectIfRmsIncreasePx: 0.5,
+                skipFit: true,
+            },
+        ];
+
+        if (optmod === 2) {
+            const v010AllskyPreflatten = {
+                preflattenF1Candidates: [0.80, 0.70, 0.90, 1.00, 0.60],
+                preflattenRadialAlphaCandidates: [0.90, 0.75, 1.05, 0.60],
+            };
+            Object.assign(stages[0], {
+                maxDetections: 50,
+                maxMagnitude: 4.0,
+                detectorOptions: {
+                    thresholdSigma: 2.2,
+                    localThresholdSigma: 2.2,
+                    requireGlobalThreshold: false,
+                    maxRadiusPx: 5,
+                    maxElongation: 4.0,
+                },
+                blindOptions: {
+                    maxDetections: 50,
+                    maxCatalogStars: 220,
+                    maxCatalogTriangleStars: 220,
+                    maxCatalogTriangles: 30000,
+                    preflattenModelCandidates: ["fisheye"],
+                    ...v010AllskyPreflatten,
+                    maxCatalogLocalNeighbors: 20,
+                    maxBlindNeighborTriangles: 8,
+                    blindEarlyAcceptMatches: 12,
+                    maxBlindCandidateRotations: 12000,
+                    rejectAmbiguousBlindMatches: true,
+                    blindAmbiguityRadiusDeg: 1.0,
+                    blindAmbiguityDistanceSlackDeg: 0.35,
+                    blindPixelAmbiguityRadiusPx: 18,
+                    blindPixelAmbiguityDistanceSlackPx: 8,
+                    ambiguityMaxMagnitude: 6.0,
+                },
+                weakAsterismOptions: null,
+            });
+            Object.assign(stages[1], {
+                maxDetections: 100,
+                maxMagnitude: 4.0,
+                detectorOptions: {
+                    thresholdSigma: 2.2,
+                    localThresholdSigma: 2.2,
+                    requireGlobalThreshold: false,
+                    maxRadiusPx: 5,
+                    maxElongation: 4.0,
+                },
+                blindOptions: {
+                    maxDetections: 100,
+                    maxBlindVerifyDetections: 100,
+                    maxCatalogStars: 220,
+                    maxCatalogTriangleStars: 220,
+                    maxCatalogTriangles: 30000,
+                    maxDetectionTriangleStars: 80,
+                    maxDetectionTriangles: 2800,
+                    preflattenModelCandidates: ["pinhole", "fisheye"],
+                    ...v010AllskyPreflatten,
+                    maxCatalogLocalNeighbors: 20,
+                    maxBlindNeighborTriangles: 8,
+                    blindEarlyAcceptMatches: 12,
+                    maxBlindCandidateRotations: 12000,
+                    rejectAmbiguousBlindMatches: true,
+                    blindAmbiguityRadiusDeg: 1.0,
+                    blindAmbiguityDistanceSlackDeg: 0.35,
+                    blindPixelAmbiguityRadiusPx: 18,
+                    blindPixelAmbiguityDistanceSlackPx: 8,
+                    ambiguityMaxMagnitude: 6.0,
+                },
+                weakAsterismOptions: null,
+            });
+            Object.assign(stages[2], {
+                maxDetections: 140,
+                maxMagnitude: 6.0,
+                detectorOptions: {
+                    thresholdSigma: 1.8,
+                    localThresholdSigma: 1.8,
+                    requireGlobalThreshold: false,
+                    maxRadiusPx: 5,
+                    maxElongation: 4.0,
+                },
+                blindOptions: {
+                    maxDetections: 140,
+                    maxBlindVerifyDetections: 140,
+                    maxCatalogStars: 420,
+                    maxCatalogTriangleStars: 360,
+                    maxCatalogTriangles: 50000,
+                    maxAmbiguityCatalogStars: 520,
+                    maxDetectionTriangleStars: 100,
+                    maxDetectionTriangles: 5200,
+                    preflattenModelCandidates: ["pinhole", "fisheye"],
+                    preflattenF1Candidates: [0.55, 0.65, 0.75, 0.85, 0.95, 1.10],
+                    preflattenRadialAlphaCandidates: [0.20, 0.35, 0.55, 0.75, 0.95, 1.15],
+                    maxCatalogLocalNeighbors: 24,
+                    maxBlindNeighborTriangles: 10,
+                    blindEarlyAcceptMatches: 11,
+                    blindEarlyAcceptMedianDeg: 0.75,
+                    maxBlindCandidateRotations: 18000,
+                    rejectAmbiguousBlindMatches: true,
+                    blindAmbiguityRadiusDeg: 0.9,
+                    blindAmbiguityDistanceSlackDeg: 0.3,
+                    blindPixelMatchRadiusPx: 58,
+                    blindPixelAmbiguityRadiusPx: 16,
+                    blindPixelAmbiguityDistanceSlackPx: 8,
+                    ambiguityMaxMagnitude: 7.0,
+                },
+            });
+            Object.assign(stages[3], {
+                maxDetections: 90,
+                maxMagnitude: 5.0,
+                detectorOptions: {
+                    thresholdSigma: 3.6,
+                    localThresholdSigma: 3.4,
+                    requireGlobalThreshold: true,
+                    maxElongation: 3.0,
+                },
+                projectedOptions: {
+                    maxDetections: 90,
+                    maxCatalogStars: 130,
+                    maxDistancePx: 34,
+                    translationSearchRadiusPx: 90,
+                    rejectAmbiguousMatches: true,
+                    ambiguityRadiusPx: 18,
+                    ambiguityDistanceSlackPx: 16,
+                },
+                maxAddDistancePx: 8,
+            });
+            Object.assign(stages[4], {
+                maxDetections: 120,
+                maxMagnitude: 6.0,
                 detectorOptions: {
                     thresholdSigma: 3.1,
                     localThresholdSigma: 3.2,
@@ -5733,13 +5609,10 @@ end
                     ambiguityDistanceSlackPx: 16,
                 },
                 maxAddDistancePx: 8,
-            },
-            {
+            });
+            Object.assign(stages[5], {
                 maxDetections: 150,
                 maxMagnitude: 6.5,
-                phase: "final model-guided expansion",
-                includeBlind: false,
-                includeAsterisms: false,
                 detectorOptions: {
                     thresholdSigma: 2.9,
                     localThresholdSigma: 3.0,
@@ -5757,11 +5630,16 @@ end
                     ambiguityDistanceSlackPx: 16,
                 },
                 maxAddDistancePx: 6,
-            },
-        ];
+                skipFit: false,
+            });
+            delete stages[4].rejectIfRmsIncreasePx;
+            delete stages[5].rejectIfRmsIncreasePx;
+            delete stages[5].maxMedianDistance;
+        }
 
         let totalAdded = 0;
         let totalPruned = 0;
+        let rejectedExpansionStars = 0;
         let acceptedFits = 0;
         let stagesRun = 0;
         let seeded = false;
@@ -5770,14 +5648,17 @@ end
                 if (stages[i].runOnlyWithoutSeed === true && totalAdded > 0) {
                     continue;
                 }
+                const stageSnapshot = autoPairingUndoSnapshot(stages[i].phase || `stage ${i + 1}`);
                 const rmsBeforeStage = currentFitRmsPx();
                 const pass = await runLuckyFitStage(stages[i], i + 1, stages.length);
                 stagesRun += 1;
                 totalAdded += pass.added;
                 seeded = seeded || pass.seeded;
-                const fitResult = await runLuckySelectedModelFits(
-                    `I'm feeling lucky ${i + 1}/${stages.length} ${stages[i].phase || "fit sweep"}`
-                );
+                const fitResult = stages[i].skipFit === true ?
+                    {accepted: 0, skipped: true} :
+                    await runLuckySelectedModelFits(
+                        `I'm feeling lucky ${i + 1}/${stages.length} ${stages[i].phase || "fit sweep"}`
+                    );
                 acceptedFits += fitResult.accepted;
                 if (!fitResult.skipped) {
                     const prune = pruneLuckyAutoOutliers();
@@ -5795,6 +5676,16 @@ end
                     }
                 }
                 const rmsAfterStage = currentFitRmsPx();
+                if (pass.added > 0 && Number.isFinite(stages[i].rejectIfRmsIncreasePx) &&
+                        Number.isFinite(rmsBeforeStage) && Number.isFinite(rmsAfterStage) &&
+                        rmsAfterStage - rmsBeforeStage > stages[i].rejectIfRmsIncreasePx) {
+                    rejectedExpansionStars += pass.added;
+                    totalAdded -= pass.added;
+                    restoreStateSnapshot(stageSnapshot);
+                    updateProjection();
+                    render();
+                    continue;
+                }
                 const improved = Number.isFinite(rmsBeforeStage) && Number.isFinite(rmsAfterStage) ?
                     rmsBeforeStage - rmsAfterStage > 0.15 :
                     fitResult.accepted > 0;
@@ -5811,14 +5702,16 @@ end
             const summary = Number.isFinite(rms)
                 ? `final RMS ${rms.toFixed(2)} px using ${fitCount}/${state.matches.length} pairs`
                 : `only ${fitCount}/${state.matches.length} usable pairs`;
-            state.autoIdentificationStatus =
+            state.automaticMatchingStatus =
                 `I'm feeling lucky: added ${totalAdded} pairings in ${stagesRun} staged bootstrap/refinement passes; ` +
                 `${seeded ? "seeded from blind asterisms" : "no blind seed"}; ` +
                 `removed ${removedBadAreaMatches} bad-area automatic match${removedBadAreaMatches === 1 ? "" : "es"}; ` +
+                `rejected ${rejectedExpansionStars} RMSE-worsening expansion match${rejectedExpansionStars === 1 ? "" : "es"}; ` +
                 `pruned ${totalPruned} automatic outlier${totalPruned === 1 ? "" : "s"}; ${acceptedFits} accepted fits`;
             state.fitMessage =
                 `I'm feeling lucky: ${modelName}, ${summary}; ` +
                 `${totalAdded} new pairings (${startingMatchCount} -> ${state.matches.length}), ` +
+                `${rejectedExpansionStars} rejected by RMSE guard, ` +
                 `${totalPruned} pruned, ` +
                 `${acceptedFits} accepted fit step${acceptedFits === 1 ? "" : "s"}; undo is available`;
             playInteractionSound(acceptedFits > 0 ? "fit" : "click");
@@ -5828,7 +5721,6 @@ end
             render();
         } finally {
             hideLoadingProgress();
-            controls.autoIdentifyStars.disabled = false;
             controls.luckyFit.disabled = false;
             controls.fitLens.disabled = false;
             controls.fitLensLm.disabled = false;
@@ -5899,7 +5791,7 @@ end
         state.showPickedMatchMarkers = true;
         state.lastFitVector = null;
         state.lastAcceptedFitVector = null;
-        state.autoIdentificationStatus = "auto-identify: not run";
+        state.automaticMatchingStatus = "automatic matching: not run";
         state.fitMessage = "lens fit: not run";
     }
 
@@ -5950,7 +5842,6 @@ end
         state.showFitResiduals = false;
         state.lastLensEquation = "";
         controls.optmod.value = "2";
-        controls.autoIdentifyStars.disabled = false;
         controls.luckyFit.disabled = false;
         controls.fitLens.disabled = false;
         controls.fitLensLm.disabled = false;
@@ -6323,6 +6214,25 @@ end
         return intervals.concat(upper).map(interval => midiToFrequency(root + interval));
     }
 
+    function dominantBluesChord(root) {
+        return chordFromMidi(root, [0, 7, 10, 14, 16], [22, 24, 26]);
+    }
+
+    function minorBluesChord(root) {
+        return chordFromMidi(root, [0, 7, 10, 15, 17], [22, 24, 27]);
+    }
+
+    function bluesScale(root, octaves = [1, 2]) {
+        const degrees = [0, 3, 5, 6, 7, 10, 12];
+        const notes = [];
+        for (const octave of octaves) {
+            for (const degree of degrees) {
+                notes.push(midiToFrequency(root + degree + octave * 12));
+            }
+        }
+        return notes;
+    }
+
     function playSputnikBeep(music, when, frequency = 1040) {
         const audioContext = music.audioContext;
         const osc = audioContext.createOscillator();
@@ -6463,23 +6373,41 @@ end
     }
 
     function advanceAmbientTheme(music) {
-        if (Math.random() < 0.05) {
+        let theme = music.themes[music.themeIndex];
+        if (theme.progression) {
+            music.barIndex = (music.barIndex + 1) % theme.progression.length;
+            if (music.barIndex === 0) {
+                music.songCycle += 1;
+                if (music.songCycle % 2 === 0) {
+                    music.themeIndex = (music.themeIndex + 1) % music.themes.length;
+                    theme = music.themes[music.themeIndex];
+                    music.songCycle = 0;
+                    music.barIndex = 0;
+                    music.melodyIndex = 0;
+                }
+            }
+            music.chordIndex = theme.progression[music.barIndex % theme.progression.length];
+        } else if (Math.random() < 0.05) {
             music.themeIndex = chooseRandomIndex(music.themes.length, music.themeIndex);
-            music.chordIndex = chooseRandomIndex(music.themes[music.themeIndex].chords.length);
+            theme = music.themes[music.themeIndex];
+            music.chordIndex = theme.progression ?
+                theme.progression[music.barIndex % theme.progression.length] :
+                chooseRandomIndex(theme.chords.length);
+            music.barIndex = 0;
+            music.songCycle = 0;
+            music.melodyIndex = 0;
         } else {
-            const theme = music.themes[music.themeIndex];
             const phraseStep = theme.motion[music.phraseIndex % theme.motion.length];
             const randomStep = Math.random() < 0.08 ? 0 : phraseStep;
             music.chordIndex = (music.chordIndex + randomStep + theme.chords.length) % theme.chords.length;
-            music.phraseIndex += 1;
         }
-        const theme = music.themes[music.themeIndex];
+        music.phraseIndex += 1;
         music.filter.frequency.setTargetAtTime(
             theme.filterHz + (Math.random() * 30 - 15),
             music.audioContext.currentTime,
             24.0
         );
-        music.delay.delayTime.setTargetAtTime(1.05 + Math.random() * 0.08, music.audioContext.currentTime, 22.0);
+        music.delay.delayTime.setTargetAtTime((theme.delayTime || 1.05) + Math.random() * 0.05, music.audioContext.currentTime, 22.0);
         setAmbientChord(music, theme.chords[music.chordIndex]);
     }
 
@@ -6487,29 +6415,36 @@ end
         const theme = music.themes[music.themeIndex];
         const chord = theme.chords[music.chordIndex];
         const now = music.audioContext.currentTime + 0.08;
-        const pattern = randomChoice(theme.motifs);
+        const pattern = theme.progression ?
+            theme.motifs[Math.floor(music.phraseIndex / 2) % theme.motifs.length] :
+            randomChoice(theme.motifs);
         const start = music.melodyIndex % theme.melody.length;
         let t = now;
         pattern.forEach((degree, i) => {
             if (degree === null) {
-                t += 0.58 + Math.random() * 0.32;
+                t += (theme.swingRest || 0.58) + Math.random() * 0.32;
                 return;
             }
-            const fromMelody = Math.random() < 0.68;
+            const fromMelody = Math.random() < (theme.progression ? 0.78 : 0.68);
             const note = fromMelody
                 ? theme.melody[(start + degree) % theme.melody.length]
-                : chord[(music.chordIndex + degree) % chord.length] * (Math.random() < 0.24 ? 2 : 1);
+                : chord[(theme.progression ? degree : music.chordIndex + degree) % chord.length] *
+                    (Math.random() < (theme.progression ? 0.18 : 0.24) ? 2 : 1);
             playAmbientBell(music, note, t, 0.0055 + 0.0016 * Math.min(i, 4));
-            t += 0.62 + Math.random() * 0.46;
+            t += theme.progression ?
+                (i % 2 === 0 ? theme.swingLong : theme.swingShort) + Math.random() * 0.08 :
+                0.62 + Math.random() * 0.46;
         });
         if (Math.random() < 0.72) {
-            const spread = randomChoice(theme.harmonySpreads);
+            const spread = theme.progression ?
+                theme.harmonySpreads[music.barIndex % theme.harmonySpreads.length] :
+                randomChoice(theme.harmonySpreads);
             spread.forEach((degree, i) => {
                 const note = theme.melody[(start + degree) % theme.melody.length];
                 playAmbientBell(music, note, now + 0.16 + i * 0.055, 0.0038);
             });
         }
-        music.melodyIndex += 1 + Math.floor(Math.random() * 2);
+        music.melodyIndex += theme.melodyStep || 1 + Math.floor(Math.random() * 2);
     }
 
     function scheduleAmbientEvolution(music) {
@@ -6519,7 +6454,7 @@ end
             }
             advanceAmbientTheme(music);
             scheduleAmbientEvolution(music);
-        }, 36000 + Math.random() * 42000);
+        }, music.themes[music.themeIndex].progression ? 8500 + Math.random() * 1600 : 36000 + Math.random() * 42000);
     }
 
     function scheduleAmbientArpeggio(music) {
@@ -6531,7 +6466,7 @@ end
                 playAmbientArpeggio(music);
             }
             scheduleAmbientArpeggio(music);
-        }, 5600 + Math.random() * 10500);
+        }, music.themes[music.themeIndex].progression ? 2800 + Math.random() * 1800 : 5600 + Math.random() * 10500);
     }
 
     function scheduleSputnikPass(music) {
@@ -6626,6 +6561,78 @@ end
                 motifs: [[0, 2, 5, 4], [1, null, 3, 5, 7], [4, 3, 1, null, 2], [0, 2, null, 4, 6]],
                 harmonySpreads: [[0, 2, 4], [1, 3, 6], [0, 4, 7], [2, 5, 7]],
             },
+            {
+                name: "aurora twelve-bar",
+                filterHz: 1600,
+                delayTime: 1.22,
+                progression: [0, 0, 0, 0, 1, 1, 0, 0, 2, 1, 0, 2],
+                chords: [
+                    dominantBluesChord(48),
+                    dominantBluesChord(53),
+                    dominantBluesChord(55),
+                ],
+                melody: bluesScale(48, [1, 2]),
+                motifs: [[0, 2, 3, null, 2, 0], [3, 5, 6, null, 5, 3], [6, 5, 3, 2, null, 0], [2, 3, 5, null, 6, 5, 3]],
+                harmonySpreads: [[0, 3, 5], [2, 4, 6], [3, 5, 8], [1, 4, 7]],
+                melodyStep: 2,
+                swingLong: 0.54,
+                swingShort: 0.36,
+                swingRest: 0.56,
+            },
+            {
+                name: "station shuffle",
+                filterHz: 1780,
+                delayTime: 1.08,
+                progression: [0, 1, 0, 0, 1, 1, 0, 0, 2, 1, 0, 2],
+                chords: [
+                    dominantBluesChord(45),
+                    dominantBluesChord(50),
+                    dominantBluesChord(52),
+                ],
+                melody: bluesScale(45, [1, 2]),
+                motifs: [[0, 0, 3, 4, null, 3], [4, 5, 4, 3, null, 0], [3, null, 5, 6, 5], [6, 5, 3, null, 1, 0]],
+                harmonySpreads: [[0, 2, 5], [1, 3, 6], [3, 6, 8], [2, 5, 7]],
+                melodyStep: 1,
+                swingLong: 0.48,
+                swingShort: 0.30,
+                swingRest: 0.48,
+            },
+            {
+                name: "midnight minor blues",
+                filterHz: 1450,
+                delayTime: 1.32,
+                progression: [0, 0, 0, 0, 1, 1, 0, 0, 2, 1, 0, 2],
+                chords: [
+                    minorBluesChord(50),
+                    minorBluesChord(55),
+                    dominantBluesChord(57),
+                ],
+                melody: bluesScale(50, [1, 2]),
+                motifs: [[0, 2, null, 3, 2, 0], [3, 5, 6, 5, null, 3], [6, 8, 6, 5, 3], [5, 3, null, 2, 0]],
+                harmonySpreads: [[0, 2, 5], [2, 5, 7], [3, 6, 9], [1, 4, 6]],
+                melodyStep: 3,
+                swingLong: 0.66,
+                swingShort: 0.42,
+                swingRest: 0.70,
+            },
+            {
+                name: "turnaround at tromso",
+                filterHz: 2050,
+                delayTime: 1.16,
+                progression: [0, 1, 0, 0, 1, 1, 0, 0, 2, 1, 0, 2],
+                chords: [
+                    dominantBluesChord(43),
+                    dominantBluesChord(48),
+                    dominantBluesChord(50),
+                ],
+                melody: bluesScale(43, [2, 3]),
+                motifs: [[0, 3, 4, 5, null, 4], [5, 6, 5, 3, null, 0], [3, 4, null, 6, 5, 3], [8, 6, 5, 3, 1, 0]],
+                harmonySpreads: [[0, 3, 6], [2, 5, 8], [4, 6, 9], [1, 4, 7]],
+                melodyStep: 2,
+                swingLong: 0.44,
+                swingShort: 0.29,
+                swingRest: 0.44,
+            },
         ];
         const voices = [];
         master.gain.value = 0.0001;
@@ -6680,6 +6687,8 @@ end
             themes,
             themeIndex: 0,
             chordIndex: 0,
+            barIndex: 0,
+            songCycle: 0,
             phraseIndex: 0,
             melodyIndex: 0,
             beepIndex: 0,
@@ -6922,7 +6931,6 @@ end
     });
     controls.toggleDetectionCircles.addEventListener("click", toggleDetectionCircles);
     controls.toggleStarNames.addEventListener("click", toggleStarNames);
-    controls.autoIdentifyStars.addEventListener("click", autoIdentifyStarsFromDetector);
     controls.luckyFit.addEventListener("click", () => {
         playInteractionSound("fit");
         feelingLuckyFit();

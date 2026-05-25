@@ -266,6 +266,7 @@
             belowLocalContrast: 0,
             invalidCentroid: 0,
             nonStarShape: 0,
+            crowdedRegion: 0,
         };
 
         for (const peak of cellPeaks) {
@@ -319,14 +320,43 @@
                 score,
             });
         }
-        candidates.sort((a, b) => b.score - a.score);
+        const crowdingRadius = Number.isFinite(options.crowdingRadiusPx) ? options.crowdingRadiusPx : 0;
+        const maxCrowding = Number.isFinite(options.maxCrowding) ? options.maxCrowding : Infinity;
+        const crowdingPower = Number.isFinite(options.crowdingScorePower) ? options.crowdingScorePower : 1.15;
+        let filteredCandidates = candidates;
+        if (crowdingRadius > 0 && candidates.length > 0) {
+            const r2 = crowdingRadius * crowdingRadius;
+            filteredCandidates = [];
+            for (const candidate of candidates) {
+                let neighbors = 0;
+                for (const other of candidates) {
+                    const dx = candidate.x - other.x;
+                    const dy = candidate.y - other.y;
+                    if (dx * dx + dy * dy <= r2) {
+                        neighbors += 1;
+                    }
+                }
+                const localCrowding = Math.max(0, neighbors - 1);
+                if (localCrowding > maxCrowding) {
+                    rejectCounts.crowdedRegion += 1;
+                    continue;
+                }
+                const crowdingPenalty = Math.pow(1 + localCrowding, crowdingPower);
+                filteredCandidates.push({
+                    ...candidate,
+                    localCrowding,
+                    score: candidate.score / crowdingPenalty,
+                });
+            }
+        }
+        filteredCandidates.sort((a, b) => b.score - a.score);
         const suppressionRadius = Number.isFinite(options.suppressionRadiusPx) ?
             options.suppressionRadiusPx :
             Math.max(18, Math.min(60, 0.010 * Math.hypot(width, height)));
-        const detections = selectSuppressedCandidates(candidates, maxDetections, suppressionRadius);
+        const detections = selectSuppressedCandidates(filteredCandidates, maxDetections, suppressionRadius);
         return {
             detections,
-            candidates,
+            candidates: filteredCandidates,
             bg,
             sigma,
             globalThreshold,
@@ -335,7 +365,7 @@
             rejectCounts,
             status: `bright-star detector: bg ${bg.toFixed(1)}, sigma ${sigma.toFixed(1)}, ` +
                 `thresholds scan/global ${scanThreshold.toFixed(1)}/${globalThreshold.toFixed(1)}, ` +
-                `${scannedLocalPeaks} local peaks, ${candidates.length} star-like candidates, ` +
+                `${scannedLocalPeaks} local peaks, ${filteredCandidates.length}/${candidates.length} star-like candidates after clutter, ` +
                 `selected top ${detections.length}/${maxDetections}, suppression radius ${suppressionRadius.toFixed(0)} px`,
         };
     }

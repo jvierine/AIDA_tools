@@ -864,7 +864,7 @@ async function simulateGuiAutoIdentify(testCase, imageData) {
                 maxDetectionTriangles: 5200,
                 preflattenModelCandidates: ["pinhole", "fisheye"],
                 preflattenF1Candidates: [0.55, 0.65, 0.75, 0.85, 0.95, 1.10],
-                preflattenRadialAlphaCandidates: [0.20, 0.35, 0.55, 0.75, 0.95, 1.15],
+                preflattenRadialAlphaCandidates: [0.15, 0.30, 0.45, 0.60, 0.75, 0.90, 0.98],
                 maxCatalogLocalNeighbors: 24,
                 maxBlindNeighborTriangles: 10,
                 blindEarlyAcceptMatches: 11,
