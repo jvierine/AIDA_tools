@@ -1,7 +1,7 @@
 (function () {
     "use strict";
 
-    const APP_VERSION = "v0.2.1";
+    const APP_VERSION = "v0.2.4";
     const LOCAL_TEST_HOSTS = new Set(["localhost", "127.0.0.1", "::1"]);
     const LOCAL_TEST_CASES_ENABLED = location.protocol === "file:" || LOCAL_TEST_HOSTS.has(location.hostname);
     const canvas = document.getElementById("glCanvas");
@@ -15,6 +15,7 @@
     const appVersionEl = document.getElementById("appVersion");
     const matchInstructions = document.getElementById("matchInstructions");
     const residualHistogram = document.getElementById("residualHistogram");
+    const triangleDebugPlot = document.getElementById("triangleDebugPlot");
     const lensEquation = document.getElementById("lensEquation");
     const densityPopup = document.getElementById("densityPopup");
     const densityPopupSubtitle = document.getElementById("densityPopupSubtitle");
@@ -148,6 +149,9 @@
         showPickedMatchMarkers: true,
         showKdePositionDots: false,
         showFitResiduals: false,
+        showAsterismLines: true,
+        asterismEdges: [],
+        triangleDebugSnapshot: null,
         fitMessage: "lens fit: not run",
         lastFitVector: null,
         lastAcceptedFitVector: null,
@@ -446,6 +450,42 @@
         return true;
     }
 
+    function addOverlaySvgLineLayer(edges, className = "") {
+        if (!state.image || !Array.isArray(edges) || edges.length === 0) {
+            return false;
+        }
+        const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+        svg.setAttribute("class", `asterism-line-layer ${className}`.trim());
+        svg.setAttribute("viewBox", `0 0 ${canvas.clientWidth} ${canvas.clientHeight}`);
+        svg.setAttribute("preserveAspectRatio", "none");
+        for (const edge of edges) {
+            if (!edge || !edge.a || !edge.b) {
+                continue;
+            }
+            const a = canvasPixelToCssPixel(imageMarkerCanvasPixel(edge.a.x, edge.a.y));
+            const b = canvasPixelToCssPixel(imageMarkerCanvasPixel(edge.b.x, edge.b.y));
+            if (!a.every(Number.isFinite) || !b.every(Number.isFinite)) {
+                continue;
+            }
+            const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
+            line.setAttribute("x1", a[0].toFixed(2));
+            line.setAttribute("y1", a[1].toFixed(2));
+            line.setAttribute("x2", b[0].toFixed(2));
+            line.setAttribute("y2", b[1].toFixed(2));
+            if (edge.label) {
+                const title = document.createElementNS("http://www.w3.org/2000/svg", "title");
+                title.textContent = edge.label;
+                line.appendChild(title);
+            }
+            svg.appendChild(line);
+        }
+        if (svg.childNodes.length === 0) {
+            return false;
+        }
+        cardinalLayer.appendChild(svg);
+        return true;
+    }
+
     function optparFromControls() {
         const optmod = Number(controls.optmod.value) || 2;
         const common = [
@@ -660,10 +700,19 @@
         }));
     }
 
+    function cloneAsterismEdges(edges = state.asterismEdges) {
+        return edges.map(edge => ({
+            a: {...edge.a},
+            b: {...edge.b},
+            label: edge.label || "",
+        }));
+    }
+
     function autoPairingUndoSnapshot(label) {
         return {
             optpar: currentOptpar(),
             matches: cloneMatches(),
+            asterismEdges: cloneAsterismEdges(),
             label,
         };
     }
@@ -683,6 +732,9 @@
                 match.id = index + 1;
             });
             updateAutoMatches();
+        }
+        if (snapshot.asterismEdges) {
+            state.asterismEdges = cloneAsterismEdges(snapshot.asterismEdges);
         }
     }
 
@@ -1968,6 +2020,59 @@ end
         return added;
     }
 
+    function recordAsterismEdgesFromResult(result, label = "asterism") {
+        if (!result || !Array.isArray(result.matches) || result.matches.length < 3) {
+            return 0;
+        }
+        const points = result.matches
+            .filter(match => match && match.detection &&
+                Number.isFinite(match.detection.x) && Number.isFinite(match.detection.y))
+            .slice()
+            .sort((a, b) => (a.star && b.star ? a.star.mag - b.star.mag : 0) ||
+                Math.hypot(a.detection.x, a.detection.y) - Math.hypot(b.detection.x, b.detection.y))
+            .slice(0, 40);
+        const edgeKeys = new Set(state.asterismEdges.map(edge =>
+            `${Math.round(edge.a.x * 10)},${Math.round(edge.a.y * 10)}:` +
+            `${Math.round(edge.b.x * 10)},${Math.round(edge.b.y * 10)}`
+        ));
+        let added = 0;
+        const diag = state.image ? Math.hypot(state.image.width, state.image.height) : Infinity;
+        const maxEdge = Math.max(80, Math.min(0.28 * diag, 900));
+        for (let i = 0; i < points.length; i += 1) {
+            const a = points[i].detection;
+            const neighbors = [];
+            for (let j = 0; j < points.length; j += 1) {
+                if (i === j) {
+                    continue;
+                }
+                const b = points[j].detection;
+                const distance = Math.hypot(a.x - b.x, a.y - b.y);
+                if (distance <= maxEdge) {
+                    neighbors.push({point: b, distance});
+                }
+            }
+            neighbors.sort((m, n) => m.distance - n.distance);
+            for (const neighbor of neighbors.slice(0, 2)) {
+                const p = a.x < neighbor.point.x || (a.x === neighbor.point.x && a.y <= neighbor.point.y) ?
+                    [a, neighbor.point] :
+                    [neighbor.point, a];
+                const key = `${Math.round(p[0].x * 10)},${Math.round(p[0].y * 10)}:` +
+                    `${Math.round(p[1].x * 10)},${Math.round(p[1].y * 10)}`;
+                if (edgeKeys.has(key)) {
+                    continue;
+                }
+                edgeKeys.add(key);
+                state.asterismEdges.push({
+                    a: {x: p[0].x, y: p[0].y},
+                    b: {x: p[1].x, y: p[1].y},
+                    label,
+                });
+                added += 1;
+            }
+        }
+        return added;
+    }
+
     async function identifyStarsFromCurrentDetections(options = {}) {
         const label = options.label || "Automatic matching";
         const maxMag = Number.isFinite(options.maxMagnitude) ?
@@ -1989,6 +2094,10 @@ end
             deletedDetectionIds: state.deletedDetectionIds,
         };
         const diag = Math.hypot(state.image.width, state.image.height);
+        const triangleDebug = snapshot => setTriangleDebugSnapshot({
+            ...snapshot,
+            stage: snapshot && snapshot.stage ? `${label}: ${snapshot.stage}` : label,
+        });
         let result = {
             matches: [],
             status: "automatic matching: no matcher stage was enabled",
@@ -2014,6 +2123,8 @@ end
                     maxCatalogStars: 80,
                     minMatches: minBlindMatches,
                     ...(options.blindOptions || {}),
+                    triangleDebugStage: `${label} blind <= mag ${maxMag.toFixed(1)}`,
+                    onTriangleDebug: triangleDebug,
                 }
             );
         }
@@ -2034,6 +2145,8 @@ end
                     asterismMatchRadiusPx: Math.max(32, Math.min(70, 0.012 * diag)),
                     minMatches: minAsterismMatches,
                     ...(options.asterismOptions || {}),
+                    triangleDebugStage: `${label} sky-plane <= mag ${maxMag.toFixed(1)}`,
+                    onTriangleDebug: triangleDebug,
                 }
             );
             const weakAsterismStages = Array.isArray(options.weakAsterismOptions) ?
@@ -2064,6 +2177,8 @@ end
                         minMatches: minAsterismMatches,
                         ...(options.asterismOptions || {}),
                         ...weakAsterismOptions,
+                        triangleDebugStage: `${label} sky-plane <= mag ${weakMaxMag.toFixed(1)}`,
+                        onTriangleDebug: triangleDebug,
                     }
                 );
             }
@@ -2111,6 +2226,9 @@ end
         render();
         await yieldToBrowser();
         const result = await identifyStarsFromCurrentDetections(options);
+        if (options.includeBlind !== false || options.includeAsterisms !== false) {
+            recordAsterismEdgesFromResult(result, label);
+        }
         setLoadingProgress(
             Number.isFinite(options.progressAdd) ? options.progressAdd : 94,
             `${label}: adding matched star pairings...`
@@ -2635,6 +2753,111 @@ end
         residualHistogram.appendChild(svg);
     }
 
+    function setTriangleDebugSnapshot(snapshot) {
+        state.triangleDebugSnapshot = snapshot ? {
+            ...snapshot,
+            catalog: snapshot.catalog || {count: 0, points: []},
+            image: snapshot.image || {count: 0, points: []},
+        } : null;
+        updateTriangleDebugPlot();
+    }
+
+    function updateTriangleDebugPlot() {
+        if (!triangleDebugPlot) {
+            return;
+        }
+        triangleDebugPlot.replaceChildren();
+        const snapshot = state.triangleDebugSnapshot;
+        const hasPoints = snapshot &&
+            ((snapshot.catalog && snapshot.catalog.count > 0) ||
+            (snapshot.image && snapshot.image.count > 0));
+        triangleDebugPlot.classList.toggle("visible", Boolean(hasPoints));
+        triangleDebugPlot.setAttribute("aria-hidden", hasPoints ? "false" : "true");
+        if (!hasPoints) {
+            return;
+        }
+
+        const title = document.createElement("div");
+        title.className = "triangle-debug-title";
+        const pieces = [
+            snapshot.stage || "triangle search",
+            `cat ${snapshot.catalog.count}`,
+            `img ${snapshot.image.count}`,
+        ];
+        if (Number.isFinite(snapshot.maxMagnitude)) {
+            pieces.push(`mag <= ${snapshot.maxMagnitude.toFixed(1)}`);
+        }
+        if (snapshot.preflattenModel && snapshot.preflattenModel !== "catalog") {
+            pieces.push(`${snapshot.preflattenModel} f1 ${Number(snapshot.f1).toFixed(2)} a ${Number(snapshot.radialAlpha).toFixed(2)}`);
+        }
+        if (snapshot.quality) {
+            pieces.push(
+                `overlap ${(100 * snapshot.quality.occupiedOverlap).toFixed(0)}%`,
+                `shape ${(100 * snapshot.quality.bhattacharyya).toFixed(0)}%`
+            );
+        }
+        title.textContent = pieces.join("; ");
+        triangleDebugPlot.appendChild(title);
+
+        const canvasPlot = document.createElement("canvas");
+        canvasPlot.className = "triangle-debug-canvas";
+        const cssWidth = 260;
+        const cssHeight = 190;
+        const dpr = Math.max(1, window.devicePixelRatio || 1);
+        canvasPlot.width = Math.round(cssWidth * dpr);
+        canvasPlot.height = Math.round(cssHeight * dpr);
+        const ctx = canvasPlot.getContext("2d");
+        ctx.scale(dpr, dpr);
+        ctx.clearRect(0, 0, cssWidth, cssHeight);
+        const plot = {x0: 38, y0: 14, w: 196, h: 138};
+        const sx = value => plot.x0 + Math.max(0, Math.min(1, value)) * plot.w;
+        const sy = value => plot.y0 + plot.h - Math.max(0, Math.min(1, value)) * plot.h;
+
+        ctx.lineWidth = 1;
+        ctx.strokeStyle = "rgba(191, 219, 254, 0.20)";
+        for (const tick of [0, 0.25, 0.5, 0.75, 1.0]) {
+            ctx.beginPath();
+            ctx.moveTo(sx(tick), plot.y0);
+            ctx.lineTo(sx(tick), plot.y0 + plot.h);
+            ctx.moveTo(plot.x0, sy(tick));
+            ctx.lineTo(plot.x0 + plot.w, sy(tick));
+            ctx.stroke();
+        }
+        ctx.strokeStyle = "rgba(219, 234, 254, 0.82)";
+        ctx.beginPath();
+        ctx.moveTo(plot.x0, plot.y0 + plot.h);
+        ctx.lineTo(plot.x0 + plot.w, plot.y0 + plot.h);
+        ctx.moveTo(plot.x0, plot.y0);
+        ctx.lineTo(plot.x0, plot.y0 + plot.h);
+        ctx.stroke();
+
+        const drawPoints = (points, fillStyle, radius) => {
+            ctx.fillStyle = fillStyle;
+            for (const point of points || []) {
+                ctx.beginPath();
+                ctx.arc(sx(point.x), sy(point.y), radius, 0, 2 * Math.PI);
+                ctx.fill();
+            }
+        };
+        drawPoints(snapshot.catalog.points, "rgba(147, 197, 253, 0.55)", 1.15);
+        drawPoints(snapshot.image.points, "rgba(250, 204, 21, 0.72)", 1.45);
+
+        ctx.fillStyle = "#dbeafe";
+        ctx.font = "700 10px system-ui, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif";
+        ctx.textAlign = "center";
+        ctx.fillText("a/c", plot.x0 + plot.w / 2, 182);
+        ctx.fillText("0", plot.x0, 166);
+        ctx.fillText("1", plot.x0 + plot.w, 166);
+        ctx.fillText("catalog blue", 76, 12);
+        ctx.fillText("image yellow", 174, 12);
+        ctx.save();
+        ctx.translate(10, plot.y0 + plot.h / 2);
+        ctx.rotate(-Math.PI / 2);
+        ctx.fillText("b/c", 0, 0);
+        ctx.restore();
+        triangleDebugPlot.appendChild(canvasPlot);
+    }
+
     function nearestCardinalAzimuthDistance(azDeg) {
         const normalized = ((azDeg % 360) + 360) % 360;
         let best = 180;
@@ -2816,6 +3039,13 @@ end
         }
     }
 
+    function drawAsterismLines() {
+        if (!state.showAsterismLines || !state.asterismEdges.length) {
+            return;
+        }
+        addOverlaySvgLineLayer(state.asterismEdges, "lucky-asterism-lines");
+    }
+
     function drawOverlayLabels() {
         cardinalLayer.replaceChildren();
         if (!state.image) {
@@ -2842,6 +3072,7 @@ end
         drawAzElGridLabels(optpar, optmod);
         drawRaDecGridLabels(optpar, optmod);
         if (state.displayMode === "pairing") {
+            drawAsterismLines();
             drawAutoDetectionMarkers();
             drawBadStarFinderMarkers();
             drawCatalogPairingMarkers();
@@ -2894,6 +3125,7 @@ end
                 drawOverlayLabels();
             }
         }
+        updateTriangleDebugPlot();
         controls.brightnessValue.textContent = Number(controls.brightness.value).toFixed(2);
         controls.contrastValue.textContent = Number(controls.contrast.value).toFixed(2);
         controls.highPassWidthValue.textContent = Number(controls.highPassWidth.value).toFixed(0);
@@ -2937,6 +3169,7 @@ end
             `display mode: ${state.displayMode}\n` +
             `star names: ${state.showStarNames ? "on" : "off"}\n` +
             `KDE sub-pixel dots: ${state.showKdePositionDots ? "on" : "off"}\n` +
+            `asterism lines: ${state.showAsterismLines ? "on" : "off"} (${state.asterismEdges.length} edges)\n` +
             `fit residuals: ${state.showFitResiduals ? "on" : "off"}\n` +
             `star pairing armed: ${state.starMatchMode ? "on" : "off"}${state.pendingMatch ? " (select catalog star)" : ""}\n` +
             `matched star pairs: ${state.matches.length}\n` +
@@ -5248,6 +5481,8 @@ end
         controls.fitLensLm.disabled = true;
         const optmod = Number(controls.optmod.value) || 2;
         const undoSnapshot = autoPairingUndoSnapshot("I'm feeling lucky");
+        state.asterismEdges = [];
+        setTriangleDebugSnapshot(null);
         const removedBadAreaMatches = removeAutomaticMatchesInBadStarFinderRegions();
         const startingMatchCount = state.matches.length;
         const stages = [
@@ -5764,6 +5999,8 @@ end
     function clearIdentifiedStars() {
         const count = state.matches.length;
         state.matches = [];
+        state.asterismEdges = [];
+        state.triangleDebugSnapshot = null;
         state.pendingMatch = null;
         state.lastFitVector = null;
         clearFitUndoStack();
@@ -5787,6 +6024,14 @@ end
         render();
     }
 
+    function toggleAsterismLines() {
+        state.showAsterismLines = !state.showAsterismLines;
+        state.fitMessage = state.showAsterismLines ?
+            `asterism lines visible (${state.asterismEdges.length} edges)` :
+            "asterism lines hidden";
+        render();
+    }
+
     function refreshDisplayImage() {
         state.displayPixels = null;
         state.highPassCacheKey = "";
@@ -5796,6 +6041,8 @@ end
 
     function resetInteractiveState() {
         state.matches = [];
+        state.asterismEdges = [];
+        state.triangleDebugSnapshot = null;
         state.pendingMatch = null;
         state.showPickedMatchMarkers = true;
         state.lastFitVector = null;
@@ -5840,6 +6087,8 @@ end
         state.detectedStars = [];
         state.deletedDetectionIds = new Set();
         state.autoMatches = [];
+        state.asterismEdges = [];
+        state.triangleDebugSnapshot = null;
         state.detectorCache = null;
         state.detectorStatus = "detector: no image";
         state.detectionGeneration += 1;
@@ -5849,6 +6098,7 @@ end
         state.centroidDensity = null;
         state.showKdePositionDots = false;
         state.showFitResiduals = false;
+        state.showAsterismLines = true;
         state.lastLensEquation = "";
         controls.optmod.value = "2";
         controls.luckyFit.disabled = false;
@@ -7189,6 +7439,10 @@ end
             state.showKdePositionDots = !state.showKdePositionDots;
             playInteractionSound("mode");
             render();
+        } else if ((event.key === "t" || event.key === "T") && !event.repeat) {
+            event.preventDefault();
+            toggleAsterismLines();
+            playInteractionSound("mode");
         } else if ((event.key === "r" || event.key === "R") && !event.repeat) {
             event.preventDefault();
             toggleFitResiduals();

@@ -62,6 +62,7 @@ Open `index.html` directly in a browser. No local web server is needed.
   are hidden, but the az/el grid remains visible if enabled.
 - `N`: show or hide star names in the current view.
 - `K`: show only the picked KDE subpixel star positions.
+- `T`: show or hide the lucky asterism line overlay.
 - `R`: show or hide residual view.
 - `A`: show or hide the az/el grid.
 - `D` + click: delete the nearest matched star pair.
@@ -134,3 +135,30 @@ npm test
 The camera-model cross-check starts Python and imports `aida_tools_py`. Set
 `PYTHON=/path/to/python` if the default `/opt/miniconda3/bin/python` is not the
 right environment.
+
+## Command-Line Lucky Calibration Report
+
+Run the browser-style "I'm feeling lucky" calibration over the images in
+`calibration_images/` with:
+
+```bash
+npm run lucky:report
+```
+
+The script prints per-image progress, writes star-overlay panels with raw
+detections, debug asterism lines, and fitted stars to `lucky-report/index.html`,
+and includes timing totals for image decode, star detection, blind asterism
+matching, projected matching, and lens fitting.
+
+Useful variants:
+
+```bash
+npm run lucky:report -- --filter IMG_0537
+npm run lucky:report -- --limit 5
+npm run lucky:report -- --lat 69.65 --lon 18.95 --time 2025-01-29T18:45:02Z
+```
+
+Saved `test_cases/*/metadata.json` files are used when available. Otherwise
+the script infers allsky7 timestamps and station metadata from filenames, and
+falls back to the command-line site/time options or a Tromso default. HEIC and
+JPEG inputs are normalized to PNG report assets with macOS `sips`.

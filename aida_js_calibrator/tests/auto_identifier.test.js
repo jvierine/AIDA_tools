@@ -910,6 +910,47 @@ test("asterism matcher identifies bright Yale stars without current lens project
     const catalog = skyPlaneYaleStars(4.0);
     assert.ok(catalog.length > 40);
     const detections = syntheticAsterismDetections(catalog);
+    const debugSnapshots = [];
+    const result = AutoIdentifier.identifyStarsByAsterisms(catalog, detections, {
+        imageWidth: WIDTH,
+        imageHeight: HEIGHT,
+        maxMagnitude: 4.0,
+        maxDetections: 50,
+        maxCatalogStars: 80,
+        asterismMatchRadiusPx: 18,
+        triangleSignatureRadius: 0.012,
+        maxDetectionTriangleSidePx: WIDTH,
+        minMatches: 10,
+        onTriangleDebug: snapshot => debugSnapshots.push(snapshot),
+    });
+    const correct = result.matches.filter(match => match.detection.truthKey === match.star.key);
+    assert.equal(debugSnapshots.length, 1);
+    assert.ok(debugSnapshots[0].catalog.count > 0);
+    assert.ok(debugSnapshots[0].image.count > 0);
+    assert.equal(debugSnapshots[0].catalog.points.length, debugSnapshots[0].catalog.count);
+    assert.equal(debugSnapshots[0].image.points.length, debugSnapshots[0].image.count);
+    assert.ok(debugSnapshots[0].catalog.points.every(point => point.x <= point.y && point.y <= 1));
+    assert.ok(debugSnapshots[0].image.points.every(point => point.x <= point.y && point.y <= 1));
+    assert.ok(debugSnapshots[0].quality.occupiedOverlap > 0.6);
+    assert.ok(debugSnapshots[0].quality.bhattacharyya > 0.6);
+    assert.ok(result.scoredTransforms > 0);
+    assert.ok(result.matches.length >= 20, `expected >=20 asterism matches, got ${result.matches.length}`);
+    assert.ok(
+        correct.length / result.matches.length >= 0.95,
+        `expected >=95% correct asterism matches, got ${correct.length}/${result.matches.length}`,
+    );
+});
+
+test("asterism matcher rejects detection triangles with too-short pixel sides", () => {
+    assert.equal(AutoIdentifier.N_MIN_ANGLE_PIX, 50);
+    assert.equal(AutoIdentifier.N_MIN_TRIANGLE_HGT_PIX, 20);
+    assert.equal(AutoIdentifier.N_MAX_ANGLE_IMAGE_WIDTH_FRACTION, 0.25);
+    const catalog = skyPlaneYaleStars(4.0);
+    const detections = syntheticAsterismDetections(catalog).map(detection => ({
+        ...detection,
+        x: 800 + (detection.x % 16),
+        y: 500 + (detection.y % 16),
+    }));
     const result = AutoIdentifier.identifyStarsByAsterisms(catalog, detections, {
         imageWidth: WIDTH,
         imageHeight: HEIGHT,
@@ -920,13 +961,70 @@ test("asterism matcher identifies bright Yale stars without current lens project
         triangleSignatureRadius: 0.012,
         minMatches: 10,
     });
-    const correct = result.matches.filter(match => match.detection.truthKey === match.star.key);
-    assert.ok(result.scoredTransforms > 0);
-    assert.ok(result.matches.length >= 20, `expected >=20 asterism matches, got ${result.matches.length}`);
-    assert.ok(
-        correct.length / result.matches.length >= 0.95,
-        `expected >=95% correct asterism matches, got ${correct.length}/${result.matches.length}`,
-    );
+    assert.equal(result.detectionTriangleCount, 0);
+    assert.equal(result.matches.length, 0);
+});
+
+test("asterism matcher rejects detection triangles with too-small pixel height", () => {
+    const catalog = skyPlaneYaleStars(4.0);
+    const detections = syntheticAsterismDetections(catalog).map((detection, index) => ({
+        ...detection,
+        x: 180 + index * 72,
+        y: 500 + (index % 2) * 18,
+    }));
+    const result = AutoIdentifier.identifyStarsByAsterisms(catalog, detections, {
+        imageWidth: WIDTH,
+        imageHeight: HEIGHT,
+        maxMagnitude: 4.0,
+        maxDetections: 50,
+        maxCatalogStars: 80,
+        asterismMatchRadiusPx: 18,
+        triangleSignatureRadius: 0.012,
+        maxDetectionTriangleSidePx: WIDTH,
+        minMatches: 10,
+    });
+    assert.equal(result.detectionTriangleCount, 0);
+    assert.equal(result.matches.length, 0);
+});
+
+test("asterism matcher rejects detection triangles spanning more than one quarter image width", () => {
+    const catalog = skyPlaneYaleStars(4.0);
+    const detections = syntheticAsterismDetections(catalog).map((detection, index) => ({
+        ...detection,
+        x: index % 2 === 0 ? 120 + (index % 5) * 5 : WIDTH - 120 - (index % 5) * 5,
+        y: 520 + (index % 7) * 4,
+    }));
+    const result = AutoIdentifier.identifyStarsByAsterisms(catalog, detections, {
+        imageWidth: WIDTH,
+        imageHeight: HEIGHT,
+        maxMagnitude: 4.0,
+        maxDetections: 50,
+        maxCatalogStars: 80,
+        asterismMatchRadiusPx: 18,
+        triangleSignatureRadius: 0.012,
+        minMatches: 10,
+    });
+    assert.equal(result.detectionTriangleCount, 0);
+    assert.equal(result.matches.length, 0);
+});
+
+test("asterism matcher can lower the minimum detection triangle side for synthetic diagnostics", () => {
+    const catalog = skyPlaneYaleStars(4.0);
+    const detections = syntheticAsterismDetections(catalog);
+    const result = AutoIdentifier.identifyStarsByAsterisms(catalog, detections, {
+        imageWidth: WIDTH,
+        imageHeight: HEIGHT,
+        maxMagnitude: 4.0,
+        maxDetections: 50,
+        maxCatalogStars: 80,
+        asterismMatchRadiusPx: 18,
+        triangleSignatureRadius: 0.012,
+        minDetectionTriangleSidePx: 1,
+        maxDetectionTriangleSidePx: WIDTH,
+        minMatches: 10,
+    });
+    assert.ok(result.detectionTriangleCount > 0);
+    assert.ok(result.matches.length >= 20);
 });
 
 fullTest("bright-star detector finds known 010095 stars with calibrated optmod 2", async () => {

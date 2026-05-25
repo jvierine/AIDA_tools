@@ -26,6 +26,10 @@
         return Number.isFinite(Number(value)) ? Number(value) : fallback;
     }
 
+    const N_MIN_ANGLE_PIX = 50;
+    const N_MIN_TRIANGLE_HGT_PIX = 20;
+    const N_MAX_ANGLE_IMAGE_WIDTH_FRACTION = 0.25;
+
     class KdTree2 {
         constructor(points) {
             this.root = this.build(points.slice(), 0);
@@ -200,15 +204,89 @@
         return out.slice(0, maxDetections);
     }
 
-    function triangleRecord(points, i, j, k) {
+    function pointIdentity(point) {
+        if (point && point.id !== undefined && point.id !== null) {
+            return `id:${point.id}`;
+        }
+        if (point && point.key) {
+            return `key:${point.key}`;
+        }
+        if (point && Number.isFinite(point.sourceIndex)) {
+            return `source:${point.sourceIndex}`;
+        }
+        return null;
+    }
+
+    function triangleHasDistinctPoints(a, b, c) {
+        if (a === b || b === c || c === a) {
+            return false;
+        }
+        const ids = [pointIdentity(a), pointIdentity(b), pointIdentity(c)].filter(Boolean);
+        return new Set(ids).size === ids.length;
+    }
+
+    function pixelShortestSide(a, b, c) {
+        if (![a, b, c].every(point => Number.isFinite(point.x) && Number.isFinite(point.y))) {
+            return Infinity;
+        }
+        return Math.min(
+            Math.hypot(a.x - b.x, a.y - b.y),
+            Math.hypot(b.x - c.x, b.y - c.y),
+            Math.hypot(c.x - a.x, c.y - a.y)
+        );
+    }
+
+    function pixelLongestSide(a, b, c) {
+        if (![a, b, c].every(point => Number.isFinite(point.x) && Number.isFinite(point.y))) {
+            return 0;
+        }
+        return Math.max(
+            Math.hypot(a.x - b.x, a.y - b.y),
+            Math.hypot(b.x - c.x, b.y - c.y),
+            Math.hypot(c.x - a.x, c.y - a.y)
+        );
+    }
+
+    function pixelTriangleHeightToLongestSide(a, b, c) {
+        if (![a, b, c].every(point => Number.isFinite(point.x) && Number.isFinite(point.y))) {
+            return Infinity;
+        }
+        const dAB = Math.hypot(a.x - b.x, a.y - b.y);
+        const dBC = Math.hypot(b.x - c.x, b.y - c.y);
+        const dCA = Math.hypot(c.x - a.x, c.y - a.y);
+        const longest = Math.max(dAB, dBC, dCA);
+        if (!Number.isFinite(longest) || longest <= 1e-9) {
+            return 0;
+        }
+        const area2 = Math.abs(
+            (b.x - a.x) * (c.y - a.y) -
+            (b.y - a.y) * (c.x - a.x)
+        );
+        return area2 / longest;
+    }
+
+    function triangleRecord(points, i, j, k, options = {}) {
         const a = points[i];
         const b = points[j];
         const c = points[k];
+        if (!triangleHasDistinctPoints(a, b, c)) {
+            return null;
+        }
         const dAB = Math.hypot(a.x - b.x, a.y - b.y);
         const dBC = Math.hypot(b.x - c.x, b.y - c.y);
         const dCA = Math.hypot(c.x - a.x, c.y - a.y);
         const longest = Math.max(dAB, dBC, dCA);
         const shortest = Math.min(dAB, dBC, dCA);
+        if (Number.isFinite(options.minSidePx) && shortest < options.minSidePx) {
+            return null;
+        }
+        if (Number.isFinite(options.maxSidePx) && longest > options.maxSidePx) {
+            return null;
+        }
+        if (Number.isFinite(options.minHeightPx) &&
+                pixelTriangleHeightToLongestSide(a, b, c) < options.minHeightPx) {
+            return null;
+        }
         if (!Number.isFinite(longest) || longest <= 1e-9 || shortest / longest < 0.12) {
             return null;
         }
@@ -360,10 +438,25 @@
             optmod2DetectionVector(detection, options, f1, radialAlpha);
     }
 
-    function sphericalTriangleRecord(points, i, j, k) {
+    function sphericalTriangleRecord(points, i, j, k, options = {}) {
         const a = points[i];
         const b = points[j];
         const c = points[k];
+        if (!triangleHasDistinctPoints(a, b, c)) {
+            return null;
+        }
+        if (Number.isFinite(options.minSidePx) &&
+                pixelShortestSide(a, b, c) < options.minSidePx) {
+            return null;
+        }
+        if (Number.isFinite(options.maxSidePx) &&
+                pixelLongestSide(a, b, c) > options.maxSidePx) {
+            return null;
+        }
+        if (Number.isFinite(options.minHeightPx) &&
+                pixelTriangleHeightToLongestSide(a, b, c) < options.minHeightPx) {
+            return null;
+        }
         const dAB = angularDistance(a.vector, b.vector);
         const dBC = angularDistance(b.vector, c.vector);
         const dCA = angularDistance(c.vector, a.vector);
@@ -430,7 +523,11 @@
                 return;
             }
             seen.add(key);
-            const record = sphericalTriangleRecord(points, ids[0], ids[1], ids[2]);
+            const record = sphericalTriangleRecord(points, ids[0], ids[1], ids[2], {
+                minSidePx: neighborPoolSize.minSidePx,
+                maxSidePx: neighborPoolSize.maxSidePx,
+                minHeightPx: neighborPoolSize.minHeightPx,
+            });
             if (record) {
                 records.push(record);
             }
@@ -471,13 +568,20 @@
             return localSphericalTriangleRecords(p, maxTriangles, {
                 count: options.localNeighborPoolSize,
                 maxSideDeg: options.localTriangleMaxSideDeg,
+                minSidePx: options.minSidePx,
+                maxSidePx: options.maxSidePx,
+                minHeightPx: options.minHeightPx,
             });
         }
         const records = [];
         for (let i = 0; i < p.length - 2; i += 1) {
             for (let j = i + 1; j < p.length - 1; j += 1) {
                 for (let k = j + 1; k < p.length; k += 1) {
-                    const record = sphericalTriangleRecord(p, i, j, k);
+                    const record = sphericalTriangleRecord(p, i, j, k, {
+                        minSidePx: options.minSidePx,
+                        maxSidePx: options.maxSidePx,
+                        minHeightPx: options.minHeightPx,
+                    });
                     if (record) {
                         records.push(record);
                     }
@@ -1028,7 +1132,11 @@
         for (let i = 0; i < p.length - 2; i += 1) {
             for (let j = i + 1; j < p.length - 1; j += 1) {
                 for (let k = j + 1; k < p.length; k += 1) {
-                    const record = triangleRecord(p, i, j, k);
+                    const record = triangleRecord(p, i, j, k, {
+                        minSidePx: options.minSidePx,
+                        maxSidePx: options.maxSidePx,
+                        minHeightPx: options.minHeightPx,
+                    });
                     if (record) {
                         records.push(record);
                     }
@@ -1037,6 +1145,83 @@
         }
         records.sort((a, b) => a.rankScore - b.rankScore || b.area2 - a.area2);
         return records.slice(0, maxTriangles);
+    }
+
+    function triangleRatioSnapshot(triangles) {
+        const points = [];
+        for (let i = 0; i < triangles.length; i += 1) {
+            const triangle = triangles[i];
+            if (Number.isFinite(triangle.x) && Number.isFinite(triangle.y)) {
+                points.push({
+                    x: triangle.x,
+                    y: triangle.y,
+                });
+            }
+        }
+        return {
+            count: triangles.length,
+            points,
+        };
+    }
+
+    function triangleDistributionQuality(catalogSnapshot, imageSnapshot, bins = 48) {
+        const catalogPoints = catalogSnapshot && Array.isArray(catalogSnapshot.points) ?
+            catalogSnapshot.points : [];
+        const imagePoints = imageSnapshot && Array.isArray(imageSnapshot.points) ?
+            imageSnapshot.points : [];
+        if (catalogPoints.length === 0 || imagePoints.length === 0) {
+            return null;
+        }
+        const clampBin = value => Math.max(0, Math.min(bins - 1, Math.floor(value * bins)));
+        const indexFor = point => clampBin(point.y) * bins + clampBin(point.x);
+        const catalogBins = new Array(bins * bins).fill(0);
+        const imageBins = new Array(bins * bins).fill(0);
+        let catalogTotal = 0;
+        let imageTotal = 0;
+        for (const point of catalogPoints) {
+            if (Number.isFinite(point.x) && Number.isFinite(point.y)) {
+                catalogBins[indexFor(point)] += 1;
+                catalogTotal += 1;
+            }
+        }
+        for (const point of imagePoints) {
+            if (Number.isFinite(point.x) && Number.isFinite(point.y)) {
+                imageBins[indexFor(point)] += 1;
+                imageTotal += 1;
+            }
+        }
+        if (catalogTotal === 0 || imageTotal === 0) {
+            return null;
+        }
+        let occupiedOverlap = 0;
+        let coefficient = 0;
+        for (let i = 0; i < catalogBins.length; i += 1) {
+            if (catalogBins[i] > 0 && imageBins[i] > 0) {
+                occupiedOverlap += imageBins[i];
+            }
+            if (catalogBins[i] > 0 && imageBins[i] > 0) {
+                coefficient += Math.sqrt((catalogBins[i] / catalogTotal) * (imageBins[i] / imageTotal));
+            }
+        }
+        return {
+            occupiedOverlap: occupiedOverlap / imageTotal,
+            bhattacharyya: coefficient,
+            bins,
+        };
+    }
+
+    function reportTriangleDebug(options, payload) {
+        if (typeof options.onTriangleDebug === "function") {
+            const {catalogTriangles, detectionTriangles, ...summary} = payload;
+            const catalog = triangleRatioSnapshot(catalogTriangles || []);
+            const image = triangleRatioSnapshot(detectionTriangles || []);
+            options.onTriangleDebug({
+                ...summary,
+                catalog,
+                image,
+                quality: triangleDistributionQuality(catalog, image),
+            });
+        }
     }
 
     function affineFromTriangles(src, dst) {
@@ -1409,6 +1594,20 @@
         const detectionTriangles = triangleRecords(normalizedDetections, {
             maxTriangles: Number.isFinite(options.maxDetectionTriangles) ? options.maxDetectionTriangles : 1400,
             maxTrianglePoints: Number.isFinite(options.maxDetectionTriangleStars) ? options.maxDetectionTriangleStars : 50,
+            minSidePx: Number.isFinite(options.minDetectionTriangleSidePx) ?
+                options.minDetectionTriangleSidePx : N_MIN_ANGLE_PIX,
+            maxSidePx: Number.isFinite(options.maxDetectionTriangleSidePx) ?
+                options.maxDetectionTriangleSidePx :
+                finiteNumber(options.imageWidth, 0) * N_MAX_ANGLE_IMAGE_WIDTH_FRACTION,
+            minHeightPx: Number.isFinite(options.minDetectionTriangleHeightPx) ?
+                options.minDetectionTriangleHeightPx : N_MIN_TRIANGLE_HGT_PIX,
+        });
+        reportTriangleDebug(options, {
+            mode: "sky-plane",
+            stage: options.triangleDebugStage || `sky-plane <= mag ${maxMagnitude.toFixed(1)}`,
+            maxMagnitude,
+            catalogTriangles,
+            detectionTriangles,
         });
         if (catalogTriangles.length === 0 || detectionTriangles.length === 0) {
             return {
@@ -1418,6 +1617,8 @@
                 detections: normalizedDetections,
                 transform: null,
                 status: "auto-identify: no well-shaped bright-star triangles for asterism matching",
+                catalogTriangleCount: catalogTriangles.length,
+                detectionTriangleCount: detectionTriangles.length,
             };
         }
 
@@ -1601,6 +1802,14 @@
             y: triangle.y,
             payload: {...triangle, index},
         })));
+        reportTriangleDebug(options, {
+            mode: "blind",
+            stage: options.triangleDebugStage || `blind catalog <= mag ${maxMagnitude.toFixed(1)}`,
+            maxMagnitude,
+            preflattenModel: "catalog",
+            catalogTriangles,
+            detectionTriangles: [],
+        });
 
         let best = null;
         let scored = 0;
@@ -1639,6 +1848,28 @@
                                 const detectionTriangles = sphericalTriangleRecords(vectorDetections, {
                                     maxTriangles: Number.isFinite(options.maxDetectionTriangles) ? options.maxDetectionTriangles : 1400,
                                     maxTrianglePoints: Number.isFinite(options.maxDetectionTriangleStars) ? options.maxDetectionTriangleStars : 40,
+                                    minSidePx: Number.isFinite(options.minDetectionTriangleSidePx) ?
+                                        options.minDetectionTriangleSidePx : N_MIN_ANGLE_PIX,
+                                    maxSidePx: Number.isFinite(options.maxDetectionTriangleSidePx) ?
+                                        options.maxDetectionTriangleSidePx :
+                                        finiteNumber(options.imageWidth, 0) * N_MAX_ANGLE_IMAGE_WIDTH_FRACTION,
+                                    minHeightPx: Number.isFinite(options.minDetectionTriangleHeightPx) ?
+                                        options.minDetectionTriangleHeightPx : N_MIN_TRIANGLE_HGT_PIX,
+                                });
+                                reportTriangleDebug(options, {
+                                    mode: "blind",
+                                    stage: options.triangleDebugStage ||
+                                        `blind <= mag ${maxMagnitude.toFixed(1)}`,
+                                    maxMagnitude,
+                                    preflattenModel,
+                                    f1,
+                                    radialAlpha,
+                                    signX,
+                                    signY,
+                                    du,
+                                    dv,
+                                    catalogTriangles,
+                                    detectionTriangles,
                                 });
                                 for (const detectionTriangle of detectionTriangles) {
                                     const neighbors = catalogTriangleTree.range(detectionTriangle.x, detectionTriangle.y, signatureRadius)
@@ -1811,5 +2042,8 @@
         KdTree2,
         greedyMatch,
         robustFilterMatches,
+        N_MIN_ANGLE_PIX,
+        N_MIN_TRIANGLE_HGT_PIX,
+        N_MAX_ANGLE_IMAGE_WIDTH_FRACTION,
     };
 });
