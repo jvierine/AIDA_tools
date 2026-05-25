@@ -7,6 +7,11 @@ const zlib = require("node:zlib");
 
 const AutoIdentifier = require("../js/auto_identifier.js");
 const StarDetector = require("../js/star_detector.js");
+const RUN_FULL_TESTS = process.env.AIDA_FULL_TESTS === "1";
+
+function fullTest(name, fn) {
+    test(name, {skip: !RUN_FULL_TESTS, timeout: 1000}, fn);
+}
 
 function loadBrowserScript(filename) {
     const source = fs.readFileSync(path.join(__dirname, "..", "js", filename), "utf8");
@@ -924,7 +929,7 @@ test("asterism matcher identifies bright Yale stars without current lens project
     );
 });
 
-test("bright-star detector finds known 010095 stars with calibrated optmod 2", async () => {
+fullTest("bright-star detector finds known 010095 stars with calibrated optmod 2", async () => {
     const imageData = readPngImageData(REAL_CASE_IMAGE);
     assert.equal(imageData.width, REAL_CASE.width);
     assert.equal(imageData.height, REAL_CASE.height);
@@ -955,7 +960,7 @@ test("bright-star detector finds known 010095 stars with calibrated optmod 2", a
     );
 });
 
-test("automatic star finder detects real bright stars without catalogue matching", async () => {
+fullTest("automatic star finder detects real bright stars without catalogue matching", async () => {
     const cases = [
         {
             name: "010095",
@@ -1000,7 +1005,7 @@ test("automatic star finder detects real bright stars without catalogue matching
     }
 });
 
-test("known lens model maps Yale catalogue stars to image detections for auto-ID validation", async () => {
+fullTest("known lens model maps Yale catalogue stars to image detections for auto-ID validation", async () => {
     const cases = [
         {
             name: "010095",
@@ -1142,7 +1147,7 @@ test("known lens model maps Yale catalogue stars to image detections for auto-ID
     }
 });
 
-test("optmod 2 lens fitting works from automatically found real stars", async () => {
+fullTest("optmod 2 lens fitting works from automatically found real stars", async () => {
     const cases = [
         {
             name: "010095",
@@ -1208,7 +1213,7 @@ test("optmod 2 lens fitting works from automatically found real stars", async ()
     }
 });
 
-test("IMG_9371 Brown-Conrady fit converges from automatic star detections", async () => {
+fullTest("IMG_9371 Brown-Conrady fit converges from automatic star detections", async () => {
     const imageData = readPngImageData(REAL_CASE_IMG_9371_IMAGE);
     assert.equal(imageData.width, REAL_CASE_IMG_9371.width);
     assert.equal(imageData.height, REAL_CASE_IMG_9371.height);
@@ -1251,7 +1256,7 @@ test("IMG_9371 Brown-Conrady fit converges from automatic star detections", asyn
     );
 });
 
-test("bright-star detector finds known 012165 stars with calibrated optmod 2", async () => {
+fullTest("bright-star detector finds known 012165 stars with calibrated optmod 2", async () => {
     const imageData = readPngImageData(REAL_CASE_012165_IMAGE);
     assert.equal(imageData.width, REAL_CASE_012165.width);
     assert.equal(imageData.height, REAL_CASE_012165.height);
@@ -1282,7 +1287,7 @@ test("bright-star detector finds known 012165 stars with calibrated optmod 2", a
     );
 });
 
-test("bright-star detector recovers saved 012165 manual pairings", async () => {
+fullTest("bright-star detector recovers saved 012165 manual pairings", async () => {
     const metadataPath = path.join(
         __dirname,
         "..",
@@ -1324,7 +1329,7 @@ test("bright-star detector recovers saved 012165 manual pairings", async () => {
     );
 });
 
-test("real 010095 detections stay useful as the lens start moves away", async () => {
+fullTest("real 010095 detections stay useful as the lens start moves away", async () => {
     const imageData = readPngImageData(REAL_CASE_IMAGE);
     const detectionResult = await StarDetector.detectBrightStars(imageData, {maxDetections: 50});
     const perturbations = [
@@ -1357,7 +1362,7 @@ test("real 010095 detections stay useful as the lens start moves away", async ()
     }
 });
 
-test("blind spherical matcher identifies 010095 stars from image-load initial lens values", async () => {
+fullTest("blind spherical matcher identifies 010095 stars from image-load initial lens values", async () => {
     const imageData = readPngImageData(REAL_CASE_IMAGE);
     const detectionResult = await StarDetector.detectBrightStars(imageData, {maxDetections: 50});
     const knownStars = projectedRealCaseStars(REAL_CASE.optpar, 4.0);
@@ -1400,7 +1405,7 @@ test("blind spherical matcher identifies 010095 stars from image-load initial le
     );
 });
 
-test("blind spherical matcher bootstraps 010881 AMS0882 without known optpar seed", async () => {
+fullTest("blind spherical matcher bootstraps 010881 AMS0882 without known optpar seed", async () => {
     const imageData = readPngImageData(REAL_CASE_010881_AMS0882_IMAGE);
     const detectionResult = await StarDetector.detectBrightStars(imageData, {
         maxDetections: 50,

@@ -97,6 +97,13 @@ h1 {
     font-weight: 700;
 }
 
+.copyright-line {
+    margin-top: 2px;
+    color: #4b5563;
+    font-size: 12px;
+    font-weight: 650;
+}
+
 h2 {
     margin: 0 0 10px;
     font-size: 15px;
@@ -478,6 +485,26 @@ h2 {
     height: 14px;
     border-color: rgba(255, 221, 70, 0.98);
     box-shadow: 0 0 5px rgba(255, 221, 70, 0.72);
+}
+
+.radius-region-marker {
+    position: absolute;
+    transform: translate(-50%, -50%);
+    border: 2px solid rgba(0, 255, 180, 0.9);
+    border-radius: 50%;
+    box-shadow: 0 0 8px rgba(0, 255, 180, 0.45);
+}
+
+.junk-star-finder-preview {
+    border-style: dashed;
+    border-color: rgba(0, 255, 180, 0.98);
+}
+
+.bad-detected-marker {
+    width: 18px;
+    height: 18px;
+    border-color: rgba(0, 255, 180, 0.98);
+    box-shadow: 0 0 6px rgba(0, 255, 180, 0.82);
 }
 
 .auto-match-marker {

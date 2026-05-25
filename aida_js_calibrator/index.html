@@ -4,13 +4,16 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>AIDA Browser Star Calibration Prototype</title>
-<link rel="stylesheet" href="style.css?v=20260524b">
+<link rel="stylesheet" href="style.css?v=20260525a">
 </head>
 <body>
 <header class="topbar">
     <div>
         <h1>AIDA Browser Star Calibration</h1>
         <div class="version-line">Version <span id="appVersion">loading...</span></div>
+        <div class="copyright-line">
+            Copyright &copy; Juha Vierinen, Bj&ouml;rn Gustavsson, and Codex.
+        </div>
         <div class="subtle">
             Shortcuts:
             <kbd>S</kbd> star picking,
@@ -18,15 +21,16 @@
             <kbd>F</kbd> Nelder-Mead fit,
             <kbd>G</kbd> Levenberg-Marquardt fit,
             <kbd>D</kbd> delete pairing,
-            <kbd>M</kbd> mask,
+            <kbd>M</kbd> mark bad detections,
             <kbd>Z</kbd> zoom,
             <kbd>C</kbd> pairing/Stellarium view,
             <kbd>X</kbd> pure image/Stellarium,
             <kbd>N</kbd> star names,
+            <kbd>H</kbd> detected stars,
             <kbd>K</kbd> KDE dots,
             <kbd>A</kbd> az/el grid,
             <kbd>R</kbd> residuals,
-            <kbd>Cmd/Ctrl Z</kbd> undo fit,
+            <kbd>Cmd/Ctrl Z</kbd> undo,
             <kbd>Left drag</kbd> move view,
             <kbd>Right drag</kbd> rotate view,
             <kbd>Wheel</kbd> scale view,
@@ -121,6 +125,10 @@
             <button id="toggleAzElGrid" type="button">Hide az/el grid</button>
             <button id="toggleDetectionCircles" type="button">Stellarium view (C)</button>
             <button id="toggleStarNames" type="button">Hide star names (N)</button>
+            <label class="checkbox-label">
+                <input id="keepAutoPairingMore" type="checkbox">
+                Keep automatically pairing more stars
+            </label>
             <button id="autoIdentifyStars" type="button">Auto identify stars</button>
         </section>
 
@@ -185,7 +193,7 @@
             <div id="lensEquation" class="lens-equation"></div>
             <button id="fitLens" type="button">Fit lens with Nelder-Mead (F)</button>
             <button id="fitLensLm" type="button">Fit lens with Levenberg-Marquardt (G)</button>
-            <button id="undoFit" type="button" disabled>Undo fit</button>
+            <button id="undoFit" type="button" disabled>Undo</button>
             <label>Export language
                 <select id="exportLanguage">
                     <option value="python" selected>Python</option>
@@ -235,7 +243,7 @@ window.MathJax = {
 <script src="js/centroid.js?v=20260523a"></script>
 <script src="js/export_generators.js?v=20260524b"></script>
 <script src="js/star_detector.js?v=20260525b"></script>
-<script src="js/auto_identifier.js?v=20260525a"></script>
-<script src="js/app.js?v=20260525f"></script>
+<script src="js/auto_identifier.js?v=20260525c"></script>
+<script src="js/app.js?v=20260525p"></script>
 </body>
 </html>

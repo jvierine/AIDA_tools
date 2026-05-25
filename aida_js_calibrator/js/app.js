@@ -1,7 +1,7 @@
 (function () {
     "use strict";
 
-    const APP_VERSION = "20260525f-aspect-locked-blind-match";
+    const APP_VERSION = "20260525p-auto-pair-undo";
     const canvas = document.getElementById("glCanvas");
     const rotationCanvas = document.getElementById("rotationCanvas");
     const rotationContext = rotationCanvas.getContext("2d");
@@ -53,6 +53,7 @@
         toggleAzElGrid: document.getElementById("toggleAzElGrid"),
         toggleDetectionCircles: document.getElementById("toggleDetectionCircles"),
         toggleStarNames: document.getElementById("toggleStarNames"),
+        keepAutoPairingMore: document.getElementById("keepAutoPairingMore"),
         autoIdentifyStars: document.getElementById("autoIdentifyStars"),
         toggleAmbientMusic: document.getElementById("toggleAmbientMusic"),
         resetOffset: document.getElementById("resetOffset"),
@@ -124,7 +125,13 @@
         maskMode: false,
         zoomMode: false,
         maskRegions: [],
+        junkStarFinderRegions: [],
+        badStarFinderDetections: [],
+        junkStarFinderPreview: null,
+        junkStarFinderPaintActive: false,
+        lastJunkStarFinderPoint: null,
         detectedStars: [],
+        showAutoDetectionMarkers: true,
         deletedDetectionIds: new Set(),
         autoMatches: [],
         detectorCache: null,
@@ -329,6 +336,25 @@
         return false;
     }
 
+    function isJunkStarFinderPixel(x, y, pad = 0) {
+        for (const region of state.junkStarFinderRegions) {
+            const r = region.radius + pad;
+            const dx = x - region.x;
+            const dy = y - region.y;
+            if (dx * dx + dy * dy <= r * r) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    function activeDetectedStars() {
+        return state.detectedStars.filter(detection =>
+            !state.deletedDetectionIds.has(detection.id) &&
+            !isJunkStarFinderPixel(detection.x, detection.y)
+        );
+    }
+
     function eventToCanvasPixel(event) {
         const rect = canvas.getBoundingClientRect();
         const dpr = window.devicePixelRatio || 1;
@@ -392,6 +418,29 @@
         el.className = `match-marker ${className}`.trim();
         el.style.left = `${left}px`;
         el.style.top = `${top}px`;
+        cardinalLayer.appendChild(el);
+        return true;
+    }
+
+    function addOverlayRadiusCircle(rawX, rawY, radius, className = "") {
+        if (!state.image) {
+            return false;
+        }
+        const point = imageMarkerCanvasPixel(rawX, rawY);
+        const [left, top] = canvasPixelToCssPixel(point);
+        const vp = imageViewport();
+        const dpr = window.devicePixelRatio || 1;
+        const radiusCss = radius * vp.scale / dpr;
+        if (left + radiusCss < 0 || left - radiusCss > canvas.clientWidth ||
+                top + radiusCss < 0 || top - radiusCss > canvas.clientHeight) {
+            return false;
+        }
+        const el = document.createElement("div");
+        el.className = `radius-region-marker ${className}`.trim();
+        el.style.left = `${left}px`;
+        el.style.top = `${top}px`;
+        el.style.width = `${2 * radiusCss}px`;
+        el.style.height = `${2 * radiusCss}px`;
         cardinalLayer.appendChild(el);
         return true;
     }
@@ -578,19 +627,44 @@
     function updateUndoFitButton() {
         controls.undoFit.disabled = state.fitUndoStack.length === 0;
         controls.undoFit.textContent = state.fitUndoStack.length > 0
-            ? `Undo fit ${state.fitUndoStack.length}`
-            : "Undo fit";
+            ? `Undo ${state.fitUndoStack.length}`
+            : "Undo";
     }
 
-    function rememberFitState(label) {
+    function rememberUndoState(snapshot) {
         state.fitUndoStack.push({
-            optpar: currentOptpar(),
-            label,
+            ...snapshot,
+            label: snapshot.label || "change",
         });
         if (state.fitUndoStack.length > 20) {
             state.fitUndoStack.shift();
         }
         updateUndoFitButton();
+    }
+
+    function rememberFitState(label) {
+        rememberUndoState({
+            optpar: currentOptpar(),
+            label,
+        });
+    }
+
+    function cloneMatches(matches = state.matches) {
+        return matches.map(match => ({
+            id: match.id,
+            image: {...match.image},
+            detectionId: match.detectionId,
+            detectionGeneration: match.detectionGeneration,
+            catalog: {...match.catalog},
+        }));
+    }
+
+    function autoPairingUndoSnapshot(label) {
+        return {
+            optpar: currentOptpar(),
+            matches: cloneMatches(),
+            label,
+        };
     }
 
     function clearFitUndoStack() {
@@ -606,12 +680,21 @@
             render();
             return;
         }
-        applyFitVector(previous.optpar);
-        state.lastFitVector = previous.optpar.slice();
-        state.lastAcceptedFitVector = previous.optpar.slice();
+        if (previous.optpar) {
+            applyFitVector(previous.optpar);
+            state.lastFitVector = previous.optpar.slice();
+            state.lastAcceptedFitVector = previous.optpar.slice();
+        }
+        if (previous.matches) {
+            state.matches = cloneMatches(previous.matches);
+            state.matches.forEach((match, index) => {
+                match.id = index + 1;
+            });
+            updateAutoMatches();
+        }
         state.pendingMatch = null;
         state.showPickedMatchMarkers = false;
-        state.fitMessage = `undo fit: restored parameters before ${previous.label}`;
+        state.fitMessage = `undo: restored state before ${previous.label}`;
         updateUndoFitButton();
         recomputeAndRender();
     }
@@ -906,6 +989,24 @@
                 brightness: Number(controls.brightness.value) || 0,
                 contrast: Number(controls.contrast.value) || 1,
             },
+            badStarFinderDetections: state.badStarFinderDetections.map((detection, index) => ({
+                id: index + 1,
+                x: detection.x,
+                y: detection.y,
+                sourceDetectionId: detection.sourceDetectionId || null,
+                markedBy: detection.markedBy ? {
+                    x: detection.markedBy.x,
+                    y: detection.markedBy.y,
+                    radius: detection.markedBy.radius,
+                } : null,
+            })),
+            badStarFinderRegions: state.junkStarFinderRegions.map((region, index) => ({
+                id: index + 1,
+                x: region.x,
+                y: region.y,
+                radius: region.radius,
+                detectionCount: Number(region.detectionCount) || 0,
+            })),
             residual: residualSummary(rows),
             matches: state.matches.map(match => ({
                 id: match.id,
@@ -972,8 +1073,8 @@
             render();
             return;
         }
-        if (state.matches.length === 0) {
-            state.fitMessage = "submit test case: no picked or automatically identified star pairings";
+        if (state.matches.length === 0 && state.badStarFinderDetections.length === 0) {
+            state.fitMessage = "submit test case: no picked stars or marked bad star finder detections";
             render();
             return;
         }
@@ -996,7 +1097,8 @@
             state.loadedTestCaseId = result.caseId;
             setSaveFeedback(`${result.updated ? "Updated" : "Saved"} ${result.caseId}: ${result.metadata}`, false);
             state.fitMessage = `submit test case: ${result.updated ? "updated" : "saved"} ${result.caseId} ` +
-                `with ${testCase.matches.length} star pairings; ` +
+                `with ${testCase.matches.length} star pairings and ` +
+                `${testCase.badStarFinderDetections.length} bad star finder detections; ` +
                 `metadata ${result.metadata}; image ${result.image}`;
             await refreshTestCaseList(result.caseId);
         } catch (error) {
@@ -1094,6 +1196,28 @@
                 ze: Number(match.catalog && match.catalog.ze) || 0,
             },
         })) : [];
+        state.junkStarFinderRegions = Array.isArray(testCase.badStarFinderRegions) ?
+            testCase.badStarFinderRegions.map(region => ({
+                x: Number(region.x) || 0,
+                y: Number(region.y) || 0,
+                radius: Number(region.radius) || 100,
+                detectionCount: Number(region.detectionCount) || 0,
+            })) : [];
+        state.badStarFinderDetections = Array.isArray(testCase.badStarFinderDetections) ?
+            testCase.badStarFinderDetections.map((detection, index) => ({
+                id: Number.isFinite(Number(detection.id)) ? Number(detection.id) : index + 1,
+                x: Number(detection.x) || 0,
+                y: Number(detection.y) || 0,
+                sourceDetectionId: detection.sourceDetectionId || null,
+                markedBy: detection.markedBy ? {
+                    x: Number(detection.markedBy.x) || 0,
+                    y: Number(detection.markedBy.y) || 0,
+                    radius: Number(detection.markedBy.radius) || 100,
+                } : null,
+            })) : [];
+        state.junkStarFinderPreview = null;
+        state.junkStarFinderPaintActive = false;
+        state.lastJunkStarFinderPoint = null;
         state.showPickedMatchMarkers = true;
         state.showFitResiduals = true;
         updateDetectionCircleButton();
@@ -1660,7 +1784,7 @@ end
             .filter(star => !isMatchedCatalogStar(star))
             .slice()
             .sort((a, b) => a.mag - b.mag);
-        const detections = state.detectedStars.filter(det => !state.deletedDetectionIds.has(det.id));
+        const detections = activeDetectedStars();
 
         for (const star of projected) {
             const [rawX, rawY] = rawImagePixelFromModelImagePixel(star.x, star.y);
@@ -1711,8 +1835,33 @@ end
             .map(star => ({...star, key: catalogKey(star)}));
     }
 
-    function skyPlaneStarsForAsterismIdentification(maxMag) {
-        return visibleStarsForMatching(maxMag)
+    function angularSeparationRad(a, b) {
+        const sinZa = Math.sin(a.ze);
+        const sinZb = Math.sin(b.ze);
+        const dot = sinZa * sinZb * Math.cos(a.az - b.az) + Math.cos(a.ze) * Math.cos(b.ze);
+        return Math.acos(Math.max(-1, Math.min(1, dot)));
+    }
+
+    function pruneCatalogByAngularSeparation(stars, minSeparationDeg) {
+        if (!Number.isFinite(minSeparationDeg) || minSeparationDeg <= 0) {
+            return stars;
+        }
+        const minSeparationRad = minSeparationDeg * AidaTools.DEG;
+        const kept = [];
+        for (const star of stars.slice().sort((a, b) => a.mag - b.mag || catalogKey(a).localeCompare(catalogKey(b)))) {
+            if (kept.some(existing => angularSeparationRad(star, existing) < minSeparationRad)) {
+                continue;
+            }
+            kept.push(star);
+        }
+        return kept;
+    }
+
+    function skyPlaneStarsForAsterismIdentification(maxMag, options = {}) {
+        return pruneCatalogByAngularSeparation(
+            visibleStarsForMatching(maxMag),
+            options.minSeparationDeg
+        )
             .map(star => {
                 const r = star.ze / (Math.PI / 2);
                 return {
@@ -1775,7 +1924,8 @@ end
             }
             if (existingCatalogKeys.has(match.star.key) ||
                     existingDetectionIds.has(match.detection.id) ||
-                    imagePointAlreadyMatched(match.detection.x, match.detection.y)) {
+                    imagePointAlreadyMatched(match.detection.x, match.detection.y) ||
+                    isJunkStarFinderPixel(match.detection.x, match.detection.y)) {
                 continue;
             }
             state.matches.push({
@@ -1843,7 +1993,7 @@ end
                         options.blindOptions.ambiguityMaxMagnitude :
                         maxMag
                 )),
-                state.detectedStars,
+                activeDetectedStars(),
                 {
                     ...commonOptions,
                     maxDetections: 80,
@@ -1862,7 +2012,7 @@ end
             await yieldToBrowser();
             result = window.AidaAutoIdentifier.identifyStarsByAsterisms(
                 skyPlaneStarsForAsterismIdentification(maxMag),
-                state.detectedStars,
+                activeDetectedStars(),
                 {
                     ...commonOptions,
                     maxDetections: 50,
@@ -1872,6 +2022,37 @@ end
                     ...(options.asterismOptions || {}),
                 }
             );
+            const weakAsterismStages = Array.isArray(options.weakAsterismOptions) ?
+                options.weakAsterismOptions :
+                options.weakAsterismOptions ? [options.weakAsterismOptions] : [];
+            for (const weakAsterismOptions of weakAsterismStages) {
+                const weakMaxMag = Number(weakAsterismOptions && weakAsterismOptions.maxMagnitude);
+                if (result.matches.length >= minAsterismMatches ||
+                        !Number.isFinite(weakMaxMag) || weakMaxMag <= maxMag) {
+                    continue;
+                }
+                setLoadingProgress(
+                    Number.isFinite(weakAsterismOptions.progress) ? weakAsterismOptions.progress : 84,
+                    `${label}: trying asterisms down to mag ${weakMaxMag.toFixed(1)}...`
+                );
+                await yieldToBrowser();
+                result = window.AidaAutoIdentifier.identifyStarsByAsterisms(
+                    skyPlaneStarsForAsterismIdentification(weakMaxMag, {
+                        minSeparationDeg: weakAsterismOptions.catalogMinSeparationDeg,
+                    }),
+                    activeDetectedStars(),
+                    {
+                        ...commonOptions,
+                        maxMagnitude: weakMaxMag,
+                        maxDetections: 80,
+                        maxCatalogStars: 220,
+                        asterismMatchRadiusPx: Math.max(36, Math.min(84, 0.015 * diag)),
+                        minMatches: minAsterismMatches,
+                        ...(options.asterismOptions || {}),
+                        ...weakAsterismOptions,
+                    }
+                );
+            }
         }
 
         if (options.includeProjected !== false &&
@@ -1884,7 +2065,7 @@ end
             const matchRadius = Math.max(22, Math.min(48, 0.018 * diag));
             result = window.AidaAutoIdentifier.identifyStars(
                 projectedStarsForAutoIdentification(),
-                state.detectedStars,
+                activeDetectedStars(),
                 {
                     ...commonOptions,
                     maxDetections: 50,
@@ -1903,12 +2084,18 @@ end
     async function runAutoIdentifyPass(options = {}) {
         const label = options.label || "Auto-identify";
         const maxDetections = Number.isFinite(options.maxDetections) ? options.maxDetections : 50;
+        const displayDetections = Math.max(
+            maxDetections,
+            Number.isFinite(options.displayDetections) ? options.displayDetections : Math.min(520, Math.max(160, maxDetections * 2))
+        );
         setLoadingProgress(
             Number.isFinite(options.progressDetect) ? options.progressDetect : 8,
-            `${label}: detecting the ${maxDetections} brightest image stars...`
+            `${label}: detecting star-like image peaks...`
         );
         await yieldToBrowser();
-        await detectBrightImageStarsForAutoIdentify(maxDetections, options.detectorOptions || {});
+        await detectBrightImageStarsForAutoIdentify(displayDetections, options.detectorOptions || {});
+        render();
+        await yieldToBrowser();
         const result = await identifyStarsFromCurrentDetections(options);
         setLoadingProgress(
             Number.isFinite(options.progressAdd) ? options.progressAdd : 94,
@@ -1926,7 +2113,7 @@ end
         state.lastFitVector = null;
         state.autoIdentificationStatus = `${result.status}; added ${added}`;
         updateAutoMatches();
-        return {result, added, detections: state.detectedStars.length};
+        return {result, added, detections: activeDetectedStars().length};
     }
 
     function autoIdentifyCurrentMaxMagnitude() {
@@ -1938,30 +2125,94 @@ end
         return Math.min(stageMaxMagnitude, currentMaxMagnitude);
     }
 
+    function weakAsterismFallbackOptions(options = {}) {
+        const maxMagnitude = Number.isFinite(options.maxMagnitude) ? options.maxMagnitude : 6.5;
+        return {
+            summaryLabel: options.summaryLabel || "weak-star bootstrap fallback",
+            maxMagnitude,
+            maxDetections: options.maxDetections || 120,
+            maxCatalogStars: options.maxCatalogStars || 260,
+            maxCatalogTriangleStars: options.maxCatalogTriangleStars || 180,
+            maxCatalogTriangles: options.maxCatalogTriangles || 25000,
+            maxDetectionTriangleStars: options.maxDetectionTriangleStars || 90,
+            maxDetectionTriangles: options.maxDetectionTriangles || 4500,
+            maxCandidateTransforms: options.maxCandidateTransforms || 8000,
+            maxNeighborTriangles: options.maxNeighborTriangles || 8,
+            exhaustiveCatalogTriangles: options.exhaustiveCatalogTriangles === true,
+            catalogMinSeparationDeg: options.catalogMinSeparationDeg,
+            asterismMatchRadiusPx: options.asterismMatchRadiusPx,
+            triangleSignatureRadius: options.triangleSignatureRadius || 0.02,
+            minMatches: options.minMatches || 4,
+        };
+    }
+
+    function deepAsterismFallbackStages(options = {}) {
+        const prefix = options.summaryLabel || "weak-star";
+        return [
+            weakAsterismFallbackOptions({
+                summaryLabel: `${prefix} asterism fallback`,
+                maxMagnitude: 6.5,
+                maxDetections: 140,
+                maxCatalogStars: 320,
+                maxCatalogTriangleStars: 220,
+                maxCatalogTriangles: 36000,
+                maxDetectionTriangleStars: 110,
+                maxDetectionTriangles: 6500,
+                maxCandidateTransforms: 10000,
+                maxNeighborTriangles: 10,
+                triangleSignatureRadius: 0.022,
+            }),
+            weakAsterismFallbackOptions({
+                summaryLabel: `${prefix} deep asterism fallback`,
+                maxMagnitude: 7.0,
+                maxDetections: 220,
+                maxCatalogStars: 10000,
+                maxCatalogTriangleStars: 10000,
+                maxCatalogTriangles: Number.MAX_SAFE_INTEGER,
+                maxDetectionTriangleStars: 180,
+                maxDetectionTriangles: 26000,
+                maxCandidateTransforms: 32000,
+                maxNeighborTriangles: 16,
+                triangleSignatureRadius: 0.024,
+                asterismMatchRadiusPx: options.deepRadiusPx,
+                exhaustiveCatalogTriangles: true,
+                catalogMinSeparationDeg: 3,
+            }),
+        ];
+    }
+
     function autoIdentifyButtonStages() {
         const currentMaxMagnitude = autoIdentifyCurrentMaxMagnitude();
         return [
             {
                 label: "Auto-identify 1/5 bright bootstrap",
                 summaryLabel: "bright bootstrap",
-                maxDetections: 50,
+                maxDetections: 80,
                 maxMagnitude: autoIdentifyStageMagnitude(4.0, currentMaxMagnitude),
                 minBlindMatches: 6,
                 minAsterismMatches: 4,
                 minProjectedMatches: 4,
                 seedFromBlind: true,
                 detectorOptions: {
-                    thresholdSigma: 2.2,
-                    localThresholdSigma: 2.2,
+                    thresholdSigma: 1.8,
+                    localThresholdSigma: 1.8,
                     requireGlobalThreshold: false,
                     maxRadiusPx: 5,
                     maxElongation: 4.0,
+                    suppressionRadiusPx: 10,
+                    crowdingRadiusPx: 36,
+                    maxCrowding: 7,
+                    crowdingScorePower: 1.25,
                 },
                 blindOptions: {
-                    maxDetections: 50,
+                    maxDetections: 80,
+                    maxBlindVerifyDetections: 80,
                     maxCatalogStars: 220,
                     maxCatalogTriangleStars: 220,
                     maxCatalogTriangles: 30000,
+                    preflattenModelCandidates: ["pinhole", "fisheye"],
+                    preflattenF1Candidates: [0.70, 0.85, 1.00],
+                    preflattenRadialAlphaCandidates: [0.30, 0.60, 0.90],
                     maxCatalogLocalNeighbors: 20,
                     maxBlindNeighborTriangles: 8,
                     blindEarlyAcceptMatches: 12,
@@ -1976,11 +2227,14 @@ end
                 maxAddDistancePx: 0.8,
                 maxMedianDistance: 0.42,
                 methodLabel: "auto star finder bright bootstrap",
+                weakAsterismOptions: deepAsterismFallbackStages({
+                    summaryLabel: "bright bootstrap",
+                }),
             },
             {
                 label: "Auto-identify 2/5 extended bootstrap",
                 summaryLabel: "extended bootstrap",
-                maxDetections: 100,
+                maxDetections: 160,
                 maxMagnitude: autoIdentifyStageMagnitude(4.0, currentMaxMagnitude),
                 minBlindMatches: 6,
                 minAsterismMatches: 4,
@@ -1988,21 +2242,27 @@ end
                 seedFromBlind: true,
                 runOnlyWithoutSeed: true,
                 detectorOptions: {
-                    thresholdSigma: 2.2,
-                    localThresholdSigma: 2.2,
+                    thresholdSigma: 1.8,
+                    localThresholdSigma: 1.8,
                     requireGlobalThreshold: false,
                     maxRadiusPx: 5,
                     maxElongation: 4.0,
+                    suppressionRadiusPx: 10,
+                    crowdingRadiusPx: 36,
+                    maxCrowding: 7,
+                    crowdingScorePower: 1.25,
                 },
                 blindOptions: {
-                    maxDetections: 100,
-                    maxBlindVerifyDetections: 100,
+                    maxDetections: 160,
+                    maxBlindVerifyDetections: 140,
                     maxCatalogStars: 220,
                     maxCatalogTriangleStars: 220,
                     maxCatalogTriangles: 30000,
-                    maxDetectionTriangleStars: 80,
-                    maxDetectionTriangles: 2800,
+                    maxDetectionTriangleStars: 120,
+                    maxDetectionTriangles: 6000,
                     preflattenModelCandidates: ["pinhole", "fisheye"],
+                    preflattenF1Candidates: [0.70, 0.85, 1.00],
+                    preflattenRadialAlphaCandidates: [0.30, 0.60, 0.90],
                     maxCatalogLocalNeighbors: 20,
                     maxBlindNeighborTriangles: 8,
                     blindEarlyAcceptMatches: 12,
@@ -2017,11 +2277,14 @@ end
                 maxAddDistancePx: 0.8,
                 maxMedianDistance: 0.42,
                 methodLabel: "auto star finder extended bootstrap",
+                weakAsterismOptions: deepAsterismFallbackStages({
+                    summaryLabel: "extended bootstrap",
+                }),
             },
             {
                 label: "Auto-identify 3/5 phone deep bootstrap",
                 summaryLabel: "phone deep bootstrap",
-                maxDetections: 140,
+                maxDetections: 320,
                 maxMagnitude: autoIdentifyStageMagnitude(6.0, currentMaxMagnitude),
                 minBlindMatches: 6,
                 minAsterismMatches: 4,
@@ -2029,24 +2292,28 @@ end
                 seedFromBlind: true,
                 runOnlyWithoutSeed: true,
                 detectorOptions: {
-                    thresholdSigma: 1.8,
-                    localThresholdSigma: 1.8,
+                    thresholdSigma: 1.5,
+                    localThresholdSigma: 1.5,
                     requireGlobalThreshold: false,
                     maxRadiusPx: 5,
                     maxElongation: 4.0,
+                    suppressionRadiusPx: 10,
+                    crowdingRadiusPx: 36,
+                    maxCrowding: 7,
+                    crowdingScorePower: 1.25,
                 },
                 blindOptions: {
-                    maxDetections: 140,
-                    maxBlindVerifyDetections: 140,
+                    maxDetections: 320,
+                    maxBlindVerifyDetections: 220,
                     maxCatalogStars: 420,
                     maxCatalogTriangleStars: 360,
                     maxCatalogTriangles: 50000,
                     maxAmbiguityCatalogStars: 520,
-                    maxDetectionTriangleStars: 100,
-                    maxDetectionTriangles: 5200,
+                    maxDetectionTriangleStars: 180,
+                    maxDetectionTriangles: 14000,
                     preflattenModelCandidates: ["pinhole", "fisheye"],
                     preflattenF1Candidates: [0.55, 0.65, 0.75, 0.85, 0.95, 1.10],
-                    preflattenRadialAlphaCandidates: [0.20, 0.35, 0.55, 0.75, 0.95, 1.15],
+                    preflattenRadialAlphaCandidates: [0.15, 0.30, 0.45, 0.60, 0.75, 0.90, 0.98],
                     maxCatalogLocalNeighbors: 24,
                     maxBlindNeighborTriangles: 10,
                     blindEarlyAcceptMatches: 11,
@@ -2126,9 +2393,12 @@ end
 
     async function runStagedAutoIdentifyFromDetector() {
         const optmod = Number(controls.optmod.value) || 2;
-        const desiredNewPairings = optmod === BROWN_CONRADY_OPTMOD ?
-            Math.max(24, Math.min(36, requiredOptparLength(optmod) * 3)) :
-            Math.max(18, Math.min(22, Math.ceil(requiredOptparLength(optmod) * 2.5)));
+        const keepPairingMore = controls.keepAutoPairingMore && controls.keepAutoPairingMore.checked;
+        const desiredNewPairings = keepPairingMore ?
+            (optmod === BROWN_CONRADY_OPTMOD ? 80 : 70) :
+            optmod === BROWN_CONRADY_OPTMOD ?
+                Math.max(24, Math.min(36, requiredOptparLength(optmod) * 3)) :
+                Math.max(18, Math.min(22, Math.ceil(requiredOptparLength(optmod) * 2.5)));
         const stages = autoIdentifyButtonStages();
         let totalAdded = 0;
         let totalDetections = 0;
@@ -2148,7 +2418,7 @@ end
                 stageSummaries.push(`${stage.summaryLabel}: skipped because no blind seed was accepted`);
                 continue;
             }
-            const remaining = Math.max(0, desiredNewPairings - totalAdded);
+            const remaining = keepPairingMore ? Infinity : Math.max(0, desiredNewPairings - totalAdded);
             const pass = await runAutoIdentifyPass({
                 ...stage,
                 maxAdditions: remaining,
@@ -2191,17 +2461,23 @@ end
         state.autoIdentifyBusy = true;
         controls.autoIdentifyStars.disabled = true;
         controls.luckyFit.disabled = true;
+        const undoSnapshot = autoPairingUndoSnapshot("auto-identify");
         try {
+            const removedBadAreaMatches = removeAutomaticMatchesInBadStarFinderRegions();
             const result = await runStagedAutoIdentifyFromDetector();
+            if (result.totalAdded > 0 || removedBadAreaMatches > 0) {
+                rememberUndoState(undoSnapshot);
+            }
             const lastStatus = result.lastResult && result.lastResult.status ?
                 result.lastResult.status :
                 "auto-identify: no matches found";
             state.autoIdentificationStatus =
                 `auto-identify: added ${result.totalAdded} pairing${result.totalAdded === 1 ? "" : "s"} ` +
                 `in ${result.stagesRun} staged detector pass${result.stagesRun === 1 ? "" : "es"}; ` +
+                `removed ${removedBadAreaMatches} bad-area automatic match${removedBadAreaMatches === 1 ? "" : "es"}; ` +
                 `${result.stageSummaries.join("; ")}`;
             state.fitMessage = result.totalAdded > 0
-                ? `auto-identify: added ${result.totalAdded} star pairing${result.totalAdded === 1 ? "" : "s"}; inspect or fit next`
+                ? `auto-identify: added ${result.totalAdded} star pairing${result.totalAdded === 1 ? "" : "s"}; undo is available`
                 : lastStatus;
             playInteractionSound(result.totalAdded > 0 ? "fit" : "click");
             recomputeAndRender();
@@ -2808,14 +3084,32 @@ end
     }
 
     function drawAutoDetectionMarkers() {
-        if (!state.image || state.displayMode !== "pairing") {
+        if (!state.image || !state.showAutoDetectionMarkers ||
+                !(state.displayMode === "pairing" || state.displayMode === "pureImage")) {
             return;
         }
-        for (const detection of state.detectedStars) {
-            if (state.deletedDetectionIds.has(detection.id)) {
-                continue;
-            }
+        for (const detection of activeDetectedStars()) {
             addOverlayCircle(imageMarkerCanvasPixel(detection.x, detection.y), "detected-marker");
+        }
+    }
+
+    function drawBadStarFinderMarkers() {
+        if (!state.image || !(state.displayMode === "pairing" || state.displayMode === "pureImage")) {
+            return;
+        }
+        for (const region of state.junkStarFinderRegions) {
+            addOverlayRadiusCircle(region.x, region.y, region.radius, "junk-star-finder-region");
+        }
+        if (state.junkStarFinderPreview) {
+            addOverlayRadiusCircle(
+                state.junkStarFinderPreview.x,
+                state.junkStarFinderPreview.y,
+                state.junkStarFinderPreview.radius,
+                "junk-star-finder-preview"
+            );
+        }
+        for (const detection of state.badStarFinderDetections) {
+            addOverlayCircle(imageMarkerCanvasPixel(detection.x, detection.y), "bad-detected-marker");
         }
     }
 
@@ -2845,8 +3139,13 @@ end
         drawAzElGridLabels(optpar, optmod);
         drawRaDecGridLabels(optpar, optmod);
         if (state.displayMode === "pairing") {
+            drawAutoDetectionMarkers();
+            drawBadStarFinderMarkers();
             drawCatalogPairingMarkers();
             drawMatchMarkers(optpar, optmod);
+        } else if (state.displayMode === "pureImage") {
+            drawAutoDetectionMarkers();
+            drawBadStarFinderMarkers();
         } else {
             drawStarNameLabels();
         }
@@ -2877,6 +3176,8 @@ end
             if (state.displayMode === "pureImage") {
                 drawAzElGrid();
                 cardinalLayer.replaceChildren();
+                drawAutoDetectionMarkers();
+                drawBadStarFinderMarkers();
             } else if (state.displayMode === "pureStellarium") {
                 drawAzElGrid();
                 drawStars();
@@ -2927,10 +3228,12 @@ end
             `overlay flip x/y: ${state.flipX}/${state.flipY}\n` +
             `image flip x/y: ${state.imageFlipX}/${state.imageFlipY}\n` +
             `image masks: ${state.maskRegions.length}\n` +
+            `bad star finder detections: ${state.badStarFinderDetections.length} in ${state.junkStarFinderRegions.length} marked regions\n` +
             `RA/Dec grid: ${state.showRaDecGrid ? "on" : "off"}\n` +
             `az/el grid: ${state.showAzElGrid ? "on" : "off"}\n` +
             `display mode: ${state.displayMode}\n` +
             `star names: ${state.showStarNames ? "on" : "off"}\n` +
+            `keep auto-pairing more stars: ${controls.keepAutoPairingMore && controls.keepAutoPairingMore.checked ? "on" : "off"}\n` +
             `KDE sub-pixel dots: ${state.showKdePositionDots ? "on" : "off"}\n` +
             `fit residuals: ${state.showFitResiduals ? "on" : "off"}\n` +
             `star pairing armed: ${state.starMatchMode ? "on" : "off"}${state.pendingMatch ? " (select catalog star)" : ""}\n` +
@@ -2980,7 +3283,7 @@ end
             return "Pairing delete mode: click a matched image or catalog star to remove that star pairing.";
         }
         if (state.maskMode) {
-            return "Mask mode: click the image to black out a 100 px radius region and exclude it from starfinding.";
+            return "Bad star finder marking: hold M and click or drag over yellow detections. A 100 px radius circle records their pixel positions for training and hides them from auto-identify.";
         }
         if (state.zoomMode) {
             return "Zoom mode: move the mouse over the image to inspect a 100 x 100 raw-pixel region.";
@@ -2989,7 +3292,7 @@ end
             if (state.showKdePositionDots) {
                 return "KDE dot inspection: all other markings are hidden. Press k to return to the normal overlay.";
             }
-            return "Star pairing view: left-drag moves the 90 deg elevation point in x/y. Right-drag rotates the azimuth grid around that point. Wheel edits f1/f2 together. Press c for Stellarium view, x for pure image/Stellarium views, s to pick an image star, k for KDE sub-pixel dots, n to show/hide star names, d to delete a star pairing, m to mask image regions, or z to zoom.";
+            return "Star pairing view: left-drag moves the 90 deg elevation point in x/y. Right-drag rotates the azimuth grid around that point. Wheel edits f1/f2 together. Press c for Stellarium view, x for pure image/Stellarium views, s to pick an image star, h to show/hide detected stars, k for KDE sub-pixel dots, n to show/hide star names, d to delete a star pairing, hold m to mark bad yellow detections, or z to zoom.";
         }
         if (!state.pendingMatch) {
             return "Star pairing: hold s and click the image star. A KDE centroid fit will select the sub-pixel star position.";
@@ -3001,8 +3304,10 @@ end
         if (!state.image) {
             return "auto detections: no image";
         }
-        const active = state.detectedStars.length - state.deletedDetectionIds.size;
-        return `auto detections: ${active}/${state.detectedStars.length} active; ${state.detectorStatus}`;
+        const active = activeDetectedStars().length;
+        return `auto detections: ${active}/${state.detectedStars.length} active, ` +
+            `${state.badStarFinderDetections.length} marked bad, ` +
+            `${state.showAutoDetectionMarkers ? "shown" : "hidden"} with H; ${state.detectorStatus}`;
     }
 
     function fitResidualStatusText() {
@@ -3170,7 +3475,10 @@ end
         const maskKey = state.maskRegions
             .map(region => `${region.x},${region.y},${region.radius}`)
             .join(";");
-        return `${state.imageName}:${state.image.width}x${state.image.height}:r${starRadius}:m${maskKey}`;
+        const junkKey = state.junkStarFinderRegions
+            .map(region => `${region.x},${region.y},${region.radius}`)
+            .join(";");
+        return `${state.imageName}:${state.image.width}x${state.image.height}:r${starRadius}:m${maskKey}:j${junkKey}`;
     }
 
     function buildDetectorCandidateCache(starRadius) {
@@ -3179,7 +3487,7 @@ end
         const samples = [];
         for (let y = 4; y < height; y += 8) {
             for (let x = 4; x < width; x += 8) {
-                if (!isMaskedImagePixel(x, y)) {
+                if (!isMaskedImagePixel(x, y) && !isJunkStarFinderPixel(x, y)) {
                     samples.push(imageGrayAtIndex(x, y));
                 }
             }
@@ -3210,7 +3518,8 @@ end
 
         for (let y = 2; y < height - 2; y++) {
             for (let x = 2; x < width - 2; x++) {
-                if (isMaskedImagePixel(x, y, annulusOuter + 2)) {
+                if (isMaskedImagePixel(x, y, annulusOuter + 2) ||
+                        isJunkStarFinderPixel(x, y, annulusOuter + 2)) {
                     continue;
                 }
                 const value = imageGrayAtIndex(x, y);
@@ -3413,7 +3722,7 @@ end
         const result = await window.AidaStarDetector.detectBrightStars(state.imagePixels, {
             maxDetections,
             ...detectorOptions,
-            maskPredicate: (x, y) => isMaskedImagePixel(x, y),
+            maskPredicate: (x, y) => isMaskedImagePixel(x, y) || isJunkStarFinderPixel(x, y),
             onProgress: (percent, text) => setLoadingProgress(18 + 52 * percent / 100, text),
             yieldFn: async () => {
                 await yieldToBrowser();
@@ -4141,13 +4450,14 @@ end
 
     function nearestDetectedStar(event) {
         const imagePoint = eventToImagePixel(event);
-        if (!imagePoint || state.detectedStars.length === 0) {
+        const detections = activeDetectedStars();
+        if (!imagePoint || detections.length === 0) {
             return null;
         }
         let best = null;
         let bestD2 = Infinity;
-        for (const detection of state.detectedStars) {
-            if (state.deletedDetectionIds.has(detection.id) || isMatchedDetection(detection)) {
+        for (const detection of detections) {
+            if (isMatchedDetection(detection)) {
                 continue;
             }
             const dx = detection.x - imagePoint.x;
@@ -4305,21 +4615,78 @@ end
         return optmod === BROWN_CONRADY_OPTMOD ? 12 : 8;
     }
 
+    function radialAlphaBoundsForFit(optmod = Number(controls.optmod.value) || 2) {
+        if (optmod === 2) {
+            return {lo: 0.1, hi: 1.0, strict: true};
+        }
+        if (optmod === 12) {
+            return {lo: -2.5, hi: 2.5, strict: false};
+        }
+        if (optmod === BROWN_CONRADY_OPTMOD) {
+            return {lo: -5.0, hi: 5.0, strict: false};
+        }
+        return {lo: 0.05, hi: 2.5, strict: false};
+    }
+
+    function fitParameterBounds(optmod = Number(controls.optmod.value) || 2) {
+        const length = requiredOptparLength(optmod);
+        const bounds = Array.from({length}, () => ({lo: -Infinity, hi: Infinity, strict: false}));
+        bounds[0] = {lo: -10, hi: 10, minAbs: 0.05, strict: false};
+        bounds[1] = {lo: -10, hi: 10, minAbs: 0.05, strict: false};
+        bounds[2] = {lo: -90, hi: 90, strict: false};
+        bounds[3] = {lo: -90, hi: 90, strict: false};
+        bounds[4] = {lo: -720, hi: 720, strict: false};
+        bounds[5] = {lo: -0.5, hi: 0.5, strict: false};
+        bounds[6] = {lo: -0.5, hi: 0.5, strict: false};
+        bounds[7] = radialAlphaBoundsForFit(optmod);
+        if (optmod === BROWN_CONRADY_OPTMOD) {
+            bounds[8] = {lo: -5, hi: 5, strict: false};
+            bounds[9] = {lo: -5, hi: 5, strict: false};
+            bounds[10] = {lo: -1, hi: 1, strict: false};
+            bounds[11] = {lo: -1, hi: 1, strict: false};
+        }
+        return bounds;
+    }
+
+    function clampFitVectorToBounds(x, optmod = Number(controls.optmod.value) || 2) {
+        const bounds = fitParameterBounds(optmod);
+        const epsilon = 1e-9;
+        return x.slice(0, bounds.length).map((value, index) => {
+            const bound = bounds[index];
+            let clipped = value;
+            if (Number.isFinite(bound.lo) && clipped < bound.lo) {
+                clipped = bound.lo;
+            }
+            if (Number.isFinite(bound.hi) && clipped > bound.hi) {
+                clipped = bound.hi;
+            }
+            if (bound.strict && Number.isFinite(bound.lo) && clipped <= bound.lo) {
+                clipped = bound.lo + epsilon;
+            }
+            if (bound.strict && Number.isFinite(bound.hi) && clipped >= bound.hi) {
+                clipped = bound.hi - epsilon;
+            }
+            if (Number.isFinite(bound.minAbs) && Math.abs(clipped) < bound.minAbs) {
+                clipped = clipped < 0 ? -bound.minAbs : bound.minAbs;
+            }
+            return clipped;
+        });
+    }
+
     function fitPenalty(x, optmod = Number(controls.optmod.value) || 2) {
-        const radialPenalty = optmod === BROWN_CONRADY_OPTMOD
-            ? Math.abs(x[7]) > 5.0 || Math.abs(x[8] || 0) > 5.0 ||
-                Math.abs(x[9] || 0) > 5.0 || Math.abs(x[10] || 0) > 1.0 ||
-                Math.abs(x[11] || 0) > 1.0
-            : optmod === 12 ?
-                Math.abs(x[7]) > 2.5 :
-                x[7] < 0.05 || x[7] > 2.5;
-        if (x.length < requiredOptparLength(optmod) ||
-                Math.abs(x[0]) < 0.05 || Math.abs(x[0]) > 10 ||
-                Math.abs(x[1]) < 0.05 || Math.abs(x[1]) > 10 ||
-                Math.abs(x[2]) > 90 || Math.abs(x[3]) > 90 ||
-                Math.abs(x[4]) > 720 || Math.abs(x[5]) > 0.5 ||
-                Math.abs(x[6]) > 0.5 || radialPenalty) {
+        const bounds = fitParameterBounds(optmod);
+        if (x.length < bounds.length) {
             return 1e12;
+        }
+        for (let i = 0; i < bounds.length; i += 1) {
+            const value = x[i];
+            const bound = bounds[i];
+            if (!Number.isFinite(value) ||
+                    Number.isFinite(bound.minAbs) && Math.abs(value) < bound.minAbs ||
+                    bound.strict && (value <= bound.lo || value >= bound.hi) ||
+                    !bound.strict && (value < bound.lo || value > bound.hi)) {
+                return 1e12;
+            }
         }
         return 0;
     }
@@ -4429,8 +4796,9 @@ end
             if (!Number.isFinite(deltaDu) || !Number.isFinite(deltaDv)) {
                 break;
             }
-            centered[5] = Math.max(-0.5, Math.min(0.5, centered[5] + deltaDu));
-            centered[6] = Math.max(-0.5, Math.min(0.5, centered[6] + deltaDv));
+            centered[5] = centered[5] + deltaDu;
+            centered[6] = centered[6] + deltaDv;
+            centered = clampFitVectorToBounds(centered, Number(controls.optmod.value) || 2);
             if (fitPenalty(centered, Number(controls.optmod.value) || 2) > 0) {
                 centered = x.slice();
                 break;
@@ -4568,13 +4936,15 @@ end
         };
     }
 
-    function nelderMead(objective, start, steps, maxIter) {
-        const n = start.length;
-        let simplex = [{x: start.slice(), fx: objective(start)}];
+    function nelderMead(objective, start, steps, maxIter, optmod = Number(controls.optmod.value) || 2) {
+        const boundedStart = clampFitVectorToBounds(start, optmod);
+        const n = boundedStart.length;
+        let simplex = [{x: boundedStart.slice(), fx: objective(boundedStart)}];
         for (let i = 0; i < n; i++) {
-            const x = start.slice();
+            const x = boundedStart.slice();
             x[i] += steps[i];
-            simplex.push({x, fx: objective(x)});
+            const bounded = clampFitVectorToBounds(x, optmod);
+            simplex.push({x: bounded, fx: objective(bounded)});
         }
 
         const alpha = 1.0;
@@ -4599,23 +4969,35 @@ end
             }
 
             const worst = simplex[n].x;
-            const reflected = centroid.map((c, j) => c + alpha * (c - worst[j]));
+            const reflected = clampFitVectorToBounds(
+                centroid.map((c, j) => c + alpha * (c - worst[j])),
+                optmod
+            );
             const fr = objective(reflected);
 
             if (fr < simplex[0].fx) {
-                const expanded = centroid.map((c, j) => c + gamma * (reflected[j] - c));
+                const expanded = clampFitVectorToBounds(
+                    centroid.map((c, j) => c + gamma * (reflected[j] - c)),
+                    optmod
+                );
                 const fe = objective(expanded);
                 simplex[n] = fe < fr ? {x: expanded, fx: fe} : {x: reflected, fx: fr};
             } else if (fr < simplex[n - 1].fx) {
                 simplex[n] = {x: reflected, fx: fr};
             } else {
-                const contracted = centroid.map((c, j) => c + rho * (worst[j] - c));
+                const contracted = clampFitVectorToBounds(
+                    centroid.map((c, j) => c + rho * (worst[j] - c)),
+                    optmod
+                );
                 const fc = objective(contracted);
                 if (fc < simplex[n].fx) {
                     simplex[n] = {x: contracted, fx: fc};
                 } else {
                     for (let i = 1; i <= n; i++) {
-                        const x = simplex[0].x.map((v, j) => v + sigma * (simplex[i].x[j] - v));
+                        const x = clampFitVectorToBounds(
+                            simplex[0].x.map((v, j) => v + sigma * (simplex[i].x[j] - v)),
+                            optmod
+                        );
                         simplex[i] = {x, fx: objective(x)};
                     }
                 }
@@ -4629,17 +5011,18 @@ end
         const starts = [];
         const seen = new Set();
         const addStart = x => {
-            if (fitPenalty(x, optmod) > 0) {
+            const bounded = clampFitVectorToBounds(x, optmod);
+            if (fitPenalty(bounded, optmod) > 0) {
                 return;
             }
-            const key = x.map(value => value.toFixed(5)).join(",");
+            const key = bounded.map(value => value.toFixed(5)).join(",");
             if (seen.has(key)) {
                 return;
             }
             seen.add(key);
-            const fx = objective(x);
+            const fx = objective(bounded);
             if (Number.isFinite(fx)) {
-                starts.push({x: x.slice(), fx});
+                starts.push({x: bounded.slice(), fx});
             }
         };
 
@@ -4726,7 +5109,7 @@ end
         const diffSteps = optmod === BROWN_CONRADY_OPTMOD
             ? [1e-4, 1e-4, 1e-3, 1e-3, 1e-3, 1e-5, 1e-5, 1e-5, 1e-6, 1e-6, 1e-6, 1e-6]
             : [1e-4, 1e-4, 1e-3, 1e-3, 1e-3, 1e-5, 1e-5, 1e-4];
-        let x = start.slice();
+        let x = clampFitVectorToBounds(start, optmod);
         let residuals = residualFn(x);
         let fx = residualSumSquares(residuals);
         let lambda = 1e-3;
@@ -4773,7 +5156,7 @@ end
                     lambda *= 10;
                     continue;
                 }
-                const xCandidate = x.map((value, i) => value + step[i]);
+                const xCandidate = clampFitVectorToBounds(x.map((value, i) => value + step[i]), optmod);
                 if (fitPenalty(xCandidate, optmod) > 0) {
                     lambda *= 10;
                     continue;
@@ -4866,7 +5249,7 @@ end
         let result = null;
         let totalIterations = 0;
         for (const candidate of starts) {
-            const candidateResult = nelderMead(objective, candidate.x, steps, 800);
+            const candidateResult = nelderMead(objective, candidate.x, steps, 800, optmod);
             totalIterations += candidateResult.iterations;
             if (!result || candidateResult.fx < result.fx) {
                 result = candidateResult;
@@ -5073,6 +5456,7 @@ end
             minProjectedMatches: stage.minProjectedMatches || 4,
             blindOptions: stage.blindOptions,
             asterismOptions: stage.asterismOptions,
+            weakAsterismOptions: stage.weakAsterismOptions,
             projectedOptions: stage.projectedOptions,
             reuseExistingMatchesForTransform: true,
             maxAddDistancePx: stage.maxAddDistancePx,
@@ -5162,27 +5546,37 @@ end
         controls.fitLens.disabled = true;
         controls.fitLensLm.disabled = true;
         const optmod = Number(controls.optmod.value) || 2;
+        const undoSnapshot = autoPairingUndoSnapshot("I'm feeling lucky");
+        const removedBadAreaMatches = removeAutomaticMatchesInBadStarFinderRegions();
         const startingMatchCount = state.matches.length;
         const stages = [
             {
-                maxDetections: 50,
+                maxDetections: 80,
                 maxMagnitude: 4.0,
                 phase: "blind bright-star bootstrap",
                 seedFromBlind: true,
                 includeBlind: true,
                 includeAsterisms: true,
                 detectorOptions: {
-                    thresholdSigma: 2.2,
-                    localThresholdSigma: 2.2,
+                    thresholdSigma: 1.8,
+                    localThresholdSigma: 1.8,
                     requireGlobalThreshold: false,
                     maxRadiusPx: 5,
                     maxElongation: 4.0,
+                    suppressionRadiusPx: 10,
+                    crowdingRadiusPx: 36,
+                    maxCrowding: 7,
+                    crowdingScorePower: 1.25,
                 },
                 blindOptions: {
-                    maxDetections: 50,
+                    maxDetections: 80,
+                    maxBlindVerifyDetections: 80,
                     maxCatalogStars: 220,
                     maxCatalogTriangleStars: 220,
                     maxCatalogTriangles: 30000,
+                    preflattenModelCandidates: ["pinhole", "fisheye"],
+                    preflattenF1Candidates: [0.70, 0.85, 1.00],
+                    preflattenRadialAlphaCandidates: [0.30, 0.60, 0.90],
                     maxCatalogLocalNeighbors: 20,
                     maxBlindNeighborTriangles: 8,
                     blindEarlyAcceptMatches: 12,
@@ -5196,49 +5590,14 @@ end
                 },
                 maxAddDistancePx: 0.8,
                 maxMedianDistance: 0.42,
+                weakAsterismOptions: deepAsterismFallbackStages({
+                    summaryLabel: "lucky bright bootstrap",
+                }),
             },
             {
-                maxDetections: 100,
+                maxDetections: 160,
                 maxMagnitude: 4.0,
                 phase: "extended blind bright-star bootstrap",
-                seedFromBlind: true,
-                includeBlind: true,
-                includeAsterisms: true,
-                runOnlyWithoutSeed: true,
-                detectorOptions: {
-                    thresholdSigma: 2.2,
-                    localThresholdSigma: 2.2,
-                    requireGlobalThreshold: false,
-                    maxRadiusPx: 5,
-                    maxElongation: 4.0,
-                },
-                blindOptions: {
-                    maxDetections: 100,
-                    maxBlindVerifyDetections: 100,
-                    maxCatalogStars: 220,
-                    maxCatalogTriangleStars: 220,
-                    maxCatalogTriangles: 30000,
-                    maxDetectionTriangleStars: 80,
-                    maxDetectionTriangles: 2800,
-                    preflattenModelCandidates: ["pinhole", "fisheye"],
-                    maxCatalogLocalNeighbors: 20,
-                    maxBlindNeighborTriangles: 8,
-                    blindEarlyAcceptMatches: 12,
-                    maxBlindCandidateRotations: 12000,
-                    rejectAmbiguousBlindMatches: true,
-                    blindAmbiguityRadiusDeg: 1.0,
-                    blindAmbiguityDistanceSlackDeg: 0.35,
-                    blindPixelAmbiguityRadiusPx: 18,
-                    blindPixelAmbiguityDistanceSlackPx: 8,
-                    ambiguityMaxMagnitude: 6.0,
-                },
-                maxAddDistancePx: 0.8,
-                maxMedianDistance: 0.42,
-            },
-            {
-                maxDetections: 140,
-                maxMagnitude: 6.0,
-                phase: "phone deep blind bootstrap",
                 seedFromBlind: true,
                 includeBlind: true,
                 includeAsterisms: true,
@@ -5249,19 +5608,70 @@ end
                     requireGlobalThreshold: false,
                     maxRadiusPx: 5,
                     maxElongation: 4.0,
+                    suppressionRadiusPx: 10,
+                    crowdingRadiusPx: 36,
+                    maxCrowding: 7,
+                    crowdingScorePower: 1.25,
                 },
                 blindOptions: {
-                    maxDetections: 140,
+                    maxDetections: 160,
                     maxBlindVerifyDetections: 140,
+                    maxCatalogStars: 220,
+                    maxCatalogTriangleStars: 220,
+                    maxCatalogTriangles: 30000,
+                    maxDetectionTriangleStars: 120,
+                    maxDetectionTriangles: 6000,
+                    preflattenModelCandidates: ["pinhole", "fisheye"],
+                    preflattenF1Candidates: [0.70, 0.85, 1.00],
+                    preflattenRadialAlphaCandidates: [0.30, 0.60, 0.90],
+                    maxCatalogLocalNeighbors: 20,
+                    maxBlindNeighborTriangles: 8,
+                    blindEarlyAcceptMatches: 12,
+                    maxBlindCandidateRotations: 12000,
+                    rejectAmbiguousBlindMatches: true,
+                    blindAmbiguityRadiusDeg: 1.0,
+                    blindAmbiguityDistanceSlackDeg: 0.35,
+                    blindPixelAmbiguityRadiusPx: 18,
+                    blindPixelAmbiguityDistanceSlackPx: 8,
+                    ambiguityMaxMagnitude: 6.0,
+                },
+                maxAddDistancePx: 0.8,
+                maxMedianDistance: 0.42,
+                weakAsterismOptions: deepAsterismFallbackStages({
+                    summaryLabel: "lucky extended bootstrap",
+                }),
+            },
+            {
+                maxDetections: 320,
+                maxMagnitude: 6.0,
+                phase: "phone deep blind bootstrap",
+                seedFromBlind: true,
+                includeBlind: true,
+                includeAsterisms: true,
+                runOnlyWithoutSeed: true,
+                detectorOptions: {
+                    thresholdSigma: 1.5,
+                    localThresholdSigma: 1.5,
+                    requireGlobalThreshold: false,
+                    maxRadiusPx: 5,
+                    maxElongation: 4.0,
+                    suppressionRadiusPx: 10,
+                    crowdingRadiusPx: 36,
+                    maxCrowding: 7,
+                    crowdingScorePower: 1.25,
+                },
+                blindOptions: {
+                    maxDetections: 320,
+                    maxBlindVerifyDetections: 220,
                     maxCatalogStars: 420,
                     maxCatalogTriangleStars: 360,
                     maxCatalogTriangles: 50000,
                     maxAmbiguityCatalogStars: 520,
-                    maxDetectionTriangleStars: 100,
-                    maxDetectionTriangles: 5200,
+                    maxDetectionTriangleStars: 180,
+                    maxDetectionTriangles: 14000,
                     preflattenModelCandidates: ["pinhole", "fisheye"],
                     preflattenF1Candidates: [0.55, 0.65, 0.75, 0.85, 0.95, 1.10],
-                    preflattenRadialAlphaCandidates: [0.20, 0.35, 0.55, 0.75, 0.95, 1.15],
+                    preflattenRadialAlphaCandidates: [0.15, 0.30, 0.45, 0.60, 0.75, 0.90, 0.98],
                     maxCatalogLocalNeighbors: 24,
                     maxBlindNeighborTriangles: 10,
                     blindEarlyAcceptMatches: 11,
@@ -5384,9 +5794,6 @@ end
                         acceptedFits += refit.accepted;
                     }
                 }
-                if (fitResult.skipped && i === 0 && pass.added === 0) {
-                    break;
-                }
                 const rmsAfterStage = currentFitRmsPx();
                 const improved = Number.isFinite(rmsBeforeStage) && Number.isFinite(rmsAfterStage) ?
                     rmsBeforeStage - rmsAfterStage > 0.15 :
@@ -5397,6 +5804,9 @@ end
             }
             const fitCount = fittingMatches().length;
             const rms = currentFitRmsPx();
+            if (totalAdded > 0 || totalPruned > 0 || removedBadAreaMatches > 0 || acceptedFits > 0) {
+                rememberUndoState(undoSnapshot);
+            }
             const modelName = optmod === BROWN_CONRADY_OPTMOD ? "Brown-Conrady" : `optmod ${optmod}`;
             const summary = Number.isFinite(rms)
                 ? `final RMS ${rms.toFixed(2)} px using ${fitCount}/${state.matches.length} pairs`
@@ -5404,12 +5814,13 @@ end
             state.autoIdentificationStatus =
                 `I'm feeling lucky: added ${totalAdded} pairings in ${stagesRun} staged bootstrap/refinement passes; ` +
                 `${seeded ? "seeded from blind asterisms" : "no blind seed"}; ` +
+                `removed ${removedBadAreaMatches} bad-area automatic match${removedBadAreaMatches === 1 ? "" : "es"}; ` +
                 `pruned ${totalPruned} automatic outlier${totalPruned === 1 ? "" : "s"}; ${acceptedFits} accepted fits`;
             state.fitMessage =
                 `I'm feeling lucky: ${modelName}, ${summary}; ` +
                 `${totalAdded} new pairings (${startingMatchCount} -> ${state.matches.length}), ` +
                 `${totalPruned} pruned, ` +
-                `${acceptedFits} accepted fit step${acceptedFits === 1 ? "" : "s"}`;
+                `${acceptedFits} accepted fit step${acceptedFits === 1 ? "" : "s"}; undo is available`;
             playInteractionSound(acceptedFits > 0 ? "fit" : "click");
             recomputeAndRender();
         } catch (error) {
@@ -5423,6 +5834,30 @@ end
             controls.fitLensLm.disabled = false;
             state.luckyFitBusy = false;
         }
+    }
+
+    function isAutomaticStarFinderMatch(match) {
+        const method = String(match && match.image && match.image.method || "");
+        return /auto star finder|lucky auto/i.test(method);
+    }
+
+    function removeAutomaticMatchesInBadStarFinderRegions() {
+        if (!state.junkStarFinderRegions.length || !state.matches.length) {
+            return 0;
+        }
+        const before = state.matches.length;
+        state.matches = state.matches.filter(match =>
+            !isAutomaticStarFinderMatch(match) ||
+            !isJunkStarFinderPixel(match.image.x, match.image.y)
+        );
+        if (state.matches.length !== before) {
+            state.matches.forEach((match, index) => {
+                match.id = index + 1;
+            });
+            state.lastFitVector = null;
+            updateAutoMatches();
+        }
+        return before - state.matches.length;
     }
 
     function clearIdentifiedStars() {
@@ -5496,6 +5931,11 @@ end
         state.maskMode = false;
         state.zoomMode = false;
         state.maskRegions = [];
+        state.junkStarFinderRegions = [];
+        state.badStarFinderDetections = [];
+        state.junkStarFinderPreview = null;
+        state.junkStarFinderPaintActive = false;
+        state.lastJunkStarFinderPoint = null;
         state.detectedStars = [];
         state.deletedDetectionIds = new Set();
         state.autoMatches = [];
@@ -5593,6 +6033,11 @@ end
                 state.image = img;
                 state.imageName = name;
                 state.maskRegions = [];
+                state.junkStarFinderRegions = [];
+                state.badStarFinderDetections = [];
+                state.junkStarFinderPreview = null;
+                state.junkStarFinderPaintActive = false;
+                state.lastJunkStarFinderPoint = null;
                 hideZoomCanvas();
                 const imageCanvas = document.createElement("canvas");
                 imageCanvas.width = img.width;
@@ -6328,16 +6773,64 @@ end
         render();
     }
 
-    function handleMaskClick(event) {
+    function badStarFinderDetectionExists(detection) {
+        return state.badStarFinderDetections.some(existing =>
+            Math.hypot(existing.x - detection.x, existing.y - detection.y) <= 1.5
+        );
+    }
+
+    function markBadStarFinderRegion(rawX, rawY, radius = 100) {
+        if (!state.image) {
+            return {added: 0, region: null};
+        }
+        const cx = Math.round(rawX);
+        const cy = Math.round(rawY);
+        const r = Math.round(radius);
+        const r2 = r * r;
+        const region = {x: cx, y: cy, radius: r, detectionCount: 0};
+        let added = 0;
+        for (const detection of activeDetectedStars()) {
+            const dx = detection.x - cx;
+            const dy = detection.y - cy;
+            if (dx * dx + dy * dy > r2 || badStarFinderDetectionExists(detection)) {
+                continue;
+            }
+            state.badStarFinderDetections.push({
+                id: state.badStarFinderDetections.length + 1,
+                x: detection.x,
+                y: detection.y,
+                sourceDetectionId: detection.id || null,
+                markedBy: {x: cx, y: cy, radius: r},
+            });
+            added += 1;
+        }
+        region.detectionCount = added;
+        state.junkStarFinderRegions.push(region);
+        state.junkStarFinderPreview = {x: cx, y: cy, radius: r};
+        updateAutoMatches();
+        return {added, region};
+    }
+
+    function handleBadStarFinderPaint(event) {
         const imagePoint = eventToImagePixel(event);
         if (!imagePoint) {
             return;
         }
-        if (maskImageRegion(imagePoint.x, imagePoint.y, 100)) {
-            state.fitMessage = `masked 100 px radius at raw image pixel ${imagePoint.x.toFixed(1)}, ` +
-                `${imagePoint.y.toFixed(1)}`;
-            render();
+        const radius = 100;
+        if (state.lastJunkStarFinderPoint) {
+            const dx = imagePoint.x - state.lastJunkStarFinderPoint.x;
+            const dy = imagePoint.y - state.lastJunkStarFinderPoint.y;
+            if (dx * dx + dy * dy < (radius * 0.35) * (radius * 0.35)) {
+                state.junkStarFinderPreview = {x: imagePoint.x, y: imagePoint.y, radius};
+                render();
+                return;
+            }
         }
+        const result = markBadStarFinderRegion(imagePoint.x, imagePoint.y, radius);
+        state.lastJunkStarFinderPoint = {x: imagePoint.x, y: imagePoint.y};
+        state.fitMessage = `marked ${result.added} bad star finder detection${result.added === 1 ? "" : "s"} ` +
+            `within 100 px of raw image pixel ${imagePoint.x.toFixed(1)}, ${imagePoint.y.toFixed(1)}`;
+        render();
     }
 
     function focusImageWindow() {
@@ -6486,8 +6979,11 @@ end
         focusImageWindow();
         if (state.maskMode && event.button === 0) {
             event.preventDefault();
-            handleMaskClick(event);
+            state.junkStarFinderPaintActive = true;
+            state.lastJunkStarFinderPoint = null;
+            handleBadStarFinderPaint(event);
             playInteractionSound("delete");
+            canvas.setPointerCapture(event.pointerId);
             return;
         }
         if (state.deleteDetectionMode && event.button === 0) {
@@ -6514,6 +7010,16 @@ end
         canvas.setPointerCapture(event.pointerId);
     });
     canvas.addEventListener("pointermove", event => {
+        if (state.maskMode) {
+            const imagePoint = eventToImagePixel(event);
+            state.junkStarFinderPreview = imagePoint ? {x: imagePoint.x, y: imagePoint.y, radius: 100} : null;
+            if (state.junkStarFinderPaintActive) {
+                event.preventDefault();
+                handleBadStarFinderPaint(event);
+                return;
+            }
+            render();
+        }
         if (state.zoomMode || state.starMatchMode) {
             updateZoomCanvas(event);
         }
@@ -6553,15 +7059,23 @@ end
         state.lastMouse = [event.clientX, event.clientY];
     });
     canvas.addEventListener("pointerup", event => {
+        state.junkStarFinderPaintActive = false;
+        state.lastJunkStarFinderPoint = null;
         state.dragging = false;
         state.lensDragMode = "none";
-        canvas.releasePointerCapture(event.pointerId);
+        if (canvas.hasPointerCapture(event.pointerId)) {
+            canvas.releasePointerCapture(event.pointerId);
+        }
     });
     canvas.addEventListener("contextmenu", event => {
         event.preventDefault();
     });
     canvas.addEventListener("pointerleave", () => {
         hideZoomCanvas();
+        if (!state.junkStarFinderPaintActive) {
+            state.junkStarFinderPreview = null;
+            render();
+        }
     });
     canvas.addEventListener("wheel", event => {
         event.preventDefault();
@@ -6610,6 +7124,9 @@ end
             state.deleteDetectionMode = false;
             state.starMatchMode = false;
             state.zoomMode = false;
+            state.junkStarFinderPreview = null;
+            state.junkStarFinderPaintActive = false;
+            state.lastJunkStarFinderPoint = null;
             hideZoomCanvas();
             state.pendingMatch = null;
             playInteractionSound("mode");
@@ -6634,6 +7151,11 @@ end
             event.preventDefault();
             toggleStarNames();
             playInteractionSound("mode");
+        } else if ((event.key === "h" || event.key === "H") && !event.repeat) {
+            event.preventDefault();
+            state.showAutoDetectionMarkers = !state.showAutoDetectionMarkers;
+            playInteractionSound("mode");
+            render();
         } else if ((event.key === "k" || event.key === "K") && !event.repeat) {
             event.preventDefault();
             state.showKdePositionDots = !state.showKdePositionDots;
@@ -6694,6 +7216,9 @@ end
         } else if (event.key === "m" || event.key === "M") {
             event.preventDefault();
             state.maskMode = false;
+            state.junkStarFinderPreview = null;
+            state.junkStarFinderPaintActive = false;
+            state.lastJunkStarFinderPoint = null;
             render();
         } else if (event.key === "z" || event.key === "Z") {
             event.preventDefault();

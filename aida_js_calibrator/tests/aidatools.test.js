@@ -5,6 +5,12 @@ const path = require("node:path");
 const test = require("node:test");
 const vm = require("node:vm");
 
+const RUN_FULL_TESTS = process.env.AIDA_FULL_TESTS === "1";
+
+function fullTest(name, fn) {
+    test(name, {skip: !RUN_FULL_TESTS, timeout: 1000}, fn);
+}
+
 function loadAidaTools() {
     const source = fs.readFileSync(path.join(__dirname, "..", "js", "aidatools.js"), "utf8");
     const context = {
@@ -395,7 +401,7 @@ test("visibleStars filters by magnitude and zenith angle", () => {
     assert.equal(Array.from(stars, (star) => star.name).join(","), "bright");
 });
 
-test("cameraModel matches Python and MATLAB parametric optmod reference coordinates", () => {
+fullTest("cameraModel matches Python and MATLAB parametric optmod reference coordinates", () => {
     const cases = [
         {
             optmod: 1,

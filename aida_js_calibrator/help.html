@@ -33,6 +33,13 @@
         margin: 0 0 12px;
     }
 
+    .copyright-line {
+        margin: 0 0 18px;
+        color: #4b5563;
+        font-size: 13px;
+        font-weight: 650;
+    }
+
     ol,
     ul {
         padding-left: 24px;
@@ -96,9 +103,20 @@
 <body>
 <main>
     <h1>AIDA browser star calibration workflow</h1>
+    <p class="copyright-line">
+        Copyright &copy; Juha Vierinen, Bj&ouml;rn Gustavsson, and Codex.
+    </p>
     <p>
         This page is a compact checklist for using the browser calibrator to
         identify stars, fit the AIDA optical parameters, and export the result.
+    </p>
+    <p>
+        The automatic workflow is intended for wide-field cameras, roughly
+        above 30 degrees field of view, looking at catalog stars brighter than
+        magnitude 7. Some effort has been made to keep the fitting robust in
+        real scenes with aurora, buildings, bad star detections, and nonlinear
+        lens effects, but the solver still needs enough visible star structure
+        to anchor the calibration.
     </p>
 
     <h2>Basic workflow</h2>
@@ -205,13 +223,15 @@
         <li><kbd>K</kbd>: show or hide tiny KDE subpixel dots at the picked image-star positions.</li>
         <li><kbd>A</kbd>: show or hide the az/el grid.</li>
         <li>Auto identify stars button: run the opt-in staged bright-star finder and Yale-catalog matcher, adding pairings without fitting.</li>
-        <li><kbd>L</kbd>: run <em>I'm feeling lucky...</em>, which automatically detects, identifies, seeds, and iteratively fits the selected model.</li>
+        <li>Keep automatically pairing more stars: lets Auto identify continue past the normal fit-ready pairing count to add a larger set of automatic star pairs.</li>
+        <li><kbd>L</kbd>: run <em>I'm feeling lucky...</em>, which automatically detects, identifies, seeds, and iteratively fits the selected model. Running it again respects marked bad star finder positions.</li>
         <li><kbd>F</kbd>: fit the selected model parameters with robust Nelder-Mead.</li>
         <li><kbd>G</kbd>: fit the selected model parameters with Levenberg-Marquardt.</li>
-        <li><kbd>Cmd/Ctrl Z</kbd>: undo the most recent accepted fit.</li>
+        <li><kbd>Cmd/Ctrl Z</kbd>: undo the most recent accepted fit or automatic pairing batch.</li>
         <li><kbd>D</kbd> + click: delete the nearest matched star pairing.</li>
+        <li><kbd>M</kbd> + click or drag: paint a 100 px radius circle over bad yellow star finder detections. Their raw pixel positions are saved in test-case metadata and ignored by later automatic searches.</li>
         <li><kbd>R</kbd>: show or hide residual view.</li>
-        <li>Submit as test case button: save the current image metadata, <code>[optmod, ...optpar]</code>, residuals, and manual or automatic pairings into <code>aida_js_calibrator/test_cases/</code> when using the local server.</li>
+        <li>Submit as test case button: save the current image metadata, <code>[optmod, ...optpar]</code>, residuals, manual or automatic pairings, and bad star finder detection positions into <code>aida_js_calibrator/test_cases/</code> when using the local server.</li>
         <li><kbd>Esc</kbd>: cancel the current star selection or close the density popup.</li>
         <li>Left mouse drag: move the field of view by shifting the 90 degree elevation point.</li>
         <li>Right mouse drag: rotate the field of view around the 90 degree elevation point.</li>
@@ -253,10 +273,10 @@
         than simply the largest absolute residual.
     </p>
     <p>
-        Accepted fits are stored in an undo stack. Use the Undo fit button or
-        <kbd>Cmd/Ctrl Z</kbd> to restore the parameters from before the latest
-        accepted fit. Loading a new image or removing all star pairings clears
-        the fit undo history.
+        Accepted fits and automatic pairing batches are stored in an undo stack.
+        Use the Undo button or <kbd>Cmd/Ctrl Z</kbd> to restore the state from
+        before the latest accepted fit or automatic pairing run. Loading a new
+        image or removing all star pairings clears the undo history.
     </p>
 
     <h2>Lens models</h2>

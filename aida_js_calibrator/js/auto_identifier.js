@@ -964,7 +964,7 @@
         ];
         const evaluate = (f1, radialAlpha, du, dv, seedRot) => {
             const model = best.preflattenModel === "pinhole" ? "pinhole" : "fisheye";
-            if (!(f1 > 0.35 && f1 < 1.25 && (model === "pinhole" || (radialAlpha > 0.45 && radialAlpha < 1.25)) &&
+            if (!(f1 > 0.35 && f1 < 1.25 && (model === "pinhole" || (radialAlpha > 0.1 && radialAlpha < 1.0)) &&
                     Math.abs(du) < 0.16 && Math.abs(dv) < 0.16)) {
                 return null;
             }
@@ -1397,9 +1397,14 @@
             };
         }
 
+        const exhaustiveCatalogTriangles = options.exhaustiveCatalogTriangles === true;
         const catalogTriangles = triangleRecords(catalog, {
-            maxTriangles: Number.isFinite(options.maxCatalogTriangles) ? options.maxCatalogTriangles : 9000,
-            maxTrianglePoints: Number.isFinite(options.maxCatalogTriangleStars) ? options.maxCatalogTriangleStars : 80,
+            maxTriangles: exhaustiveCatalogTriangles ?
+                Number.POSITIVE_INFINITY :
+                Number.isFinite(options.maxCatalogTriangles) ? options.maxCatalogTriangles : 9000,
+            maxTrianglePoints: exhaustiveCatalogTriangles ?
+                catalog.length :
+                Number.isFinite(options.maxCatalogTriangleStars) ? options.maxCatalogTriangleStars : 80,
         });
         const detectionTriangles = triangleRecords(normalizedDetections, {
             maxTriangles: Number.isFinite(options.maxDetectionTriangles) ? options.maxDetectionTriangles : 1400,
@@ -1559,9 +1564,9 @@
         }
 
         const f1Candidates = Array.isArray(options.preflattenF1Candidates) ?
-            options.preflattenF1Candidates : [0.80, 0.70, 0.90, 1.00, 0.60];
+            options.preflattenF1Candidates : [0.70, 0.85, 1.00];
         const radialCandidates = Array.isArray(options.preflattenRadialAlphaCandidates) ?
-            options.preflattenRadialAlphaCandidates : [0.90, 0.75, 1.05, 0.60];
+            options.preflattenRadialAlphaCandidates : [0.30, 0.60, 0.90];
         const fixedDu = Number.isFinite(options.preflattenDu) ? options.preflattenDu : 0;
         const fixedDv = Number.isFinite(options.preflattenDv) ? options.preflattenDv : 0;
         const duCandidates = [fixedDu];
@@ -1570,7 +1575,7 @@
             options.preflattenSignCandidates : [[1, 1], [-1, -1]];
         const modelCandidates = Array.isArray(options.preflattenModelCandidates) ?
             options.preflattenModelCandidates :
-            ["fisheye"];
+            ["pinhole", "fisheye"];
         const signatureRadius = Number.isFinite(options.blindTriangleSignatureRadius) ?
             options.blindTriangleSignatureRadius : 0.018;
         const maxNeighborTriangles = Number.isFinite(options.maxBlindNeighborTriangles) ?
