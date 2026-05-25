@@ -1,7 +1,9 @@
 (function () {
     "use strict";
 
-    const APP_VERSION = "v0.2.0";
+    const APP_VERSION = "v0.2.1";
+    const LOCAL_TEST_HOSTS = new Set(["localhost", "127.0.0.1", "::1"]);
+    const LOCAL_TEST_CASES_ENABLED = location.protocol === "file:" || LOCAL_TEST_HOSTS.has(location.hostname);
     const canvas = document.getElementById("glCanvas");
     const rotationCanvas = document.getElementById("rotationCanvas");
     const rotationContext = rotationCanvas.getContext("2d");
@@ -76,6 +78,7 @@
         exportLanguage: document.getElementById("exportLanguage"),
         copyOptpar: document.getElementById("copyOptpar"),
         copyPythonMapper: document.getElementById("copyPythonMapper"),
+        localTestCaseTools: document.getElementById("localTestCaseTools"),
         submitTestCase: document.getElementById("submitTestCase"),
         saveFeedback: document.getElementById("saveFeedback"),
         testCaseSelect: document.getElementById("testCaseSelect"),
@@ -1073,6 +1076,9 @@
     }
 
     async function submitCurrentTestCase() {
+        if (!LOCAL_TEST_CASES_ENABLED) {
+            return;
+        }
         if (!state.image || !state.imagePixels) {
             state.fitMessage = "submit test case: load an image with readable pixels first";
             render();
@@ -1117,7 +1123,7 @@
     }
 
     async function refreshTestCaseList(selectId = "") {
-        if (!controls.testCaseSelect) {
+        if (!LOCAL_TEST_CASES_ENABLED || !controls.testCaseSelect) {
             return;
         }
         try {
@@ -1235,6 +1241,9 @@
     }
 
     async function loadSelectedTestCase() {
+        if (!LOCAL_TEST_CASES_ENABLED) {
+            return;
+        }
         const id = controls.testCaseSelect && controls.testCaseSelect.value;
         if (!id) {
             setSaveFeedback("Select a saved test case first.", true);
@@ -5845,8 +5854,12 @@ end
         controls.luckyFit.disabled = false;
         controls.fitLens.disabled = false;
         controls.fitLensLm.disabled = false;
-        controls.submitTestCase.disabled = false;
-        controls.loadTestCase.disabled = false;
+        if (controls.submitTestCase) {
+            controls.submitTestCase.disabled = false;
+        }
+        if (controls.loadTestCase) {
+            controls.loadTestCase.disabled = false;
+        }
         controls.highPassImage.checked = true;
         controls.highPassWidth.value = "100";
         controls.maxMag.value = "4";
@@ -6970,14 +6983,21 @@ end
         const language = selectedExportLanguage();
         copyTextToClipboard(exportFunctionText(language), `${language} mapper code`);
     });
-    controls.submitTestCase.addEventListener("click", () => {
-        playInteractionSound("click");
-        submitCurrentTestCase();
-    });
-    controls.loadTestCase.addEventListener("click", () => {
-        playInteractionSound("click");
-        loadSelectedTestCase();
-    });
+    if (controls.localTestCaseTools) {
+        controls.localTestCaseTools.hidden = !LOCAL_TEST_CASES_ENABLED;
+    }
+    if (LOCAL_TEST_CASES_ENABLED && controls.submitTestCase) {
+        controls.submitTestCase.addEventListener("click", () => {
+            playInteractionSound("click");
+            submitCurrentTestCase();
+        });
+    }
+    if (LOCAL_TEST_CASES_ENABLED && controls.loadTestCase) {
+        controls.loadTestCase.addEventListener("click", () => {
+            playInteractionSound("click");
+            loadSelectedTestCase();
+        });
+    }
     controls.clearMatches.addEventListener("click", () => {
         playInteractionSound("delete");
         clearIdentifiedStars();

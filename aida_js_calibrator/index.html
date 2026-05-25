@@ -201,14 +201,16 @@
                 <button id="copyOptpar" type="button">Copy optpar</button>
                 <button id="copyPythonMapper" type="button">Copy mapper code</button>
             </div>
-            <button id="submitTestCase" type="button">Submit as test case</button>
-            <div id="saveFeedback" class="save-feedback" aria-live="polite" hidden></div>
-            <label>Load test case
-                <select id="testCaseSelect">
-                    <option value="">Select saved test case...</option>
-                </select>
-            </label>
-            <button id="loadTestCase" type="button">Load selected test case</button>
+            <div id="localTestCaseTools" hidden>
+                <button id="submitTestCase" type="button">Submit as test case</button>
+                <div id="saveFeedback" class="save-feedback" aria-live="polite" hidden></div>
+                <label>Load test case
+                    <select id="testCaseSelect">
+                        <option value="">Select saved test case...</option>
+                    </select>
+                </label>
+                <button id="loadTestCase" type="button">Load selected test case</button>
+            </div>
             <button id="toggleFitResiduals" type="button">Show fit residual view (R)</button>
             <button id="clearMatches" type="button">Remove star pairings</button>
         </section>
@@ -239,6 +241,6 @@ window.MathJax = {
 <script src="js/export_generators.js?v=20260524b"></script>
 <script src="js/star_detector.js?v=20260525b"></script>
 <script src="js/auto_identifier.js?v=20260525c"></script>
-<script src="js/app.js?v=0.2.0"></script>
+<script src="js/app.js?v=0.2.1"></script>
 </body>
 </html>
